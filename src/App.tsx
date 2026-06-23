@@ -12,7 +12,8 @@ import { defaultRng } from './domain/combat/rng';
 import { nextDirectionToTarget } from './domain/maze/solver';
 import { activeUnopenedChests, openChestAtActivePosition } from './domain/items/chests';
 import { buyFromVendor, enterTown, leaveTown, useInn } from './domain/town/town';
-import { autoEquipBestGear, equipItem, getEffectiveActor, sellItem, unequipItem, useConsumable } from './domain/items/inventory';
+import { autoEquipBestGear, equipItem, getEffectiveActor, sellItem, sellJunkItems, stashItem, unequipItem, useConsumable, withdrawStashItem } from './domain/items/inventory';
+import { acceptGuildContract, claimGuildQuestReward } from './domain/quests/quests';
 import { deleteSave, getGame, listSaves, saveGame } from './persistence/saveRepository';
 import { importLegacyLocalStorageSaves } from './persistence/legacyLocalStorage';
 import { AUTO_MAZE_MIN_MS, WAVE_RESTART_MIN_MS } from './domain/automation/throttle';
@@ -364,6 +365,28 @@ export function App() {
     void persistAuto(buyFromVendor(game, vendor, baseId));
   };
 
+  const acceptQuest = (contractId: string) => {
+    if (!game) {
+      return;
+    }
+
+    const next = acceptGuildContract(game, contractId);
+    if (next !== game) {
+      void persistAuto(next);
+    }
+  };
+
+  const claimQuest = (questId: string) => {
+    if (!game) {
+      return;
+    }
+
+    const next = claimGuildQuestReward(game, questId);
+    if (next !== game) {
+      void persistAuto(next);
+    }
+  };
+
   const equipInventoryItem = (actorId: string, itemId: string) => {
     if (!game) {
       return;
@@ -394,6 +417,39 @@ export function App() {
     }
 
     void persistAuto(sellItem(game, itemId));
+  };
+
+  const sellJunk = () => {
+    if (!game) {
+      return;
+    }
+
+    const next = sellJunkItems(game);
+    if (next !== game) {
+      void persistAuto(next);
+    }
+  };
+
+  const stashInventoryItem = (itemId: string) => {
+    if (!game) {
+      return;
+    }
+
+    const next = stashItem(game, itemId);
+    if (next !== game) {
+      void persistAuto(next);
+    }
+  };
+
+  const withdrawStash = (itemId: string) => {
+    if (!game) {
+      return;
+    }
+
+    const next = withdrawStashItem(game, itemId);
+    if (next !== game) {
+      void persistAuto(next);
+    }
   };
 
   const autoEquipInventory = () => {
@@ -445,7 +501,18 @@ export function App() {
           onSaves={() => setDialog('saves')}
         />
       ) : game.mode === 'town' ? (
-        <TownScreen game={game} onLeave={exitTown} onRest={restAtInn} onBuy={buyItem} onCharacters={() => setDialog('characters')} onSaves={() => setDialog('saves')} />
+        <TownScreen
+          game={game}
+          onLeave={exitTown}
+          onRest={restAtInn}
+          onBuy={buyItem}
+          onAcceptQuest={acceptQuest}
+          onClaimQuest={claimQuest}
+          onSellJunk={sellJunk}
+          onWithdrawStash={withdrawStash}
+          onCharacters={() => setDialog('characters')}
+          onSaves={() => setDialog('saves')}
+        />
       ) : (
         <ExploreScreen
           game={game}
@@ -478,7 +545,9 @@ export function App() {
           onUseItem={useInventoryItem}
           onAutoEquip={autoEquipInventory}
           onSellItem={sellInventoryItem}
+          onStashItem={stashInventoryItem}
           canSellItems={game.mode === 'town'}
+          canStashItems={game.mode === 'town'}
           onClose={() => setDialog(undefined)}
         />
       ) : null}

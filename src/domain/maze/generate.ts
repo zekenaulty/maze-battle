@@ -2,6 +2,7 @@ import type { Direction, GridPosition, MazeCellState, MazeState } from '../types
 import { defaultRng, sample, type Rng } from '../combat/rng';
 import { cellKey } from './key';
 import { movePosition, opposite } from './movement';
+import { revealMazeVisibility } from './visibility';
 
 const DIRECTIONS: Direction[] = ['north', 'east', 'south', 'west'];
 
@@ -30,7 +31,7 @@ export function generateMaze(rows: number, columns: number, rng: Rng = defaultRn
     stack.push(next.position);
   }
 
-  return {
+  return revealMazeVisibility({
     rows,
     columns,
     start,
@@ -38,7 +39,7 @@ export function generateMaze(rows: number, columns: number, rng: Rng = defaultRn
     active: start,
     visited: [start],
     cells,
-  };
+  });
 }
 
 function createCells(rows: number, columns: number): MazeCellState[] {

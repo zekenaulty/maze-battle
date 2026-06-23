@@ -1,4 +1,4 @@
-import type { ActorState, EquipmentSlot, GameState, InventoryState, ItemInstance, ItemStats } from '../types';
+import type { ActorState, EquipmentSlot, GameState, InventoryState, ItemInstance, ItemStats, StashState } from '../types';
 import { findBaseItem, itemSummary } from './catalog';
 import { getItemGearScore } from './gearScore';
 import { addItemStats, getItemTotalStats } from './itemDetails';
@@ -8,11 +8,23 @@ const STARTING_GOLD = 35;
 const STARTER_ITEMS = ['health-herb', 'mana-vial', 'town-portal'];
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ['weapon', 'offhand', 'head', 'body', 'hands', 'feet', 'ring', 'amulet'];
 
+interface ItemContainer {
+  capacity: number;
+  items: ItemInstance[];
+}
+
 export function createInitialInventory(): InventoryState {
   return {
     capacity: 36,
     gold: STARTING_GOLD,
     items: STARTER_ITEMS.map((baseId) => createItemInstance(baseId, 1, 'common', () => 0.5)),
+  };
+}
+
+export function createInitialStash(): StashState {
+  return {
+    capacity: 96,
+    items: [],
   };
 }
 
@@ -25,6 +37,13 @@ export function normalizeInventory(inventory: Partial<InventoryState> | undefine
     capacity: inventory.capacity ?? 36,
     gold: inventory.gold ?? STARTING_GOLD,
     items: stackInventoryItems(inventory.items ?? [], inventory.capacity ?? 36),
+  };
+}
+
+export function normalizeStash(stash: Partial<StashState> | undefined): StashState {
+  return {
+    capacity: stash?.capacity ?? 96,
+    items: stackInventoryItems(stash?.items ?? [], stash?.capacity ?? 96),
   };
 }
 
@@ -200,8 +219,88 @@ export function sellItem(game: GameState, itemId: string): GameState {
   );
 }
 
+export function sellJunkItems(game: GameState): GameState {
+  if (game.mode !== 'town') {
+    return game;
+  }
+
+  const junk = junkItemsForSale(game);
+  if (junk.length === 0) {
+    return game;
+  }
+
+  const junkIds = new Set(junk.map((item) => item.id));
+  const gold = junk.reduce((total, item) => total + getSellValue(item) * itemQuantity(item), 0);
+
+  return {
+    ...game,
+    inventory: {
+      ...game.inventory,
+      gold: game.inventory.gold + gold,
+      items: game.inventory.items.filter((item) => !junkIds.has(item.id)),
+    },
+    activityLog: trimLog([`Sold ${junk.length} junk item${junk.length === 1 ? '' : 's'} for ${gold}g.`, ...game.activityLog]),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function junkItemsForSale(game: GameState) {
+  return game.inventory.items.filter((item) => isJunkItem(game, item));
+}
+
 export function getSellValue(item: ItemInstance) {
   return Math.max(1, Math.ceil(item.value * 0.5));
+}
+
+export function stashItem(game: GameState, itemId: string): GameState {
+  const item = game.inventory.items.find((candidate) => candidate.id === itemId);
+  if (!item || isItemEquipped(game, item.id)) {
+    return game;
+  }
+
+  const { inventory: stash, accepted } = mergeInventoryItems(game.stash, [item]);
+  if (accepted.length === 0) {
+    return {
+      ...game,
+      activityLog: trimLog(['Guild stash is full.', ...game.activityLog]),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const withoutItem = removeInventoryItem(game, itemId);
+  return {
+    ...withoutItem,
+    stash,
+    activityLog: trimLog([`Stashed ${itemSummary(item)}.`, ...game.activityLog]),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function withdrawStashItem(game: GameState, itemId: string): GameState {
+  const item = game.stash.items.find((candidate) => candidate.id === itemId);
+  if (!item) {
+    return game;
+  }
+
+  const { inventory, accepted } = mergeInventoryItems(game.inventory, [item]);
+  if (accepted.length === 0) {
+    return {
+      ...game,
+      activityLog: trimLog(['Pack is full.', ...game.activityLog]),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return autoEquipBestGear({
+    ...game,
+    inventory,
+    stash: {
+      ...game.stash,
+      items: game.stash.items.filter((candidate) => candidate.id !== item.id),
+    },
+    activityLog: trimLog([`Withdrew ${itemSummary(item)}.`, ...game.activityLog]),
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export function autoEquipBestGear(game: GameState): GameState {
@@ -267,6 +366,14 @@ export function getEquipmentStats(actor: ActorState, inventory: InventoryState):
 
 export function isItemEquipped(game: GameState, itemId: string) {
   return game.party.some((actor) => Object.values(actor.equipment).includes(itemId));
+}
+
+function isJunkItem(game: GameState, item: ItemInstance) {
+  if (!item.slot || isItemEquipped(game, item.id) || item.rarity === 'legendary' || item.rarity === 'rare') {
+    return false;
+  }
+
+  return game.party.every((actor) => getItemGearScore(item, actor) <= 0);
 }
 
 function optimizePartyEquipment(party: ActorState[], items: ItemInstance[]) {
@@ -335,7 +442,7 @@ function countEquipmentChanges(before: ActorState[], after: ActorState[]) {
   }, 0);
 }
 
-function mergeInventoryItems(inventory: InventoryState, incoming: ItemInstance[]) {
+function mergeInventoryItems<T extends ItemContainer>(inventory: T, incoming: ItemInstance[]) {
   const nextItems = stackInventoryItems(inventory.items, inventory.capacity);
   const accepted: ItemInstance[] = [];
   let rejected = 0;
@@ -367,7 +474,7 @@ function mergeInventoryItems(inventory: InventoryState, incoming: ItemInstance[]
     inventory: {
       ...inventory,
       items: nextItems,
-    },
+    } as T,
     accepted,
     rejected,
   };

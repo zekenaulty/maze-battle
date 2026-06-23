@@ -274,6 +274,7 @@ function oneHpEnemy(): EnemyState {
     id: 'enemy-test',
     displayName: 'Test Slime',
     token: '(oo)',
+    tags: ['beast'],
     level: 1,
     hp: 1,
     maxHp: 1,

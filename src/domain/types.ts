@@ -33,9 +33,46 @@ export type ConsumableEffect = 'heal' | 'mana' | 'townPortal';
 
 export type VendorId = 'blacksmith' | 'alchemist';
 
+export type MonsterCategory = 'vermin' | 'beast' | 'undead' | 'reptile' | 'arcane' | 'construct' | 'ooze';
+
 export interface GridPosition {
   row: number;
   column: number;
+}
+
+export type MazeLayoutVersion = 'structured-v1';
+
+export type MazeRoomKind = 'start' | 'hub' | 'treasure' | 'safe' | 'boss' | 'exit';
+
+export type MazeRoomTag = 'safe' | 'hostile' | 'rare' | 'questRelevant';
+
+export interface MazeLayoutState {
+  version: MazeLayoutVersion;
+  rooms: MazeRoomState[];
+  mainPath: GridPosition[];
+  zones: MazeZoneState[];
+}
+
+export interface MazeRoomState {
+  id: string;
+  kind: MazeRoomKind;
+  name: string;
+  row: number;
+  column: number;
+  rows: number;
+  columns: number;
+  center: GridPosition;
+  tags: MazeRoomTag[];
+}
+
+export interface MazeZoneState {
+  id: string;
+  name: string;
+  tint: string;
+  rowStart: number;
+  rowEnd: number;
+  columnStart: number;
+  columnEnd: number;
 }
 
 export interface MazeState {
@@ -45,12 +82,20 @@ export interface MazeState {
   end: GridPosition;
   active: GridPosition;
   visited: GridPosition[];
+  visibility?: MazeVisibilityState;
+  layout?: MazeLayoutState;
   cells: MazeCellState[];
+}
+
+export interface MazeVisibilityState {
+  radius: number;
+  explored: GridPosition[];
 }
 
 export interface MazeFloorState {
   level: number;
   mazeMaxRooms: number;
+  monsterTags: MonsterCategory[];
   maze: MazeState;
 }
 
@@ -142,8 +187,10 @@ export interface ActorState {
 
 export interface EnemyState {
   id: string;
+  monsterId?: string;
   displayName: string;
   token: string;
+  tags: MonsterCategory[];
   level: number;
   hp: number;
   maxHp: number;
@@ -172,12 +219,50 @@ export interface InventoryState {
   items: ItemInstance[];
 }
 
+export interface StashState {
+  capacity: number;
+  items: ItemInstance[];
+}
+
 export interface ChestState {
   id: string;
   level: number;
   position: GridPosition;
   opened: boolean;
   loot?: ItemInstance[];
+}
+
+export type QuestObjective = 'scout' | 'fetch' | 'kill' | 'locate';
+
+export type QuestStatus = 'active' | 'complete' | 'claimed';
+
+export interface QuestTaskState {
+  objective: QuestObjective;
+  noun: string;
+  required: number;
+  progress: number;
+}
+
+export interface QuestRewardState {
+  gold: number;
+}
+
+export interface QuestState {
+  id: string;
+  source: 'guild';
+  floor: number;
+  originRoomId: string;
+  targetRoomId: string;
+  targetRoomName: string;
+  targetRoomKind: MazeRoomKind;
+  title: string;
+  description: string;
+  task: QuestTaskState;
+  reward: QuestRewardState;
+  status: QuestStatus;
+  acceptedAt: string;
+  completedAt?: string;
+  claimedAt?: string;
 }
 
 export interface GameState {
@@ -188,6 +273,7 @@ export interface GameState {
   dungeonLevel: number;
   wave: number;
   mazeMaxRooms: number;
+  monsterTags: MonsterCategory[];
   mazeTexture: MazeTextureId;
   autoThrottleMs: number;
   randomBattles: boolean;
@@ -197,7 +283,9 @@ export interface GameState {
   floors: MazeFloorState[];
   chests: ChestState[];
   inventory: InventoryState;
+  stash: StashState;
   party: ActorState[];
+  quests: QuestState[];
   battle?: BattleState;
   activityLog: string[];
   source?: {

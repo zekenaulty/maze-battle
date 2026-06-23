@@ -1,34 +1,24 @@
-import type { EnemyState, SkillState } from '../types';
-import { roll, sample, type Rng } from './rng';
+import type { EnemyState, MonsterCategory, SkillState } from '../types';
+import { monsterTagsForFloor, pickMonster } from './monsters';
+import { roll, type Rng } from './rng';
 
-const ENEMIES = [
-  { name: 'Spider', token: '🕷️' },
-  { name: 'Bat', token: '🦇' },
-  { name: 'Scorpion', token: '🦂' },
-  { name: 'Skull', token: '💀' },
-  { name: 'Ghost', token: '👻' },
-  { name: 'Slime', token: '🐽' },
-  { name: 'Lizard', token: '🦎' },
-  { name: 'Snake', token: '🐍' },
-  { name: 'Hornet', token: '🐝' },
-  { name: 'Wyrm', token: '🐉' },
-];
-
-export function spawnEnemies(dungeonLevel: number, rng: Rng): EnemyState[] {
+export function spawnEnemies(dungeonLevel: number, rng: Rng, monsterTags: MonsterCategory[] = monsterTagsForFloor(dungeonLevel)): EnemyState[] {
   const count = spawnCount(rng);
-  return Array.from({ length: count }, (_, index) => createEnemy(index, mobLevel(dungeonLevel, rng), rng));
+  return Array.from({ length: count }, (_, index) => createEnemy(index, mobLevel(dungeonLevel, rng), monsterTags, rng));
 }
 
-function createEnemy(index: number, level: number, rng: Rng): EnemyState {
-  const enemy = sample(ENEMIES, rng);
-  const vitality = 8 + level * 2;
-  const strength = 8 + level * 3;
+function createEnemy(index: number, level: number, monsterTags: MonsterCategory[], rng: Rng): EnemyState {
+  const monster = pickMonster(level, monsterTags, rng);
+  const vitality = Math.ceil((8 + level * 2) * monster.hpScale);
+  const strength = Math.ceil((8 + level * 3) * monster.damageScale);
   const maxHp = 24 + vitality * 2 + level * 8;
 
   return {
     id: `enemy-${Date.now()}-${index}-${roll(9999, rng)}`,
-    displayName: enemy.name,
-    token: enemy.token,
+    monsterId: monster.id,
+    displayName: monster.displayName,
+    token: monster.token,
+    tags: monster.tags,
     level,
     hp: maxHp,
     maxHp,

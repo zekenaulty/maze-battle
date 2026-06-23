@@ -8,6 +8,7 @@ import type { Rng } from './rng';
 export interface CombatContext {
   party: ActorState[];
   enemies: EnemyState[];
+  defeated: EnemyState[];
   log: string[];
   loot: ItemInstance[];
   equipmentBonuses: Record<string, ItemStats>;

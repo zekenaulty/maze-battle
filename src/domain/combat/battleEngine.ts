@@ -6,6 +6,7 @@ import { battleStatus, createCombatContext, removeDefeated } from './battleConte
 import { defaultRng, type Rng } from './rng';
 import { spawnEnemies } from './spawn';
 import { addItemsToInventory } from '../items/inventory';
+import { recordKillQuestProgress } from '../quests/quests';
 
 export function startBattle(game: GameState, rng: Rng = defaultRng): GameState {
   const wave = game.mode === 'waves' ? game.wave + 1 : 1;
@@ -14,7 +15,7 @@ export function startBattle(game: GameState, rng: Rng = defaultRng): GameState {
     wave,
     status: 'active',
     returnMode: game.mode === 'auto-play' || game.mode === 'waves' ? game.mode : 'manual',
-    enemies: spawnEnemies(game.dungeonLevel, rng),
+    enemies: spawnEnemies(game.dungeonLevel, rng, game.monsterTags),
     round: 1,
     log: [`Battle ${wave} begins.`],
     loot: [],
@@ -134,7 +135,8 @@ function finishBattleTurn(game: GameState, context: CombatContext, status: Battl
       updatedAt: new Date().toISOString(),
     };
 
-    const withLoot = addItemsToInventory(won, context.loot, 'Battle loot');
+    const withQuestProgress = recordKillQuestProgress(won, context.defeated);
+    const withLoot = addItemsToInventory(withQuestProgress, context.loot, 'Battle loot');
     return {
       ...withLoot,
       activityLog: trimLog(['Battle won.', ...withLoot.activityLog.filter((entry) => entry !== 'Battle won.')]),

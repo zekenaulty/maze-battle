@@ -1,11 +1,14 @@
-import type { ActorState, BattleState, Direction, EnemyState, GameMode, GameState, GridPosition, HeroRole, MazeFloorState, MazeTextureId, SkillState } from './types';
-import { generateMaze } from './maze/generate';
+import type { ActorState, BattleState, Direction, EnemyState, GameMode, GameState, GridPosition, HeroRole, MazeFloorState, MazeLayoutState, MazeTextureId, MonsterCategory, QuestState, SkillState } from './types';
+import { generateStructuredMaze, roomTagsForKind } from './maze/structuredGenerate';
 import { samePosition } from './maze/key';
 import { canMove, movePosition } from './maze/movement';
 import { generateChestsForMaze, normalizeChests } from './items/chests';
-import { createInitialInventory, normalizeInventory } from './items/inventory';
+import { createInitialInventory, createInitialStash, normalizeInventory, normalizeStash } from './items/inventory';
 import { normalizeAutoThrottleMs } from './automation/throttle';
 import { normalizeMazeTexture } from './maze/textureOptions';
+import { revealMazeVisibility } from './maze/visibility';
+import { syncGuildQuests } from './quests/quests';
+import { monsterTagsForFloor, normalizeMonsterTags } from './combat/monsters';
 
 const HERO_ORDER: HeroRole[] = ['warrior', 'mage', 'healer'];
 
@@ -90,6 +93,8 @@ type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party'>> &
   battle?: Partial<Omit<BattleState, 'enemies'>> & { enemies?: Partial<EnemyState>[] };
   floors?: Partial<MazeFloorState>[];
   party?: Partial<ActorState>[];
+  quests?: Partial<QuestState>[];
+  monsterTags?: MonsterCategory[];
 };
 
 type GameStateOverrides = Partial<Omit<GameState, 'floors' | 'maze'>> & {
@@ -103,11 +108,13 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
   const dungeonLevel = overrides.dungeonLevel ?? 1;
   const mazeMaxRooms = overrides.mazeMaxRooms ?? 32;
   const maze = normalizeMaze(overrides.maze, 9, 13);
-  const floors = normalizeFloors(overrides.floors, dungeonLevel, mazeMaxRooms, maze);
+  const monsterTags = normalizeMonsterTags(overrides.monsterTags, dungeonLevel);
+  const floors = normalizeFloors(overrides.floors, dungeonLevel, mazeMaxRooms, maze, monsterTags);
   const inventory = normalizeInventory(overrides.inventory ?? createInitialInventory());
+  const stash = normalizeStash(overrides.stash ?? createInitialStash());
   const chests = normalizeChests(overrides.chests, dungeonLevel, maze);
 
-  return {
+  return syncGuildQuests({
     schemaVersion: 1,
     id,
     createdAt: overrides.createdAt ?? now,
@@ -115,6 +122,7 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     dungeonLevel,
     wave: overrides.wave ?? 0,
     mazeMaxRooms,
+    monsterTags,
     mazeTexture: normalizeMazeTexture(overrides.mazeTexture),
     autoThrottleMs: normalizeAutoThrottleMs(overrides.autoThrottleMs),
     randomBattles: overrides.randomBattles ?? true,
@@ -124,16 +132,18 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     floors,
     chests,
     inventory,
+    stash,
     party:
       overrides.party ??
       HERO_ORDER.map((role) => ({
         id: `${id}-${role}`,
         ...copyHero(HEROES[role]),
       })),
+    quests: normalizeQuests(overrides.quests),
     battle: overrides.battle,
     activityLog: overrides.activityLog ?? ['New expedition started.'],
     source: overrides.source ?? { type: 'new-game' },
-  };
+  });
 }
 
 export function normalizeGameState(state: StoredGameState): GameState {
@@ -141,6 +151,7 @@ export function normalizeGameState(state: StoredGameState): GameState {
   const mazeMaxRooms = state.mazeMaxRooms ?? 32;
   const storedActiveFloor = state.floors?.find((floor) => floor.level === dungeonLevel);
   const activeMaze = normalizeMaze(state.maze ?? storedActiveFloor?.maze, state.maze?.rows ?? storedActiveFloor?.maze?.rows ?? 9, state.maze?.columns ?? storedActiveFloor?.maze?.columns ?? 13);
+  const monsterTags = normalizeMonsterTags(state.monsterTags ?? storedActiveFloor?.monsterTags, dungeonLevel);
   const base = createNewGameState({
     id: state.id,
     createdAt: state.createdAt,
@@ -148,6 +159,7 @@ export function normalizeGameState(state: StoredGameState): GameState {
     dungeonLevel,
     wave: state.wave,
     mazeMaxRooms,
+    monsterTags,
     mazeTexture: state.mazeTexture,
     autoThrottleMs: state.autoThrottleMs,
     randomBattles: state.randomBattles,
@@ -157,6 +169,8 @@ export function normalizeGameState(state: StoredGameState): GameState {
     floors: state.floors,
     chests: state.chests,
     inventory: state.inventory,
+    stash: state.stash,
+    quests: normalizeQuests(state.quests),
     activityLog: state.activityLog,
     source: state.source,
   });
@@ -189,27 +203,28 @@ export function moveActive(game: GameState, direction: Direction): GameState {
 
   const nextActive = movePosition(game.maze.active, direction);
   const visited = hasVisited(game.maze.visited, nextActive) ? game.maze.visited : [...game.maze.visited, nextActive];
-  const currentMaze = { ...game.maze, active: nextActive, visited };
-
-  if (samePosition(nextActive, game.maze.end)) {
-    return enterFloor(facingGame, currentMaze, game.dungeonLevel + 1, 'down');
-  }
-
-  if (game.dungeonLevel > 1 && samePosition(nextActive, game.maze.start)) {
-    return enterFloor(facingGame, currentMaze, game.dungeonLevel - 1, 'up');
-  }
-
-  if (game.dungeonLevel === 1 && samePosition(nextActive, game.maze.start)) {
-    return enterTownFromStartStairs(facingGame, currentMaze);
-  }
-
-  return {
+  const currentMaze = revealMazeVisibility({ ...game.maze, active: nextActive, visited });
+  const movedGame = syncGuildQuests({
     ...facingGame,
     updatedAt,
     maze: currentMaze,
-    floors: replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze),
+    floors: replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze, game.monsterTags),
     activityLog: trimLog([`Moved ${direction}.`, ...game.activityLog]),
-  };
+  });
+
+  if (samePosition(nextActive, game.maze.end)) {
+    return enterFloor(movedGame, currentMaze, game.dungeonLevel + 1, 'down');
+  }
+
+  if (game.dungeonLevel > 1 && samePosition(nextActive, game.maze.start)) {
+    return enterFloor(movedGame, currentMaze, game.dungeonLevel - 1, 'up');
+  }
+
+  if (game.dungeonLevel === 1 && samePosition(nextActive, game.maze.start)) {
+    return enterTownFromStartStairs(movedGame, currentMaze);
+  }
+
+  return movedGame;
 }
 
 export function setGameMode(game: GameState, mode: GameMode): GameState {
@@ -405,6 +420,40 @@ function copyHero(hero: Omit<ActorState, 'id'>): Omit<ActorState, 'id'> {
   };
 }
 
+function normalizeQuests(quests: Partial<QuestState>[] | undefined): QuestState[] {
+  return (quests ?? [])
+    .filter((quest): quest is Partial<QuestState> & Pick<QuestState, 'id'> => typeof quest.id === 'string' && quest.id.length > 0)
+    .map((quest) => {
+      const required = Math.max(1, quest.task?.required ?? 1);
+      const progress = Math.min(required, Math.max(0, quest.task?.progress ?? 0));
+
+      return {
+        id: quest.id,
+        source: quest.source ?? 'guild',
+        floor: quest.floor ?? 1,
+        originRoomId: quest.originRoomId ?? 'unknown-origin',
+        targetRoomId: quest.targetRoomId ?? 'unknown-target',
+        targetRoomName: quest.targetRoomName ?? 'Unknown Room',
+        targetRoomKind: quest.targetRoomKind ?? 'safe',
+        title: quest.title ?? 'Unmarked Quest',
+        description: quest.description ?? '',
+        task: {
+          objective: quest.task?.objective ?? 'scout',
+          noun: quest.task?.noun ?? 'room',
+          required,
+          progress,
+        },
+        reward: {
+          gold: Math.max(0, quest.reward?.gold ?? 0),
+        },
+        status: quest.status ?? (progress >= required ? 'complete' : 'active'),
+        acceptedAt: quest.acceptedAt ?? nowIso(),
+        completedAt: quest.completedAt,
+        claimedAt: quest.claimedAt,
+      };
+    });
+}
+
 function normalizeActor(role: HeroRole, actor: Partial<ActorState> | undefined, gameId: string): ActorState {
   const defaults = {
     id: `${gameId}-${role}`,
@@ -436,8 +485,10 @@ function normalizeActor(role: HeroRole, actor: Partial<ActorState> | undefined, 
 function normalizeEnemy(enemy: Partial<EnemyState>): EnemyState {
   return {
     id: enemy.id ?? crypto.randomUUID(),
+    monsterId: enemy.monsterId,
     displayName: enemy.displayName ?? 'Enemy',
     token: enemy.token ?? '(??)',
+    tags: normalizeMonsterTags(enemy.tags, enemy.level ?? 1),
     level: enemy.level ?? 1,
     hp: enemy.hp ?? 1,
     maxHp: enemy.maxHp ?? 1,
@@ -483,23 +534,25 @@ function trimLog(entries: string[]) {
 }
 
 function enterFloor(game: GameState, currentMaze: GameState['maze'], targetLevel: number, direction: 'down' | 'up'): GameState {
-  const storedCurrentFloors = replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze);
+  const storedCurrentFloors = replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze, game.monsterTags);
   const existingTarget = storedCurrentFloors.find((floor) => floor.level === targetLevel);
   const targetMazeMaxRooms = existingTarget?.mazeMaxRooms ?? nextMazeMaxRooms(game.mazeMaxRooms, direction);
   const targetMaze = enterMaze(existingTarget?.maze ?? nextLevelMaze(targetMazeMaxRooms), direction === 'down' ? 'start' : 'end');
+  const targetMonsterTags = normalizeMonsterTags(existingTarget?.monsterTags, targetLevel);
   const verb = direction === 'down' ? 'Descended' : 'Returned';
   const chests = game.chests.some((chest) => chest.level === targetLevel) ? game.chests : [...game.chests, ...generateChestsForMaze(targetLevel, targetMaze)];
 
-  return {
+  return syncGuildQuests({
     ...game,
     updatedAt: nowIso(),
     dungeonLevel: targetLevel,
     mazeMaxRooms: targetMazeMaxRooms,
+    monsterTags: targetMonsterTags,
     maze: targetMaze,
-    floors: replaceFloor(storedCurrentFloors, targetLevel, targetMazeMaxRooms, targetMaze),
+    floors: replaceFloor(storedCurrentFloors, targetLevel, targetMazeMaxRooms, targetMaze, targetMonsterTags),
     chests,
     activityLog: trimLog([`${verb} to dungeon level ${targetLevel}.`, ...game.activityLog]),
-  };
+  });
 }
 
 function enterTownFromStartStairs(game: GameState, currentMaze: GameState['maze']): GameState {
@@ -509,7 +562,7 @@ function enterTownFromStartStairs(game: GameState, currentMaze: GameState['maze'
     battle: undefined,
     updatedAt: nowIso(),
     maze: currentMaze,
-    floors: replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze),
+    floors: replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze, game.monsterTags),
     activityLog: trimLog(['Returned to town.', ...game.activityLog]),
   };
 }
@@ -517,51 +570,71 @@ function enterTownFromStartStairs(game: GameState, currentMaze: GameState['maze'
 function enterMaze(maze: GameState['maze'], entry: 'start' | 'end') {
   const active = entry === 'start' ? maze.start : maze.end;
   const visited = hasVisited(maze.visited, active) ? maze.visited : [...maze.visited, active];
-  return {
+  return revealMazeVisibility({
     ...maze,
     active,
     visited,
-  };
+  });
 }
 
-function replaceFloor(floors: MazeFloorState[], level: number, mazeMaxRooms: number, maze: GameState['maze']) {
+function replaceFloor(floors: MazeFloorState[], level: number, mazeMaxRooms: number, maze: GameState['maze'], monsterTags: MonsterCategory[] = monsterTagsForFloor(level)) {
   const next = floors.filter((floor) => floor.level !== level);
-  next.push({ level, mazeMaxRooms, maze });
+  next.push({ level, mazeMaxRooms, monsterTags: normalizeMonsterTags(monsterTags, level), maze });
   return next.sort((a, b) => a.level - b.level);
 }
 
-function normalizeFloors(floors: Partial<MazeFloorState>[] | undefined, activeLevel: number, activeMazeMaxRooms: number, activeMaze: GameState['maze']) {
+function normalizeFloors(floors: Partial<MazeFloorState>[] | undefined, activeLevel: number, activeMazeMaxRooms: number, activeMaze: GameState['maze'], activeMonsterTags: MonsterCategory[]) {
   const byLevel = new Map<number, MazeFloorState>();
 
   for (const floor of floors ?? []) {
     const level = floor.level ?? 1;
     const mazeMaxRooms = floor.mazeMaxRooms ?? (level === activeLevel ? activeMazeMaxRooms : 32);
     const maze = normalizeMaze(floor.maze, floor.maze?.rows ?? floorRows(mazeMaxRooms), floor.maze?.columns ?? floorRows(mazeMaxRooms) + 4);
-    byLevel.set(level, { level, mazeMaxRooms, maze });
+    byLevel.set(level, { level, mazeMaxRooms, monsterTags: normalizeMonsterTags(floor.monsterTags, level), maze });
   }
 
-  byLevel.set(activeLevel, { level: activeLevel, mazeMaxRooms: activeMazeMaxRooms, maze: activeMaze });
+  byLevel.set(activeLevel, { level: activeLevel, mazeMaxRooms: activeMazeMaxRooms, monsterTags: activeMonsterTags, maze: activeMaze });
   return Array.from(byLevel.values()).sort((a, b) => a.level - b.level);
 }
 
 function normalizeMaze(maze: Partial<GameState['maze']> | undefined, fallbackRows: number, fallbackColumns: number): GameState['maze'] {
   if (!maze?.cells || maze.cells.length === 0) {
-    const generated = generateMaze(fallbackRows, fallbackColumns);
-    return {
+    const generated = generateStructuredMaze(fallbackRows, fallbackColumns);
+    return revealMazeVisibility({
       ...generated,
       active: maze?.active ?? generated.active,
       visited: maze?.visited ?? generated.visited,
-    };
+      visibility: maze?.visibility ?? generated.visibility,
+      layout: normalizeMazeLayout(maze?.layout ?? generated.layout),
+    });
   }
 
-  return {
+  return revealMazeVisibility({
     rows: maze.rows ?? fallbackRows,
     columns: maze.columns ?? fallbackColumns,
     start: maze.start ?? { row: 0, column: 0 },
     end: maze.end ?? { row: (maze.rows ?? fallbackRows) - 1, column: (maze.columns ?? fallbackColumns) - 1 },
     active: maze.active ?? maze.start ?? { row: 0, column: 0 },
     visited: maze.visited ?? [maze.start ?? { row: 0, column: 0 }],
+    visibility: maze.visibility,
+    layout: normalizeMazeLayout(maze.layout),
     cells: maze.cells.map((cell) => ({ row: cell.row, column: cell.column, links: [...(cell.links ?? [])] })),
+  });
+}
+
+function normalizeMazeLayout(layout: MazeLayoutState | undefined): MazeLayoutState | undefined {
+  if (!layout) {
+    return undefined;
+  }
+
+  return {
+    version: layout.version ?? 'structured-v1',
+    rooms: (layout.rooms ?? []).map((room) => ({
+      ...room,
+      tags: room.tags ?? roomTagsForKind(room.kind),
+    })),
+    mainPath: layout.mainPath ?? [],
+    zones: layout.zones ?? [],
   };
 }
 
@@ -575,7 +648,7 @@ function nextMazeMaxRooms(currentMazeMaxRooms: number, direction: 'down' | 'up')
 
 function nextLevelMaze(mazeMaxRooms: number) {
   const rows = floorRows(mazeMaxRooms);
-  return generateMaze(rows, rows + 4);
+  return generateStructuredMaze(rows, rows + 4);
 }
 
 function floorRows(mazeMaxRooms: number) {

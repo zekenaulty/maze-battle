@@ -18,13 +18,15 @@ interface CharactersDialogProps {
   onUseItem: (itemId: string, actorId?: string) => void;
   onAutoEquip: () => void;
   onSellItem?: (itemId: string) => void;
+  onStashItem?: (itemId: string) => void;
   canSellItems?: boolean;
+  canStashItems?: boolean;
   onClose: () => void;
 }
 
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ['weapon', 'offhand', 'head', 'body', 'hands', 'feet', 'ring', 'amulet'];
 
-export function CharactersDialog({ party, inventory, onAutoBattleChange, onEquipItem, onUnequipItem, onUseItem, onAutoEquip, onSellItem, canSellItems = false, onClose }: CharactersDialogProps) {
+export function CharactersDialog({ party, inventory, onAutoBattleChange, onEquipItem, onUnequipItem, onUseItem, onAutoEquip, onSellItem, onStashItem, canSellItems = false, canStashItems = false, onClose }: CharactersDialogProps) {
   const [selectedActorId, setSelectedActorId] = useState(() => party[0]?.id);
   const selectedActor = party.find((actor) => actor.id === selectedActorId) ?? party[0];
 
@@ -43,7 +45,18 @@ export function CharactersDialog({ party, inventory, onAutoBattleChange, onEquip
           />
         ))}
       </div>
-      <InventoryPanel party={party} inventory={inventory} selectedActor={selectedActor} onEquipItem={onEquipItem} onUseItem={onUseItem} onAutoEquip={onAutoEquip} onSellItem={onSellItem} canSellItems={canSellItems} />
+      <InventoryPanel
+        party={party}
+        inventory={inventory}
+        selectedActor={selectedActor}
+        onEquipItem={onEquipItem}
+        onUseItem={onUseItem}
+        onAutoEquip={onAutoEquip}
+        onSellItem={onSellItem}
+        onStashItem={onStashItem}
+        canSellItems={canSellItems}
+        canStashItems={canStashItems}
+      />
     </Dialog>
   );
 }
@@ -171,7 +184,9 @@ function InventoryPanel({
   onUseItem,
   onAutoEquip,
   onSellItem,
+  onStashItem,
   canSellItems,
+  canStashItems,
 }: {
   party: ActorState[];
   inventory: InventoryState;
@@ -180,7 +195,9 @@ function InventoryPanel({
   onUseItem: (itemId: string, actorId?: string) => void;
   onAutoEquip: () => void;
   onSellItem?: (itemId: string) => void;
+  onStashItem?: (itemId: string) => void;
   canSellItems: boolean;
+  canStashItems: boolean;
 }) {
   return (
     <section className="inventory-panel">
@@ -196,7 +213,20 @@ function InventoryPanel({
       <div className="inventory-list">
         {inventory.items.map((item) => {
           const equipped = getEquippedItemOwner(item.id, party);
-          return <InventoryItem key={item.id} item={item} equipped={equipped} selectedActor={selectedActor} onEquipItem={onEquipItem} onUseItem={onUseItem} onSellItem={onSellItem} canSellItems={canSellItems} />;
+          return (
+            <InventoryItem
+              key={item.id}
+              item={item}
+              equipped={equipped}
+              selectedActor={selectedActor}
+              onEquipItem={onEquipItem}
+              onUseItem={onUseItem}
+              onSellItem={onSellItem}
+              onStashItem={onStashItem}
+              canSellItems={canSellItems}
+              canStashItems={canStashItems}
+            />
+          );
         })}
         {inventory.items.length === 0 ? <p className="empty-state">The pack is empty.</p> : null}
       </div>
@@ -211,7 +241,9 @@ function InventoryItem({
   onEquipItem,
   onUseItem,
   onSellItem,
+  onStashItem,
   canSellItems,
+  canStashItems,
 }: {
   item: ItemInstance;
   equipped?: EquippedItemOwner;
@@ -219,7 +251,9 @@ function InventoryItem({
   onEquipItem: (actorId: string, itemId: string) => void;
   onUseItem: (itemId: string, actorId?: string) => void;
   onSellItem?: (itemId: string) => void;
+  onStashItem?: (itemId: string) => void;
   canSellItems: boolean;
+  canStashItems: boolean;
 }) {
   const equippedLabel = equipped ? `Equipped: ${equipped.actor.displayName} - ${equipped.slot}` : undefined;
   const equippedBySelectedActor = equipped?.actor.id === selectedActor.id;
@@ -254,6 +288,11 @@ function InventoryItem({
         {canSellItems && onSellItem ? (
           <button type="button" onClick={() => onSellItem(item.id)}>
             Sell {getSellValue(item)}g
+          </button>
+        ) : null}
+        {canStashItems && onStashItem && !equipped ? (
+          <button type="button" onClick={() => onStashItem(item.id)}>
+            Stash
           </button>
         ) : null}
       </div>

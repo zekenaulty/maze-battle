@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../gameFactory';
 import type { ItemInstance } from '../types';
 import { createItemInstance, rollDropCount } from './loot';
-import { autoEquipBestGear, equipItem, sellItem, useConsumable } from './inventory';
+import { autoEquipBestGear, equipItem, sellItem, sellJunkItems, stashItem, useConsumable, withdrawStashItem } from './inventory';
 import { openChestAtActivePosition } from './chests';
 import { getItemBreakdownLines, getItemTotalStats } from './itemDetails';
 
@@ -169,6 +169,41 @@ describe('item loot and inventory', () => {
     });
 
     expect(sellItem(game, item.id)).toBe(game);
+  });
+
+  it('stashes items and sells unequipped junk in town', () => {
+    const stashSword = createItemInstance('rusty-sword', 1, 'common', () => 0.5);
+    const junkCharm: ItemInstance = {
+      id: 'junk-charm',
+      baseId: 'junk-charm',
+      displayName: 'Cracked Charm',
+      token: '?',
+      category: 'equipment',
+      rarity: 'common',
+      itemLevel: 1,
+      value: 10,
+      slot: 'ring',
+      stats: {},
+    };
+    const game = createNewGameState({
+      mode: 'town',
+      inventory: {
+        capacity: 10,
+        gold: 0,
+        items: [stashSword, junkCharm],
+      },
+    });
+
+    const stashed = stashItem(game, stashSword.id);
+    const withdrawn = withdrawStashItem(stashed, stashSword.id);
+    const sold = sellJunkItems(withdrawn);
+
+    expect(stashed.inventory.items.some((item) => item.id === stashSword.id)).toBe(false);
+    expect(stashed.stash.items).toHaveLength(1);
+    expect(withdrawn.stash.items).toHaveLength(0);
+    expect(withdrawn.inventory.items.some((item) => item.id === stashSword.id)).toBe(true);
+    expect(sold.inventory.items.every((item) => item.id !== junkCharm.id)).toBe(true);
+    expect(sold.inventory.gold).toBeGreaterThan(withdrawn.inventory.gold);
   });
 
   it('opens a chest once and adds loot to inventory', () => {

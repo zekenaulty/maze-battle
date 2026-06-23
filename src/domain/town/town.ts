@@ -1,19 +1,20 @@
 import type { GameState, VendorId } from '../types';
 import { BASE_ITEMS } from '../items/catalog';
 import { buyVendorItem, recoverParty } from '../items/inventory';
+import { syncGuildQuests } from '../quests/quests';
 
 export function enterTown(game: GameState): GameState {
   if (game.mode === 'town') {
     return game;
   }
 
-  return {
+  return syncGuildQuests({
     ...game,
     mode: 'town',
     battle: undefined,
     activityLog: trimLog(['Returned to town.', ...game.activityLog]),
     updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 export function leaveTown(game: GameState): GameState {

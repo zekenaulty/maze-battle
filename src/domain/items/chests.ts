@@ -3,14 +3,33 @@ import { samePosition } from '../maze/key';
 import type { Rng } from '../combat/rng';
 import { rollLoot } from './loot';
 import { addItemsToInventory } from './inventory';
+import { recordFetchQuestProgress } from '../quests/quests';
 
 export function generateChestsForMaze(level: number, maze: MazeState): ChestState[] {
   const candidates = maze.cells.filter((cell) => !samePosition(cell, maze.start) && !samePosition(cell, maze.end) && cell.links.length > 0);
+  const treasureRooms = maze.layout?.rooms.filter((room) => room.kind === 'treasure').map((room) => room.center) ?? [];
   const count = Math.min(3, Math.max(1, Math.floor(candidates.length / 28) + 1));
   const chests: ChestState[] = [];
 
-  for (let index = 0; index < count && candidates.length > 0; index++) {
+  for (const candidate of treasureRooms) {
+    if (chests.length >= count) {
+      break;
+    }
+
+    chests.push({
+      id: chestId(level, candidate),
+      level,
+      position: { row: candidate.row, column: candidate.column },
+      opened: false,
+    });
+  }
+
+  for (let index = chests.length; index < count && candidates.length > 0; index++) {
     const candidate = candidates[(level * 17 + index * 23) % candidates.length];
+    if (chests.some((chest) => samePosition(chest.position, candidate))) {
+      continue;
+    }
+
     chests.push({
       id: chestId(level, candidate),
       level,
@@ -54,7 +73,7 @@ export function openChestAtActivePosition(game: GameState, rng: Rng): GameState 
     chests: game.chests.map((candidate) => (candidate.id === chest.id ? { ...candidate, opened: true, loot } : candidate)),
   };
 
-  return addItemsToInventory(opened, loot, 'Chest opened');
+  return recordFetchQuestProgress(addItemsToInventory(opened, loot, 'Chest opened'), chest.position);
 }
 
 export function ensureFloorChests(game: GameState) {

@@ -189,6 +189,44 @@ button.is-active {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.maze-canvas:active {
+  cursor: grabbing;
+}
+
+.camera-controls {
+  position: absolute;
+  z-index: 5;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-panel-strong);
+  box-shadow: 0 14px 36px var(--color-shadow);
+}
+
+.camera-controls button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.camera-controls span {
+  min-width: 42px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .battle-character,
@@ -633,6 +671,8 @@ button.is-active {
 
 .equipment-grid,
 .inventory-list,
+.guild-contract-list,
+.stash-list,
 .vendor-list {
   display: grid;
   gap: 6px;
@@ -871,6 +911,115 @@ button.is-active {
   font-size: 20px;
 }
 
+.guild-card {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.guild-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guild-actions button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.guild-contract {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 78px;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: rgba(4, 8, 20, 0.42);
+}
+
+.guild-contract.is-nearby {
+  border-color: rgba(106, 160, 255, 0.62);
+}
+
+.guild-contract.is-located {
+  border-color: rgba(96, 177, 132, 0.48);
+}
+
+.guild-contract.is-active {
+  border-color: rgba(255, 180, 90, 0.58);
+}
+
+.guild-contract.is-complete {
+  border-color: rgba(96, 177, 132, 0.72);
+  background: linear-gradient(135deg, rgba(96, 177, 132, 0.12), rgba(4, 8, 20, 0.44));
+}
+
+.guild-contract.is-claimed {
+  opacity: 0.72;
+}
+
+.guild-contract > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.guild-contract strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guild-contract small {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.guild-contract button {
+  min-height: 30px;
+  width: 78px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.guild-stash {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.guild-stash > strong {
+  font-size: 13px;
+}
+
+.stash-list {
+  max-height: 132px;
+  overflow: auto;
+}
+
+.stash-list button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  min-height: 30px;
+  justify-items: start;
+  padding: 0 8px;
+}
+
+.stash-list button span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .vendor-list button {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr) auto;
@@ -907,6 +1056,18 @@ button.is-active {
 
   .maze-stage {
     padding: 112px 6px 148px;
+  }
+
+  .camera-controls {
+    right: 8px;
+    bottom: 172px;
+  }
+
+  .camera-controls button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
   }
 
   .controls {

@@ -17,6 +17,7 @@ export function createCombatContext(game: GameState, rng: Rng, now = Date.now())
   return {
     party,
     enemies,
+    defeated: [],
     log: [...(game.battle?.log ?? [])],
     loot: [...(game.battle?.loot ?? [])],
     equipmentBonuses,
@@ -33,6 +34,7 @@ export function removeDefeated(context: CombatContext, rng: Rng) {
 
   context.party = grantRewards(context.party, defeated, rng);
   context.loot.push(...defeated.flatMap((enemy) => rollLoot({ source: 'battle', level: enemy.level }, rng)));
+  context.defeated.push(...defeated);
   context.enemies = context.enemies.filter(isAlive);
   context.log.push(`${defeated.length} enemy${defeated.length === 1 ? '' : 'ies'} defeated.`);
   return true;

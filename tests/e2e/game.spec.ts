@@ -54,11 +54,16 @@ test('renders explore and battle as separate full screens', async ({ page }) => 
     const context = canvas.getContext('2d');
     if (!context) return false;
 
-    const width = Math.min(160, canvas.width);
-    const height = Math.min(100, canvas.height);
-    const data = context.getImageData(Math.floor(canvas.width / 2 - width / 2), Math.floor(canvas.height / 2 - height / 2), width, height).data;
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const colors = new Set<string>();
-    for (let index = 0; index < data.length; index += 16) {
+    for (let index = 0; index < data.length; index += 64) {
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      if (red + green + blue < 80) {
+        continue;
+      }
+
       colors.add(`${data[index]},${data[index + 1]},${data[index + 2]}`);
       if (colors.size > 24) return true;
     }
@@ -275,6 +280,8 @@ test('sells inventory items from town', async ({ page }) => {
 
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.locator('.town-screen')).toBeVisible();
+  await expect(page.locator('.guild-card')).toContainText('Guild Hall');
+  await expect(page.locator('.guild-card')).toContainText('Locate Descent Gate');
   await page.getByLabel('Town actions').getByRole('button', { name: 'Party' }).click();
 
   const sword = page.locator('.inventory-item').filter({ hasText: 'Odd Sword' });
