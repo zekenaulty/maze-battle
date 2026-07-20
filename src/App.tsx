@@ -9,11 +9,11 @@ import type { Direction, EquipmentSlot, GameState, SaveSummary, SkillId, VendorI
 import { advanceBattleRound, endBattle, setBattleReturnMode, startBattle, useBattleSkill } from './domain/combat/battleEngine';
 import { shouldStartEncounter } from './domain/combat/encounters';
 import { defaultRng } from './domain/combat/rng';
-import { nextDirectionToTarget } from './domain/maze/solver';
 import { activeUnopenedChests, openChestAtActivePosition } from './domain/items/chests';
 import { buyFromVendor, enterTown, leaveTown, useInn } from './domain/town/town';
 import { autoEquipBestGear, equipItem, getEffectiveActor, sellItem, sellJunkItems, stashItem, unequipItem, useConsumable, withdrawStashItem } from './domain/items/inventory';
 import { acceptGuildContract, claimGuildQuestReward } from './domain/quests/quests';
+import { nextAutoIntent } from './domain/automation/autopilot';
 import { deleteSave, getGame, listSaves, saveGame } from './persistence/saveRepository';
 import { importLegacyLocalStorageSaves } from './persistence/legacyLocalStorage';
 import { AUTO_MAZE_MIN_MS, WAVE_RESTART_MIN_MS } from './domain/automation/throttle';
@@ -205,14 +205,21 @@ export function App() {
     }
 
     const id = window.setInterval(() => {
-      const direction = nextDirectionToTarget(game.maze);
-      if (direction) {
-        move(direction);
+      const intent = nextAutoIntent(game);
+      if (intent.type === 'move') {
+        move(intent.direction);
+      } else if (intent.type === 'interact') {
+        const next = openChestAtActivePosition(game, defaultRng);
+        if (next !== game) {
+          void persistAuto(next);
+        }
+      } else if (intent.type === 'battle') {
+        void persistAuto(startBattle(setPartyAutoBattle(game, true), defaultRng));
       }
     }, Math.max(AUTO_MAZE_MIN_MS, game.autoThrottleMs));
 
     return () => window.clearInterval(id);
-  }, [dialog, game, move]);
+  }, [dialog, game, move, persistAuto]);
 
   const toggleAutoPlay = () => {
     if (!game) {

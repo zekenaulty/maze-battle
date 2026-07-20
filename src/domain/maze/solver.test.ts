@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MazeState } from '../types';
-import { nextDirectionToTarget } from './solver';
+import { findPath, nextDirectionToTarget, pathDistance } from './solver';
 
 describe('maze solver', () => {
   it('returns the next linked direction toward the exit', () => {
@@ -20,5 +20,7 @@ describe('maze solver', () => {
     };
 
     expect(nextDirectionToTarget(maze)).toBe('east');
+    expect(findPath(maze, maze.end)?.directions).toEqual(['east', 'south']);
+    expect(pathDistance(maze, maze.end)).toBe(2);
   });
 });
