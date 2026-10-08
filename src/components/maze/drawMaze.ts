@@ -4,6 +4,7 @@ import { cellKey } from '../../domain/maze/key';
 import { isCellExplored, type MazeVisibilitySnapshot } from '../../domain/maze/visibility';
 import chestClosedUrl from '../../assets/sprites/chest-closed.png';
 import { cameraCellSize, createMazeCamera, DEFAULT_MAZE_CAMERA, isInViewport, type MazeCameraState, type MazeViewport } from './mazeCamera';
+import { isMazeFloorCell } from './mazeFloor';
 
 interface CanvasSize {
   width: number;
@@ -163,9 +164,12 @@ function drawMazeOverview(context: CanvasRenderingContext2D, size: CanvasSize, m
   const walls = collectWalls(maze, cells);
 
   context.save();
+  context.save();
+  clipToMazeFloor(context, maze, cellSize, offsetX, offsetY);
   context.fillStyle = MAZE_COLORS.floorBase;
   context.fillRect(offsetX, offsetY, gridWidth, gridHeight);
   drawLayoutOverlays(context, maze, cellSize, offsetX, offsetY);
+  context.restore();
 
   context.strokeStyle = 'rgba(136, 146, 157, 0.72)';
   context.lineWidth = Math.max(1, Math.min(2, cellSize * 0.12));
@@ -247,6 +251,7 @@ function drawFloors(context: CanvasRenderingContext2D, maze: MazeState, cellSize
   context.beginPath();
   context.rect(x, y, width, height);
   context.clip();
+  clipToMazeFloor(context, maze, cellSize, offsetX, offsetY, viewport);
 
   if (pattern) {
     context.translate(offsetX, offsetY);
@@ -269,9 +274,23 @@ function drawLayoutOverlays(context: CanvasRenderingContext2D, maze: MazeState, 
     return;
   }
 
+  context.save();
+  clipToMazeFloor(context, maze, cellSize, offsetX, offsetY, viewport);
   drawZoneTints(context, maze, cellSize, offsetX, offsetY, viewport);
   drawMainPath(context, maze, cellSize, offsetX, offsetY, viewport);
   drawRoomHighlights(context, maze, cellSize, offsetX, offsetY, viewport);
+  context.restore();
+}
+
+function clipToMazeFloor(context: CanvasRenderingContext2D, maze: MazeState, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport) {
+  if (maze.layout?.version !== 'structured-v2') return;
+  const bounds = renderBounds(maze, viewport);
+  context.beginPath();
+  for (const cell of maze.cells) {
+    if (!isInBounds(cell, bounds) || !isMazeFloorCell(maze, cell)) continue;
+    context.rect(offsetX + cell.column * cellSize, offsetY + cell.row * cellSize, cellSize, cellSize);
+  }
+  context.clip();
 }
 
 function drawZoneTints(context: CanvasRenderingContext2D, maze: MazeState, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport) {
@@ -520,7 +539,7 @@ function drawWalls(context: CanvasRenderingContext2D, maze: MazeState, cellSize:
   context.restore();
 }
 
-function collectWalls(maze: MazeState, cells: Map<string, { links: Direction[] } | undefined>, viewport?: MazeViewport): WallNetwork {
+export function collectWalls(maze: MazeState, cells = linkMap(maze), viewport?: MazeViewport): WallNetwork {
   const horizontal = new Set<string>();
   const vertical = new Set<string>();
   const bounds = renderBounds(maze, viewport);
@@ -528,6 +547,7 @@ function collectWalls(maze: MazeState, cells: Map<string, { links: Direction[] }
   for (let row = bounds.rowStart; row < bounds.rowEnd; row++) {
     for (let column = bounds.columnStart; column < bounds.columnEnd; column++) {
       const cell = cells.get(`${row}:${column}`);
+      if (cell && !isMazeFloorCell(maze, cell)) continue;
 
       if (!hasLink(cell?.links, 'north')) horizontal.add(wallKey(row, column));
       if (!hasLink(cell?.links, 'west')) vertical.add(wallKey(row, column));

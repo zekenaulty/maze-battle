@@ -18,7 +18,7 @@ describe('generateStructuredMaze', () => {
     expect(maze.rows).toBe(21);
     expect(maze.columns).toBe(25);
     expect(maze.cells).toHaveLength(525);
-    expect(maze.layout?.version).toBe('structured-v1');
+    expect(maze.layout?.version).toBe('structured-v2');
     expect(maze.layout?.rooms.length).toBeGreaterThanOrEqual(3);
     expect(maze.layout?.rooms.every((room) => room.tags.includes('questRelevant'))).toBe(true);
     expect(maze.layout?.zones.map((zone) => zone.id)).toEqual(['north-wing', 'central-vaults', 'south-catacombs']);
