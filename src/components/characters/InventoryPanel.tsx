@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RotateCcw, Search, WandSparkles } from 'lucide-react';
 import type { ActorState, EquipmentSlot } from '../../domain/types';
 import { DEFAULT_INVENTORY_FILTERS, projectInventory } from '../../viewModels/inventoryView';
+import { inventoryPackUsage } from '../../viewModels/inventoryCapacity';
 import type { CharactersDialogProps } from '../CharactersDialog';
 import { InventoryFilters } from './InventoryFilters';
 import { InventoryItem } from './InventoryItem';
@@ -24,7 +25,7 @@ export function InventoryPanel(props: InventoryPanelProps) {
   return <section className="inventory-panel">
     <header>
       <h3>Inventory</h3>
-      <span>Gold {inventory.gold} - Pack {inventory.items.length}/{inventory.capacity} - Target {selectedActor.displayName}</span>
+      <span>Gold {inventory.gold} - Pack {inventoryPackUsage(props)}/{inventory.capacity} - Target {selectedActor.displayName}</span>
       <button type="button" disabled={!inventory.items.some((item) => item.slot)} onClick={props.onAutoEquip}><WandSparkles aria-hidden="true" />Auto Equip</button>
     </header>
     <div className="inventory-search-row">

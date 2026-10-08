@@ -117,11 +117,11 @@ describe('town', () => {
   it('permits compatible consumable stacking at capacity and rejects equipment', () => {
     const herb = createVendorItem('health-herb');
     const container = { capacity: 1, items: [herb] };
-    expect(canReceiveTownItem(container, createVendorItem('health-herb'))).toBe(true);
-    expect(canReceiveTownItem(container, createVendorItem('rusty-sword'))).toBe(false);
-    expect(container.items).toEqual([herb]);
     const game = createNewGameState({ mode: 'town' });
     game.inventory = { ...container, gold: 100 };
+    expect(canReceiveTownItem(game, createVendorItem('health-herb'))).toBe(true);
+    expect(canReceiveTownItem(game, createVendorItem('rusty-sword'))).toBe(false);
+    expect(container.items).toEqual([herb]);
     render(<TownScreen {...townProps} game={game} />);
     expect(screen.getByRole('button', { name: 'Buy 6g' })).toBeEnabled();
     expect(screen.getAllByText('Pack full').length).toBeGreaterThan(0);

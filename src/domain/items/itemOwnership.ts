@@ -16,7 +16,7 @@ export function ambiguousItemIds(game: Pick<GameState, 'inventory' | 'stash'>): 
 }
 
 /** Also pin an item referenced by more than one equipment slot/hero. */
-export function ambiguousEquipmentIds(game: GameState): Set<string> {
+export function ambiguousEquipmentIds(game: Pick<GameState, 'party' | 'inventory' | 'stash'>): Set<string> {
   const ids = ambiguousItemIds(game);
   const seen = new Set<string>();
   for (const actor of game.party) {

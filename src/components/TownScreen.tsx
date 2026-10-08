@@ -1,6 +1,6 @@
 import { Activity } from 'lucide-react';
 import type { GameState, InventoryPolicy, VendorId } from '../domain/types';
-import { getEffectiveActor } from '../domain/items/inventory';
+import { getEffectiveActor, packSlotUsage } from '../domain/items/inventory';
 import { AutoStatus } from './screens/AutoStatus';
 import { TownGuild } from './screens/TownGuild';
 import { TownStorage } from './screens/TownStorage';
@@ -39,7 +39,7 @@ export function TownScreen({ game, onLeave, onRest, onBuy, onAcceptQuest, onClai
       <div className="screen-bar">
         <div>
           <h1>Town</h1>
-          <span className="screen-status">Floor {game.dungeonLevel} - Gold {game.inventory.gold} - Pack {game.inventory.items.length}/{game.inventory.capacity} - Stash {game.stash.items.length}/{game.stash.capacity}</span>
+          <span className="screen-status">Floor {game.dungeonLevel} - Gold {game.inventory.gold} - Pack {packSlotUsage(game)}/{game.inventory.capacity} - Stash {game.stash.items.length}/{game.stash.capacity}</span>
         </div>
         <nav aria-label="Town actions">
           <button type="button" onClick={onLeave}>Dungeon</button>

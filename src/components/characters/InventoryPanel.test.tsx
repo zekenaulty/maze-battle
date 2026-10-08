@@ -18,12 +18,15 @@ describe('duplicate inventory records', () => {
     const secondRow = screen.getByRole('article', { name: second.displayName });
     for (const row of [firstRow, secondRow]) {
       expect(within(row).getByText('Protected')).toBeVisible();
-      expect(within(row).getByText(/Duplicate item identity/)).toBeVisible();
+      for (const reason of within(row).getAllByText(/Duplicate item identity/)) expect(reason).toBeVisible();
       expect(within(row).queryByRole('list', { name: 'Combat changes' })).not.toBeInTheDocument();
       expect(within(row).queryByText(/^Approx\. GS [+-]?\d+$/)).not.toBeInTheDocument();
-      if (!equipped) fireEvent.click(within(row).getByRole('button', { name: 'Equip' }));
+      const button = within(row).getByRole('button', { name: equipped ? 'Equipped' : 'Equip' });
+      expect(button).toBeDisabled();
+      expect(button).toHaveAccessibleDescription('Duplicate item identity');
+      fireEvent.click(button);
     }
-    expect(onEquipItem.mock.calls).toEqual(equipped ? [] : [[actor.id, first.id], [actor.id, second.id]]);
+    expect(onEquipItem).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText('Filters and sort'));
     fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'value' } });
     expect(screen.getAllByRole('article')).toEqual([secondRow, firstRow]);

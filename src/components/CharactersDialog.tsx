@@ -58,7 +58,7 @@ export function CharactersDialog(props: CharactersDialogProps) {
               <CharacterStats actor={actor} inventory={inventory} onSpendAttribute={props.onSpendAttribute} onAutoSpendChange={props.onAutoSpendChange} />
             </section>
             <section id="character-equipment" role="tabpanel" aria-labelledby="character-tab-Equipment" hidden={view !== 'Equipment'} tabIndex={0}>
-              <CharacterEquipment actor={actor} inventory={inventory} onUnequipItem={props.onUnequipItem} onBrowse={(slot) => {
+              <CharacterEquipment actor={actor} inventory={inventory} party={party} stash={props.stash} onUnequipItem={props.onUnequipItem} onBrowse={(slot) => {
                 setSlotFilter(slot);
                 setView('Inventory');
                 root.current?.querySelector<HTMLButtonElement>('#character-tab-Inventory')?.focus();

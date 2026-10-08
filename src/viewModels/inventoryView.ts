@@ -5,6 +5,7 @@ import { getSellValue } from '../domain/items/inventory';
 import { duplicateItemIds } from '../domain/items/itemOwnership';
 import { compareItem, getEquippedItemOwner } from './inventoryComparison';
 import { saleDisabledReason } from './inventorySales';
+import { equipDisabledReason, stashDisabledReason } from './inventoryCapacity';
 
 export interface InventoryFilters {
   query: string;
@@ -34,6 +35,8 @@ export function projectInventory(inventory: InventoryState, party: ActorState[],
       item,
       owner,
       saleDisabledReason: saleDisabledReason(item, Boolean(owner), ambiguous.has(item.id)),
+      equipDisabledReason: item.slot ? equipDisabledReason({ inventory, party, stash }, selectedActor.id, item.id) : undefined,
+      stashDisabledReason: stashDisabledReason({ inventory, party, stash }, item.id),
       comparison: compareItem(item, selectedActor, ownedInventory),
       sellValue: getSellValue(item),
     };

@@ -2,8 +2,10 @@ import type { GameState, ItemInstance } from '../types';
 import { isEquipmentItem } from './equipment';
 import { ambiguousEquipmentIds } from './itemOwnership';
 
+export type PackCapacityState = Pick<GameState, 'party' | 'inventory' | 'stash'>;
+
 /** Only a single, valid pack item worn in its matching slot is outside the bag. */
-export function equippedPackItemIds(game: GameState): ReadonlySet<string> {
+export function equippedPackItemIds(game: PackCapacityState): ReadonlySet<string> {
   const ambiguous = ambiguousEquipmentIds(game);
   const items = new Map(game.inventory.items.map((item) => [item.id, item]));
   const equipped = new Set<string>();
@@ -22,11 +24,11 @@ export function occupiedItemSlots(items: readonly ItemInstance[], excludedSlotId
   return items.reduce((used, item) => used + Number(!excludedSlotIds.has(item.id)), 0);
 }
 
-export function packSlotUsage(game: GameState): number {
+export function packSlotUsage(game: PackCapacityState): number {
   return occupiedItemSlots(game.inventory.items, equippedPackItemIds(game));
 }
 
 /** Legacy overflow may be retained or reduced, but an equipment move cannot worsen it. */
-export function canApplyPackChange(before: GameState, after: GameState): boolean {
+export function canApplyPackChange(before: PackCapacityState, after: PackCapacityState): boolean {
   return packSlotUsage(after) <= Math.max(after.inventory.capacity, packSlotUsage(before));
 }

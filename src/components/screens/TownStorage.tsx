@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Lock, Unlock } from 'lucide-react';
 import type { GameState, ItemInstance } from '../../domain/types';
-import { getSellValue, isItemEquipped, junkItemsForSale } from '../../domain/items/inventory';
+import { ambiguousItemIds, getSellValue, isItemEquipped, junkItemsForSale, packSlotUsage } from '../../domain/items/inventory';
+import { itemQuantity } from '../../domain/items/itemStacks';
 import { itemSummary } from '../../domain/items/catalog';
 import { ItemDetails } from '../ItemDetails';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
@@ -22,10 +23,14 @@ export function TownStorage({ game, onSellJunk, onWithdrawStash, onStashItem, on
   const junk = junkItemsForSale(game);
   const saleValue = junk.reduce((sum, item) => sum + getSellValue(item) * Math.max(1, item.quantity ?? 1), 0);
   const items = (source === 'stash' ? game.stash.items : game.inventory.items).filter((item) => item.displayName.toLowerCase().includes(query.trim().toLowerCase()));
+  const ambiguous = ambiguousItemIds(game);
   function unavailable(item: ItemInstance) {
+    if (ambiguous.has(item.id)) return 'Duplicate item identity';
+    if (itemQuantity(item) === 0) return 'Invalid stack quantity';
     if (source === 'pack' && isItemEquipped(game, item.id)) return 'Equipped';
+    if (source === 'pack' && item.locked) return 'Locked';
     if (source === 'pack' && !onStashItem) return 'Deposit unavailable';
-    return canReceiveTownItem(source === 'stash' ? game.inventory : game.stash, item) ? '' : source === 'stash' ? 'Pack full' : 'Stash full';
+    return canReceiveTownItem(game, item, source === 'stash' ? 'pack' : 'stash') ? '' : source === 'stash' ? 'Pack full' : 'Stash full';
   }
   return (
     <section className="town-card town-storage">
@@ -33,7 +38,7 @@ export function TownStorage({ game, onSellJunk, onWithdrawStash, onStashItem, on
       <div className="town-storage-tools">
         <div role="group" aria-label="Storage source">
           <button type="button" aria-pressed={source === 'stash'} onClick={() => setSource('stash')}>Stash {game.stash.items.length}/{game.stash.capacity}</button>
-          <button type="button" aria-pressed={source === 'pack'} onClick={() => setSource('pack')}>Pack {game.inventory.items.length}/{game.inventory.capacity}</button>
+          <button type="button" aria-pressed={source === 'pack'} onClick={() => setSource('pack')}>Pack {packSlotUsage(game)}/{game.inventory.capacity}</button>
         </div>
         <input type="search" aria-label="Search storage" placeholder="Search items" value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
         <button type="button" disabled={junk.length === 0} title="All rarities. Keeps upgrades, equipped or locked gear, quest items and supplies." onClick={() => setConfirmSale(true)}>Sell obsolete gear ({junk.length}) - {saleValue}g (pack and stash)</button>

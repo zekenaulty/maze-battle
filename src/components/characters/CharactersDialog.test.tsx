@@ -86,6 +86,49 @@ describe('CharactersDialog', () => {
     expect(props.onToggleItemLock).toHaveBeenCalledWith('locked');
   });
 
+  it('shows bag-only capacity and accessible full-pack reasons without blocking replacement gear', () => {
+    const worn = itemFixture();
+    const other = itemFixture({ id: 'other', displayName: 'Other Sword' });
+    const spare = itemFixture({ id: 'spare', displayName: 'Spare Sword' });
+    const { props, rerender } = setup({
+      party: [characterFixture({ equipment: { weapon: worn.id } }), characterFixture({ id: 'zyth', displayName: 'Zyth', equipment: { weapon: other.id } })],
+      inventory: { ...inventoryFixture([worn, other, spare]), capacity: 1 },
+      stash: { capacity: 0, items: [] },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Equipment' }));
+    const unequip = screen.getByRole('button', { name: 'Unequip Iron Sword from Vor' });
+    expect(unequip).toBeDisabled();
+    expect(unequip).toHaveAccessibleDescription('Pack full: no room to unequip');
+    expect(screen.getByText('Pack full: no room to unequip')).toBeVisible();
+    fireEvent.click(unequip);
+    expect(props.onUnequipItem).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Browse weapon' }));
+    expect(screen.getByText(/Gold 35 - Pack 1\/1/)).toBeVisible();
+    expect(screen.getByRole('status', { name: 'Inventory results' })).toHaveTextContent('3 of 3 items');
+    const move = within(screen.getByRole('article', { name: 'Other Sword' })).getByRole('button', { name: 'Move' });
+    expect(move).toBeDisabled();
+    expect(move).toHaveAccessibleDescription('Pack full: no room for displaced gear');
+    fireEvent.click(move);
+    expect(props.onEquipItem).not.toHaveBeenCalled();
+    const spareRow = within(screen.getByRole('article', { name: 'Spare Sword' }));
+    const stash = spareRow.getByRole('button', { name: 'Stash' });
+    expect(stash).toBeDisabled();
+    expect(stash).toHaveAccessibleDescription('Stash full');
+    fireEvent.click(stash);
+    expect(props.onStashItem).not.toHaveBeenCalled();
+    const equip = spareRow.getByRole('button', { name: 'Equip' });
+    expect(equip).toBeEnabled();
+    fireEvent.click(equip);
+    expect(props.onEquipItem).toHaveBeenCalledWith('vor', 'spare');
+    rerender(<CharactersDialog {...props} inventory={{ ...props.inventory, capacity: 2 }} stash={{ capacity: 1, items: [] }} />);
+    expect(move).toBeEnabled();
+    expect(stash).toBeEnabled();
+    fireEvent.click(move);
+    expect(props.onEquipItem).toHaveBeenLastCalledWith('vor', 'other');
+    fireEvent.click(screen.getByRole('tab', { name: 'Equipment' }));
+    expect(screen.getByRole('button', { name: 'Unequip Iron Sword from Vor' })).toBeEnabled();
+  });
+
   it('filters and resets an empty result and passes consumables to the selected actor', () => {
     const herb = itemFixture({ id: 'herb', displayName: 'Health Herb', category: 'consumable', slot: undefined, stats: undefined, quantity: 2, consumableEffect: 'heal', consumableAmount: 35 });
     const { props } = setup({ inventory: inventoryFixture([itemFixture(), herb]) });
