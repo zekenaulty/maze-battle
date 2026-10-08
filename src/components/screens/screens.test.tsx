@@ -136,6 +136,27 @@ describe('town', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
     expect(onClaimQuest).toHaveBeenCalledWith('old');
   });
+  it('labels obsolete gear sale scope and protections and still requires confirmation', async () => {
+    const game = createNewGameState({ mode: 'town' });
+    game.inventory.items.push({ ...createVendorItem('rusty-sword'), displayName: 'Obsolete test sword', stats: {}, value: 20 });
+    const onSellJunk = vi.fn();
+    const { rerender } = render(<TownScreen {...townProps} game={game} onSellJunk={onSellJunk} />);
+    const sale = screen.getByRole('button', { name: 'Sell obsolete gear (1) - 10g (pack and stash)' });
+    expect(sale).toHaveAttribute('title', 'All rarities. Keeps upgrades, equipped or locked gear, quest items and supplies.');
+    fireEvent.click(sale);
+    const confirmation = screen.getByRole('dialog', { name: 'Sell obsolete gear?' });
+    expect(confirmation).toHaveTextContent('Sell 1 obsolete gear item from pack and stash for 10g: Obsolete test sword.');
+    expect(confirmation).toHaveTextContent('All rarities are eligible. Upgrades, equipped or locked gear, quest items and supplies are kept. This cannot be undone.');
+    expect(onSellJunk).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    expect(onSellJunk).not.toHaveBeenCalled();
+    fireEvent.click(sale);
+    fireEvent.click(screen.getByRole('button', { name: 'Sell obsolete gear' }));
+    await waitFor(() => expect(onSellJunk).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    rerender(<TownScreen {...townProps} game={{ ...game, inventory: { ...game.inventory, items: [] } }} onSellJunk={onSellJunk} />);
+    expect(screen.getByRole('button', { name: 'Sell obsolete gear (0) - 0g (pack and stash)' })).toBeDisabled();
+  });
   it('wires optional deposit, lock, policy, stop and diagnostics callbacks', () => {
     const game = createNewGameState({ mode: 'town' });
     game.inventoryPolicy = { autoEquip: true, autoSellJunk: false, autoStash: false, autoRestock: false, healthReserve: 1, manaReserve: 1, portalReserve: 1 };
@@ -146,7 +167,7 @@ describe('town', () => {
     expect(onStashItem).toHaveBeenCalledWith(game.inventory.items[0].id);
     fireEvent.click(screen.getByRole('button', { name: `Lock ${game.inventory.items[0].displayName}` }));
     expect(onToggleItemLock).toHaveBeenCalledWith(game.inventory.items[0].id);
-    fireEvent.click(screen.getByLabelText('Auto sell junk'));
+    fireEvent.click(screen.getByLabelText('Auto sell obsolete gear (pack and stash, all rarities)'));
     expect(onInventoryPolicyChange).toHaveBeenCalledWith({ ...game.inventoryPolicy, autoSellJunk: true });
     fireEvent.click(screen.getByRole('button', { name: 'Stop Auto' }));
     expect(onAutoToggle).toHaveBeenCalledOnce();

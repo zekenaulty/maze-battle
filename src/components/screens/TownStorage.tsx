@@ -36,7 +36,7 @@ export function TownStorage({ game, onSellJunk, onWithdrawStash, onStashItem, on
           <button type="button" aria-pressed={source === 'pack'} onClick={() => setSource('pack')}>Pack {game.inventory.items.length}/{game.inventory.capacity}</button>
         </div>
         <input type="search" aria-label="Search storage" placeholder="Search items" value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
-        <button type="button" disabled={junk.length === 0} onClick={() => setConfirmSale(true)}>Sell Junk ({junk.length}) - {saleValue}g</button>
+        <button type="button" disabled={junk.length === 0} title="All rarities. Keeps upgrades, equipped or locked gear, quest items and supplies." onClick={() => setConfirmSale(true)}>Sell obsolete gear ({junk.length}) - {saleValue}g (pack and stash)</button>
       </div>
       <div className="town-storage-list">
         {items.map((item) => {
@@ -51,7 +51,7 @@ export function TownStorage({ game, onSellJunk, onWithdrawStash, onStashItem, on
         })}
         {items.length === 0 && <p className="empty-state">{query ? 'No matching items.' : source === 'stash' ? 'No items stored.' : 'The pack is empty.'}</p>}
       </div>
-      {confirmSale && <ConfirmActionDialog title="Sell junk?" message={`Sell ${junk.length} items for ${saleValue}g: ${junk.map((item) => item.displayName).join(', ')}. This cannot be undone.`} confirmLabel="Sell junk" onConfirm={onSellJunk} onClose={() => setConfirmSale(false)} />}
+      {confirmSale && <ConfirmActionDialog title="Sell obsolete gear?" message={`Sell ${junk.length} obsolete gear item${junk.length === 1 ? '' : 's'} from pack and stash for ${saleValue}g: ${junk.map((item) => item.displayName).join(', ')}. All rarities are eligible. Upgrades, equipped or locked gear, quest items and supplies are kept. This cannot be undone.`} confirmLabel="Sell obsolete gear" onConfirm={onSellJunk} onClose={() => setConfirmSale(false)} />}
     </section>
   );
 }
