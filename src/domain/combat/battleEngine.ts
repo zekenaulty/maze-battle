@@ -68,10 +68,9 @@ export function advanceBattleRound(game: GameState, rng: Rng = defaultRng, now =
 
   const context = createCombatContext(game, rng, now);
   let acted = false;
-  const automatic = game.mode === 'battle' && (game.battle.returnMode === 'auto-play' || game.battle.returnMode === 'waves');
 
   for (const actor of context.party) {
-    const skill = chooseHeroSkill(automatic ? { ...actor, autoBattle: true } : actor, context.party, context.enemies, rng, now);
+    const skill = chooseHeroSkill(actor, context.party, context.enemies, rng, now);
     if (skill) {
       acted = applySkill(actor, skill, context) || acted;
     }

@@ -16,7 +16,8 @@ describe('persistent expedition runner', () => {
       mode: 'auto-play', randomBattles: false, maze: lineMaze(9, rooms, 0, 3, 2), chests: [chestAt(1), chestAt(8)],
       floors: [{ level: 2, maze: lineMaze(3), mazeMaxRooms: 42 }],
     });
-    game = { ...game, party: game.party.map((actor) => ({ ...actor, autoBattle: false })) };
+    const flags = [true, false, true];
+    game = { ...game, party: game.party.map((actor, index) => ({ ...actor, autoBattle: flags[index] })) };
     const ids = game.quests.map((quest) => quest.id);
     expect(new Set(game.quests.map((quest) => quest.task.objective)).size).toBe(4);
     let sawIncidentalExit = false;
@@ -30,7 +31,8 @@ describe('persistent expedition runner', () => {
       if (tick === 3 || (wasBattle && rounds === 2)) game = normalizeGameState(JSON.parse(JSON.stringify(game)));
       expect(game.mode, game.autopilot?.reason).not.toBe('town');
       expect(game.autopilot?.phase, game.autopilot?.reason).not.toBe('blocked');
-      expect(game.party.every((actor) => !actor.autoBattle)).toBe(true);
+      expect(game.party.map((actor) => actor.autoBattle)).toEqual(flags);
+      expect(game.party[1].gcdUntil).toBeUndefined();
       if (game.dungeonLevel === 1 && game.maze.active.column === 2) sawIncidentalExit = true;
       if (game.dungeonLevel === 1 && game.maze.active.column === 3) sawIncidentalStart = true;
       if (game.dungeonLevel === 2) {

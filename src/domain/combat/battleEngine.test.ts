@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGameState, normalizeGameState } from '../gameFactory';
+import { createNewGameState, normalizeGameState, setActorAutoBattle } from '../gameFactory';
 import type { BattleState, EnemyState, GameState } from '../types';
 import { equipItem } from '../items/inventory';
 import { createItemInstance } from '../items/loot';
@@ -322,17 +322,44 @@ describe('battleEngine', () => {
     expect(advanceBattleRound(lost, highRoll)).toBe(lost);
   });
 
-  it('uses temporary expedition AI without overwriting manual actor choices and stops forcing AI immediately', () => {
-    const base = createNewGameState({ mode: 'auto-play' });
+  it.each((['auto-play', 'waves'] as const).flatMap((mode) => [0, 1, 2].map((enabledIndex) => ({ mode, enabledIndex }))))(
+    'honors individual switches in $mode with only actor $enabledIndex enabled', ({ mode, enabledIndex }) => {
+      const base = createNewGameState({ mode });
+      const flags = base.party.map((_, index) => index === enabledIndex);
+      const started = startBattle({ ...base, party: base.party.map((actor, index) => ({ ...actor, autoBattle: flags[index] })) }, lowRoll);
+      const game = { ...started, battle: { ...started.battle!, enemies: [sturdyEnemy()] } };
+      const next = advanceBattleRound(game, lowRoll, 1000);
+      expect(next.battle!.enemies[0].hp).toBeLessThan(game.battle.enemies[0].hp);
+      expect(next.party.map((actor) => actor.autoBattle)).toEqual(flags);
+      for (let index = 0; index < next.party.length; index++) {
+        if (index === enabledIndex) expect(next.party[index].gcdUntil).toBe(1250);
+        else {
+          expect(next.party[index].gcdUntil).toBeUndefined();
+          expect(next.party[index].skills).toEqual(game.party[index].skills);
+          expect(next.battle!.log.some((entry) => entry.startsWith(`${next.party[index].displayName} `))).toBe(false);
+        }
+      }
+      expect(stopAutopilot(next).party.map((actor) => actor.autoBattle)).toEqual(flags);
+    },
+  );
+
+  it.each(['auto-play', 'waves'] as const)('does not force any disabled actor to fight in %s, and honors a later individual toggle', (mode) => {
+    const base = createNewGameState({ mode });
     const started = startBattle({ ...base, party: base.party.map((actor) => ({ ...actor, autoBattle: false })) }, lowRoll);
     const game = { ...started, battle: { ...started.battle!, enemies: [sturdyEnemy()] } };
-    const automatic = advanceBattleRound(game, lowRoll, 1000);
-    expect(automatic.battle!.enemies[0].hp).toBeLessThan(game.battle!.enemies[0].hp);
-    expect(automatic.party.every((actor) => !actor.autoBattle)).toBe(true);
-    const stopped = stopAutopilot(automatic);
-    const manual = advanceBattleRound(stopped, lowRoll, 10000);
-    expect(manual.battle!.enemies[0].hp).toBe(stopped.battle!.enemies[0].hp);
-    expect(manual.battle?.returnMode).toBe('manual');
+    const off = advanceBattleRound(game, highRoll, 1000);
+    expect(off.battle!.enemies[0].hp).toBe(game.battle.enemies[0].hp);
+    expect(off.party.every((actor) => !actor.autoBattle && actor.gcdUntil === undefined)).toBe(true);
+    expect(off.party.some((actor, index) => actor.hp < game.party[index].hp)).toBe(true);
+    const enabled = setActorAutoBattle(off, off.party[1].id, true);
+    const next = advanceBattleRound(enabled, lowRoll, 10000);
+    expect(next.battle!.enemies[0].hp).toBeLessThan(off.battle!.enemies[0].hp);
+    expect(next.party.map((actor) => actor.autoBattle)).toEqual([false, true, false]);
+    expect(next.party.map((actor) => actor.gcdUntil)).toEqual([undefined, 10250, undefined]);
+    const disabled = setActorAutoBattle(next, next.party[1].id, false);
+    const stopped = advanceBattleRound(disabled, lowRoll, 20000);
+    expect(stopped.battle!.enemies[0].hp).toBe(disabled.battle!.enemies[0].hp);
+    expect(stopped.party.every((actor) => !actor.autoBattle)).toBe(true);
   });
 
   it('stops stalled automated combat with a durable reason instead of endlessly waiting', () => {
