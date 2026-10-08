@@ -191,6 +191,7 @@ export interface ActorState {
   maxMp: number;
   gold: number;
   autoBattle: boolean;
+  autoSpendPoints?: boolean;
   gcdUntil?: number;
   equipment: EquipmentState;
   attributes: ActorAttributes;
@@ -216,6 +217,7 @@ export interface EnemyState {
 }
 
 export interface BattleState {
+  rewardGold?: number;
   id: string;
   wave: number;
   status: 'active' | 'won' | 'lost';
@@ -313,6 +315,7 @@ export interface GameState {
   monsterTags: MonsterCategory[];
   mazeTexture: MazeTextureId;
   autoThrottleMs: number;
+  automationPaused?: boolean;
   randomBattles: boolean;
   inventoryPolicy?: InventoryPolicy;
   autopilot?: AutopilotState;

@@ -39,9 +39,9 @@ export function TownStorage({ game, onSellJunk, onWithdrawStash, onStashItem, on
         <button type="button" disabled={junk.length === 0} title="All rarities. Keeps upgrades, equipped or locked gear, quest items and supplies." onClick={() => setConfirmSale(true)}>Sell obsolete gear ({junk.length}) - {saleValue}g (pack and stash)</button>
       </div>
       <div className="town-storage-list">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const reason = unavailable(item);
-          return <article className="town-stock-row" key={item.id}>
+          return <article className="town-stock-row" key={`${item.id}:${index}`}>
             <div><strong>{itemSummary(item)}{item.locked ? ' (Locked)' : ''}</strong><ItemDetails item={item} compact /></div>
             <div className="town-storage-actions">
               {source === 'pack' && onToggleItemLock && <button type="button" title={item.locked ? 'Unlock item' : 'Lock item'} aria-label={`${item.locked ? 'Unlock' : 'Lock'} ${item.displayName}`} onClick={() => onToggleItemLock(item.id)}>{item.locked ? <Lock size={16} /> : <Unlock size={16} />}</button>}

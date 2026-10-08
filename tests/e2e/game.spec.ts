@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { SaveSlot } from '../../src/domain/types';
+import { getLoadoutMetrics } from '../../src/domain/items/gearMetrics';
 
 test('renders explore and battle as separate full screens', async ({ page }) => {
   await page.goto('/');
@@ -98,7 +99,7 @@ test('renders explore and battle as separate full screens', async ({ page }) => 
   await expect(page.getByRole('button', { name: 'Auto', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Waves', exact: true })).toHaveAttribute('aria-pressed', 'false');
   for (const checkbox of await page.locator('.battle-character input[type="checkbox"]').all()) {
-    await expect(checkbox).not.toBeChecked();
+    await expect(checkbox).toBeChecked();
   }
   const stoppedStatus = await page.locator('.screen-status').textContent();
   const skillButton = page.locator('.battle-character-skills button').first();
@@ -332,7 +333,7 @@ test('sells inventory items from town', async ({ page }) => {
   await expect(characters.locator('.equipment-slot').filter({ has: page.getByRole('button', { name: 'Browse weapon', exact: true }) })).toContainText('empty');
 });
 
-test('stacks consumables and auto equips scored gear', async ({ page }) => {
+test('stacks consumables and auto equips actual party improvements', async ({ page }) => {
   await page.goto('/');
   await clearDatabase(page);
   await page.reload({ waitUntil: 'networkidle' });
@@ -417,15 +418,28 @@ test('stacks consumables and auto equips scored gear', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Auto Equip' }).click();
 
-  await expect(page.locator('[data-item-id="auto-sword"]')).toContainText('Equipped: Vor - weapon');
-  await expect(page.locator('[data-item-id="auto-wand"]')).toContainText('Equipped: Zyth - weapon');
+  await expect.poll(async () => (await readSaveSlots(page)).find(slot => slot.slotId === 'auto')!.game.party.filter(actor => actor.equipment.weapon).length).toBe(2);
+  const equipped = (await readSaveSlots(page)).find(slot => slot.slotId === 'auto')!.game;
+  const swordOwner = equipped.party.find(actor => actor.equipment.weapon === 'auto-sword')!;
+  const wandOwner = equipped.party.find(actor => actor.equipment.weapon === 'auto-wand')!;
+  expect(swordOwner.id).not.toBe(wandOwner.id);
+  for (const actor of equipped.party) {
+    const before = getLoadoutMetrics({ ...actor, equipment: {} }, equipped.inventory.items);
+    const after = getLoadoutMetrics(actor, equipped.inventory.items);
+    expect(after.offense).toBeGreaterThanOrEqual(before.offense);
+    expect(after.hp).toBeGreaterThanOrEqual(before.hp);
+    expect(after.mana).toBeGreaterThanOrEqual(before.mana);
+  }
+  await expect(page.locator('[data-item-id="auto-sword"]')).toContainText(`Equipped: ${swordOwner.displayName} - weapon`);
+  await expect(page.locator('[data-item-id="auto-wand"]')).toContainText(`Equipped: ${wandOwner.displayName} - weapon`);
   await characters.getByRole('tab', { name: 'Equipment', exact: true }).click();
-  await expect(characters.getByRole('button', { name: 'Unequip Iron Sword from Vor', exact: true })).toBeVisible();
-  await characters.getByRole('group', { name: 'Character selection' }).getByRole('button', { name: /Zyth/ }).click();
-  await expect(characters.getByRole('button', { name: 'Unequip Oak Wand from Zyth', exact: true })).toBeVisible();
-  await characters.getByRole('group', { name: 'Character selection' }).getByRole('button', { name: /Vor/ }).click();
+  for (const [owner, name] of [[swordOwner, 'Iron Sword'], [wandOwner, 'Oak Wand']] as const) {
+    await characters.getByRole('group', { name: 'Character selection' }).getByRole('button', { name: new RegExp(owner.displayName) }).click();
+    await expect(characters.getByRole('button', { name: `Unequip ${name} from ${owner.displayName}`, exact: true })).toBeVisible();
+  }
+  await characters.getByRole('group', { name: 'Character selection' }).getByRole('button', { name: new RegExp(swordOwner.displayName) }).click();
   await characters.getByRole('tab', { name: 'Stats', exact: true }).click();
-  const stats = characters.getByRole('table', { name: 'Vor base and effective stats' });
+  const stats = characters.getByRole('table', { name: `${swordOwner.displayName} base and effective stats` });
   await expect(stats.getByRole('columnheader', { name: 'Gear', exact: true })).toBeVisible();
   await expect(stats.getByRole('row', { name: /^Strength / }).getByRole('cell').nth(1)).toHaveText('+1');
 });
@@ -560,25 +574,19 @@ test('confirms save loading, deletion and new game without changing state on can
 });
 
 async function clearDatabase(page: Page) {
-  await expect(page.locator('.explore-screen')).toBeVisible();
+  // Seed outside the mounted app: its debounced autosave must not race fixture writes.
+  await page.goto('/tests/e2e/refinement-fixture.html');
   await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('maze-battle');
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    try {
-      // App keeps an IDB connection open; deleteDatabase.onblocked is not a successful reset.
-      await new Promise<void>((resolve, reject) => {
-        const transaction = db.transaction(['saves', 'meta'], 'readwrite');
-        transaction.objectStore('saves').clear();
-        transaction.objectStore('meta').clear();
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-        transaction.onabort = () => reject(transaction.error ?? new Error('Save reset aborted'));
-      });
-    } finally { db.close(); }
+    const repositoryPath = '/src/persistence/saveRepository.ts';
+    const factoryPath = '/src/domain/gameFactory.ts';
+    const repository = await import(/* @vite-ignore */ repositoryPath);
+    const factory = await import(/* @vite-ignore */ factoryPath);
+    const db = await repository.getDatabase();
+    await db.clear('saves');
+    await db.clear('meta');
+    await repository.saveGame('auto', 'Auto Save', 'auto', factory.createNewGameState());
   });
+  await page.goto('/');
 }
 
 async function readSaveSlots(page: Page): Promise<SaveSlot[]> {

@@ -33,7 +33,7 @@ function grantActorRewards(actor: ActorState, xp: number, gold: number): ActorSt
     applyLevelBonus(next);
   }
 
-  spendAvailablePoints(next);
+  if (next.autoSpendPoints !== false) spendAvailablePoints(next);
   return next;
 }
 
