@@ -2,7 +2,7 @@ import type { BattleState, GameState, SkillId } from '../types';
 import { setGameMode } from '../gameFactory';
 import { applySkill, type CombatContext } from './applySkill';
 import { chooseEnemySkill, chooseHeroSkill } from './ai';
-import { battleStatus, createCombatContext, removeDefeated } from './battleContext';
+import { battleStatus, createCombatContext, removeDefeated, type BattleCombatContext, type RewardedBattleState } from './battleContext';
 import { defaultRng, type Rng } from './rng';
 import { spawnEnemies } from './spawn';
 import { addItemsToInventory } from '../items/inventory';
@@ -14,7 +14,7 @@ import { planningState } from '../automation/autopilotState';
 export function startBattle(game: GameState, rng: Rng = defaultRng): GameState {
   if (game.battle?.status === 'active') return game;
   const wave = game.mode === 'waves' ? game.wave + 1 : 1;
-  const battle: BattleState = {
+  const battle: RewardedBattleState = {
     id: crypto.randomUUID(),
     wave,
     status: 'active',
@@ -25,6 +25,7 @@ export function startBattle(game: GameState, rng: Rng = defaultRng): GameState {
     loot: [],
     origin: battleOrigin(game),
     defeated: [],
+    rewardGold: 0,
   };
 
   return {
@@ -132,7 +133,7 @@ function runEnemyTurn(context: CombatContext) {
   return acted;
 }
 
-function finishBattleTurn(game: GameState, context: CombatContext, status: BattleState['status']): GameState {
+function finishBattleTurn(game: GameState, context: BattleCombatContext, status: BattleState['status']): GameState {
   if (!game.battle) {
     return game;
   }
@@ -148,7 +149,8 @@ function finishBattleTurn(game: GameState, context: CombatContext, status: Battl
       wave: game.battle.returnMode === 'waves' ? game.battle.wave : game.wave,
       party: context.party,
       battle: undefined,
-      activityLog: trimLog(['Battle won.', ...credited.activityLog]),
+      inventory: { ...credited.inventory, gold: credited.inventory.gold + context.rewardGold },
+      activityLog: trimLog(['Battle won.', ...(context.rewardGold > 0 ? [`Battle gold: ${context.rewardGold}g.`] : []), ...credited.activityLog]),
       updatedAt: new Date().toISOString(),
     };
 
@@ -160,21 +162,23 @@ function finishBattleTurn(game: GameState, context: CombatContext, status: Battl
   }
 
   const mode: GameState['mode'] = status === 'active' ? 'battle' : 'manual';
+  const battle: RewardedBattleState = {
+    ...game.battle,
+    enemies: context.enemies,
+    round: game.battle.round + 1,
+    status,
+    log: trimLog(status === 'lost' ? [...context.log, 'Party defeated.'] : context.log),
+    loot: context.loot,
+    origin: game.battle.origin ?? battleOrigin(game),
+    defeated: context.defeated,
+    rewardGold: context.rewardGold,
+  };
 
   return {
     ...credited,
     mode,
     party: context.party,
-    battle: {
-      ...game.battle,
-      enemies: context.enemies,
-      round: game.battle.round + 1,
-      status,
-      log: trimLog(status === 'lost' ? [...context.log, 'Party defeated.'] : context.log),
-      loot: context.loot,
-      origin: game.battle.origin ?? battleOrigin(game),
-      defeated: context.defeated,
-    },
+    battle,
     updatedAt: new Date().toISOString(),
   };
 }

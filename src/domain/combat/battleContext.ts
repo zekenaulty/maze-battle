@@ -6,7 +6,21 @@ import type { Rng } from './rng';
 import { rollLoot } from '../items/loot';
 import { getEquipmentStats } from '../items/inventory';
 
-export function createCombatContext(game: GameState, rng: Rng, now = Date.now()): CombatContext {
+// Kept local until the integration-owned BattleState exposes the optional save field.
+export interface RewardedBattleState extends BattleState {
+  rewardGold?: number;
+}
+
+export interface BattleCombatContext extends CombatContext {
+  rewardGold: number;
+}
+
+export function battleRewardGold(battle: RewardedBattleState | undefined) {
+  const gold = battle?.rewardGold;
+  return typeof gold === 'number' && Number.isFinite(gold) ? Math.max(0, Math.floor(gold)) : 0;
+}
+
+export function createCombatContext(game: GameState, rng: Rng, now = Date.now()): BattleCombatContext {
   const party = game.party.map(copyActor);
   const enemies = game.battle?.enemies.map(copyEnemy) ?? [];
   const equipmentBonuses = Object.fromEntries(party.map((actor) => [actor.id, getEquipmentStats(actor, game.inventory)]));
@@ -20,13 +34,14 @@ export function createCombatContext(game: GameState, rng: Rng, now = Date.now())
     defeated: game.battle?.defeated?.map(copyEnemy) ?? [],
     log: [...(game.battle?.log ?? [])],
     loot: [...(game.battle?.loot ?? [])],
+    rewardGold: battleRewardGold(game.battle),
     equipmentBonuses,
     rng,
     now,
   };
 }
 
-export function removeDefeated(context: CombatContext, rng: Rng) {
+export function removeDefeated(context: BattleCombatContext, rng: Rng) {
   const dead = context.enemies.filter((enemy) => !isAlive(enemy));
   if (dead.length === 0) {
     return false;
@@ -38,7 +53,15 @@ export function removeDefeated(context: CombatContext, rng: Rng) {
     seen.add(enemy.id);
     return true;
   });
+  // All living recipients get the same rolled gold. Read one delta, never the party sum.
+  const recipient = context.party.find(isAlive);
   context.party = grantRewards(context.party, defeated, rng);
+  if (recipient) {
+    const awarded = context.party.find((actor) => actor.id === recipient.id)!;
+    if (Number.isFinite(recipient.gold) && Number.isFinite(awarded.gold)) {
+      context.rewardGold += Math.max(0, awarded.gold - recipient.gold);
+    }
+  }
   context.loot.push(...defeated.flatMap((enemy) => rollLoot({ source: 'battle', level: enemy.level }, rng)));
   context.defeated.push(...defeated);
   context.enemies = context.enemies.filter(isAlive);
