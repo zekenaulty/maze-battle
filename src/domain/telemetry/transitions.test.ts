@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../gameFactory';
 import { createPlayTelemetry, MAX_PLAY_EVENTS, recordTransition } from './transitions';
+import { normalizeInventory, sellItem } from '../items/inventory';
 
 describe('play telemetry', () => {
+  it('counts sold units, not legacy price/level consolidation, as inventory loss', () => {
+    const game = createNewGameState({ mode: 'town' });
+    const herb = game.inventory.items.find(i => i.consumableEffect === 'heal')!;
+    game.inventory.items = [{ ...herb, quantity: 3 }, { ...herb, id: 'legacy', itemLevel: 19, value: 44, quantity: 2 }];
+    const merged = { ...game, inventory: normalizeInventory(game.inventory) };
+    let log = recordTransition(createPlayTelemetry(game.id), game, merged, { action: 'normalize', source: 'system' });
+    expect(log.counters.itemsAdded).toBe(0);
+    expect(log.counters.itemsRemoved).toBe(0);
+    const sold = sellItem(merged, herb.id, 2);
+    log = recordTransition(log, merged, sold, { action: 'sell', source: 'manual' });
+    expect(log.counters.itemsAdded).toBe(0);
+    expect(log.counters.itemsRemoved).toBe(2);
+    expect(log.counters.goldGained).toBe(sold.inventory.gold - merged.inventory.gold);
+  });
   it('does not count stack transfers, consolidation, or locking as item gains/losses', () => {
     const game = createNewGameState();
     const herb = game.inventory.items.find(i => i.consumableEffect === 'heal')!;

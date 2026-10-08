@@ -60,6 +60,19 @@ Normalization preserves all owned records beyond capacity. Valid equivalent
 stacks retain the first ID and exact total quantity; invalid quantities are
 preserved but unusable. Admission for buying/transferring is strict; awarded
 loot can overflow because there is no ground container to return it to.
+
+Supply stacks match base, effect, potency, lock state and all other non-economic
+metadata, not cosmetic item level or price. Newly generated supplies use level 1
+because their effect does not scale. Old differently priced stacks consolidate
+without losing resale gold: optional `stackSellValue` retains their total quote.
+`getSellValue(item, quantity = 1)` quotes the exact amount; integer remainders
+remain in the later units. Selling every unit singly equals selling all at once.
+Use `stackPortion` with `consumeStackItem` for partial transfers. Do not copy a
+stack with only a changed quantity, or multiply a one-unit quote for bulk sales.
+Manual sales require town, a positive integral available quantity, valid prices,
+and an unlocked, unequipped, unambiguous equipment/consumable record. Quest
+items are not sellable. Failed or stale requests are atomic no-ops.
+
 `ambiguousItemIds(game)` exposes duplicate IDs across pack/stash. Those records
 are never merged, auto-equipped, sold, transferred or consumed. Already equipped
 ambiguous identities stay pinned; unique gear remains manageable. Candidates

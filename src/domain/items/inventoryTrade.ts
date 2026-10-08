@@ -1,12 +1,15 @@
 import type { GameState, ItemInstance } from '../types';
 import { findBaseItem, itemSummary } from './catalog';
-import { clampActorVitals, isEquipmentItem, isItemEquipped, removeItemFromEquipment } from './equipment';
+import { isEquipmentItem, isItemEquipped } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
 import { BALANCED_GEAR_POLICY, retainGearForParty, type GearEvaluationPolicy } from './gearEvaluation';
 import { ambiguousItemIds } from './itemOwnership';
 import { normalizeInventoryPolicy } from './inventoryPolicy';
 import { consumeStackItem, itemQuantity, mergeInventoryItems } from './itemStacks';
 import { createVendorItem } from './loot';
+import { getSellValue } from './itemValue';
+
+export { getSellValue } from './itemValue';
 
 export function buyVendorItem(game: GameState, baseId: string, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
   const base = findBaseItem(baseId);
@@ -24,22 +27,17 @@ export function buyVendorItem(game: GameState, baseId: string, policy: GearEvalu
   return item.slot && normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(next, policy) : next;
 }
 
-export function getSellValue(item: ItemInstance): number {
-  return Number.isFinite(item.value) ? Math.max(1, Math.ceil(item.value * 0.5)) : 0;
-}
-
-export function sellItem(game: GameState, itemId: string): GameState {
+export function sellItem(game: GameState, itemId: string, amount = 1): GameState {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
-  if (game.mode !== 'town' || !item || item.locked || itemQuantity(item) === 0 || ambiguousItemIds(game).has(itemId)) return game;
+  if (game.mode !== 'town' || !item || item.locked || isItemEquipped(game, itemId) || ambiguousItemIds(game).has(itemId)) return game;
   if (item.category !== 'equipment' && item.category !== 'consumable') return game;
-  const sellValue = getSellValue(item);
-  const inventory = { ...game.inventory, gold: game.inventory.gold + sellValue, items: consumeStackItem(game.inventory.items, itemId) };
+  const sellValue = getSellValue(item, amount);
+  if (sellValue <= 0 || !Number.isSafeInteger(game.inventory.gold) || game.inventory.gold < 0 || !Number.isSafeInteger(game.inventory.gold + sellValue)) return game;
+  const inventory = { ...game.inventory, gold: game.inventory.gold + sellValue, items: consumeStackItem(game.inventory.items, itemId, amount) };
   return {
     ...game,
     inventory,
-    party: inventory.items.some((candidate) => candidate.id === itemId) ? game.party : game.party.map((actor) =>
-      clampActorVitals({ ...actor, equipment: removeItemFromEquipment(actor.equipment, itemId) }, inventory)),
-    activityLog: [`Sold ${itemSummary({ ...item, quantity: 1 })} for ${sellValue}g.`, ...game.activityLog].slice(0, 12),
+    activityLog: [`Sold ${itemSummary({ ...item, quantity: amount })} for ${sellValue}g.`, ...game.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -62,7 +60,7 @@ export function sellJunkItems(game: GameState, policy: GearEvaluationPolicy = BA
   const junk = junkItemsForSale(next, 'all', policy);
   if (junk.length === 0) return next;
   const sold = new Set(junk);
-  const gold = junk.reduce((total, item) => total + getSellValue(item) * itemQuantity(item), 0);
+  const gold = junk.reduce((total, item) => total + getSellValue(item, itemQuantity(item)), 0);
   if (!Number.isFinite(next.inventory.gold + gold)) return next;
   return {
     ...next,

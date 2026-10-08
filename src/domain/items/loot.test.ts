@@ -131,7 +131,7 @@ describe('item loot and inventory', () => {
     expect(equipped.party.flatMap((actor) => Object.values(actor.equipment)).sort()).toEqual([sword.id, wand.id].sort());
   });
 
-  it('sells items in town and removes equipped references', () => {
+  it('requires unequipping before a town sale', () => {
     const item: ItemInstance = {
       id: 'sell-test-sword',
       baseId: 'iron-sword',
@@ -157,7 +157,8 @@ describe('item loot and inventory', () => {
       party: game.party.map((actor, index) => (index === 0 ? { ...actor, equipment: { ...actor.equipment, weapon: item.id } } : actor)),
     };
 
-    const sold = sellItem(equipped, item.id);
+    expect(sellItem(equipped, item.id)).toBe(equipped);
+    const sold = sellItem(game, item.id);
 
     expect(sold.inventory.gold).toBe(56);
     expect(sold.inventory.items).toHaveLength(0);

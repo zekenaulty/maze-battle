@@ -1,5 +1,6 @@
 import type { ItemInstance } from '../types';
 import { duplicateItemIds } from './itemOwnership';
+import { getSellValue } from './itemValue';
 
 export interface ItemContainer {
   capacity: number;
@@ -20,11 +21,11 @@ export function stackInventoryItems(items: ItemInstance[], protectedIds: Readonl
   const indices = new Map<string, number>();
   const ambiguous = duplicateItemIds(items);
   for (const item of items) {
-    const key = itemQuantity(item) > 0 && !ambiguous.has(item.id) && !protectedIds.has(item.id) && isStackableItem(item) ? stackKey(item) : undefined;
+    const key = canStack(item) && !ambiguous.has(item.id) && !protectedIds.has(item.id) ? stackIdentity(item) : undefined;
     const index = key === undefined ? undefined : indices.get(key);
-    if (index !== undefined && Number.isSafeInteger(itemQuantity(stacked[index]) + itemQuantity(item))) {
+    if (index !== undefined && canCombine(stacked[index], item)) {
       const existing = stacked[index];
-      stacked[index] = { ...existing, quantity: itemQuantity(existing) + itemQuantity(item) };
+      stacked[index] = combineStacks(existing, item);
     } else {
       if (key !== undefined) indices.set(key, stacked.length);
       stacked.push(key === undefined ? item : { ...item, quantity: itemQuantity(item) });
@@ -42,12 +43,12 @@ export function mergeInventoryItems<T extends ItemContainer>(container: T, incom
   for (const item of incoming) {
     const usable = itemQuantity(item) > 0 && !ambiguous.has(item.id);
     if (!usable && !allowOverflow) { rejected.push(item); continue; }
-    const index = usable && isStackableItem(item)
-      ? items.findIndex((candidate) => !ambiguous.has(candidate.id) && itemQuantity(candidate) > 0 && isStackableItem(candidate)
-        && Number.isSafeInteger(itemQuantity(candidate) + itemQuantity(item)) && stackKey(candidate) === stackKey(item))
+    const index = usable && canStack(item)
+      ? items.findIndex((candidate) => !ambiguous.has(candidate.id) && canStack(candidate)
+        && canCombine(candidate, item) && stackIdentity(candidate) === stackIdentity(item))
       : -1;
     if (index >= 0) {
-      items[index] = { ...items[index], quantity: itemQuantity(items[index]) + itemQuantity(item) };
+      items[index] = combineStacks(items[index], item);
     } else if (allowOverflow || items.length < container.capacity) {
       items.push(usable && isStackableItem(item) ? { ...item, quantity: itemQuantity(item) } : item);
     } else {
@@ -65,7 +66,8 @@ export function consumeStackItem(items: ItemInstance[], itemId: string, amount =
   return items.flatMap((item) => {
     if (item.id !== itemId) return [item];
     const quantity = itemQuantity(item) - amount;
-    return quantity > 0 ? [{ ...item, quantity }] : [];
+    const stackSellValue = item.stackSellValue === undefined ? undefined : item.stackSellValue - getSellValue(item, amount);
+    return quantity > 0 ? [{ ...item, quantity, ...(stackSellValue === undefined ? {} : { stackSellValue }) }] : [];
   });
 }
 
@@ -73,13 +75,28 @@ export function normalizeCapacity(capacity: number | undefined, fallback: number
   return capacity !== undefined && Number.isFinite(capacity) ? Math.max(0, Math.floor(capacity)) : fallback;
 }
 
-function stackKey(item: ItemInstance): string {
-  // Keep value, effects, metadata and lock boundaries intact; the first ID wins.
-  const { id: _id, quantity: _quantity, locked, ...identity } = item;
-  return JSON.stringify({ ...identity, locked: Boolean(locked) }, (_key, value) => {
+export function stackIdentity(item: ItemInstance, includeLock = true): string {
+  // Level and price do not change potency. Preserve all other metadata boundaries.
+  const { id: _id, quantity: _quantity, itemLevel: _level, value: _value, stackSellValue: _total, locked, ...identity } = item;
+  return JSON.stringify({ ...identity, ...(includeLock ? { locked: Boolean(locked) } : {}) }, (_key, value) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)));
     }
     return value;
   });
+}
+
+function canStack(item: ItemInstance): boolean {
+  return isStackableItem(item) && itemQuantity(item) > 0 && getSellValue(item, itemQuantity(item)) > 0;
+}
+
+function canCombine(left: ItemInstance, right: ItemInstance): boolean {
+  return Number.isSafeInteger(itemQuantity(left) + itemQuantity(right))
+    && Number.isSafeInteger(getSellValue(left, itemQuantity(left)) + getSellValue(right, itemQuantity(right)));
+}
+
+function combineStacks(left: ItemInstance, right: ItemInstance): ItemInstance {
+  const quantity = itemQuantity(left) + itemQuantity(right);
+  const total = getSellValue(left, itemQuantity(left)) + getSellValue(right, itemQuantity(right));
+  return { ...left, quantity, ...(left.value === right.value && left.stackSellValue === undefined && right.stackSellValue === undefined ? {} : { stackSellValue: total }) };
 }

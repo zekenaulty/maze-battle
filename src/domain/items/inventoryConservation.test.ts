@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addItemsToInventory, equipItem, normalizeInventory, normalizeStash, recoverParty, sellItem, stashItem, useConsumable, withdrawStashItem } from './inventory';
-import { buyVendorItem } from './inventoryTrade';
+import { buyVendorItem, getSellValue } from './inventoryTrade';
 import { gear, inventoryGame, supply } from './__tests__/fixtures';
 
 describe('inventory conservation and stable stacking', () => {
@@ -14,15 +14,16 @@ describe('inventory conservation and stable stacking', () => {
     expect(normalizeInventory(next.inventory).items).toEqual(next.inventory.items);
   });
 
-  it('keeps the first stack identity and separates locked/economically distinct stacks', () => {
+  it('keeps the first identity, preserves resale value and separates locks and potency', () => {
     const first = supply('health-herb', 2, { id: 'first' });
     const second = { ...first, id: 'second', quantity: 3 };
     const locked = { ...first, id: 'locked', locked: true };
     const stronger = { ...first, id: 'stronger', consumableAmount: 99 };
     const pricier = { ...first, id: 'pricier', value: 999 };
     const result = normalizeInventory({ capacity: 1, items: [first, second, locked, stronger, pricier] });
-    expect(result.items.map((item) => item.id)).toEqual(['first', 'locked', 'stronger', 'pricier']);
-    expect(result.items[0].quantity).toBe(5);
+    expect(result.items.map((item) => item.id)).toEqual(['first', 'locked', 'stronger']);
+    expect(result.items[0].quantity).toBe(7);
+    expect(getSellValue(result.items[0], 7)).toBe(getSellValue(first, 2) + getSellValue(second, 3) + getSellValue(pricier, 2));
     expect(normalizeInventory(result)).toEqual(result);
   });
 

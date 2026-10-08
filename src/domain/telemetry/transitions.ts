@@ -1,6 +1,6 @@
 import type { GameState, ItemInstance } from '../types';
 import type { PlayCounters, PlayTelemetry, TransitionContext } from './types';
-import { itemQuantity } from '../items/itemStacks';
+import { itemQuantity, stackIdentity } from '../items/itemStacks';
 
 export const MAX_PLAY_EVENTS = 600;
 
@@ -97,11 +97,8 @@ function transitionChanges(before: GameState, after: GameState, context: Transit
 function quantities(items: ItemInstance[]) {
   const counts = new Map<string, number>();
   for (const item of items) {
-    const { id, quantity: _quantity, locked: _locked, ...identity } = item;
     // Moving and consolidating a consumable stack may change its ID, not ownership.
-    const key = !item.slot && item.category === 'consumable' ? JSON.stringify(identity, (_key, value) =>
-      value && typeof value === 'object' && !Array.isArray(value)
-        ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value) : id;
+    const key = !item.slot && item.category === 'consumable' ? stackIdentity(item, false) : item.id;
     counts.set(key, (counts.get(key) ?? 0) + itemQuantity(item));
   }
   return counts;

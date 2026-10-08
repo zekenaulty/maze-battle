@@ -174,6 +174,8 @@ export interface ItemInstance {
   consumableEffect?: ConsumableEffect;
   consumableAmount?: number;
   quantity?: number;
+  /** Remaining resale gold for a merged stack with legacy per-unit prices. */
+  stackSellValue?: number;
   locked?: boolean;
 }
 

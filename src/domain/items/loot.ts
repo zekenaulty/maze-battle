@@ -46,6 +46,9 @@ export function createItemInstance(baseId: string, itemLevel: number, rarity: It
     throw new Error(`Unknown item base: ${baseId}`);
   }
 
+  // Supply potency is fixed by its base definition, not the floor that dropped it.
+  if (!base.slot) itemLevel = 1;
+
   const affixes = base.slot ? rollAffixes(rarity, rng) : [];
   const legendaryPower = base.slot && rarity === 'legendary' && rng() > 0.25 ? sample(LEGENDARY_POWERS, rng) : undefined;
   const prefix = RARITY_PREFIX[rarity];

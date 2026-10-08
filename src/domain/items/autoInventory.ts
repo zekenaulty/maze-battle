@@ -6,6 +6,7 @@ import { ambiguousItemIds } from './itemOwnership';
 import { normalizeInventoryPolicy, setInventoryPolicy } from './inventoryPolicy';
 import { buyVendorItem, sellJunkItems, stashItem } from './inventoryTrade';
 import { consumeStackItem, itemQuantity, mergeInventoryItems, stackInventoryItems } from './itemStacks';
+import { stackPortion } from './itemValue';
 
 const SUPPLIES: Array<{ effect: ConsumableEffect; baseId: string; reserve: keyof Pick<InventoryPolicy, 'portalReserve' | 'healthReserve' | 'manaReserve'> }> = [
   { effect: 'townPortal', baseId: 'town-portal', reserve: 'portalReserve' },
@@ -88,7 +89,7 @@ function restockSupplies(game: GameState, policy: InventoryPolicy, gearPolicy: G
 
 function transferSupply(game: GameState, item: ItemInstance, quantity: number, destination: 'pack' | 'stash'): GameState {
   if (quantity <= 0 || ambiguousItemIds(game).has(item.id)) return game;
-  const moved = { ...item, id: quantity === itemQuantity(item) ? item.id : crypto.randomUUID(), quantity };
+  const moved = { ...stackPortion(item, quantity), id: quantity === itemQuantity(item) ? item.id : crypto.randomUUID() };
   const target = destination === 'pack' ? game.inventory : game.stash;
   const { inventory: merged, accepted } = mergeInventoryItems(target, [moved], false, ambiguousItemIds(game));
   if (accepted.length === 0) return game;
