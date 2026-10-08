@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CharactersDialog, type CharactersDialogProps } from '../CharactersDialog';
 import { characterFixture, inventoryFixture, itemFixture } from '../../viewModels/characterTestFixtures';
@@ -18,14 +18,16 @@ function setup(overrides: Partial<CharactersDialogProps> = {}) {
 }
 
 describe('CharactersDialog', () => {
-  it('navigates characters and views by keyboard, preserves the selected target, and restores focus', () => {
+  it('navigates characters and views by keyboard, preserves the selected target, and restores focus', async () => {
     const trigger = document.createElement('button');
     document.body.append(trigger);
     trigger.focus();
-    const { props, unmount } = setup();
-    expect(screen.getByRole('button', { name: /Vor/ })).toHaveFocus();
+    const { props, rerender, unmount } = setup();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Vor/ })).toHaveFocus());
     fireEvent.keyDown(screen.getByRole('button', { name: /Vor/ }), { key: 'ArrowRight' });
     expect(screen.getByRole('button', { name: /Zyth/ })).toHaveAttribute('aria-pressed', 'true');
+    rerender(<CharactersDialog {...props} />);
+    expect(screen.getByRole('button', { name: /Zyth/ })).toHaveFocus();
     expect(screen.getByRole('table', { name: 'Zyth base and effective stats' })).toBeVisible();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Auto battle' }));
     expect(props.onAutoBattleChange).toHaveBeenCalledWith('zyth', false);
@@ -34,10 +36,28 @@ describe('CharactersDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move' }));
     expect(props.onEquipItem).toHaveBeenCalledWith('zyth', 'sword');
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Inventory' }), { key: 'Escape' });
+    expect(props.onClose).not.toHaveBeenCalled();
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: false, cancelable: true }));
     expect(props.onClose).toHaveBeenCalledOnce();
     unmount();
     expect(trigger).toHaveFocus();
     trigger.remove();
+  });
+
+  it('cancels pending autofocus on unmount instead of stealing restored focus', async () => {
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    trigger.focus();
+    const { unmount } = setup();
+    unmount();
+    await act(async () => { await Promise.resolve(); });
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
+
+  it('focuses the shared close button when the party is empty', async () => {
+    setup({ party: [] });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Close dialog' })).toHaveFocus());
   });
 
   it('shows all eight slots and routes unequip/browse actions to the selected character', () => {

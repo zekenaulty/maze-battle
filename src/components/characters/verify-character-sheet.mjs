@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
 
 // Bounded visual/interaction check using this worktree and an OS-assigned port.
@@ -54,7 +54,11 @@ try {
     db.close();
   });
   await page.reload({ waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Party', exact: true }).click();
+  const trigger = page.getByRole('button', { name: 'Party', exact: true });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Characters', exact: true });
+  await expect(page.getByRole('button', { name: /Vor/ })).toBeFocused();
+  assert(await dialog.evaluate((element) => element.matches(':modal')));
   for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 640 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(viewport);
     for (const view of ['Stats', 'Equipment', 'Skills', 'Inventory']) {
@@ -97,12 +101,27 @@ try {
     await page.screenshot({ path: `${output}/${viewport.width}x${viewport.height}-casting.png` });
   }
   await page.getByRole('button', { name: 'Close dialog' }).focus();
-  await page.keyboard.press('Shift+Tab');
-  assert(await page.getByRole('dialog').evaluate((dialog) => dialog.contains(document.activeElement)));
+  for (const key of ['Tab', 'Shift+Tab']) {
+    for (let index = 0; index < 16; index++) {
+      await page.keyboard.press(key);
+      assert(await dialog.evaluate((element) => element.contains(document.activeElement)), `${key} escaped native modal`);
+    }
+  }
+  await dialog.evaluate((element) => {
+    window.characterCancelCount = 0;
+    element.addEventListener('cancel', () => { window.characterCancelCount++; });
+  });
   await page.keyboard.press('Escape');
-  assert.equal(await page.getByRole('dialog').count(), 0);
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  assert.equal(await page.evaluate(() => window.characterCancelCount), 1);
+  await trigger.click();
+  await expect(page.getByRole('button', { name: /Vor/ })).toBeFocused();
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
   assert.deepEqual(errors, []);
-  console.log(`PASS: 22 screenshots, four viewports, all eight slots, search/reset, actor transfer, disabled cast reasons, keyboard close; ${output}`);
+  console.log(`PASS: 22 screenshots, four viewports, all eight slots, search/reset, actor transfer, disabled cast reasons, native autofocus/Tab containment/cancel/restore/reopen; ${output}`);
 } finally {
   await browser?.close();
   await server.close();

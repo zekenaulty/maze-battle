@@ -73,11 +73,19 @@ The lead-owned `tests/e2e/game.spec.ts` needs these deliberate changes:
 
 These shared browser tests were not edited or run unchanged. The scoped browser verification exercises the new navigation contract instead.
 
+## Native Dialog Integration
+
+The screens prerequisite `75f7c4b` was cherry-picked into this isolated worktree for qualification. The character follow-up does not modify shared Dialog or screens files and should be integrated separately from that already-owned prerequisite.
+
+The original hook searched for an explicit `[role="dialog"]`, which does not match the shared native `<dialog>`'s implicit role. It also duplicated containment, Escape handling and opener restoration. The replacement hook only schedules cancellable initial focus on the selected character (or shared close button for an empty party) after the portal/showModal effects have run. Shared Dialog exclusively owns modal focus containment, native `cancel` and restoration. Rerenders do not reapply autofocus; unmount cancels any pending focus operation.
+
+Component assertions await deferred autofocus and dispatch the native `cancel` event rather than pretending a jsdom Escape keydown generates browser defaults. The real-browser check verifies `:modal`, selected-character autofocus, 16 forward and 16 reverse Tab steps, exactly one native cancellation on Escape, opener restoration, and a successful reopen/close cycle.
+
 ## Verification
 
 - `npm run build`: PASS (TypeScript and production build).
-- `npm test`: PASS, 83 tests across 15 files, including 23 added projection/component tests. Follow-up tests cover all four dispatches, selection, target eligibility, every cast guard, accessible reasons, controlled/live clocks, and default-on/explicit-off auto-spend behavior and selected-actor callbacks without prop mutation.
+- `npm test`: PASS, 101 tests across 16 files after importing the screens prerequisite, including 25 character projection/component tests and the 16 screens tests. Character coverage includes casting, default-on/explicit-off auto-spend behavior, selected-actor callbacks without prop mutation, deferred autofocus, native cancellation, empty-party fallback and unmount cancellation.
 - `node src/components/characters/verify-character-sheet.mjs`: PASS using the actual app and a seeded autosave, with a temporary Vite server on an OS-assigned free port and automatic browser/server cleanup.
-- Browser checks: Stats/Equipment/Skills/Inventory at 1280x900, 390x844, 320x640 and 844x390; no horizontal overflow in the measured dialog, panels, controls, tables and rows. Eight slots, actor selection, search/reset, item transfer, focus containment and Escape dismissal passed without page errors.
+- Browser checks: Stats/Equipment/Skills/Inventory at 1280x900, 390x844, 320x640 and 844x390; no horizontal overflow in the measured dialog, panels, controls, tables and rows. Eight slots, actor selection, search/reset, item transfer, native autofocus/Tab containment/cancel/restoration/reopen passed without page errors.
 - Twenty-two screenshots were generated under the ignored `test-results/character-sheet/` directory. Representative desktop equipment and mobile stats, skills, inventory and replacement comparison screenshots were visually inspected. The added desktop/mobile casting views verify disabled reasons because baseline App does not wire the new callback. Enabled dispatch is component-tested, not domain-integrated. Screenshots are local verification output, not committed artifacts.
 - No persistent server left running. No merge/deployment or integrated release qualification claimed.

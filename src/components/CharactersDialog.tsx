@@ -41,7 +41,7 @@ export function CharactersDialog(props: CharactersDialogProps) {
   const [view, setView] = useState<SheetView>('Stats');
   const [slotFilter, setSlotFilter] = useState<EquipmentSlot | 'all'>('all');
   const root = useRef<HTMLDivElement>(null);
-  useCharacterDialogFocus(root, onClose);
+  useCharacterDialogFocus(root);
   const actor = party.find((candidate) => candidate.id === selectedActorId) ?? party[0];
 
   return (
