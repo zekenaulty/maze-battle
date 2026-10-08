@@ -1,5 +1,5 @@
 import type { ConsumableEffect, GameState, InventoryPolicy, ItemInstance } from '../types';
-import { isItemEquipped } from './equipment';
+import { isEquipmentItem, isItemEquipped } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
 import { getGearUpgradeScore } from './gearScore';
 import { normalizeInventoryPolicy, setInventoryPolicy } from './inventoryPolicy';
@@ -49,7 +49,7 @@ function compactContainers(game: GameState): GameState {
 function stashSurplus(game: GameState, policy: InventoryPolicy): GameState {
   let next = game;
   for (const item of game.inventory.items) {
-    if (!item.slot || item.locked || isItemEquipped(next, item.id)) continue;
+    if (!isEquipmentItem(item) || item.locked || isItemEquipped(next, item.id)) continue;
     if (next.party.some((actor) => getGearUpgradeScore(item, actor, next.inventory.items) > 0)) continue;
     next = stashItem(next, item.id);
   }

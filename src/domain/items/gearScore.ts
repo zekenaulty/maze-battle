@@ -1,5 +1,6 @@
 import type { ActorState, HeroRole, ItemInstance, ItemStats } from '../types';
 import { getItemTotalStats } from './itemDetails';
+import { isEquipmentItem } from './equipment';
 
 const ROLE_WEIGHTS: Record<HeroRole, Required<ItemStats>> = {
   warrior: {
@@ -29,7 +30,7 @@ const ROLE_WEIGHTS: Record<HeroRole, Required<ItemStats>> = {
 };
 
 export function getItemGearScore(item: ItemInstance, actor: ActorState) {
-  if (!item.slot) {
+  if (!isEquipmentItem(item)) {
     return 0;
   }
 

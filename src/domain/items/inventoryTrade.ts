@@ -1,6 +1,6 @@
 import type { GameState, ItemInstance } from '../types';
 import { findBaseItem, itemSummary } from './catalog';
-import { clampActorVitals, isItemEquipped, removeItemFromEquipment } from './equipment';
+import { clampActorVitals, isEquipmentItem, isItemEquipped, removeItemFromEquipment } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
 import { getGearUpgradeScore } from './gearScore';
 import { normalizeInventoryPolicy } from './inventoryPolicy';
@@ -30,6 +30,7 @@ export function getSellValue(item: ItemInstance): number {
 export function sellItem(game: GameState, itemId: string): GameState {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   if (game.mode !== 'town' || !item || item.locked || itemQuantity(item) === 0) return game;
+  if (item.category !== 'equipment' && item.category !== 'consumable') return game;
   const sellValue = getSellValue(item);
   const inventory = { ...game.inventory, gold: game.inventory.gold + sellValue, items: consumeStackItem(game.inventory.items, itemId) };
   return {
@@ -42,22 +43,30 @@ export function sellItem(game: GameState, itemId: string): GameState {
   };
 }
 
-export function junkItemsForSale(game: GameState): ItemInstance[] {
-  return game.inventory.items.filter((item) => item.slot && !item.locked && !isItemEquipped(game, item.id)
-    && item.rarity !== 'rare' && item.rarity !== 'legendary' && !item.legendaryPower
-    && game.party.length > 0 && game.party.every((actor) => getGearUpgradeScore(item, actor, game.inventory.items) <= 0));
+export type InventoryScope = 'pack' | 'stash' | 'all';
+
+/** All rarities are sellable when not an upgrade for any hero; locks and non-gear always survive. */
+export function junkItemsForSale(game: GameState, scope: InventoryScope = 'all'): ItemInstance[] {
+  const owned = [...game.inventory.items, ...game.stash.items];
+  const candidates = scope === 'pack' ? game.inventory.items : scope === 'stash' ? game.stash.items : owned;
+  return candidates.filter((item) => isEquipmentItem(item) && !item.locked && !isItemEquipped(game, item.id)
+    && Number.isFinite(item.value) && item.value >= 0 && itemQuantity(item) > 0
+    && game.party.length > 0 && game.party.every((actor) => getGearUpgradeScore(item, actor, owned) <= 0));
 }
 
 export function sellJunkItems(game: GameState): GameState {
-  if (game.mode !== 'town') return game;
-  const junk = junkItemsForSale(game);
-  if (junk.length === 0) return game;
-  const ids = new Set(junk.map((item) => item.id));
+  if (game.mode !== 'town' || !Number.isFinite(game.inventory.gold) || game.inventory.gold < 0) return game;
+  const next = normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(game) : game;
+  const junk = junkItemsForSale(next);
+  if (junk.length === 0) return next;
+  const sold = new Set(junk);
   const gold = junk.reduce((total, item) => total + getSellValue(item) * itemQuantity(item), 0);
+  if (!Number.isFinite(next.inventory.gold + gold)) return next;
   return {
-    ...game,
-    inventory: { ...game.inventory, gold: game.inventory.gold + gold, items: game.inventory.items.filter((item) => !ids.has(item.id)) },
-    activityLog: [`Sold ${junk.length} junk item${junk.length === 1 ? '' : 's'} for ${gold}g.`, ...game.activityLog].slice(0, 12),
+    ...next,
+    inventory: { ...next.inventory, gold: next.inventory.gold + gold, items: next.inventory.items.filter((item) => !sold.has(item)) },
+    stash: { ...next.stash, items: next.stash.items.filter((item) => !sold.has(item)) },
+    activityLog: [`Sold ${junk.length} obsolete equipment item${junk.length === 1 ? '' : 's'} from pack/stash for ${gold}g.`, ...next.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
   };
 }

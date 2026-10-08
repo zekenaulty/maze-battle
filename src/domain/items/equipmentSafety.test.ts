@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoEquipBestGear, junkItemsForSale, sellJunkItems, toggleItemLock } from './inventory';
+import { autoEquipBestGear, junkItemsForSale, sellJunkItems, setInventoryPolicy, toggleItemLock } from './inventory';
 import { getActorGearScore, getGearUpgradeScore } from './gearScore';
 import { assignWeapons, gear, inventoryGame } from './__tests__/fixtures';
 
@@ -51,7 +51,7 @@ describe('safe equipment selection', () => {
 });
 
 describe('upgrade-aware junk', () => {
-  it('sells positive-score obsolete gear but preserves upgrades and protected gear', () => {
+  it('sells obsolete gear across all rarities but preserves upgrades, locks and equipment', () => {
     const items = [
       ...['a', 'b', 'c'].map((id) => gear(id, { baseDamage: 10 })),
       gear('obsolete', { baseDamage: 1 }),
@@ -61,11 +61,12 @@ describe('upgrade-aware junk', () => {
       gear('legendary', { baseDamage: 1 }, { rarity: 'legendary' }),
       gear('power', {}, { legendaryPower: { id: 'unique', name: 'Unique', description: 'Keep' } }),
     ];
-    const game = assignWeapons(inventoryGame(items, { mode: 'town' }), ['a', 'b', 'c']);
-    expect(junkItemsForSale(game).map((item) => item.id)).toEqual(['obsolete']);
+    const game = setInventoryPolicy(assignWeapons(inventoryGame(items, { mode: 'town' }), ['a', 'b', 'c']), { autoEquip: false });
+    const soldIds = ['obsolete', 'rare', 'legendary', 'power'];
+    expect(junkItemsForSale(game).map((item) => item.id)).toEqual(soldIds);
     const sold = sellJunkItems(game);
-    expect(sold.inventory.items.map((item) => item.id)).toEqual(items.filter((item) => item.id !== 'obsolete').map((item) => item.id));
-    expect(sold.inventory.gold).toBe(5);
+    expect(sold.inventory.items.map((item) => item.id)).toEqual(items.filter((item) => !soldIds.includes(item.id)).map((item) => item.id));
+    expect(sold.inventory.gold).toBe(20);
     expect(sold.party).toBe(game.party);
   });
 

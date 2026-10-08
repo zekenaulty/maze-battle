@@ -1,7 +1,12 @@
-import type { ActorState, EquipmentSlot, GameState, InventoryState, ItemStats } from '../types';
+import type { ActorState, EquipmentSlot, GameState, InventoryState, ItemInstance, ItemStats } from '../types';
 import { addItemStats, getItemTotalStats } from './itemDetails';
 
 export const EQUIPMENT_SLOTS: EquipmentSlot[] = ['weapon', 'offhand', 'head', 'body', 'hands', 'feet', 'ring', 'amulet'];
+
+/** Positive classification keeps quest/non-equipment entries and supplies out of gear automation. */
+export function isEquipmentItem(item: ItemInstance): boolean {
+  return item.category === 'equipment' && Boolean(item.slot) && EQUIPMENT_SLOTS.includes(item.slot!) && !item.consumableEffect;
+}
 
 export function getEquippedItems(actor: ActorState, inventory: InventoryState) {
   const ids = Object.values(actor.equipment);

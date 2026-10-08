@@ -42,8 +42,8 @@ describe('inventory and expedition integration', () => {
     expect(town.autopilot).toEqual(expedition.autopilot);
     town = maintainTown(town);
     const owned = [...town.inventory.items, ...town.stash.items].map((item) => item.id);
-    for (const id of ['a', 'b', 'c', 'locked', 'rare', 'legendary']) expect(owned).toContain(id);
-    expect(owned).not.toContain('junk');
+    for (const id of ['a', 'b', 'c', 'locked']) expect(owned).toContain(id);
+    for (const id of ['junk', 'rare', 'legendary']) expect(owned).not.toContain(id);
     expect(town.inventory.items.find((item) => item.id === 'locked')?.locked).toBe(true);
     expect(portalScrollCount(town)).toBe(1);
     town.party.forEach((actor, index) => expect(getActorGearScore(actor, town.inventory.items)).toBeGreaterThanOrEqual(beforeScores[index]));

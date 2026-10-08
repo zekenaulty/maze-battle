@@ -36,7 +36,7 @@ describe('inventory policies and bounded town care', () => {
     expect(maintainTown(game)).toBe(game);
   });
 
-  it('sells first, stashes valuables, then funds escape and supplies with finite gold', () => {
+  it('sells obsolete rares too, then funds escape and supplies with finite gold', () => {
     const items = [
       ...['a', 'b', 'c'].map((id) => gear(id, { baseDamage: 10 })),
       gear('junk', { baseDamage: 1 }, { value: 100 }),
@@ -45,14 +45,15 @@ describe('inventory policies and bounded town care', () => {
     ];
     const game = assignWeapons(inventoryGame(items, { mode: 'town' }), ['a', 'b', 'c']);
     const next = maintainTown(game);
-    expect(next.stash.items.map((item) => item.id)).toEqual(['valuable']);
+    expect(next.stash.items).toEqual([]);
+    expect(next.inventory.items.some((item) => item.id === 'valuable')).toBe(false);
     expect(next.inventory.items.some((item) => item.id === 'junk')).toBe(false);
     expect(next.inventory.items.some((item) => item.id === 'locked')).toBe(true);
     expect(next.party.map((actor) => actor.equipment.weapon)).toEqual(['a', 'b', 'c']);
     expect(consumableCount(next, 'townPortal')).toBe(1);
     expect(consumableCount(next, 'heal')).toBe(3);
     expect(consumableCount(next, 'mana')).toBe(2);
-    expect(next.inventory.gold).toBe(2);
+    expect(next.inventory.gold).toBe(7);
     expect(maintainTown(next)).toBe(next);
   });
 

@@ -11,6 +11,7 @@ export { getEffectiveActor, getEquipmentStats, getEquippedItems, isItemEquipped 
 export { autoEquipBestGear } from './equipmentOptimizer';
 export { normalizeInventoryPolicy, setInventoryPolicy, toggleItemLock } from './inventoryPolicy';
 export { buyVendorItem, getSellValue, junkItemsForSale, sellItem, sellJunkItems, stashItem, withdrawStashItem } from './inventoryTrade';
+export type { InventoryScope } from './inventoryTrade';
 export { manageAutoInventory } from './autoInventory';
 
 const STARTING_GOLD = 35;
