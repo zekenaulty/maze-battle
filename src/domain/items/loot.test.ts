@@ -5,6 +5,7 @@ import { createItemInstance, rollDropCount } from './loot';
 import { autoEquipBestGear, equipItem, sellItem, sellJunkItems, stashItem, useConsumable, withdrawStashItem } from './inventory';
 import { openChestAtActivePosition } from './chests';
 import { getItemBreakdownLines, getItemTotalStats } from './itemDetails';
+import { evaluateLoadoutChange } from './gearEvaluation';
 
 describe('item loot and inventory', () => {
   it('rolls drop counts by source', () => {
@@ -105,7 +106,7 @@ describe('item loot and inventory', () => {
     expect(next.party[0].hp).toBe(36);
   });
 
-  it('auto equips the best role-weighted gear across the party', () => {
+  it('assigns gear by actual complete-loadout benefits, not role labels', () => {
     const sword = createItemInstance('iron-sword', 2, 'common', () => 0.5);
     const wand = createItemInstance('oak-wand', 2, 'common', () => 0.5);
     const game = createNewGameState({
@@ -118,9 +119,16 @@ describe('item loot and inventory', () => {
 
     const equipped = autoEquipBestGear(game);
 
-    expect(equipped.party.find((actor) => actor.role === 'warrior')?.equipment.weapon).toBe(sword.id);
-    expect(equipped.party.find((actor) => actor.role === 'mage')?.equipment.weapon).toBe(wand.id);
-    expect(equipped.party.find((actor) => actor.role === 'healer')?.equipment.weapon).toBeUndefined();
+    const utility = equipped.party.reduce((sum, actor, i) => sum + evaluateLoadoutChange(game.party[i], actor, game.inventory.items).benefit, 0);
+    for (let swordOwner = 0; swordOwner < 3; swordOwner++) {
+      for (let wandOwner = 0; wandOwner < 3; wandOwner++) {
+        if (swordOwner === wandOwner) continue;
+        const alternate = game.party.map((actor, i) => ({ ...actor, equipment: i === swordOwner ? { weapon: sword.id } : i === wandOwner ? { weapon: wand.id } : {} }));
+        const alternateUtility = alternate.reduce((sum, actor, i) => sum + evaluateLoadoutChange(game.party[i], actor, game.inventory.items).benefit, 0);
+        expect(utility).toBeGreaterThanOrEqual(alternateUtility - 1e-9);
+      }
+    }
+    expect(equipped.party.flatMap((actor) => Object.values(actor.equipment)).sort()).toEqual([sword.id, wand.id].sort());
   });
 
   it('sells items in town and removes equipped references', () => {

@@ -1,4 +1,5 @@
 import type { GameState, InventoryPolicy } from '../types';
+import { ambiguousItemIds } from './itemOwnership';
 
 export const DEFAULT_INVENTORY_POLICY: Readonly<InventoryPolicy> = Object.freeze({
   autoEquip: true,
@@ -31,6 +32,7 @@ export function setInventoryPolicy(game: GameState, patch: Partial<InventoryPoli
 }
 
 export function toggleItemLock(game: GameState, itemId: string): GameState {
+  if (ambiguousItemIds(game).has(itemId)) return game;
   if (![...game.inventory.items, ...game.stash.items].some((item) => item.id === itemId)) return game;
   const toggle = (items: GameState['inventory']['items']) =>
     items.map((item) => item.id === itemId ? { ...item, locked: !item.locked } : item);

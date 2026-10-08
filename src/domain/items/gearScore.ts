@@ -29,6 +29,7 @@ const ROLE_WEIGHTS: Record<HeroRole, Required<ItemStats>> = {
   },
 };
 
+/** Legacy display score only. Automation uses gearEvaluation's complete-loadout policy. */
 export function getItemGearScore(item: ItemInstance, actor: ActorState) {
   if (!isEquipmentItem(item)) {
     return 0;

@@ -6,6 +6,7 @@ import { autoEquipBestGear } from './equipmentOptimizer';
 import { normalizeInventoryPolicy } from './inventoryPolicy';
 import { consumeStackItem, itemQuantity, mergeInventoryItems, normalizeCapacity, stackInventoryItems } from './itemStacks';
 import { useTownPortal } from '../town/portal';
+import { ambiguousItemIds, duplicateItemIds } from './itemOwnership';
 
 export { getEffectiveActor, getEquipmentStats, getEquippedItems, isItemEquipped } from './equipment';
 export { autoEquipBestGear } from './equipmentOptimizer';
@@ -13,6 +14,9 @@ export { normalizeInventoryPolicy, setInventoryPolicy, toggleItemLock } from './
 export { buyVendorItem, getSellValue, junkItemsForSale, sellItem, sellJunkItems, stashItem, withdrawStashItem } from './inventoryTrade';
 export type { InventoryScope } from './inventoryTrade';
 export { manageAutoInventory } from './autoInventory';
+export { BALANCED_GEAR_POLICY, evaluateGearUpgrade, evaluateLoadoutChange, getLoadoutMetrics } from './gearEvaluation';
+export type { GearEvaluation, GearEvaluationPolicy, GearMetrics, GearDecision, GearReason } from './gearEvaluation';
+export { ambiguousItemIds, ambiguousEquipmentIds } from './itemOwnership';
 
 const STARTING_GOLD = 35;
 const STARTER_ITEMS = ['health-herb', 'mana-vial', 'town-portal'];
@@ -29,23 +33,24 @@ export function createInitialStash(): StashState {
   return { capacity: 96, items: [] };
 }
 
-export function normalizeInventory(inventory: Partial<InventoryState> | undefined): InventoryState {
+export function normalizeInventory(inventory: Partial<InventoryState> | undefined, protectedIds?: ReadonlySet<string>): InventoryState {
   if (!inventory) return createInitialInventory();
   return {
     capacity: normalizeCapacity(inventory.capacity, 36),
     gold: Number.isFinite(inventory.gold) ? Math.max(0, inventory.gold!) : STARTING_GOLD,
-    items: stackInventoryItems(inventory.items ?? []),
+    items: stackInventoryItems(inventory.items ?? [], protectedIds),
   };
 }
 
-export function normalizeStash(stash: Partial<StashState> | undefined): StashState {
-  return { capacity: normalizeCapacity(stash?.capacity, 96), items: stackInventoryItems(stash?.items ?? []) };
+export function normalizeStash(stash: Partial<StashState> | undefined, protectedIds?: ReadonlySet<string>): StashState {
+  return { capacity: normalizeCapacity(stash?.capacity, 96), items: stackInventoryItems(stash?.items ?? [], protectedIds) };
 }
 
 export function addItemsToInventory(game: GameState, items: ItemInstance[], source: string): GameState {
   if (items.length === 0) return game;
   // Awarded loot has no ground container to return to; retain it in an overfull pack.
-  const { inventory, accepted } = mergeInventoryItems(game.inventory, items, true);
+  const protectedIds = duplicateItemIds([...game.inventory.items, ...game.stash.items, ...items]);
+  const { inventory, accepted } = mergeInventoryItems(game.inventory, items, true, protectedIds);
   if (accepted.length === 0) return game;
   const overflow = inventory.items.length > inventory.capacity ? ' Pack over capacity; make room in town.' : '';
   const next: GameState = {
@@ -60,7 +65,7 @@ export function addItemsToInventory(game: GameState, items: ItemInstance[], sour
 export function equipItem(game: GameState, actorId: string, itemId: string): GameState {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   const actor = game.party.find((candidate) => candidate.id === actorId);
-  if (!item?.slot || !actor) return game;
+  if (!item?.slot || !actor || ambiguousItemIds(game).has(itemId)) return game;
   const slot = item.slot;
   const party = game.party.map((candidate) => {
     const equipment = removeItemFromEquipment(candidate.equipment, itemId);
@@ -92,8 +97,9 @@ export function unequipItem(game: GameState, actorId: string, slot: EquipmentSlo
 
 export function useConsumable(game: GameState, itemId: string, actorId?: string): GameState {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
-  if (!item?.consumableEffect || item.slot || item.locked || itemQuantity(item) === 0) return game;
+  if (!item?.consumableEffect || item.category !== 'consumable' || item.slot || item.locked || itemQuantity(item) === 0 || ambiguousItemIds(game).has(itemId)) return game;
   if (item.consumableEffect === 'townPortal') return useTownPortal(game, itemId);
+  if (item.consumableEffect !== 'heal' && item.consumableEffect !== 'mana') return game;
   const resource = item.consumableEffect === 'mana' ? 'mp' : 'hp';
   const maximum = resource === 'mp' ? 'maxMp' : 'maxHp';
   const needsResource = (actor: GameState['party'][number]) => actor.hp > 0 && actor[resource] < getEffectiveActor(actor, game.inventory)[maximum];

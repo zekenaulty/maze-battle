@@ -1,7 +1,8 @@
 import type { ConsumableEffect, GameState, InventoryPolicy, ItemInstance } from '../types';
 import { isEquipmentItem, isItemEquipped } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
-import { getGearUpgradeScore } from './gearScore';
+import { BALANCED_GEAR_POLICY, retainGearForParty, type GearEvaluationPolicy } from './gearEvaluation';
+import { ambiguousItemIds } from './itemOwnership';
 import { normalizeInventoryPolicy, setInventoryPolicy } from './inventoryPolicy';
 import { buyVendorItem, sellJunkItems, stashItem } from './inventoryTrade';
 import { consumeStackItem, itemQuantity, mergeInventoryItems, stackInventoryItems } from './itemStacks';
@@ -13,20 +14,21 @@ const SUPPLIES: Array<{ effect: ConsumableEffect; baseId: string; reserve: keyof
 ];
 
 /** One bounded, repeat-safe pass. No travel, combat, healing or autonomous timer. */
-export function manageAutoInventory(game: GameState): GameState {
+export function manageAutoInventory(game: GameState, gearPolicy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
   const policy = normalizeInventoryPolicy(game.inventoryPolicy);
   let next = compactContainers(setInventoryPolicy(game, policy));
-  if (policy.autoEquip) next = autoEquipBestGear(next);
+  if (policy.autoEquip && !(next.mode === 'town' && policy.autoSellJunk)) next = autoEquipBestGear(next, gearPolicy);
   if (next.mode !== 'town') return next;
-  if (policy.autoSellJunk) next = sellJunkItems(next);
-  if (policy.autoStash) next = stashSurplus(next, policy);
-  if (policy.autoRestock) next = restockSupplies(next, policy);
+  if (policy.autoSellJunk) next = sellJunkItems(next, gearPolicy);
+  if (policy.autoStash) next = stashSurplus(next, policy, gearPolicy);
+  if (policy.autoRestock) next = restockSupplies(next, policy, gearPolicy);
   return next;
 }
 
 /** Counts usable, unlocked pack supplies, not stash stock or empty stacks. */
 export function consumableCount(game: GameState, effect: ConsumableEffect): number {
-  return game.inventory.items.filter((item) => usableSupply(item, effect)).reduce((total, item) => total + itemQuantity(item), 0);
+  const ambiguous = ambiguousItemIds(game);
+  return game.inventory.items.filter((item) => !ambiguous.has(item.id) && usableSupply(item, effect)).reduce((total, item) => total + itemQuantity(item), 0);
 }
 
 function usableSupply(item: ItemInstance, effect: ConsumableEffect): boolean {
@@ -35,8 +37,9 @@ function usableSupply(item: ItemInstance, effect: ConsumableEffect): boolean {
 }
 
 function compactContainers(game: GameState): GameState {
-  const pack = stackInventoryItems(game.inventory.items);
-  const stash = stackInventoryItems(game.stash.items);
+  const ambiguous = ambiguousItemIds(game);
+  const pack = stackInventoryItems(game.inventory.items, ambiguous);
+  const stash = stackInventoryItems(game.stash.items, ambiguous);
   if (JSON.stringify(pack) === JSON.stringify(game.inventory.items) && JSON.stringify(stash) === JSON.stringify(game.stash.items)) return game;
   return {
     ...game,
@@ -46,11 +49,11 @@ function compactContainers(game: GameState): GameState {
   };
 }
 
-function stashSurplus(game: GameState, policy: InventoryPolicy): GameState {
+function stashSurplus(game: GameState, policy: InventoryPolicy, gearPolicy: GearEvaluationPolicy): GameState {
   let next = game;
   for (const item of game.inventory.items) {
     if (!isEquipmentItem(item) || item.locked || isItemEquipped(next, item.id)) continue;
-    if (next.party.some((actor) => getGearUpgradeScore(item, actor, next.inventory.items) > 0)) continue;
+    if (retainGearForParty(next.party, item, [...next.inventory.items, ...next.stash.items], gearPolicy)) continue;
     next = stashItem(next, item.id);
   }
   for (const supply of SUPPLIES) {
@@ -63,7 +66,7 @@ function stashSurplus(game: GameState, policy: InventoryPolicy): GameState {
   return next;
 }
 
-function restockSupplies(game: GameState, policy: InventoryPolicy): GameState {
+function restockSupplies(game: GameState, policy: InventoryPolicy, gearPolicy: GearEvaluationPolicy): GameState {
   let next = game;
   for (const supply of SUPPLIES) {
     for (const item of next.stash.items.filter((candidate) => usableSupply(candidate, supply.effect))) {
@@ -73,7 +76,7 @@ function restockSupplies(game: GameState, policy: InventoryPolicy): GameState {
     }
     const needed = policy[supply.reserve] - consumableCount(next, supply.effect);
     for (let count = 0; count < needed; count++) {
-      const bought = buyVendorItem(next, supply.baseId);
+      const bought = buyVendorItem(next, supply.baseId, gearPolicy);
       if (bought === next) break;
       next = bought;
     }
@@ -84,10 +87,10 @@ function restockSupplies(game: GameState, policy: InventoryPolicy): GameState {
 }
 
 function transferSupply(game: GameState, item: ItemInstance, quantity: number, destination: 'pack' | 'stash'): GameState {
-  if (quantity <= 0) return game;
+  if (quantity <= 0 || ambiguousItemIds(game).has(item.id)) return game;
   const moved = { ...item, id: quantity === itemQuantity(item) ? item.id : crypto.randomUUID(), quantity };
   const target = destination === 'pack' ? game.inventory : game.stash;
-  const { inventory: merged, accepted } = mergeInventoryItems(target, [moved]);
+  const { inventory: merged, accepted } = mergeInventoryItems(target, [moved], false, ambiguousItemIds(game));
   if (accepted.length === 0) return game;
   return {
     ...game,

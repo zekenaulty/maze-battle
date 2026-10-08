@@ -12,6 +12,7 @@ import { syncGuildQuests } from './quests/quests';
 import { monsterTagsForFloor, normalizeMonsterTags } from './combat/monsters';
 import { defaultRng, type Rng } from './combat/rng';
 import { roomAtPosition } from './quests/questTargets';
+import { duplicateItemIds } from './items/itemOwnership';
 
 const HERO_ORDER: HeroRole[] = ['warrior', 'mage', 'healer'];
 
@@ -92,10 +93,12 @@ const HEROES: Record<HeroRole, Omit<ActorState, 'id'>> = {
 
 const nowIso = () => new Date().toISOString();
 
+type StoredActor = Partial<Omit<ActorState, 'autoSpendPoints'>> & { autoSpendPoints?: unknown };
+type StoredBattle = Partial<Omit<BattleState, 'enemies' | 'rewardGold'>> & { enemies?: Partial<EnemyState>[]; rewardGold?: unknown };
 type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party' | 'inventoryPolicy' | 'townReturnMode' | 'automationPaused'>> & {
-  battle?: Partial<Omit<BattleState, 'enemies'>> & { enemies?: Partial<EnemyState>[] };
+  battle?: StoredBattle;
   floors?: Partial<MazeFloorState>[];
-  party?: Partial<ActorState>[];
+  party?: StoredActor[];
   quests?: Partial<QuestState>[];
   monsterTags?: MonsterCategory[];
   inventoryPolicy?: Partial<InventoryPolicy>;
@@ -118,8 +121,9 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
   const maze = normalizeMaze(overrides.maze, 9, 13);
   const monsterTags = normalizeMonsterTags(overrides.monsterTags, dungeonLevel);
   const floors = normalizeFloors(overrides.floors, dungeonLevel, mazeMaxRooms, maze, monsterTags);
-  const inventory = normalizeInventory(overrides.inventory ?? createInitialInventory());
-  const stash = normalizeStash(overrides.stash ?? createInitialStash());
+  const protectedIds = duplicateItemIds([...(overrides.inventory?.items ?? []), ...(overrides.stash?.items ?? [])]);
+  const inventory = normalizeInventory(overrides.inventory ?? createInitialInventory(), protectedIds);
+  const stash = normalizeStash(overrides.stash ?? createInitialStash(), protectedIds);
   const chests = normalizeChests(overrides.chests, dungeonLevel, maze);
 
   return syncGuildQuests({
@@ -146,13 +150,13 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     inventory,
     stash,
     party:
-      overrides.party ??
+      overrides.party?.map((actor) => ({ ...actor, ...autoSpendPreference(actor) })) ??
       HERO_ORDER.map((role) => ({
         id: `${id}-${role}`,
         ...copyHero(HEROES[role]),
       })),
     quests: normalizeQuests(overrides.quests),
-    battle: overrides.battle,
+    battle: overrides.battle ? { ...overrides.battle, ...rewardGoldField(overrides.battle) } : undefined,
     activityLog: overrides.activityLog ?? ['New expedition started.'],
     source: overrides.source ?? { type: 'new-game' },
   });
@@ -197,6 +201,7 @@ export function normalizeGameState(state: StoredGameState): GameState {
     battle: state.battle && state.battle.status !== 'won'
       ? {
           ...state.battle,
+          ...rewardGoldField(state.battle),
           id: state.battle.id ?? crypto.randomUUID(),
           wave: state.battle.wave ?? 1,
           status: state.battle.status ?? 'active',
@@ -450,6 +455,7 @@ function makeSkills(ids: SkillState['id'][]): SkillState[] {
 function copyHero(hero: Omit<ActorState, 'id'>): Omit<ActorState, 'id'> {
   return {
     ...hero,
+    ...autoSpendPreference(hero),
     equipment: { ...hero.equipment },
     attributes: { ...hero.attributes },
     combat: { ...hero.combat },
@@ -501,7 +507,16 @@ function normalizeQuests(quests: Partial<QuestState>[] | undefined): QuestState[
     });
 }
 
-function normalizeActor(role: HeroRole, actor: Partial<ActorState> | undefined, gameId: string): ActorState {
+function autoSpendPreference(actor: StoredActor) {
+  return { autoSpendPoints: typeof actor.autoSpendPoints === 'boolean' ? actor.autoSpendPoints : true };
+}
+
+function rewardGoldField(battle: StoredBattle) {
+  const value = battle.rewardGold;
+  return { rewardGold: typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined };
+}
+
+function normalizeActor(role: HeroRole, actor: StoredActor | undefined, gameId: string): ActorState {
   const defaults = {
     id: `${gameId}-${role}`,
     ...copyHero(HEROES[role]),
@@ -510,6 +525,7 @@ function normalizeActor(role: HeroRole, actor: Partial<ActorState> | undefined, 
   return {
     ...defaults,
     ...actor,
+    ...autoSpendPreference(actor ?? {}),
     role,
     displayName: actor?.displayName ?? defaults.displayName,
     gcdUntil: actor?.gcdUntil,

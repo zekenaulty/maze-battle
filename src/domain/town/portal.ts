@@ -1,6 +1,7 @@
 import type { GameState, ItemInstance } from '../types';
 import { consumeStackItem, itemQuantity } from '../items/itemStacks';
 import { syncGuildQuests } from '../quests/quests';
+import { ambiguousItemIds } from '../items/itemOwnership';
 
 function availableScroll(item: ItemInstance): boolean {
   return item.category === 'consumable' && !item.slot && item.consumableEffect === 'townPortal' && !item.locked && itemQuantity(item) > 0;
@@ -8,7 +9,8 @@ function availableScroll(item: ItemInstance): boolean {
 
 /** Available pack stock only: locked scrolls and stash stock cannot fund a portal. */
 export function portalScrollCount(game: GameState): number {
-  return game.inventory.items.filter(availableScroll).reduce((total, item) => total + itemQuantity(item), 0);
+  const ambiguous = ambiguousItemIds(game);
+  return game.inventory.items.filter((item) => !ambiguous.has(item.id) && availableScroll(item)).reduce((total, item) => total + itemQuantity(item), 0);
 }
 
 /** Portals cannot escape combat, defeat, or an existing town visit. Stairs are separate. */
@@ -22,7 +24,8 @@ export function canUseTownPortal(game: GameState): boolean {
 /** Optional itemId lets a pack action consume that exact stack; toolbar use selects the first. */
 export function useTownPortal(game: GameState, itemId?: string): GameState {
   if (!canUseTownPortal(game)) return game;
-  const scroll = game.inventory.items.find((item) => availableScroll(item) && (itemId === undefined || item.id === itemId));
+  const ambiguous = ambiguousItemIds(game);
+  const scroll = game.inventory.items.find((item) => !ambiguous.has(item.id) && availableScroll(item) && (itemId === undefined || item.id === itemId));
   if (!scroll) return game;
   const townReturnMode = game.mode === 'auto-play' || game.mode === 'waves' ? game.mode : 'manual';
   return syncGuildQuests({

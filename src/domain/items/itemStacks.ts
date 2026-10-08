@@ -1,4 +1,5 @@
 import type { ItemInstance } from '../types';
+import { duplicateItemIds } from './itemOwnership';
 
 export interface ItemContainer {
   capacity: number;
@@ -6,22 +7,22 @@ export interface ItemContainer {
 }
 
 export function itemQuantity(item: ItemInstance): number {
-  const quantity = item.quantity ?? 1;
-  return Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 1;
+  const quantity = item.quantity === undefined ? 1 : item.quantity;
+  return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
 }
 
 export function isStackableItem(item: ItemInstance): boolean {
   return !item.slot && item.category === 'consumable' && Boolean(item.consumableEffect);
 }
 
-export function stackInventoryItems(items: ItemInstance[]): ItemInstance[] {
+export function stackInventoryItems(items: ItemInstance[], protectedIds: ReadonlySet<string> = new Set()): ItemInstance[] {
   const stacked: ItemInstance[] = [];
   const indices = new Map<string, number>();
+  const ambiguous = duplicateItemIds(items);
   for (const item of items) {
-    if (itemQuantity(item) === 0) continue;
-    const key = isStackableItem(item) ? stackKey(item) : undefined;
+    const key = itemQuantity(item) > 0 && !ambiguous.has(item.id) && !protectedIds.has(item.id) && isStackableItem(item) ? stackKey(item) : undefined;
     const index = key === undefined ? undefined : indices.get(key);
-    if (index !== undefined) {
+    if (index !== undefined && Number.isSafeInteger(itemQuantity(stacked[index]) + itemQuantity(item))) {
       const existing = stacked[index];
       stacked[index] = { ...existing, quantity: itemQuantity(existing) + itemQuantity(item) };
     } else {
@@ -33,19 +34,22 @@ export function stackInventoryItems(items: ItemInstance[]): ItemInstance[] {
 }
 
 // Capacity limits admission, never normalization of already-owned items.
-export function mergeInventoryItems<T extends ItemContainer>(container: T, incoming: ItemInstance[], allowOverflow = false) {
-  const items = stackInventoryItems(container.items);
+export function mergeInventoryItems<T extends ItemContainer>(container: T, incoming: ItemInstance[], allowOverflow = false, protectedIds: ReadonlySet<string> = new Set()) {
+  const ambiguous = new Set([...protectedIds, ...duplicateItemIds([...container.items, ...incoming])]);
+  const items = stackInventoryItems(container.items, ambiguous);
   const accepted: ItemInstance[] = [];
   const rejected: ItemInstance[] = [];
   for (const item of incoming) {
-    if (itemQuantity(item) === 0) continue;
-    const index = isStackableItem(item)
-      ? items.findIndex((candidate) => isStackableItem(candidate) && stackKey(candidate) === stackKey(item))
+    const usable = itemQuantity(item) > 0 && !ambiguous.has(item.id);
+    if (!usable && !allowOverflow) { rejected.push(item); continue; }
+    const index = usable && isStackableItem(item)
+      ? items.findIndex((candidate) => !ambiguous.has(candidate.id) && itemQuantity(candidate) > 0 && isStackableItem(candidate)
+        && Number.isSafeInteger(itemQuantity(candidate) + itemQuantity(item)) && stackKey(candidate) === stackKey(item))
       : -1;
     if (index >= 0) {
       items[index] = { ...items[index], quantity: itemQuantity(items[index]) + itemQuantity(item) };
     } else if (allowOverflow || items.length < container.capacity) {
-      items.push(isStackableItem(item) ? { ...item, quantity: itemQuantity(item) } : item);
+      items.push(usable && isStackableItem(item) ? { ...item, quantity: itemQuantity(item) } : item);
     } else {
       rejected.push(item);
       continue;
@@ -56,6 +60,8 @@ export function mergeInventoryItems<T extends ItemContainer>(container: T, incom
 }
 
 export function consumeStackItem(items: ItemInstance[], itemId: string, amount = 1): ItemInstance[] {
+  const matches = items.filter((item) => item.id === itemId);
+  if (matches.length !== 1 || !Number.isSafeInteger(amount) || amount <= 0 || itemQuantity(matches[0]) < amount) return items;
   return items.flatMap((item) => {
     if (item.id !== itemId) return [item];
     const quantity = itemQuantity(item) - amount;

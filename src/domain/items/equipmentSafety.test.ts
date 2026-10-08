@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { autoEquipBestGear, junkItemsForSale, sellJunkItems, setInventoryPolicy, toggleItemLock } from './inventory';
-import { getActorGearScore, getGearUpgradeScore } from './gearScore';
+import { getGearUpgradeScore } from './gearScore';
+import { evaluateLoadoutChange } from './gearEvaluation';
+import { EQUIPMENT_SLOTS } from './equipment';
 import { assignWeapons, gear, inventoryGame } from './__tests__/fixtures';
 
 describe('safe equipment selection', () => {
@@ -10,8 +12,8 @@ describe('safe equipment selection', () => {
     ]), ['equipped']);
     const next = autoEquipBestGear(game);
     expect(next.party[0].equipment.weapon).toBe('equipped');
-    next.party.forEach((actor, index) => expect(getActorGearScore(actor, next.inventory.items)).toBeGreaterThanOrEqual(getActorGearScore(game.party[index], game.inventory.items)));
-    expect(next.party[1].equipment.weapon).toBe('spare');
+    next.party.forEach((actor, index) => expect(['upgrade', 'equivalent']).toContain(evaluateLoadoutChange(game.party[index], actor, next.inventory.items).decision));
+    expect(next.party.slice(1).some((actor) => actor.equipment.weapon === 'spare')).toBe(true);
     expect(autoEquipBestGear(next)).toBe(next);
   });
 
@@ -24,7 +26,8 @@ describe('safe equipment selection', () => {
     const game = autoEquipBestGear(initial);
     expect(game.party[0].equipment.weapon).toBe('pinned');
     expect(game.party.some((actor) => actor.equipment.weapon === 'locked-spare')).toBe(false);
-    expect(autoEquipBestGear(toggleItemLock(initial, 'pinned')).party[0].equipment.weapon).toBe('spare');
+    const solo = { ...initial, party: initial.party.slice(0, 1) };
+    expect(autoEquipBestGear(toggleItemLock(solo, 'pinned')).party[0].equipment.weapon).toBe('spare');
     // Once the spare belongs to someone else, unlocking cannot authorize their downgrade.
     expect(autoEquipBestGear(toggleItemLock(game, 'pinned')).party[0].equipment.weapon).toBe('pinned');
   });
@@ -34,18 +37,35 @@ describe('safe equipment selection', () => {
     expect(autoEquipBestGear(game)).toBe(game);
   });
 
-  it('preserves per-hero scores and unique ownership over many inventories', () => {
+  it('preserves per-hero policy benefits and unique ownership over many inventories', () => {
     for (let seed = 1; seed <= 50; seed++) {
       const items = Array.from({ length: 30 }, (_, i) => gear(`gear-${i}`, {
         baseDamage: (seed * (i + 3)) % 13, intellect: (seed + i * 3) % 17, vitality: (seed * 7 + i) % 11,
       }, { locked: i === 1 && seed % 2 === 0 }));
       const game = assignWeapons(inventoryGame(items), ['gear-0', 'gear-1', 'gear-2']);
       const next = autoEquipBestGear(game);
-      next.party.forEach((actor, index) => expect(getActorGearScore(actor, items)).toBeGreaterThanOrEqual(getActorGearScore(game.party[index], items)));
+      next.party.forEach((actor, index) => expect(['upgrade', 'equivalent']).toContain(evaluateLoadoutChange(game.party[index], actor, items).decision));
       const ids = next.party.flatMap((actor) => Object.values(actor.equipment));
       expect(new Set(ids).size).toBe(ids.length);
       expect(next.inventory).toBe(game.inventory);
       expect(autoEquipBestGear(next)).toBe(next);
+    }
+  });
+
+  it('bounds the full-loadout tradeoff over multiple slots and repeated passes', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const items = EQUIPMENT_SLOTS.flatMap((slot, s) => Array.from({ length: 7 }, (_, i) => gear(`${slot}-${i}`, {
+        baseDamage: (seed * (i + 3) + s) % 13, intellect: (seed + i * 3 + s) % 17, vitality: (seed * 7 + i + s) % 11,
+      }, { slot })));
+      const base = inventoryGame(items);
+      const game = { ...base, party: base.party.map((actor, i) => ({ ...actor, equipment: Object.fromEntries(EQUIPMENT_SLOTS.map((slot) => [slot, `${slot}-${i}`])) })) };
+      const next = autoEquipBestGear(game);
+      next.party.forEach((actor, index) => expect(['upgrade', 'equivalent']).toContain(evaluateLoadoutChange(game.party[index], actor, items).decision));
+      const ids = next.party.flatMap((actor) => Object.values(actor.equipment));
+      expect(new Set(ids).size).toBe(ids.length);
+      const again = autoEquipBestGear(next);
+      again.party.forEach((actor, index) => expect(['upgrade', 'equivalent']).toContain(evaluateLoadoutChange(next.party[index], actor, items).decision));
+      expect(again).toBe(next);
     }
   });
 });

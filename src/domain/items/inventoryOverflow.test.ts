@@ -113,7 +113,7 @@ describe('town overflow repair and stash sales', () => {
     const game = assignWeapons(inventoryGame([equipped], { mode: 'town', stash: { capacity: 96, items: [spare, gear('junk', {})] } }), [equipped.id]);
     const next = sellJunkItems(game);
     expect(next.party[0].equipment.weapon).toBe(equipped.id);
-    expect(next.party[1].equipment.weapon).toBe(spare.id);
+    expect(next.party.slice(1).some((actor) => actor.equipment.weapon === spare.id)).toBe(true);
     expect(next.inventory.items.map((item) => item.id)).toEqual([equipped.id, spare.id]);
     expect(next.stash.items).toEqual([]);
     expect(next.inventory.gold).toBe(5);
