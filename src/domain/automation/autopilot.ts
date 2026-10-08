@@ -1,184 +1,93 @@
-import type { Direction, GameState, GridPosition, MazeRoomState, QuestState } from '../types';
-import { activeUnopenedChests } from '../items/chests';
+import type { GameState } from '../types';
+import { descendFloor, moveActive } from '../gameFactory';
+import { startBattle } from '../combat/battleEngine';
+import { defaultRng, type Rng } from '../combat/rng';
+import { shouldStartEncounter } from '../combat/encounters';
+import { openChestAtActivePosition } from '../items/chests';
 import { samePosition } from '../maze/key';
-import { findPath, pathDistance, type MazePath } from '../maze/solver';
+import { syncGuildQuests } from '../quests/quests';
+import { nextAutoIntent, type PlannedAutoTarget } from './autopilotPlanning';
+import { blockAutopilot, planningState } from './autopilotState';
 
-export type AutoTargetKind = 'quest-fetch' | 'quest-kill' | 'quest-locate' | 'quest-scout' | 'chest' | 'exit';
+export { chooseAutoTarget, deriveAutoTargets, nextAutoIntent } from './autopilotPlanning';
+export type { AutoIntent, AutoTarget, AutoTargetKind, PlannedAutoTarget } from './autopilotPlanning';
+export { stopAutopilot } from './autopilotState';
 
-export interface AutoTarget {
-  id: string;
-  kind: AutoTargetKind;
-  position: GridPosition;
-  priority: number;
-  reason: string;
-  questId?: string;
-  chestId?: string;
-}
-
-export interface PlannedAutoTarget {
-  target: AutoTarget;
-  path: MazePath;
-  score: number;
-}
-
-export type AutoIntent =
-  | { type: 'move'; direction: Direction; plan: PlannedAutoTarget }
-  | { type: 'interact'; plan: PlannedAutoTarget }
-  | { type: 'battle'; quest: QuestState }
-  | { type: 'idle'; reason: string };
-
-const QUEST_PRIORITY: Record<QuestState['task']['objective'], number> = {
-  fetch: 1000,
-  kill: 900,
-  scout: 800,
-  locate: 700,
-};
-
-export function nextAutoIntent(game: GameState): AutoIntent {
-  if (game.battle?.status === 'active') {
-    return { type: 'idle', reason: 'battle is already active' };
+// One bounded exploration action. The host advances combat and town care separately.
+export function advanceAutopilot(game: GameState, rng: Rng = defaultRng, now = Date.now()): GameState {
+  if (game.mode !== 'auto-play' || game.battle?.status === 'active') return game;
+  if (game.party.every((actor) => actor.hp <= 0) || game.battle?.status === 'lost') {
+    return stamp(blockAutopilot(game, 'Party defeated; recover before resuming.'), now);
   }
 
-  const killQuest = activeKillQuestAtPosition(game);
-  if (killQuest) {
-    return { type: 'battle', quest: killQuest };
+  let next = syncGuildQuests(game);
+  if (!next.autopilot || next.autopilot.floor !== next.dungeonLevel || next.autopilot.phase === 'blocked') {
+    next = { ...next, autopilot: planningState(next) };
   }
 
-  const plan = chooseAutoTarget(game, deriveAutoTargets(game));
-  if (!plan) {
-    return { type: 'idle', reason: 'no reachable auto target' };
-  }
+  const opened = openChestAtActivePosition(next, rng);
+  if (opened !== next) return stamp({ ...opened, autopilot: { ...next.autopilot!, phase: 'interact', stalledTicks: 0, reason: 'Opened chest on route.' } }, now);
 
-  if (plan.path.distance === 0) {
-    return plan.target.kind === 'chest' || plan.target.kind === 'quest-fetch' ? { type: 'interact', plan } : { type: 'idle', reason: `already at ${plan.target.reason}` };
+  const intent = nextAutoIntent(next);
+  switch (intent.type) {
+    case 'idle':
+      return stamp(blockAutopilot(next, intent.reason), now);
+    case 'battle': {
+      const tags = intent.quest.task.monsterTags;
+      const battle = startBattle(tags?.length ? { ...next, monsterTags: tags } : next, rng);
+      if (tags?.length && !battle.battle?.enemies.some((enemy) => enemy.tags.some((tag) => tags.includes(tag)))) {
+        return stamp(blockAutopilot(next, `No matching encounter available for ${intent.quest.title}.`), now);
+      }
+      return stamp({
+        ...battle, monsterTags: next.monsterTags,
+        battle: { ...battle.battle!, origin: { floor: next.dungeonLevel, roomId: intent.quest.targetRoomId, position: { ...next.maze.active } } },
+        autopilot: { ...next.autopilot!, phase: 'combat', targetId: `quest:${intent.quest.id}`, targetPosition: { ...next.maze.active }, route: [], stalledTicks: 0, reason: intent.quest.title },
+      }, now);
+    }
+    case 'move': {
+      const moving = withPlan(next, intent.plan);
+      const moved = moveActive(moving, intent.direction, { triggerStairs: false });
+      if (samePosition(moved.maze.active, next.maze.active)) return stamp(blockAutopilot(moving, `Route made no progress toward ${intent.plan.target.reason}.`), now);
+      const route = intent.plan.path.directions.slice(1);
+      const progressed: GameState = {
+        ...moved,
+        autopilot: { ...moving.autopilot!, phase: route.length ? 'travel' : 'interact', route, lastPosition: { ...moved.maze.active }, stalledTicks: 0 },
+      };
+      const withChest = openChestAtActivePosition(progressed, rng);
+      if (withChest.randomBattles && shouldStartEncounter(rng)) {
+        const encountered = startBattle(withChest, rng);
+        return stamp({ ...encountered, autopilot: { ...withChest.autopilot!, phase: 'combat', reason: 'Random encounter on route.' } }, now);
+      }
+      return stamp(withChest, now);
+    }
+    case 'interact': {
+      const ready = syncGuildQuests(openChestAtActivePosition(withPlan(next, intent.plan), rng));
+      const completed = intent.plan.target.questId
+        ? ready.quests.find((quest) => quest.id === intent.plan.target.questId)?.status !== 'active'
+        : ready.chests.find((chest) => chest.id === intent.plan.target.chestId)?.opened;
+      return stamp(completed ? { ...ready, autopilot: planningState(ready, `Completed ${intent.plan.target.reason}.`) }
+        : blockAutopilot(ready, `Interaction made no progress: ${intent.plan.target.reason}.`), now);
+    }
+    case 'descend': {
+      const descended = descendFloor(withPlan(next, intent.plan), rng);
+      return stamp(descended.dungeonLevel !== next.dungeonLevel
+        ? { ...descended, autopilot: planningState(descended, `Floor ${next.dungeonLevel} complete; descended.`) }
+        : blockAutopilot(descended, 'Descent blocked by unfinished floor work.'), now);
+    }
   }
-
-  return { type: 'move', direction: plan.path.directions[0], plan };
 }
 
-export function deriveAutoTargets(game: GameState): AutoTarget[] {
-  const questTargets = activeQuestTargets(game);
-  const chestTargets = activeUnopenedChests(game).map<AutoTarget>((chest) => ({
-    id: `chest:${chest.id}`,
-    kind: 'chest',
-    position: chest.position,
-    priority: 500,
-    reason: 'unopened chest',
-    chestId: chest.id,
-  }));
-
-  const batchedChests = applyChestBatching(game, chestTargets, questTargets);
-  const hasOpenFloorWork = game.quests.some((quest) => quest.floor === game.dungeonLevel && quest.status === 'active') || batchedChests.length > 0;
-  const exitTarget: AutoTarget[] = hasOpenFloorWork
-    ? []
-    : [
-        {
-          id: `exit:${game.dungeonLevel}`,
-          kind: 'exit',
-          position: game.maze.end,
-          priority: 0,
-          reason: 'descent stairs',
-        },
-      ];
-
-  return [...questTargets, ...batchedChests, ...exitTarget];
-}
-
-export function chooseAutoTarget(game: GameState, targets: AutoTarget[]): PlannedAutoTarget | undefined {
-  const planned = targets
-    .map((target) => {
-      const path = findPath(game.maze, target.position);
-      return path ? { target, path, score: scoreTarget(target, path) } satisfies PlannedAutoTarget : undefined;
-    })
-    .filter((target): target is PlannedAutoTarget => Boolean(target));
-
-  return planned.sort((a, b) => a.score - b.score || b.target.priority - a.target.priority || a.path.distance - b.path.distance || a.target.id.localeCompare(b.target.id))[0];
-}
-
-function activeQuestTargets(game: GameState): AutoTarget[] {
-  return game.quests
-    .filter((quest) => quest.floor === game.dungeonLevel && quest.status === 'active')
-    .map((quest) => questTargetForQuest(game, quest))
-    .filter((target): target is AutoTarget => Boolean(target));
-}
-
-function questTargetForQuest(game: GameState, quest: QuestState): AutoTarget | undefined {
-  const room = game.maze.layout?.rooms.find((item) => item.id === quest.targetRoomId);
-  if (!room) {
-    return undefined;
-  }
-
-  if (quest.task.objective === 'fetch') {
-    const chest = activeUnopenedChests(game).find((item) => isInRoom(item.position, room));
-    return {
-      id: `quest:${quest.id}`,
-      kind: 'quest-fetch',
-      position: chest?.position ?? room.center,
-      priority: QUEST_PRIORITY.fetch,
-      reason: quest.title,
-      questId: quest.id,
-      chestId: chest?.id,
-    };
-  }
-
+function withPlan(game: GameState, plan: PlannedAutoTarget): GameState {
   return {
-    id: `quest:${quest.id}`,
-    kind: `quest-${quest.task.objective}` as AutoTargetKind,
-    position: room.center,
-    priority: QUEST_PRIORITY[quest.task.objective],
-    reason: quest.title,
-    questId: quest.id,
+    ...game,
+    autopilot: {
+      phase: plan.path.distance ? 'travel' : 'interact', floor: game.dungeonLevel,
+      targetId: plan.target.id, targetPosition: { ...plan.target.position }, route: [...plan.path.directions],
+      lastPosition: { ...game.maze.active }, stalledTicks: game.autopilot?.stalledTicks ?? 0, reason: plan.target.reason,
+    },
   };
 }
 
-function applyChestBatching(game: GameState, chests: AutoTarget[], questTargets: AutoTarget[]) {
-  const objectives = questTargets.filter((target) => target.kind !== 'quest-kill');
-  if (objectives.length === 0) {
-    return chests;
-  }
-
-  return chests.map((chest) => {
-    const isQuestChest = questTargets.some((target) => samePosition(target.position, chest.position));
-    if (isQuestChest) {
-      return chest;
-    }
-
-    const bestDetour = Math.min(
-      ...objectives.map((objective) => {
-        const activeToObjective = pathDistance(game.maze, objective.position);
-        const activeToChest = pathDistance(game.maze, chest.position);
-        const chestToObjective = pathDistance(game.maze, objective.position, chest.position);
-        return activeToChest + chestToObjective - activeToObjective;
-      }),
-    );
-
-    if (bestDetour <= 2) {
-      return {
-        ...chest,
-        priority: chest.priority + 500,
-        reason: 'near current objective',
-      };
-    }
-
-    return chest;
-  });
-}
-
-function activeKillQuestAtPosition(game: GameState) {
-  return game.quests.find((quest) => {
-    if (quest.floor !== game.dungeonLevel || quest.status !== 'active' || quest.task.objective !== 'kill') {
-      return false;
-    }
-
-    const room = game.maze.layout?.rooms.find((item) => item.id === quest.targetRoomId);
-    return Boolean(room && isInRoom(game.maze.active, room));
-  });
-}
-
-function scoreTarget(target: AutoTarget, path: MazePath) {
-  return path.distance * 10 - target.priority;
-}
-
-function isInRoom(position: GridPosition, room: MazeRoomState) {
-  return position.row >= room.row && position.column >= room.column && position.row < room.row + room.rows && position.column < room.column + room.columns;
+function stamp(game: GameState, now: number): GameState {
+  return { ...game, updatedAt: new Date(now).toISOString() };
 }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGameState, fromLegacyState, moveActive, normalizeGameState, setActorAutoBattle, setAutoThrottle, setMazeTexture, setPartyAutoBattle, summarizeGame } from './gameFactory';
+import { createNewGameState, descendFloor, fromLegacyState, moveActive, normalizeGameState, setActorAutoBattle, setAutoThrottle, setMazeTexture, setPartyAutoBattle, summarizeGame } from './gameFactory';
 import { AUTO_THROTTLE_MAX_MS, AUTO_THROTTLE_MIN_MS, DEFAULT_AUTO_THROTTLE_MS } from './automation/throttle';
 import { DEFAULT_MAZE_TEXTURE } from './maze/textureOptions';
 import type { MazeState } from './types';
+import { chestAt, lineMaze, questFor, roomAt } from './automation/autopilotTestFixtures';
 
 describe('gameFactory', () => {
   it('creates a versioned game state', () => {
@@ -214,5 +215,70 @@ describe('gameFactory', () => {
     });
     expect(normalized.mazeTexture).toBe(DEFAULT_MAZE_TEXTURE);
     expect(normalized.maze.cells.length).toBeGreaterThan(0);
+  });
+
+  it('round-trips optional policies, persistent routes, encounter history and explicit topology without regenerating floors', () => {
+    const hub = roomAt('hub', 'hub', 0);
+    const boss = roomAt('boss', 'boss', 3);
+    const maze = lineMaze(5, [hub, boss]);
+    maze.layout = {
+      ...maze.layout!, version: 'structured-v2',
+      connections: [{ id: 'edge', fromRoomId: hub.id, toRoomId: boss.id, kind: 'tree', fromDoor: hub.center, toDoor: boss.center, path: [hub.center, { row: 0, column: 1 }, { row: 0, column: 2 }, boss.center], width: 1 }],
+    };
+    const base = createNewGameState({
+      maze, mode: 'auto-play',
+      inventoryPolicy: { autoEquip: false, autoSellJunk: true, autoStash: false, autoRestock: true, healthReserve: 4, manaReserve: 3, portalReserve: 2 },
+      townReturnMode: 'auto-play',
+      autopilot: { phase: 'travel', floor: 1, targetId: 'quest:boss', targetPosition: boss.center, route: ['east', 'east', 'east'], lastPosition: maze.active, stalledTicks: 0, reason: 'Clear boss' },
+      floors: [{ level: 2, maze, mazeMaxRooms: 42 }],
+    });
+    const quest = { ...questFor(boss, 'kill', 3), task: { ...questFor(boss, 'kill', 3).task, monsterTags: ['beast' as const] } };
+    const restored = normalizeGameState(JSON.parse(JSON.stringify({ ...base, quests: [quest] })));
+    expect(restored.inventoryPolicy).toEqual(base.inventoryPolicy);
+    expect(restored.townReturnMode).toBe('auto-play');
+    expect(restored.autopilot).toEqual(base.autopilot);
+    expect(restored.quests.find((item) => item.id === quest.id)?.task.monsterTags).toEqual(['beast']);
+    expect(restored.maze.layout).toEqual(maze.layout);
+    expect(restored.maze.cells).toEqual(maze.cells);
+    expect(restored.floors.find((floor) => floor.level === 2)?.maze.layout?.connections).toEqual(maze.layout.connections);
+    expect(createNewGameState().inventoryPolicy).toBeUndefined();
+  });
+
+  it('suppresses both stairs during route traversal and allows only explicit work-complete descent', () => {
+    const base = createNewGameState({ maze: lineMaze(4, [], 1, 0, 2), chests: [chestAt(3)], floors: [{ level: 2, maze: lineMaze(3), mazeMaxRooms: 42 }] });
+    const atExit = moveActive(base, 'east', { triggerStairs: false });
+    expect(atExit.dungeonLevel).toBe(1);
+    expect(atExit.maze.active.column).toBe(2);
+    expect(descendFloor(atExit)).toBe(atExit);
+    const withQuest = { ...atExit, chests: [], quests: [questFor(roomAt('missing', 'safe', 3), 'scout')] };
+    expect(descendFloor(withQuest)).toBe(withQuest);
+    const ready = { ...atExit, chests: [], quests: [] };
+    expect(descendFloor(ready).dungeonLevel).toBe(2);
+    const atStart = moveActive(base, 'west', { triggerStairs: false });
+    expect(atStart.mode).toBe('manual');
+    expect(atStart.maze.active).toEqual(base.maze.start);
+    expect(descendFloor(atStart)).toBe(atStart);
+  });
+
+  it('invalidates another floor route and retains absent optional fields for old saves', () => {
+    const base = createNewGameState({ maze: lineMaze(3) });
+    const restored = normalizeGameState({ ...base, autopilot: { phase: 'travel', floor: 2, route: ['east'], targetId: 'old', targetPosition: { row: 0, column: 1 }, stalledTicks: 0, reason: 'Old floor' } });
+    expect(restored.autopilot).toMatchObject({ phase: 'planning', floor: 1, route: [] });
+    expect(restored.autopilot?.targetId).toBeUndefined();
+    expect(normalizeGameState(base).inventoryPolicy).toBeUndefined();
+    expect(normalizeGameState(base).townReturnMode).toBeUndefined();
+    expect(normalizeGameState(base).maze.layout).toBeUndefined();
+  });
+
+  it('does not resurrect or repay duplicate claimed quest records during normalization', () => {
+    const room = roomAt('boss', 'boss', 1);
+    const quest = questFor(room, 'kill', 3);
+    const base = createNewGameState({ maze: lineMaze(3, [room]) });
+    const claimed = { ...quest, status: 'claimed' as const, task: { ...quest.task, progress: 3 } };
+    const normalized = normalizeGameState({ ...base, quests: [quest, claimed, quest] });
+    expect(normalized.quests).toHaveLength(1);
+    expect(normalized.quests[0].status).toBe('claimed');
+    expect(normalized.inventory.gold).toBe(base.inventory.gold);
+    expect(normalizeGameState(normalized).inventory.gold).toBe(base.inventory.gold);
   });
 });

@@ -17,7 +17,7 @@ export function createCombatContext(game: GameState, rng: Rng, now = Date.now())
   return {
     party,
     enemies,
-    defeated: [],
+    defeated: game.battle?.defeated?.map(copyEnemy) ?? [],
     log: [...(game.battle?.log ?? [])],
     loot: [...(game.battle?.loot ?? [])],
     equipmentBonuses,
@@ -27,11 +27,17 @@ export function createCombatContext(game: GameState, rng: Rng, now = Date.now())
 }
 
 export function removeDefeated(context: CombatContext, rng: Rng) {
-  const defeated = context.enemies.filter((enemy) => !isAlive(enemy));
-  if (defeated.length === 0) {
+  const dead = context.enemies.filter((enemy) => !isAlive(enemy));
+  if (dead.length === 0) {
     return false;
   }
 
+  const seen = new Set(context.defeated.map((enemy) => enemy.id));
+  const defeated = dead.filter((enemy) => {
+    if (seen.has(enemy.id)) return false;
+    seen.add(enemy.id);
+    return true;
+  });
   context.party = grantRewards(context.party, defeated, rng);
   context.loot.push(...defeated.flatMap((enemy) => rollLoot({ source: 'battle', level: enemy.level }, rng)));
   context.defeated.push(...defeated);

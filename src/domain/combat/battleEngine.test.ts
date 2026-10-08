@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGameState } from '../gameFactory';
+import { createNewGameState, normalizeGameState } from '../gameFactory';
 import type { BattleState, EnemyState, GameState } from '../types';
 import { equipItem } from '../items/inventory';
 import { createItemInstance } from '../items/loot';
 import { advanceBattleRound, setBattleReturnMode, startBattle, useBattleSkill } from './battleEngine';
+import { lineMaze, questFor, roomAt } from '../automation/autopilotTestFixtures';
+import { MAX_STALLED_COMBAT_TICKS } from '../automation/autopilotCombat';
+import { stopAutopilot } from '../automation/autopilot';
 
 const highRoll = () => 0.99;
 const lowRoll = () => 0.1;
@@ -266,6 +269,87 @@ describe('battleEngine', () => {
     expect(cleaveAfterSecond?.rechargeUntil).toBe(3500);
     expect(deniedBeforeRecharge).toBe(second);
     expect(allowedAfterRecharge).not.toBe(second);
+  });
+
+  it('persists cumulative multi-turn kills but credits only each delta, including after load and movement away from origin', () => {
+    const boss = roomAt('boss', 'boss', 1);
+    const unrelated = roomAt('other-boss', 'boss', 3);
+    const base = createNewGameState({ maze: lineMaze(5, [boss, unrelated], 1) });
+    const started = startBattle({ ...base, quests: [questFor(boss, 'kill', 3), questFor(unrelated, 'kill', 3)] }, lowRoll);
+    let game: GameState = {
+      ...started,
+      party: started.party.map((actor) => ({ ...actor, autoBattle: false })),
+      battle: { ...started.battle!, enemies: ['a', 'b', 'c'].map((id) => ({ ...oneHpEnemy(), id })) },
+    };
+    expect(game.battle?.origin).toEqual({ floor: 1, roomId: boss.id, position: boss.center });
+    const gold = game.inventory.gold;
+    const rewards = game.quests[0].reward.gold;
+    const initialXp = game.party[0].xp;
+
+    for (let index = 0; index < 3; index++) {
+      game = useBattleSkill(game, game.party[0].id, 'slash', lowRoll, 1000 + index * 7000);
+      expect(game.quests.filter((quest) => quest.id.startsWith('test-')).map((quest) => quest.task.progress)).toEqual([index + 1, 0]);
+      if (index < 2) {
+        expect(game.battle?.defeated).toHaveLength(index + 1);
+        const denied = useBattleSkill(game, game.party[0].id, 'slash', lowRoll, 1001 + index * 7000);
+        expect(denied).toBe(game);
+        game = normalizeGameState(JSON.parse(JSON.stringify(game)));
+        game = { ...game, maze: { ...game.maze, active: unrelated.center } };
+      }
+    }
+    expect(game.battle).toBeUndefined();
+    expect(game.quests[0].status).toBe('claimed');
+    expect(game.quests[1].status).toBe('active');
+    expect(game.party[0].xp - initialXp).toBe(6);
+    expect(game.inventory.gold).toBe(gold + rewards);
+    expect(useBattleSkill(game, game.party[0].id, 'slash', lowRoll)).toBe(game);
+    expect(normalizeGameState(game).inventory.gold).toBe(game.inventory.gold);
+  });
+
+  it('credits kills even if the remaining enemies defeat the party', () => {
+    const boss = roomAt('boss', 'boss', 0);
+    const base = createNewGameState({ maze: lineMaze(3, [boss]) });
+    const started = startBattle({ ...base, quests: [questFor(boss, 'kill', 3)] }, lowRoll);
+    const game = {
+      ...started,
+      party: started.party.map((actor) => ({ ...actor, hp: 1 })),
+      battle: { ...started.battle!, enemies: [killerEnemy('a'), killerEnemy('b'), killerEnemy('c'), oneHpEnemy()] },
+    };
+    const lost = useBattleSkill(game, game.party[0].id, 'slash', highRoll, 1000);
+    expect(lost.battle?.status).toBe('lost');
+    expect(lost.battle?.defeated).toHaveLength(1);
+    expect(lost.quests[0].task.progress).toBe(1);
+    expect(advanceBattleRound(lost, highRoll)).toBe(lost);
+  });
+
+  it('uses temporary expedition AI without overwriting manual actor choices and stops forcing AI immediately', () => {
+    const base = createNewGameState({ mode: 'auto-play' });
+    const started = startBattle({ ...base, party: base.party.map((actor) => ({ ...actor, autoBattle: false })) }, lowRoll);
+    const game = { ...started, battle: { ...started.battle!, enemies: [sturdyEnemy()] } };
+    const automatic = advanceBattleRound(game, lowRoll, 1000);
+    expect(automatic.battle!.enemies[0].hp).toBeLessThan(game.battle!.enemies[0].hp);
+    expect(automatic.party.every((actor) => !actor.autoBattle)).toBe(true);
+    const stopped = stopAutopilot(automatic);
+    const manual = advanceBattleRound(stopped, lowRoll, 10000);
+    expect(manual.battle!.enemies[0].hp).toBe(stopped.battle!.enemies[0].hp);
+    expect(manual.battle?.returnMode).toBe('manual');
+  });
+
+  it('stops stalled automated combat with a durable reason instead of endlessly waiting', () => {
+    const base = startBattle(createNewGameState({ mode: 'auto-play' }), lowRoll);
+    let game: GameState = {
+      ...base,
+      party: base.party.map((actor) => ({ ...actor, autoBattle: false, skills: [] })),
+      battle: { ...base.battle!, enemies: [{ ...sturdyEnemy(), skills: [] }] },
+    };
+    for (let tick = 0; tick < MAX_STALLED_COMBAT_TICKS; tick++) game = advanceBattleRound(game, lowRoll, 1000 + tick * 1000);
+    expect(game.battle?.returnMode).toBe('manual');
+    expect(game.autopilot).toMatchObject({ phase: 'blocked', stalledTicks: MAX_STALLED_COMBAT_TICKS, reason: expect.stringContaining('Combat made no progress') });
+    expect(game.party.every((actor) => !actor.autoBattle)).toBe(true);
+    expect(game.activityLog[0]).toContain('Auto stopped');
+    const resumed = setBattleReturnMode(game, 'auto-play');
+    expect(resumed.autopilot).toMatchObject({ phase: 'combat', stalledTicks: 0 });
+    expect(advanceBattleRound(resumed, lowRoll, 100000).autopilot?.phase).toBe('combat');
   });
 });
 

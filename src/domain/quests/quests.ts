@@ -1,7 +1,8 @@
-import type { EnemyState, GameState, GridPosition, MazeRoomState, QuestState } from '../types';
+import type { BattleState, EnemyState, GameState, GridPosition, MazeRoomState, QuestState } from '../types';
 import { guildContractsForFloor, type GuildContract } from '../guild/contracts';
 import { cellKey } from '../maze/key';
 import { createMazeVisibilitySnapshot } from '../maze/visibility';
+import { isInRoom } from './questTargets';
 
 export function acceptGuildContract(game: GameState, contractId: string): GameState {
   if (game.quests.some((quest) => quest.id === contractId)) {
@@ -37,7 +38,7 @@ export function updateQuestProgress(game: GameState): GameState {
     }
 
     const progress = progressForQuest(game, quest);
-    if (progress <= quest.task.progress) {
+    if (progress <= quest.task.progress && progress < quest.task.required) {
       return quest;
     }
 
@@ -77,6 +78,7 @@ export function updateQuestProgress(game: GameState): GameState {
 }
 
 export function recordFetchQuestProgress(game: GameState, position: GridPosition): GameState {
+  if (!game.chests.some((chest) => chest.level === game.dungeonLevel && chest.opened && cellKey(chest.position) === cellKey(position))) return game;
   const next = updateMatchingQuestProgress(game, (quest) => {
     if (quest.task.objective !== 'fetch' || quest.floor !== game.dungeonLevel) {
       return quest.task.progress;
@@ -89,17 +91,22 @@ export function recordFetchQuestProgress(game: GameState, position: GridPosition
   return claimCompletedGuildQuests(next);
 }
 
-export function recordKillQuestProgress(game: GameState, defeated: EnemyState[]): GameState {
-  if (defeated.length === 0) {
+export function recordKillQuestProgress(game: GameState, defeated: EnemyState[], origin?: BattleState['origin']): GameState {
+  if (defeated.length === 0 || !origin) {
     return game;
   }
 
   const next = updateMatchingQuestProgress(game, (quest) => {
-    if (quest.task.objective !== 'kill' || quest.floor !== game.dungeonLevel) {
+    if (quest.task.objective !== 'kill' || quest.floor !== origin.floor) {
       return quest.task.progress;
     }
 
-    return quest.task.progress + defeated.length;
+    const maze = origin.floor === game.dungeonLevel ? game.maze : game.floors.find((floor) => floor.level === origin.floor)?.maze;
+    const room = maze?.layout?.rooms.find((item) => item.id === quest.targetRoomId);
+    if (!room || (origin.roomId ? origin.roomId !== room.id : !isInRoom(origin.position, room))) return quest.task.progress;
+    const matching = new Set(defeated.filter((enemy) => enemy.hp <= 0 &&
+      (!quest.task.monsterTags?.length || quest.task.monsterTags.some((tag) => enemy.tags.includes(tag)))).map((enemy) => enemy.id));
+    return quest.task.progress + matching.size;
   });
 
   return claimCompletedGuildQuests(next);
@@ -197,6 +204,8 @@ function progressForQuest(game: GameState, quest: QuestState) {
     case 'scout':
       return isInRoom(game.maze.active, room) ? quest.task.required : quest.task.progress;
     case 'fetch':
+      return game.chests.some((chest) => chest.level === quest.floor && chest.opened && isInRoom(chest.position, room))
+        ? quest.task.required : quest.task.progress;
     case 'kill':
       return quest.task.progress;
   }
@@ -257,10 +266,6 @@ function hasLocatedRoom(game: GameState, room: MazeRoomState) {
   const visibility = createMazeVisibilitySnapshot(game.maze);
   const key = cellKey(room.center);
   return visibility.visible.has(key) || visibility.explored.has(key);
-}
-
-function isInRoom(position: GridPosition, room: MazeRoomState) {
-  return position.row >= room.row && position.column >= room.column && position.row < room.row + room.rows && position.column < room.column + room.columns;
 }
 
 function trimLog(entries: string[]) {

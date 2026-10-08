@@ -4,7 +4,8 @@ import { guildContractsForFloor } from '../guild/contracts';
 import { generateStructuredMaze } from '../maze/structuredGenerate';
 import { revealMazeVisibility } from '../maze/visibility';
 import type { EnemyState } from '../types';
-import { recordFetchQuestProgress, recordKillQuestProgress, updateQuestProgress } from './quests';
+import { acceptGuildContract, claimGuildQuestReward, recordFetchQuestProgress, recordKillQuestProgress, syncGuildQuests, updateQuestProgress } from './quests';
+import { chestAt, lineMaze, questFor, roomAt } from '../automation/autopilotTestFixtures';
 
 describe('guild quest lifecycle', () => {
   it('auto accepts generated guild contracts into persistent quest state', () => {
@@ -70,7 +71,8 @@ describe('guild quest lifecycle', () => {
     const targetRoom = game.maze.layout!.rooms.find((room) => room.id === contract!.targetRoomId)!;
 
     expect(contract).toBeDefined();
-    const completed = recordFetchQuestProgress(game, targetRoom.center);
+    const opened = { ...game, chests: game.chests.map((chest) => ({ ...chest, opened: true })) };
+    const completed = recordFetchQuestProgress(opened, targetRoom.center);
     const quest = completed.quests.find((item) => item.id === contract!.id);
 
     expect(quest).toMatchObject({ status: 'claimed', task: { objective: 'fetch', progress: 1 } });
@@ -83,11 +85,41 @@ describe('guild quest lifecycle', () => {
     const contract = guildContractsForFloor(game).find((item) => item.objective === 'kill');
 
     expect(contract).toBeDefined();
-    const completed = recordKillQuestProgress(game, [enemy('a'), enemy('b'), enemy('c')]);
+    const room = game.maze.layout!.rooms.find((room) => room.id === contract!.targetRoomId)!;
+    const completed = recordKillQuestProgress(game, [enemy('a'), enemy('b'), enemy('c')], { floor: 1, roomId: room.id, position: room.center });
     const quest = completed.quests.find((item) => item.id === contract!.id);
 
     expect(quest).toMatchObject({ status: 'claimed', task: { objective: 'kill', progress: 3 } });
     expect(completed.inventory.gold).toBe(game.inventory.gold + contract!.rewardGold);
+  });
+
+  it('requires battle origin and filters floor, room, living enemies, duplicate ids and monster tags', () => {
+    const boss = roomAt('boss', 'boss', 1);
+    const other = roomAt('other', 'boss', 2);
+    const base = createNewGameState({ maze: lineMaze(4, [boss, other]) });
+    const quest = questFor(boss, 'kill', 3);
+    quest.task.monsterTags = ['beast'];
+    const game = { ...base, quests: [quest, questFor(other, 'kill', 3)] };
+    const origin = { floor: 1, roomId: boss.id, position: boss.center };
+    expect(recordKillQuestProgress(game, [enemy('a')])).toBe(game);
+    expect(recordKillQuestProgress(game, [enemy('a')], { ...origin, floor: 2 })).toBe(game);
+    expect(recordKillQuestProgress(game, [enemy('a')], { ...origin, roomId: 'unknown' })).toBe(game);
+    const credited = recordKillQuestProgress(game, [enemy('a'), enemy('a'), { ...enemy('b'), tags: ['undead'] }, { ...enemy('c'), hp: 1 }], origin);
+    expect(credited.quests.map((item) => item.task.progress)).toEqual([1, 0]);
+  });
+
+  it('reconciles already opened fetch caches and repeats acceptance/claim without another reward', () => {
+    const hub = roomAt('hub', 'hub', 0);
+    const treasure = roomAt('treasure', 'treasure', 2);
+    const game = createNewGameState({ maze: lineMaze(4, [hub, treasure]), chests: [chestAt(2)] });
+    const id = game.quests.find((item) => item.task.objective === 'fetch')!.id;
+    expect(acceptGuildContract(game, id)).toBe(game);
+    expect(recordFetchQuestProgress(game, treasure.center)).toBe(game);
+    const completed = syncGuildQuests({ ...game, chests: [chestAt(2, true)] });
+    expect(completed.quests.find((item) => item.id === id)?.status).toBe('claimed');
+    expect(syncGuildQuests(completed)).toBe(completed);
+    expect(claimGuildQuestReward(completed, id)).toBe(completed);
+    expect(acceptGuildContract(completed, id)).toBe(completed);
   });
 });
 

@@ -3,6 +3,7 @@ import { createNewGameState } from '../gameFactory';
 import { generateStructuredMaze } from '../maze/structuredGenerate';
 import type { MazeState } from '../types';
 import { guildContractsForFloor } from './contracts';
+import { chestAt, lineMaze, roomAt } from '../automation/autopilotTestFixtures';
 
 describe('guildContractsForFloor', () => {
   it('posts contracts from structured room anchors', () => {
@@ -37,6 +38,19 @@ describe('guildContractsForFloor', () => {
     const game = createNewGameState({ maze: legacyMaze() });
 
     expect(guildContractsForFloor(game)).toEqual([]);
+  });
+
+  it('only posts fetch contracts for a reachable chest in that room on this floor', () => {
+    const hub = roomAt('hub', 'hub', 0);
+    const treasure = roomAt('treasure', 'treasure', 2);
+    const base = createNewGameState({ maze: lineMaze(4, [hub, treasure]), chests: [chestAt(2)] });
+    const fetch = (game: typeof base) => guildContractsForFloor(game).filter((contract) => contract.objective === 'fetch');
+    expect(fetch(base)).toHaveLength(1);
+    expect(fetch({ ...base, chests: [] })).toHaveLength(0);
+    expect(fetch({ ...base, chests: [{ ...chestAt(2), level: 2 }] })).toHaveLength(0);
+    const isolated = { ...base.maze, cells: base.maze.cells.map((cell) => ({ ...cell, links: [] })) };
+    expect(fetch({ ...base, maze: isolated })).toHaveLength(0);
+    expect(fetch({ ...base, chests: [chestAt(2, true)] })).toHaveLength(1);
   });
 });
 

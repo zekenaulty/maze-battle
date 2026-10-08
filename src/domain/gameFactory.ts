@@ -5,10 +5,13 @@ import { canMove, movePosition } from './maze/movement';
 import { generateChestsForMaze, normalizeChests } from './items/chests';
 import { createInitialInventory, createInitialStash, normalizeInventory, normalizeStash } from './items/inventory';
 import { normalizeAutoThrottleMs } from './automation/throttle';
+import { normalizeAutopilot } from './automation/autopilotState';
 import { normalizeMazeTexture } from './maze/textureOptions';
 import { revealMazeVisibility } from './maze/visibility';
 import { syncGuildQuests } from './quests/quests';
 import { monsterTagsForFloor, normalizeMonsterTags } from './combat/monsters';
+import { defaultRng, type Rng } from './combat/rng';
+import { roomAtPosition } from './quests/questTargets';
 
 const HERO_ORDER: HeroRole[] = ['warrior', 'mage', 'healer'];
 
@@ -126,6 +129,9 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     mazeTexture: normalizeMazeTexture(overrides.mazeTexture),
     autoThrottleMs: normalizeAutoThrottleMs(overrides.autoThrottleMs),
     randomBattles: overrides.randomBattles ?? true,
+    inventoryPolicy: overrides.inventoryPolicy ? { ...overrides.inventoryPolicy } : undefined,
+    autopilot: normalizeAutopilot(overrides.autopilot, dungeonLevel),
+    townReturnMode: overrides.townReturnMode,
     mode: overrides.mode ?? 'manual',
     facing: overrides.facing ?? 'south',
     maze,
@@ -163,6 +169,9 @@ export function normalizeGameState(state: StoredGameState): GameState {
     mazeTexture: state.mazeTexture,
     autoThrottleMs: state.autoThrottleMs,
     randomBattles: state.randomBattles,
+    inventoryPolicy: state.inventoryPolicy,
+    autopilot: state.autopilot,
+    townReturnMode: state.townReturnMode,
     mode: state.mode,
     facing: state.facing,
     maze: activeMaze,
@@ -188,12 +197,16 @@ export function normalizeGameState(state: StoredGameState): GameState {
           log: state.battle.log ?? [],
           loot: state.battle.loot ?? [],
           enemies: (state.battle.enemies ?? []).map(normalizeEnemy),
+          defeated: (state.battle.defeated ?? []).map(normalizeEnemy),
+          origin: state.battle.origin
+            ? { ...state.battle.origin, position: { ...state.battle.origin.position } }
+            : { floor: dungeonLevel, roomId: roomAtPosition(base)?.id, position: { ...base.maze.active } },
         }
       : undefined,
   };
 }
 
-export function moveActive(game: GameState, direction: Direction): GameState {
+export function moveActive(game: GameState, direction: Direction, options: { triggerStairs?: boolean } = {}): GameState {
   const updatedAt = nowIso();
   const facingGame = game.facing === direction ? game : { ...game, facing: direction, updatedAt };
 
@@ -202,6 +215,8 @@ export function moveActive(game: GameState, direction: Direction): GameState {
   }
 
   const nextActive = movePosition(game.maze.active, direction);
+  if (nextActive.row < 0 || nextActive.column < 0 || nextActive.row >= game.maze.rows || nextActive.column >= game.maze.columns
+    || !game.maze.cells.some((cell) => samePosition(cell, nextActive))) return facingGame;
   const visited = hasVisited(game.maze.visited, nextActive) ? game.maze.visited : [...game.maze.visited, nextActive];
   const currentMaze = revealMazeVisibility({ ...game.maze, active: nextActive, visited });
   const movedGame = syncGuildQuests({
@@ -211,6 +226,8 @@ export function moveActive(game: GameState, direction: Direction): GameState {
     floors: replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze, game.monsterTags),
     activityLog: trimLog([`Moved ${direction}.`, ...game.activityLog]),
   });
+
+  if (options.triggerStairs === false) return movedGame;
 
   if (samePosition(nextActive, game.maze.end)) {
     return enterFloor(movedGame, currentMaze, game.dungeonLevel + 1, 'down');
@@ -225,6 +242,15 @@ export function moveActive(game: GameState, direction: Direction): GameState {
   }
 
   return movedGame;
+}
+
+export function descendFloor(game: GameState, rng: Rng = defaultRng): GameState {
+  if (game.mode === 'town' || game.battle || game.party.every((actor) => actor.hp <= 0)
+    || !samePosition(game.maze.active, game.maze.end)) return game;
+  const ready = syncGuildQuests(game);
+  if (ready.quests.some((quest) => quest.floor === ready.dungeonLevel && quest.status !== 'claimed')
+    || ready.chests.some((chest) => chest.level === ready.dungeonLevel && !chest.opened)) return ready;
+  return enterFloor(ready, ready.maze, ready.dungeonLevel + 1, 'down', rng);
 }
 
 export function setGameMode(game: GameState, mode: GameMode): GameState {
@@ -421,8 +447,17 @@ function copyHero(hero: Omit<ActorState, 'id'>): Omit<ActorState, 'id'> {
 }
 
 function normalizeQuests(quests: Partial<QuestState>[] | undefined): QuestState[] {
-  return (quests ?? [])
-    .filter((quest): quest is Partial<QuestState> & Pick<QuestState, 'id'> => typeof quest.id === 'string' && quest.id.length > 0)
+  const byId = new Map<string, Partial<QuestState> & Pick<QuestState, 'id'>>();
+  const statusRank = (quest: Partial<QuestState>) => quest.status === 'claimed' ? 2 : quest.status === 'complete' ? 1 : 0;
+  for (const quest of quests ?? []) {
+    if (typeof quest.id !== 'string' || !quest.id) continue;
+    const previous = byId.get(quest.id);
+    if (!previous || statusRank(quest) > statusRank(previous)
+      || (statusRank(quest) === statusRank(previous) && (quest.task?.progress ?? 0) > (previous.task?.progress ?? 0))) {
+      byId.set(quest.id, { ...quest, id: quest.id });
+    }
+  }
+  return [...byId.values()]
     .map((quest) => {
       const required = Math.max(1, quest.task?.required ?? 1);
       const progress = Math.min(required, Math.max(0, quest.task?.progress ?? 0));
@@ -442,6 +477,7 @@ function normalizeQuests(quests: Partial<QuestState>[] | undefined): QuestState[
           noun: quest.task?.noun ?? 'room',
           required,
           progress,
+          monsterTags: quest.task?.monsterTags ? [...quest.task.monsterTags] : undefined,
         },
         reward: {
           gold: Math.max(0, quest.reward?.gold ?? 0),
@@ -533,11 +569,11 @@ function trimLog(entries: string[]) {
   return entries.slice(0, 12);
 }
 
-function enterFloor(game: GameState, currentMaze: GameState['maze'], targetLevel: number, direction: 'down' | 'up'): GameState {
+function enterFloor(game: GameState, currentMaze: GameState['maze'], targetLevel: number, direction: 'down' | 'up', rng: Rng = defaultRng): GameState {
   const storedCurrentFloors = replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze, game.monsterTags);
   const existingTarget = storedCurrentFloors.find((floor) => floor.level === targetLevel);
   const targetMazeMaxRooms = existingTarget?.mazeMaxRooms ?? nextMazeMaxRooms(game.mazeMaxRooms, direction);
-  const targetMaze = enterMaze(existingTarget?.maze ?? nextLevelMaze(targetMazeMaxRooms), direction === 'down' ? 'start' : 'end');
+  const targetMaze = enterMaze(existingTarget?.maze ?? nextLevelMaze(targetMazeMaxRooms, rng), direction === 'down' ? 'start' : 'end');
   const targetMonsterTags = normalizeMonsterTags(existingTarget?.monsterTags, targetLevel);
   const verb = direction === 'down' ? 'Descended' : 'Returned';
   const chests = game.chests.some((chest) => chest.level === targetLevel) ? game.chests : [...game.chests, ...generateChestsForMaze(targetLevel, targetMaze)];
@@ -551,6 +587,7 @@ function enterFloor(game: GameState, currentMaze: GameState['maze'], targetLevel
     maze: targetMaze,
     floors: replaceFloor(storedCurrentFloors, targetLevel, targetMazeMaxRooms, targetMaze, targetMonsterTags),
     chests,
+    autopilot: normalizeAutopilot(game.autopilot, targetLevel),
     activityLog: trimLog([`${verb} to dungeon level ${targetLevel}.`, ...game.activityLog]),
   });
 }
@@ -559,6 +596,7 @@ function enterTownFromStartStairs(game: GameState, currentMaze: GameState['maze'
   return {
     ...game,
     mode: 'town',
+    townReturnMode: game.mode === 'auto-play' || game.mode === 'waves' ? game.mode : 'manual',
     battle: undefined,
     updatedAt: nowIso(),
     maze: currentMaze,
@@ -635,6 +673,12 @@ function normalizeMazeLayout(layout: MazeLayoutState | undefined): MazeLayoutSta
     })),
     mainPath: layout.mainPath ?? [],
     zones: layout.zones ?? [],
+    connections: layout.connections?.map((connection) => ({
+      ...connection,
+      fromDoor: { ...connection.fromDoor },
+      toDoor: { ...connection.toDoor },
+      path: connection.path.map((position) => ({ ...position })),
+    })),
   };
 }
 
@@ -646,9 +690,9 @@ function nextMazeMaxRooms(currentMazeMaxRooms: number, direction: 'down' | 'up')
   return Math.ceil(currentMazeMaxRooms * 1.3);
 }
 
-function nextLevelMaze(mazeMaxRooms: number) {
+function nextLevelMaze(mazeMaxRooms: number, rng: Rng) {
   const rows = floorRows(mazeMaxRooms);
-  return generateStructuredMaze(rows, rows + 4);
+  return generateStructuredMaze(rows, rows + 4, rng);
 }
 
 function floorRows(mazeMaxRooms: number) {

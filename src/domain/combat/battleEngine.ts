@@ -7,8 +7,12 @@ import { defaultRng, type Rng } from './rng';
 import { spawnEnemies } from './spawn';
 import { addItemsToInventory } from '../items/inventory';
 import { recordKillQuestProgress } from '../quests/quests';
+import { roomAtPosition } from '../quests/questTargets';
+import { trackAutopilotCombat } from '../automation/autopilotCombat';
+import { planningState } from '../automation/autopilotState';
 
 export function startBattle(game: GameState, rng: Rng = defaultRng): GameState {
+  if (game.battle?.status === 'active') return game;
   const wave = game.mode === 'waves' ? game.wave + 1 : 1;
   const battle: BattleState = {
     id: crypto.randomUUID(),
@@ -19,11 +23,16 @@ export function startBattle(game: GameState, rng: Rng = defaultRng): GameState {
     round: 1,
     log: [`Battle ${wave} begins.`],
     loot: [],
+    origin: battleOrigin(game),
+    defeated: [],
   };
 
   return {
     ...setGameMode(game, 'battle'),
     battle,
+    autopilot: game.mode === 'auto-play'
+      ? { ...(game.autopilot ?? planningState(game)), phase: 'combat', stalledTicks: 0, reason: 'Encounter started.' }
+      : game.autopilot,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -43,21 +52,26 @@ export function setBattleReturnMode(game: GameState, returnMode: Exclude<GameSta
       ...game.battle,
       returnMode,
     },
+    autopilot: returnMode === 'auto-play'
+      ? { ...(game.autopilot ?? planningState(game)), phase: 'combat', stalledTicks: 0, reason: 'Resumed automated combat.' }
+      : game.autopilot,
     activityLog: trimLog([`Battle return mode set to ${returnMode}.`, ...game.activityLog]),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function advanceBattleRound(game: GameState, rng: Rng = defaultRng, now = Date.now()): GameState {
+  if (game.battle?.status === 'lost') return game;
   if (!game.battle || game.battle.status !== 'active') {
     return startBattle(game, rng);
   }
 
   const context = createCombatContext(game, rng, now);
   let acted = false;
+  const automatic = game.mode === 'battle' && (game.battle.returnMode === 'auto-play' || game.battle.returnMode === 'waves');
 
   for (const actor of context.party) {
-    const skill = chooseHeroSkill(actor, context.party, context.enemies, rng, now);
+    const skill = chooseHeroSkill(automatic ? { ...actor, autoBattle: true } : actor, context.party, context.enemies, rng, now);
     if (skill) {
       acted = applySkill(actor, skill, context) || acted;
     }
@@ -68,10 +82,10 @@ export function advanceBattleRound(game: GameState, rng: Rng = defaultRng, now =
 
   const status = battleStatus(context);
   if (!acted && status === 'active') {
-    return game;
+    return trackAutopilotCombat(game, game);
   }
 
-  return finishBattleTurn(game, context, status);
+  return trackAutopilotCombat(game, finishBattleTurn(game, context, status));
 }
 
 export function useBattleSkill(game: GameState, actorId: string, skillId: SkillId, rng: Rng = defaultRng, now = Date.now()): GameState {
@@ -92,7 +106,7 @@ export function useBattleSkill(game: GameState, actorId: string, skillId: SkillI
   }
 
   const status = battleStatus(context);
-  return finishBattleTurn(game, context, status);
+  return trackAutopilotCombat(game, finishBattleTurn(game, context, status));
 }
 
 export function endBattle(game: GameState): GameState {
@@ -124,19 +138,22 @@ function finishBattleTurn(game: GameState, context: CombatContext, status: Battl
     return game;
   }
 
+  // The saved cumulative list is the delta boundary, including after a save/resume.
+  const previousDefeated = new Set(game.battle.defeated?.map((enemy) => enemy.id) ?? []);
+  const credited = recordKillQuestProgress(game, context.defeated.filter((enemy) => !previousDefeated.has(enemy.id)), game.battle.origin ?? battleOrigin(game));
+
   if (status === 'won') {
     const won = {
-      ...game,
+      ...credited,
       mode: game.battle.returnMode ?? 'manual',
       wave: game.battle.returnMode === 'waves' ? game.battle.wave : game.wave,
       party: context.party,
       battle: undefined,
-      activityLog: trimLog(['Battle won.', ...game.activityLog]),
+      activityLog: trimLog(['Battle won.', ...credited.activityLog]),
       updatedAt: new Date().toISOString(),
     };
 
-    const withQuestProgress = recordKillQuestProgress(won, context.defeated);
-    const withLoot = addItemsToInventory(withQuestProgress, context.loot, 'Battle loot');
+    const withLoot = addItemsToInventory(won, context.loot, 'Battle loot');
     return {
       ...withLoot,
       activityLog: trimLog(['Battle won.', ...withLoot.activityLog.filter((entry) => entry !== 'Battle won.')]),
@@ -146,7 +163,7 @@ function finishBattleTurn(game: GameState, context: CombatContext, status: Battl
   const mode: GameState['mode'] = status === 'active' ? 'battle' : 'manual';
 
   return {
-    ...game,
+    ...credited,
     mode,
     party: context.party,
     battle: {
@@ -156,9 +173,15 @@ function finishBattleTurn(game: GameState, context: CombatContext, status: Battl
       status,
       log: trimLog(status === 'lost' ? [...context.log, 'Party defeated.'] : context.log),
       loot: context.loot,
+      origin: game.battle.origin ?? battleOrigin(game),
+      defeated: context.defeated,
     },
     updatedAt: new Date().toISOString(),
   };
+}
+
+function battleOrigin(game: GameState): NonNullable<BattleState['origin']> {
+  return { floor: game.dungeonLevel, roomId: roomAtPosition(game)?.id, position: { ...game.maze.active } };
 }
 
 function trimLog(log: string[]) {

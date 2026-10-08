@@ -1,6 +1,8 @@
 import type { GameState, MazeRoomKind, MazeRoomState, QuestObjective } from '../types';
 import { cellKey } from '../maze/key';
 import { createMazeVisibilitySnapshot } from '../maze/visibility';
+import { createMazePathSearch } from '../maze/solver';
+import { isInRoom } from '../quests/questTargets';
 
 export type GuildContractObjective = QuestObjective;
 
@@ -88,9 +90,12 @@ export function guildContractsForFloor(game: GameState): GuildContract[] {
 
   const origin = rooms.find((room) => room.kind === 'hub') ?? rooms.find((room) => room.kind === 'start') ?? rooms[0];
   const visibility = createMazeVisibilitySnapshot(game.maze);
+  const paths = createMazePathSearch(game.maze, game.maze.start);
 
   return rooms
     .filter((room) => isContractRoom(room, origin))
+    .filter((room) => room.kind !== 'treasure' || game.chests.some((chest) =>
+      chest.level === game.dungeonLevel && isInRoom(chest.position, room) && Number.isFinite(paths.distanceTo(chest.position))))
     .map((room) => createContract(game.dungeonLevel, origin, room, roomStatus(room, visibility)))
     .sort((a, b) => contractPriority(a) - contractPriority(b) || a.targetRoomName.localeCompare(b.targetRoomName));
 }
