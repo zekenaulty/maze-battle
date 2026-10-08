@@ -20,12 +20,19 @@ const DECISION_RANK: Record<GearDecision, number> = { upgrade: 3, equivalent: 2,
 export function projectInventory(inventory: InventoryState, party: ActorState[], selectedActor: ActorState, filters: InventoryFilters, stash?: StashState) {
   const terms = filters.query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   const ownedInventory = stash ? { ...inventory, items: [...inventory.items, ...stash.items] } : inventory;
-  const rows = inventory.items.map((item) => ({
-    item,
-    owner: getEquippedItemOwner(item.id, party),
-    comparison: compareItem(item, selectedActor, ownedInventory),
-    sellValue: getSellValue(item),
-  })).filter(({ item, owner, comparison }) => {
+  const occurrences = new Map<string, number>();
+  const rows = inventory.items.map((item) => {
+    // Assign display identity before filtering/sorting; domain actions still use item.id.
+    const occurrence = occurrences.get(item.id) ?? 0;
+    occurrences.set(item.id, occurrence + 1);
+    return {
+      displayKey: JSON.stringify([item.id, occurrence]),
+      item,
+      owner: getEquippedItemOwner(item.id, party),
+      comparison: compareItem(item, selectedActor, ownedInventory),
+      sellValue: getSellValue(item),
+    };
+  }).filter(({ item, owner, comparison }) => {
     if (filters.category !== 'all' && item.category !== filters.category) return false;
     if (filters.slot !== 'all' && item.slot !== filters.slot) return false;
     if (filters.rarity !== 'all' && item.rarity !== filters.rarity) return false;

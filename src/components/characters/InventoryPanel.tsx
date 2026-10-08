@@ -35,7 +35,7 @@ export function InventoryPanel(props: InventoryPanelProps) {
     {props.inventoryPolicy && <InventoryPolicyControls policy={props.inventoryPolicy} onChange={props.onInventoryPolicyChange} />}
     <div className="inventory-result-count" role="status">{rows.length} of {inventory.items.length} items</div>
     <div className="inventory-list">
-      {rows.map((row) => <InventoryItem key={row.item.id} row={row} {...props} />)}
+      {rows.map((row) => <InventoryItem key={row.displayKey} row={row} {...props} />)}
       {rows.length === 0 && <p className="empty-state">{inventory.items.length === 0 ? 'The pack is empty.' : 'No items match these filters.'}</p>}
     </div>
   </section>;

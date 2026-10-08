@@ -44,6 +44,20 @@ describe('inventory projections', () => {
     expect(pack.items.map((item) => item.id)).toEqual([potion.id, replacement.id, high.id]);
   });
 
+  it('keeps duplicate display identities unique and stable across search and sorting', () => {
+    const first = itemFixture({ id: 'duplicate', displayName: 'First', value: 1 });
+    const second = itemFixture({ id: 'duplicate', displayName: 'Second', value: 100 });
+    const third = itemFixture({ id: 'duplicate:0', displayName: 'Third' });
+    const pack = inventoryFixture([first, second, third]);
+    const rows = projectInventory(pack, [vor], vor, DEFAULT_INVENTORY_FILTERS);
+    expect(new Set(rows.map((row) => row.displayKey)).size).toBe(3);
+    const secondKey = rows.find((row) => row.item === second)!.displayKey;
+    expect(projectInventory(pack, [vor], vor, { ...DEFAULT_INVENTORY_FILTERS, sort: 'value' })[0].displayKey).toBe(secondKey);
+    expect(projectInventory(pack, [vor], vor, { ...DEFAULT_INVENTORY_FILTERS, query: 'Second' })[0].displayKey).toBe(secondKey);
+    expect(pack.items).toEqual([first, second, third]);
+    expect(first.id).toBe(second.id);
+  });
+
   it('rejects full, fallen, locked or invalid potion uses while respecting the independent portal context', () => {
     expect(consumableDisabledReason(potion, { ...vor, hp: 100 })).toBe('HP already full');
     expect(consumableDisabledReason(potion, { ...vor, hp: 0 })).toBe('Cannot use on a fallen character');
