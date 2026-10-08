@@ -34,7 +34,7 @@ export function ItemDetails({ item, compact = false, comparison }: ItemDetailsPr
         </ul>
       ) : null}
       {comparison && !comparison.isCurrent && <div className="item-comparison" aria-label={`Comparison for ${comparison.actorName}`}>
-        <span>For {comparison.actorName} vs {comparison.currentName}: <b className={comparison.scoreDelta > 0 ? 'stat-positive' : comparison.scoreDelta < 0 ? 'stat-negative' : ''}>{signed(comparison.scoreDelta)} GS</b></span>
+        <span>For {comparison.actorName} vs {comparison.currentName}: <b>Approx. GS {signed(comparison.scoreDelta)}</b></span>
         {comparison.deltas.length > 0 ? <ul aria-label="Effective stat changes">{comparison.deltas.map(({ key, label, value }) => <li key={key} className={value > 0 ? 'stat-positive' : 'stat-negative'}>{signed(value)} {label}</li>)}</ul> : <small>No effective stat change</small>}
       </div>}
     </div>

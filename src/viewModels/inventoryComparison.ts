@@ -30,13 +30,16 @@ export function compareItem(item: ItemInstance, actor: ActorState, inventory: In
 
 export type ItemComparison = NonNullable<ReturnType<typeof compareItem>>;
 
-export function consumableDisabledReason(item: ItemInstance, actor: ActorState, canUseTownPortal = true) {
-  if ((item.quantity ?? 1) <= 0) return 'Empty stack';
-  if (item.consumableEffect === 'townPortal') return canUseTownPortal ? undefined : 'Portal unavailable here';
-  if (!item.consumableEffect) return 'Not consumable';
-  if ((item.consumableAmount ?? 0) <= 0) return 'No restorative effect';
-  // useConsumable currently caps at base maxima, unlike battle healing.
-  if (item.consumableEffect === 'heal' && actor.hp >= actor.maxHp) return 'HP at potion cap';
-  if (item.consumableEffect === 'mana' && actor.mp >= actor.maxMp) return 'MP at potion cap';
+export function consumableDisabledReason(item: ItemInstance, effectiveActor: ActorState, canUseTownPortal = true) {
+  if (!item.consumableEffect || item.slot) return 'Not a usable consumable';
+  if (item.locked) return 'Unlock before use';
+  const quantity = item.quantity ?? 1;
+  if (!Number.isFinite(quantity) || quantity < 1) return 'Empty stack';
+  if (item.consumableEffect === 'townPortal') return canUseTownPortal && item.category === 'consumable' ? undefined : 'Portal unavailable here';
+  if (effectiveActor.hp <= 0) return 'Cannot use on a fallen character';
+  const amount = item.consumableAmount ?? 0;
+  if (!Number.isFinite(amount) || amount <= 0) return 'No restorative effect';
+  if (item.consumableEffect === 'heal' && effectiveActor.hp >= effectiveActor.maxHp) return 'HP already full';
+  if (item.consumableEffect === 'mana' && effectiveActor.mp >= effectiveActor.maxMp) return 'MP already full';
   return undefined;
 }

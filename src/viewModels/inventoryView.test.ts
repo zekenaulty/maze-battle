@@ -27,7 +27,7 @@ describe('inventory projections', () => {
     expect(JSON.stringify({ inventory, vor, mage })).toBe(original);
   });
 
-  it('combines search, slot, rarity, ownership and role-relative upgrade filters', () => {
+  it('combines search, slot, rarity, ownership and role-relative score filters', () => {
     const filter = (patch: Partial<typeof DEFAULT_INVENTORY_FILTERS>) => projectInventory(inventory, [vor, mage], vor, { ...DEFAULT_INVENTORY_FILTERS, ...patch }).map((row) => row.item.id);
     expect(filter({ query: 'ZYTH intellect', slot: 'weapon', rarity: 'common', ownership: 'locked' })).toEqual([replacement.id]);
     expect(filter({ ownership: 'selected' })).toEqual([old.id]);
@@ -44,10 +44,16 @@ describe('inventory projections', () => {
     expect(pack.items.map((item) => item.id)).toEqual([potion.id, replacement.id, high.id]);
   });
 
-  it('disables wasteful consumables and respects portal context, not an invented revive rule', () => {
-    expect(consumableDisabledReason(potion, { ...vor, hp: 100 })).toBe('HP at potion cap');
-    expect(consumableDisabledReason(potion, { ...vor, hp: 0 })).toBeUndefined();
+  it('rejects full, fallen, locked or invalid potion uses while respecting the independent portal context', () => {
+    expect(consumableDisabledReason(potion, { ...vor, hp: 100 })).toBe('HP already full');
+    expect(consumableDisabledReason(potion, { ...vor, hp: 0 })).toBe('Cannot use on a fallen character');
+    expect(consumableDisabledReason({ ...potion, locked: true }, vor)).toBe('Unlock before use');
     expect(consumableDisabledReason({ ...potion, quantity: 0 }, vor)).toBe('Empty stack');
+    expect(consumableDisabledReason({ ...potion, quantity: 0.5 }, vor)).toBe('Empty stack');
+    expect(consumableDisabledReason({ ...potion, consumableAmount: NaN }, vor)).toBe('No restorative effect');
+    expect(consumableDisabledReason({ ...potion, slot: 'weapon' }, vor)).toBe('Not a usable consumable');
+    expect(consumableDisabledReason({ ...potion, consumableEffect: 'townPortal', locked: true }, vor)).toBe('Unlock before use');
     expect(consumableDisabledReason({ ...potion, consumableEffect: 'townPortal' }, vor, false)).toBe('Portal unavailable here');
+    expect(consumableDisabledReason({ ...potion, consumableEffect: 'townPortal' }, { ...vor, hp: 0 }, true)).toBeUndefined();
   });
 });

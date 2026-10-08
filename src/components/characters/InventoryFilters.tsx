@@ -20,10 +20,10 @@ export function InventoryFilters({ filters, onChange }: { filters: Filters; onCh
       <option value="all">All rarities</option>{['common', 'magic', 'rare', 'legendary'].map((rarity) => <option key={rarity} value={rarity}>{rarity}</option>)}
     </select></label>
     <label>Status<select aria-label="Status" value={filters.ownership} onChange={(event) => onChange({ ownership: event.currentTarget.value as Filters['ownership'] })}>
-      <option value="all">All items</option><option value="selected">This character</option><option value="equipped">Equipped</option><option value="unequipped">Unequipped</option><option value="locked">Locked</option><option value="upgrades">GS upgrades</option>
+      <option value="all">All items</option><option value="selected">This character</option><option value="equipped">Equipped</option><option value="unequipped">Unequipped</option><option value="locked">Locked</option><option value="upgrades">Higher GS</option>
     </select></label>
     <label>Sort<select aria-label="Sort" value={filters.sort} onChange={(event) => onChange({ sort: event.currentTarget.value as Filters['sort'] })}>
-      <option value="name">Name A-Z</option><option value="score">Gear score</option><option value="upgrade">GS gain</option><option value="value">Sell value</option><option value="level">Item level</option><option value="rarity">Rarity</option>
+      <option value="name">Name A-Z</option><option value="score">Approx. GS</option><option value="upgrade">GS change</option><option value="value">Sell value</option><option value="level">Item level</option><option value="rarity">Rarity</option>
     </select></label>
     </div>
   </details>;

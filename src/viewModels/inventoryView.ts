@@ -8,6 +8,7 @@ export interface InventoryFilters {
   category: 'all' | ItemCategory;
   slot: 'all' | EquipmentSlot;
   rarity: 'all' | ItemRarity;
+  // Legacy upgrade keys filter/sort approximate GS, not domain recommendations.
   ownership: 'all' | 'selected' | 'equipped' | 'unequipped' | 'locked' | 'upgrades';
   sort: 'name' | 'score' | 'upgrade' | 'value' | 'level' | 'rarity';
 }
