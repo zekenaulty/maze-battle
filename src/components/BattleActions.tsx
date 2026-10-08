@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import type { ActorState, SkillId } from '../domain/types';
 import { canUseSkill, getActorGcdRemaining, getAvailableCharges, getSkillCooldownRemaining, getSkillRechargeRemaining } from '../domain/combat/combatant';
 import { xpForNextLevel } from '../domain/combat/rewards';
 import { SKILLS } from '../domain/combat/skillCatalog';
 import { VitalBar } from './VitalBar';
+import './screens/battle.css';
 
 interface BattleActionsProps {
   party: ActorState[];
@@ -10,13 +12,23 @@ interface BattleActionsProps {
   now: number;
   onSkill: (actorId: string, skillId: SkillId) => void;
   onAutoBattleChange: (actorId: string, enabled: boolean) => void;
+  skillsVisible?: boolean;
 }
 
-export function BattleActions({ party, active, now, onSkill, onAutoBattleChange }: BattleActionsProps) {
+export function BattleActions({ party, active, now, onSkill, onAutoBattleChange, skillsVisible = true }: BattleActionsProps) {
+  const [selectedId, setSelectedId] = useState(party[0]?.id);
+  const selected = party.find((actor) => actor.id === selectedId) ?? party[0];
   return (
-    <div className="battle-actions">
+    <div className={`battle-action-panel ${skillsVisible ? '' : 'vitals-only'}`}>
+      <nav className="battle-member-selector" aria-label="Battle party members">
+        {party.map((actor) => <button type="button" key={actor.id} aria-pressed={actor.id === selected?.id}
+          className={actor.id === selected?.id ? 'is-active' : ''} onClick={() => setSelectedId(actor.id)}>
+          <strong>{actor.displayName}</strong><small>{actor.hp > 0 ? `HP ${actor.hp}/${actor.maxHp}` : 'Defeated'}</small>
+        </button>)}
+      </nav>
+      <div className="battle-actions">
       {party.map((actor) => (
-        <article className="battle-character" key={actor.id}>
+        <article className={`battle-character ${actor.id === selected?.id ? 'is-selected-member' : ''}`} aria-label={actor.displayName} key={actor.id}>
           <header>
             <div className="battle-character-title">
               <strong>{actor.displayName}</strong>
@@ -25,7 +37,7 @@ export function BattleActions({ party, active, now, onSkill, onAutoBattleChange 
               </span>
             </div>
             <label className="compact-toggle auto-toggle">
-              <input type="checkbox" checked={actor.autoBattle} onChange={(event) => onAutoBattleChange(actor.id, event.currentTarget.checked)} />
+              <input type="checkbox" aria-label={`${actor.displayName} auto battle`} checked={actor.autoBattle} onChange={(event) => onAutoBattleChange(actor.id, event.currentTarget.checked)} />
               <span>Auto</span>
             </label>
           </header>
@@ -33,15 +45,16 @@ export function BattleActions({ party, active, now, onSkill, onAutoBattleChange 
             <VitalBar label="HP" value={actor.hp} max={actor.maxHp} tone="health" />
             <VitalBar label="MP" value={actor.mp} max={actor.maxMp} tone="mana" />
           </div>
-          <div className="battle-character-skills">
+          {skillsVisible && <div className="battle-character-skills">
             {(actor.skills ?? []).map((skill) => {
               const cooldown = Math.max(getActorGcdRemaining(actor, now), getSkillCooldownRemaining(skill, now));
               const charges = getAvailableCharges(skill, now);
               const recharge = getSkillRechargeRemaining(skill, now);
-              const skillName = SKILLS[skill.id].name;
+              const definition = SKILLS[skill.id];
+              const skillName = definition.name;
               const skillMeta = [
-                cooldown > 0 ? formatMs(cooldown) : '',
-                charges !== undefined ? `${charges}/${skill.maxCharges}` : '',
+                !active ? 'Ended' : actor.hp <= 0 ? 'Defeated' : actor.mp < definition.mpCost ? `Need ${definition.mpCost} MP` : cooldown > 0 ? formatMs(cooldown) : `${definition.mpCost} MP`,
+                charges !== undefined ? `${charges}/${skill.maxCharges ?? charges}` : '',
                 cooldown < 1 && charges !== undefined && charges < (skill.maxCharges ?? charges) && recharge > 0 ? `+${formatMs(recharge)}` : '',
               ]
                 .filter(Boolean)
@@ -51,6 +64,7 @@ export function BattleActions({ party, active, now, onSkill, onAutoBattleChange 
                 <button
                   key={skill.id}
                   type="button"
+                  aria-label={skillName}
                   title={skillMeta ? `${skillName} ${skillMeta}` : skillName}
                   disabled={!active || !canUseSkill(actor, skill.id, now)}
                   onClick={() => onSkill(actor.id, skill.id)}
@@ -60,9 +74,10 @@ export function BattleActions({ party, active, now, onSkill, onAutoBattleChange 
                 </button>
               );
             })}
-          </div>
+          </div>}
         </article>
       ))}
+      </div>
     </div>
   );
 }

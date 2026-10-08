@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Crosshair, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Crosshair, Map, Save, Settings, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GameState, GridPosition } from '../domain/types';
 import { AutoThrottleControl } from './AutoThrottleControl';
 import { Controls } from './Controls';
@@ -7,6 +7,10 @@ import type { MazeRenderMode } from './maze/drawMaze';
 import { DEFAULT_MAZE_CAMERA, zoomMazeCamera, type MazeCameraState } from './maze/mazeCamera';
 import { MazeCanvas } from './MazeCanvas';
 import { createMazeViewModel } from '../viewModels/mazeViewModel';
+import { Dialog } from './Dialog';
+import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
+import { AutoStatus } from './screens/AutoStatus';
+import './screens/screens.css';
 
 interface ExploreScreenProps {
   game: GameState;
@@ -22,8 +26,10 @@ interface ExploreScreenProps {
   onTown: () => void;
   onCharacters: () => void;
   onSaves: () => void;
-  onNewGame: () => void;
+  onNewGame: () => void | Promise<void>;
   onRandomBattlesChange: (enabled: boolean) => void;
+  portalScrollCount?: number;
+  onDiagnostics?: () => void;
 }
 
 export function ExploreScreen({
@@ -42,9 +48,15 @@ export function ExploreScreen({
   onSaves,
   onNewGame,
   onRandomBattlesChange,
+  portalScrollCount,
+  onDiagnostics,
 }: ExploreScreenProps) {
   const [mazeMode, setMazeMode] = useState<MazeRenderMode>('camera');
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
+  const portalCount = portalScrollCount ?? game.inventory.items.reduce((count, item) =>
+    item.consumableEffect === 'townPortal' ? count + Math.max(0, Math.floor(item.quantity ?? 1)) : count, 0);
   const isOverview = mazeMode === 'overview';
   const mazeView = createMazeViewModel(game, chests);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
@@ -54,7 +66,7 @@ export function ExploreScreen({
   }, [game.dungeonLevel, game.maze.rows, game.maze.columns]);
 
   return (
-    <main className="game-screen explore-screen">
+    <main className={`game-screen explore-screen refined-screen ${onDiagnostics ? 'has-diagnostics' : ''}`}>
       <div className="screen-bar">
         <div>
           <h1>Maze Battle</h1>
@@ -63,34 +75,31 @@ export function ExploreScreen({
           </span>
         </div>
         <nav aria-label="Explore actions">
-          <label className="compact-toggle">
-            <input type="checkbox" checked={game.randomBattles} onChange={(event) => onRandomBattlesChange(event.currentTarget.checked)} />
-            <span>Encounters</span>
-          </label>
-          <button className={autoActive ? 'is-active' : ''} type="button" onClick={onAutoToggle}>
-            Auto
+          <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}>
+            {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
-          <button className={wavesActive ? 'is-active' : ''} type="button" onClick={onWavesToggle}>
-            Waves
+          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle}>
+            {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
-          <AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} />
-          <button type="button" onClick={onTown}>
-            Portal
+          <button type="button" onClick={onTown} disabled={portalCount < 1} title={portalCount > 0 ? 'Use one town portal scroll' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
+            Portal ({portalCount})
           </button>
-          <button className={isOverview ? 'is-active' : ''} type="button" aria-pressed={isOverview} onClick={() => setMazeMode(isOverview ? 'camera' : 'overview')}>
-            Map
+          <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview" aria-label="Map" aria-pressed={isOverview} onClick={() => setMazeMode(isOverview ? 'camera' : 'overview')}>
+            <Map size={18} aria-hidden="true" />
           </button>
-          <button type="button" onClick={onCharacters}>
-            Party
+          <button className="screen-icon" type="button" title="Party" aria-label="Party" onClick={onCharacters}>
+            <Users size={18} aria-hidden="true" />
           </button>
-          <button type="button" onClick={onSaves}>
-            Saves
+          <button className="screen-icon" type="button" title="Saves" aria-label="Saves" onClick={onSaves}>
+            <Save size={18} aria-hidden="true" />
           </button>
-          <button type="button" onClick={onNewGame}>
-            New
+          {onDiagnostics && <button className="screen-icon" type="button" title="Diagnostics" aria-label="Diagnostics" onClick={onDiagnostics}><Activity size={18} aria-hidden="true" /></button>}
+          <button className="screen-icon" type="button" title="Expedition settings" aria-label="Expedition settings" onClick={() => setSettingsOpen(true)}>
+            <Settings size={18} aria-hidden="true" />
           </button>
         </nav>
       </div>
+      <AutoStatus game={game} active={autoActive} />
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''}`}>
         <MazeCanvas
           maze={mazeView.maze}
@@ -117,6 +126,17 @@ export function ExploreScreen({
         )}
       </section>
       <Controls onMove={onMove} />
+      {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
+        <div className="screen-settings">
+          <label className="compact-toggle">
+            <input type="checkbox" checked={game.randomBattles} onChange={(event) => onRandomBattlesChange(event.currentTarget.checked)} />
+            <span>Encounters</span>
+          </label>
+          <AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} />
+          <button type="button" onClick={() => { setSettingsOpen(false); setConfirmNew(true); }}>New game</button>
+        </div>
+      </Dialog>}
+      {confirmNew && <ConfirmActionDialog title="Start a new game?" message="This replaces the current expedition and autosave. Manual saves are kept." confirmLabel="Start new game" onConfirm={onNewGame} onClose={() => setConfirmNew(false)} />}
     </main>
   );
 }

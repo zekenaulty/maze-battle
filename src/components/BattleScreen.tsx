@@ -1,8 +1,12 @@
-import { useState } from 'react';
-import type { ActorState, BattleState, SkillId } from '../domain/types';
+import { useId, useState } from 'react';
+import { Activity, Settings } from 'lucide-react';
+import type { ActorState, AutopilotState, BattleState, SkillId } from '../domain/types';
 import { AutoThrottleControl } from './AutoThrottleControl';
 import { BattleActions } from './BattleActions';
 import { VitalBar } from './VitalBar';
+import { Dialog } from './Dialog';
+import './screens/screens.css';
+import './screens/battle.css';
 
 interface BattleScreenProps {
   battle: BattleState;
@@ -20,6 +24,9 @@ interface BattleScreenProps {
   onEnd: () => void;
   onCharacters: () => void;
   onSaves: () => void;
+  onStopAutomation?: () => void;
+  onDiagnostics?: () => void;
+  autopilot?: AutopilotState;
 }
 
 type BattleTab = 'skills' | 'log';
@@ -40,11 +47,16 @@ export function BattleScreen({
   onEnd,
   onCharacters,
   onSaves,
+  onStopAutomation,
+  onDiagnostics,
+  autopilot,
 }: BattleScreenProps) {
   const [activeTab, setActiveTab] = useState<BattleTab>('skills');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const panelId = useId();
 
   return (
-    <main className="game-screen battle-screen">
+    <main className="game-screen battle-screen refined-screen">
       <div className="screen-bar">
         <div>
           <h1>Battle {battle.wave}</h1>
@@ -53,13 +65,13 @@ export function BattleScreen({
           </span>
         </div>
         <nav aria-label="Battle actions">
-          <button className={autoActive ? 'is-active' : ''} type="button" onClick={onAutoToggle}>
-            Auto
+          <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={autoActive && onStopAutomation ? onStopAutomation : onAutoToggle}>
+            {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
-          <button className={wavesActive ? 'is-active' : ''} type="button" onClick={onWavesToggle}>
-            Waves
+          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={wavesActive && onStopAutomation ? onStopAutomation : onWavesToggle}>
+            {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
-          <AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} />
+          <button className="screen-icon" type="button" title="Battle settings" aria-label="Battle settings" onClick={() => setSettingsOpen(true)}><Settings size={18} aria-hidden="true" /></button>
           <button type="button" onClick={onRound} disabled={battle.status !== 'active'}>
             Round
           </button>
@@ -72,8 +84,10 @@ export function BattleScreen({
           <button type="button" onClick={onEnd}>
             End
           </button>
+          {onDiagnostics && <button className="screen-icon" type="button" title="Diagnostics" aria-label="Diagnostics" onClick={onDiagnostics}><Activity size={18} aria-hidden="true" /></button>}
         </nav>
       </div>
+      {autopilot && (autoActive || autopilot.phase === 'blocked') && <div className="screen-auto-status" role="status"><strong>{autopilot.phase === 'blocked' ? 'Auto blocked' : 'Auto active'}</strong><span>{autopilot.reason}</span></div>}
       <section className="battlefield" aria-label="Enemies">
         {battle.enemies.map((enemy) => (
           <article className="enemy-card" key={enemy.id}>
@@ -85,25 +99,33 @@ export function BattleScreen({
         ))}
         {battle.enemies.length === 0 ? <p className="empty-state">No enemies remain.</p> : null}
       </section>
-      <section className="battle-bottom">
-        <div className="battle-tabs" role="tablist" aria-label="Battle panel">
-          <button className={activeTab === 'skills' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === 'skills'} onClick={() => setActiveTab('skills')}>
+      <section className={`battle-bottom ${activeTab === 'log' ? 'show-log' : ''}`}>
+        <div className="battle-tabs" role="tablist" aria-label="Battle panel" onKeyDown={(event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 'skills' : event.key === 'End' ? 'log' : activeTab === 'skills' ? 'log' : 'skills';
+          setActiveTab(next);
+          document.getElementById(`${panelId}-${next}`)?.focus();
+        }}>
+          <button id={`${panelId}-skills`} aria-controls={panelId} tabIndex={activeTab === 'skills' ? 0 : -1} className={activeTab === 'skills' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === 'skills'} onClick={() => setActiveTab('skills')}>
             Skills
           </button>
-          <button className={activeTab === 'log' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === 'log'} onClick={() => setActiveTab('log')}>
+          <button id={`${panelId}-log`} aria-controls={panelId} tabIndex={activeTab === 'log' ? 0 : -1} className={activeTab === 'log' ? 'is-active' : ''} type="button" role="tab" aria-selected={activeTab === 'log'} onClick={() => setActiveTab('log')}>
             Log
           </button>
         </div>
-        {activeTab === 'skills' ? (
-          <BattleActions party={party} active={battle.status === 'active'} now={now} onSkill={onSkill} onAutoBattleChange={onAutoBattleChange} />
-        ) : (
-          <ol className="battle-log">
+        <div className="battle-panel-content" role="tabpanel" id={panelId} aria-labelledby={`${panelId}-${activeTab}`}>
+          <BattleActions party={party} active={battle.status === 'active'} now={now} onSkill={onSkill} onAutoBattleChange={onAutoBattleChange} skillsVisible={activeTab === 'skills'} />
+        {activeTab === 'log' && (
+          <ol className="battle-log" aria-label="Battle log">
             {battle.log.map((entry, index) => (
               <li key={`${entry}-${index}`}>{entry}</li>
             ))}
           </ol>
         )}
+        </div>
       </section>
+      {settingsOpen && <Dialog title="Battle settings" onClose={() => setSettingsOpen(false)}><div className="screen-settings"><AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} /></div></Dialog>}
     </main>
   );
 }
