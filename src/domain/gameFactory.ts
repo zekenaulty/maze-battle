@@ -1,9 +1,9 @@
-import type { ActorState, BattleState, Direction, EnemyState, GameMode, GameState, GridPosition, HeroRole, MazeFloorState, MazeLayoutState, MazeTextureId, MonsterCategory, QuestState, SkillState } from './types';
+import type { ActorState, BattleState, Direction, EnemyState, GameMode, GameState, GridPosition, HeroRole, InventoryPolicy, MazeFloorState, MazeLayoutState, MazeTextureId, MonsterCategory, QuestState, SkillState } from './types';
 import { generateStructuredMaze, roomTagsForKind } from './maze/structuredGenerate';
 import { samePosition } from './maze/key';
 import { canMove, movePosition } from './maze/movement';
 import { generateChestsForMaze, normalizeChests } from './items/chests';
-import { createInitialInventory, createInitialStash, normalizeInventory, normalizeStash } from './items/inventory';
+import { createInitialInventory, createInitialStash, normalizeInventory, normalizeInventoryPolicy, normalizeStash } from './items/inventory';
 import { normalizeAutoThrottleMs } from './automation/throttle';
 import { normalizeAutopilot } from './automation/autopilotState';
 import { normalizeMazeTexture } from './maze/textureOptions';
@@ -92,17 +92,20 @@ const HEROES: Record<HeroRole, Omit<ActorState, 'id'>> = {
 
 const nowIso = () => new Date().toISOString();
 
-type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party'>> & {
+type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party' | 'inventoryPolicy' | 'townReturnMode'>> & {
   battle?: Partial<Omit<BattleState, 'enemies'>> & { enemies?: Partial<EnemyState>[] };
   floors?: Partial<MazeFloorState>[];
   party?: Partial<ActorState>[];
   quests?: Partial<QuestState>[];
   monsterTags?: MonsterCategory[];
+  inventoryPolicy?: Partial<InventoryPolicy>;
+  townReturnMode?: unknown;
 };
 
-type GameStateOverrides = Partial<Omit<GameState, 'floors' | 'maze'>> & {
+type GameStateOverrides = Partial<Omit<GameState, 'floors' | 'maze' | 'inventoryPolicy'>> & {
   floors?: Partial<MazeFloorState>[];
   maze?: Partial<GameState['maze']>;
+  inventoryPolicy?: Partial<InventoryPolicy>;
 };
 
 export function createNewGameState(overrides: GameStateOverrides = {}): GameState {
@@ -129,9 +132,9 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     mazeTexture: normalizeMazeTexture(overrides.mazeTexture),
     autoThrottleMs: normalizeAutoThrottleMs(overrides.autoThrottleMs),
     randomBattles: overrides.randomBattles ?? true,
-    inventoryPolicy: overrides.inventoryPolicy ? { ...overrides.inventoryPolicy } : undefined,
+    inventoryPolicy: overrides.inventoryPolicy === undefined ? undefined : normalizeInventoryPolicy(overrides.inventoryPolicy),
     autopilot: normalizeAutopilot(overrides.autopilot, dungeonLevel),
-    townReturnMode: overrides.townReturnMode,
+    townReturnMode: normalizeTownReturnMode(overrides.townReturnMode),
     mode: overrides.mode ?? 'manual',
     facing: overrides.facing ?? 'south',
     maze,
@@ -171,7 +174,7 @@ export function normalizeGameState(state: StoredGameState): GameState {
     randomBattles: state.randomBattles,
     inventoryPolicy: state.inventoryPolicy,
     autopilot: state.autopilot,
-    townReturnMode: state.townReturnMode,
+    townReturnMode: normalizeTownReturnMode(state.townReturnMode),
     mode: state.mode,
     facing: state.facing,
     maze: activeMaze,
@@ -204,6 +207,10 @@ export function normalizeGameState(state: StoredGameState): GameState {
         }
       : undefined,
   };
+}
+
+function normalizeTownReturnMode(mode: unknown): GameState['townReturnMode'] {
+  return mode === 'manual' || mode === 'auto-play' || mode === 'waves' ? mode : undefined;
 }
 
 export function moveActive(game: GameState, direction: Direction, options: { triggerStairs?: boolean } = {}): GameState {

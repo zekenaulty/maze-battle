@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { moveActive, normalizeGameState } from '../gameFactory';
-import { useConsumable } from '../items/inventory';
+import { normalizeInventoryPolicy, setInventoryPolicy, useConsumable } from '../items/inventory';
 import { inventoryGame, supply } from '../items/__tests__/fixtures';
 import { canUseTownPortal, portalScrollCount, useTownPortal } from './portal';
 import { enterTown, leaveTown } from './town';
@@ -57,16 +57,17 @@ describe('one shared town portal resource', () => {
     }
   });
 
-  it.each(['manual', 'auto-play', 'waves'] as const)('returns to the exact floor, location, facing and %s mode after serialization', (mode) => {
+  it.each(['manual', 'auto-play', 'waves'] as const)('returns to the exact floor, location, facing and %s mode after normalized reload', (mode) => {
     const game = inventoryGame([supply('town-portal', 1)], { dungeonLevel: 7, mode, facing: 'west' });
     const town = useTownPortal(game);
-    const restored = JSON.parse(JSON.stringify(town));
+    const restored = normalizeGameState(JSON.parse(JSON.stringify(town)));
     const returned = leaveTown(restored);
     expect(returned.mode).toBe(mode);
     expect(returned.townReturnMode).toBeUndefined();
     expect(returned.dungeonLevel).toBe(7);
     expect(returned.maze).toEqual(game.maze);
-    expect(returned.floors).toEqual(game.floors);
+    expect(returned.floors.find((floor) => floor.level === 7)?.maze).toEqual(game.maze);
+    expect(returned.floors.find((floor) => floor.level === 1)?.maze).toEqual(game.floors[0].maze);
     expect(returned.facing).toBe('west');
     expect(portalScrollCount(returned)).toBe(0);
     expect(useTownPortal(returned)).toBe(returned);
@@ -91,5 +92,40 @@ describe('one shared town portal resource', () => {
     expect(moveActive(noScroll, 'west').mode).toBe('town');
   });
 
-  it.todo('integration owner: normalizeGameState must preserve inventoryPolicy and townReturnMode for automatic return after repository reload');
+  it.each(['toolbar', 'consumable'])('preserves policy, locks and exact stock through repeated %s save/load cycles', (entry) => {
+    const scroll = supply('town-portal', 2);
+    const locked = supply('town-portal', 4, { locked: true });
+    const game = setInventoryPolicy(inventoryGame([scroll, locked], { mode: 'auto-play' }), {
+      autoEquip: false, autoSellJunk: false, autoStash: false, autoRestock: false,
+      healthReserve: 7, manaReserve: 4, portalReserve: 2,
+    });
+    let town = entry === 'toolbar' ? useTownPortal(game) : useConsumable(game, scroll.id);
+    for (let cycle = 0; cycle < 3; cycle++) {
+      town = normalizeGameState(JSON.parse(JSON.stringify(normalizeGameState(town))));
+      expect(town.inventoryPolicy).toEqual(game.inventoryPolicy);
+      expect(town.townReturnMode).toBe('auto-play');
+      expect(town.inventory.items).toMatchObject([{ id: scroll.id, quantity: 1 }, { id: locked.id, quantity: 4, locked: true }]);
+      expect(portalScrollCount(town)).toBe(1);
+      expect(useTownPortal(town)).toBe(town);
+    }
+    const returned = leaveTown(town);
+    expect(returned.mode).toBe('auto-play');
+    expect(returned.maze.active).toEqual(game.maze.active);
+    expect(normalizeInventoryPolicy(returned.inventoryPolicy)).toEqual(game.inventoryPolicy);
+    const finalTrip = normalizeGameState(useTownPortal(returned));
+    expect(portalScrollCount(finalTrip)).toBe(0);
+    expect(finalTrip.inventory.items).toEqual([{ ...locked, quantity: 4 }]);
+    const exhausted = leaveTown(finalTrip);
+    expect(useTownPortal(exhausted)).toBe(exhausted);
+  });
+
+  it('preserves automatic return through free floor-one stairs and normalized reload', () => {
+    const game = inventoryGame([], { mode: 'auto-play' });
+    const town = normalizeGameState(JSON.parse(JSON.stringify(moveActive(game, 'west'))));
+    expect(town.mode).toBe('town');
+    expect(town.townReturnMode).toBe('auto-play');
+    expect(town.inventory).toEqual(game.inventory);
+    expect(leaveTown(town).mode).toBe('auto-play');
+    expect(leaveTown(town).maze.active).toEqual(game.maze.start);
+  });
 });
