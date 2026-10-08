@@ -43,7 +43,9 @@ slots stay pinned. Up to eight coordinate passes settle newly enabled swaps;
 this is bounded local optimization, not exhaustive multi-slot optimization.
 The complete call also checks losses against its initial loadouts. It does not
 guarantee a global optimum; a pass-bound or a newly changed loadout can enable
-further improvements later. Equivalent assignments remain stable.
+further improvements later. Equivalent assignments remain stable. Equal-benefit
+candidates retain input order (pack before stash); random item IDs never break
+ties. Equally beneficial whole-party assignments prefer fewer equipment changes.
 
 `manageAutoInventory(game, gearPolicy?)` compacts stacks, equips, then in town
 sells, stashes, and restocks in that order. `sellJunkItems(game, gearPolicy?)`

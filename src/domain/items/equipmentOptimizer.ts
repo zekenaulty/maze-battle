@@ -53,7 +53,9 @@ function bestSlotAssignments(party: ActorState[], original: ActorState[], items:
       // Guards cover the complete pass, not just each incremental slot swap.
       const total = evaluateLoadoutChange(original[index], { ...actor, equipment: { ...actor.equipment, [slot]: item.id } }, items, policy);
       return total.decision === 'upgrade' || total.decision === 'equivalent' ? [{ id: item.id, benefit: result.benefit }] : [];
-    }).sort((a, b) => b.benefit - a.benefit || a.id.localeCompare(b.id));
+    });
+    // Stable sort preserves pack/stash input order on ties; random IDs never rank gear.
+    candidates.sort((a, b) => b.benefit - a.benefit);
     // With N heroes, at most N-1 of a hero's best N choices can be occupied.
     return [unchanged, ...candidates.slice(0, party.length)];
   });
