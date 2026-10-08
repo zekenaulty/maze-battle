@@ -28,6 +28,7 @@ export interface CharactersDialogProps {
   onInventoryPolicyChange?: (patch: Partial<InventoryPolicy>) => void;
   onToggleItemLock?: (itemId: string) => void;
   onSpendAttribute?: (actorId: string, attribute: SpendableAttribute) => void;
+  onAutoSpendChange?: (actorId: string, enabled: boolean) => void;
   onCastSkill?: (actorId: string, skillId: SkillId) => void;
   allowOutOfCombatSkills?: boolean;
   now?: number;
@@ -52,7 +53,7 @@ export function CharactersDialog(props: CharactersDialogProps) {
             <CharacterSummary actor={actor} inventory={inventory} onAutoBattleChange={props.onAutoBattleChange} />
             <SheetNavigation view={view} onChange={setView} />
             <section id="character-stats" role="tabpanel" aria-labelledby="character-tab-Stats" hidden={view !== 'Stats'} tabIndex={0}>
-              <CharacterStats actor={actor} inventory={inventory} onSpendAttribute={props.onSpendAttribute} />
+              <CharacterStats actor={actor} inventory={inventory} onSpendAttribute={props.onSpendAttribute} onAutoSpendChange={props.onAutoSpendChange} />
             </section>
             <section id="character-equipment" role="tabpanel" aria-labelledby="character-tab-Equipment" hidden={view !== 'Equipment'} tabIndex={0}>
               <CharacterEquipment actor={actor} inventory={inventory} onUnequipItem={props.onUnequipItem} onBrowse={(slot) => {

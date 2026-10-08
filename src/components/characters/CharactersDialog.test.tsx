@@ -114,6 +114,36 @@ describe('CharactersDialog', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('defaults auto-spend on and sends selected-actor changes even with no available points', () => {
+    const vor = characterFixture({ attributes: { strength: 12, vitality: 8, intellect: 5, available: 0 } });
+    const mage = { ...characterFixture({ id: 'zyth', displayName: 'Zyth', role: 'mage' }), autoSpendPoints: false };
+    const onAutoSpendChange = vi.fn();
+    const { props, rerender } = setup({ party: [vor, mage], onAutoSpendChange });
+    const toggle = screen.getByRole('checkbox', { name: 'Auto-spend points' });
+    expect(toggle).toBeChecked();
+    expect(toggle).toBeEnabled();
+    fireEvent.click(toggle);
+    expect(onAutoSpendChange).toHaveBeenLastCalledWith('vor', false);
+    expect(toggle).toBeChecked();
+    expect(vor).not.toHaveProperty('autoSpendPoints');
+
+    const manualVor = { ...vor, autoSpendPoints: false };
+    rerender(<CharactersDialog {...props} party={[manualVor, mage]} />);
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(onAutoSpendChange).toHaveBeenLastCalledWith('vor', true);
+    fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(onAutoSpendChange).toHaveBeenLastCalledWith('zyth', true);
+    expect(mage.autoSpendPoints).toBe(false);
+  });
+
+  it('omits auto-spend controls when the host has not provided a mutation callback', () => {
+    setup();
+    expect(screen.queryByRole('checkbox', { name: 'Auto-spend points' })).not.toBeInTheDocument();
+  });
+
   it('tolerates an empty party and a removed selection', () => {
     const { props, rerender } = setup();
     fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));

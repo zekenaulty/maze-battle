@@ -55,6 +55,7 @@
 .character-sheet .character-section-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .character-sheet h4 { margin: 0; font-size: 14px; }
 .character-sheet .character-section-heading > span { font-size: 12px; }
+.character-sheet .character-auto-spend { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; }
 .character-sheet .character-stats table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; font-variant-numeric: tabular-nums; }
 .character-sheet .character-stats th, .character-sheet .character-stats td { padding: 8px 4px; border-bottom: 1px solid var(--color-border); text-align: right; overflow-wrap: anywhere; }
 .character-sheet .character-stats th:first-child { width: 32%; text-align: left; }

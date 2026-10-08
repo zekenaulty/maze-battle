@@ -2,13 +2,18 @@ import { Plus } from 'lucide-react';
 import type { ActorState, InventoryState } from '../../domain/types';
 import { projectCharacter, signed, type SpendableAttribute } from '../../viewModels/characterSheet';
 
-export function CharacterStats({ actor, inventory, onSpendAttribute }: {
+export function CharacterStats({ actor, inventory, onSpendAttribute, onAutoSpendChange }: {
   actor: ActorState; inventory: InventoryState; onSpendAttribute?: (actorId: string, attribute: SpendableAttribute) => void;
+  onAutoSpendChange?: (actorId: string, enabled: boolean) => void;
 }) {
   const sheet = projectCharacter(actor, inventory);
   return (
     <div className="character-stats">
       <div className="character-section-heading"><h4>Attributes</h4><span>Available points <strong>{actor.attributes.available}</strong></span></div>
+      {onAutoSpendChange && <label className="character-auto-spend">
+        <input type="checkbox" checked={(actor as ActorState & { autoSpendPoints?: boolean }).autoSpendPoints !== false} onChange={(event) => onAutoSpendChange(actor.id, event.currentTarget.checked)} />
+        <span>Auto-spend points</span>
+      </label>}
       <table aria-label={`${actor.displayName} base and effective stats`}>
         <thead><tr><th scope="col">Stat</th><th scope="col">Base</th><th scope="col">Gear</th><th scope="col">Effective</th><th scope="col"><span className="character-sr-only">Spend point</span></th></tr></thead>
         <tbody>{sheet.stats.map(({ key, label, base, gear, effective }) => {
