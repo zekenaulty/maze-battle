@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { ActorState, EquipmentSlot, InventoryPolicy, InventoryState, SkillId } from '../domain/types';
+import type { ActorState, EquipmentSlot, InventoryPolicy, InventoryState, SkillId, StashState } from '../domain/types';
 import type { SpendableAttribute } from '../viewModels/characterSheet';
 import { Dialog } from './Dialog';
 import { CharacterNavigation, SheetNavigation, type SheetView } from './characters/CharacterNavigation';
@@ -14,6 +14,7 @@ import './characters/characters.css';
 export interface CharactersDialogProps {
   party: ActorState[];
   inventory: InventoryState;
+  stash?: StashState;
   onAutoBattleChange: (actorId: string, enabled: boolean) => void;
   onEquipItem: (actorId: string, itemId: string) => void;
   onUnequipItem: (actorId: string, slot: EquipmentSlot) => void;

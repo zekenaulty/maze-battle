@@ -1,4 +1,5 @@
-import type { ActorState, EquipmentSlot, InventoryState, ItemCategory, ItemRarity } from '../domain/types';
+import type { ActorState, EquipmentSlot, InventoryState, ItemCategory, ItemRarity, StashState } from '../domain/types';
+import type { GearDecision } from '../domain/items/gearEvaluation';
 import { getItemTooltip } from '../domain/items/itemDetails';
 import { getSellValue } from '../domain/items/inventory';
 import { compareItem, getEquippedItemOwner } from './inventoryComparison';
@@ -8,20 +9,21 @@ export interface InventoryFilters {
   category: 'all' | ItemCategory;
   slot: 'all' | EquipmentSlot;
   rarity: 'all' | ItemRarity;
-  // Legacy upgrade keys filter/sort approximate GS, not domain recommendations.
   ownership: 'all' | 'selected' | 'equipped' | 'unequipped' | 'locked' | 'upgrades';
   sort: 'name' | 'score' | 'upgrade' | 'value' | 'level' | 'rarity';
 }
 
 export const DEFAULT_INVENTORY_FILTERS: InventoryFilters = { query: '', category: 'all', slot: 'all', rarity: 'all', ownership: 'all', sort: 'name' };
 const RARITY_RANK: Record<ItemRarity, number> = { common: 0, magic: 1, rare: 2, legendary: 3 };
+const DECISION_RANK: Record<GearDecision, number> = { upgrade: 3, equivalent: 2, obsolete: 1, protected: 0 };
 
-export function projectInventory(inventory: InventoryState, party: ActorState[], selectedActor: ActorState, filters: InventoryFilters) {
+export function projectInventory(inventory: InventoryState, party: ActorState[], selectedActor: ActorState, filters: InventoryFilters, stash?: StashState) {
   const terms = filters.query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+  const ownedInventory = stash ? { ...inventory, items: [...inventory.items, ...stash.items] } : inventory;
   const rows = inventory.items.map((item) => ({
     item,
     owner: getEquippedItemOwner(item.id, party),
-    comparison: compareItem(item, selectedActor, inventory),
+    comparison: compareItem(item, selectedActor, ownedInventory),
     sellValue: getSellValue(item),
   })).filter(({ item, owner, comparison }) => {
     if (filters.category !== 'all' && item.category !== filters.category) return false;
@@ -31,7 +33,7 @@ export function projectInventory(inventory: InventoryState, party: ActorState[],
     if (filters.ownership === 'equipped' && !owner) return false;
     if (filters.ownership === 'unequipped' && owner) return false;
     if (filters.ownership === 'locked' && !item.locked) return false;
-    if (filters.ownership === 'upgrades' && (!comparison || comparison.scoreDelta <= 0)) return false;
+    if (filters.ownership === 'upgrades' && comparison?.evaluation.decision !== 'upgrade') return false;
     const text = [item.displayName, item.category, item.slot, item.rarity, item.consumableEffect, getItemTooltip(item), owner?.actor.displayName].filter(Boolean).join(' ').toLocaleLowerCase();
     return terms.every((term) => text.includes(term));
   });
@@ -39,7 +41,14 @@ export function projectInventory(inventory: InventoryState, party: ActorState[],
     let delta = 0;
     switch (filters.sort) {
       case 'score': delta = (b.comparison?.score ?? 0) - (a.comparison?.score ?? 0); break;
-      case 'upgrade': delta = (b.comparison?.scoreDelta ?? -Infinity) - (a.comparison?.scoreDelta ?? -Infinity); break;
+      case 'upgrade': {
+        const left = a.comparison?.evaluation;
+        const right = b.comparison?.evaluation;
+        const rank = (right ? DECISION_RANK[right.decision] : -1) - (left ? DECISION_RANK[left.decision] : -1);
+        const benefit = (value: number | undefined) => Number.isFinite(value) ? value! : 0;
+        delta = rank || benefit(right?.benefit) - benefit(left?.benefit);
+        break;
+      }
       case 'value': delta = b.sellValue - a.sellValue; break;
       case 'level': delta = b.item.itemLevel - a.item.itemLevel; break;
       case 'rarity': delta = RARITY_RANK[b.item.rarity] - RARITY_RANK[a.item.rarity]; break;

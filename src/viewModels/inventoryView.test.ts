@@ -27,14 +27,14 @@ describe('inventory projections', () => {
     expect(JSON.stringify({ inventory, vor, mage })).toBe(original);
   });
 
-  it('combines search, slot, rarity, ownership and role-relative score filters', () => {
+  it('combines search, slot, rarity, ownership and authoritative recommendation filters', () => {
     const filter = (patch: Partial<typeof DEFAULT_INVENTORY_FILTERS>) => projectInventory(inventory, [vor, mage], vor, { ...DEFAULT_INVENTORY_FILTERS, ...patch }).map((row) => row.item.id);
     expect(filter({ query: 'ZYTH intellect', slot: 'weapon', rarity: 'common', ownership: 'locked' })).toEqual([replacement.id]);
     expect(filter({ ownership: 'selected' })).toEqual([old.id]);
     expect(filter({ category: 'consumable', ownership: 'unequipped' })).toEqual([potion.id]);
     expect(filter({ query: 'missing' })).toEqual([]);
     expect(filter({ ownership: 'upgrades' })).toEqual([]);
-    expect(projectInventory(inventory, [vor, mage], { ...mage, equipment: {} }, { ...DEFAULT_INVENTORY_FILTERS, ownership: 'upgrades', sort: 'upgrade' })[0].item.id).toBe(replacement.id);
+    expect(projectInventory(inventory, [vor, mage], { ...mage, equipment: {} }, { ...DEFAULT_INVENTORY_FILTERS, ownership: 'upgrades', sort: 'upgrade' }).map((row) => row.item.id)).toEqual([old.id]);
   });
 
   it('sorts descending numeric fields and keeps the source order untouched', () => {

@@ -103,6 +103,24 @@ describe('CharactersDialog', () => {
     expect(screen.getByRole('button', { name: 'Sell 15g' })).toBeEnabled();
   });
 
+  it('filters authoritative recommendations for the selected actor and includes stash identities', () => {
+    const strength = itemFixture({ id: 'strength', displayName: 'Strength blade', stats: { strength: 20 } });
+    const intellect = itemFixture({ id: 'intellect', displayName: 'Intellect wand', stats: { intellect: 20 } });
+    const vor = characterFixture();
+    const mage = characterFixture({ id: 'zyth', displayName: 'Zyth', role: 'mage', combat: { baseDamage: 10, scaleWith: 'intellect' }, skills: [{ id: 'wand', cooldown: 0 }] });
+    const { props, rerender } = setup({ party: [vor, mage], inventory: inventoryFixture([strength, intellect]) });
+    fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
+    fireEvent.click(screen.getByText('Filters and sort'));
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'upgrades' } });
+    expect(screen.getByRole('article', { name: strength.displayName })).toBeVisible();
+    expect(screen.queryByRole('article', { name: intellect.displayName })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));
+    expect(screen.getByRole('article', { name: intellect.displayName })).toBeVisible();
+    expect(screen.queryByRole('article', { name: strength.displayName })).not.toBeInTheDocument();
+    rerender(<CharactersDialog {...props} stash={{ capacity: 96, items: [{ ...intellect }] }} />);
+    expect(screen.getByText('No items match these filters.')).toBeVisible();
+  });
+
   it('sends minimal policy patches and attribute allocation without mutating props', () => {
     const policy = { autoEquip: true, autoSellJunk: false, autoStash: false, autoRestock: false, healthReserve: 2, manaReserve: 2, portalReserve: 1 };
     const onChange = vi.fn();

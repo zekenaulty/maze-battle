@@ -1,5 +1,5 @@
 import type { ActorState, EquipmentSlot, InventoryState, ItemInstance } from '../domain/types';
-import { getEffectiveActor } from '../domain/items/inventory';
+import { evaluateGearUpgrade, getEffectiveActor } from '../domain/items/inventory';
 import { getItemGearScore } from '../domain/items/gearScore';
 import { actorStat, CHARACTER_STATS } from './characterSheet';
 
@@ -22,6 +22,7 @@ export function compareItem(item: ItemInstance, actor: ActorState, inventory: In
     slot,
     currentName: current?.displayName ?? `empty ${slot}`,
     isCurrent: current?.id === item.id,
+    evaluation: evaluateGearUpgrade(actor, item, inventory.items),
     score: getItemGearScore(item, actor),
     scoreDelta: getItemGearScore(item, actor) - (current ? getItemGearScore(current, actor) : 0),
     deltas: CHARACTER_STATS.map(({ key, label }) => ({ key, label, value: actorStat(after, key) - actorStat(before, key) })).filter(({ value }) => value !== 0),

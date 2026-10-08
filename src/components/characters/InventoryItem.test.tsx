@@ -4,6 +4,7 @@ import { characterFixture, inventoryFixture, itemFixture } from '../../viewModel
 import { DEFAULT_INVENTORY_FILTERS, projectInventory } from '../../viewModels/inventoryView';
 import { InventoryItem } from './InventoryItem';
 import { InventoryFilters } from './InventoryFilters';
+import { combatDelta } from '../../viewModels/inventoryEvaluation';
 
 afterEach(cleanup);
 
@@ -50,7 +51,7 @@ describe('inventory eligibility and score presentation', () => {
     expect(props.onUseItem).not.toHaveBeenCalled();
   });
 
-  it('keeps a positive approximate score neutral and exposes the damage tradeoff without recommending it', () => {
+  it('rejects a higher-GS damage tradeoff and displays authoritative combat deltas', () => {
     const equipped = itemFixture({ id: 'current', displayName: 'Current blade', stats: { baseDamage: 10 } });
     const candidate = itemFixture({ id: 'tradeoff', displayName: 'Tradeoff blade', stats: { baseDamage: 5, maxHp: 1, intellect: 300 } });
     const selected = { ...actor, equipment: { weapon: equipped.id } };
@@ -62,8 +63,39 @@ describe('inventory eligibility and score presentation', () => {
     const deltas = within(screen.getByRole('list', { name: 'Effective stat changes' }));
     expect(deltas.getByText('-5 Base damage')).toBeVisible();
     expect(deltas.getByText('+1 Max HP')).toBeVisible();
-    expect(screen.getByRole('article', { name: candidate.displayName })).not.toHaveTextContent(/upgrade|recommend/i);
-    expect(screen.getByLabelText('Status')).toHaveTextContent('Higher GS');
-    expect(screen.getByLabelText('Status')).not.toHaveTextContent(/upgrade/i);
+    expect(screen.getByText('Not recommended')).toBeVisible();
+    expect(screen.getByText(/Too much offense lost/)).toBeVisible();
+    const combat = within(screen.getByRole('list', { name: 'Combat changes' }));
+    expect(combat.getByText(`${combatDelta(row.comparison!.evaluation.deltas.offense)} Offense`)).toHaveClass('stat-negative');
+    expect(combat.getByText('+1 Max HP')).toBeVisible();
+    expect(combat.getByText('0 Useful MP')).toBeVisible();
+    expect(screen.getByLabelText('Status')).toHaveTextContent('Recommended');
+    expect(screen.getByLabelText('Sort')).toHaveTextContent('Recommendation');
+  });
+
+  it('shows useful MP gains for support skills and preserves explicit transfer ownership', () => {
+    const candidate = itemFixture({ id: 'mana', stats: { maxMp: 10 } });
+    const selected = { ...actor, skills: [{ id: 'heal' as const, cooldown: 0 }] };
+    const owner = characterFixture({ id: 'ayla', displayName: 'Ayla', equipment: { weapon: candidate.id } });
+    const inventory = inventoryFixture([candidate]);
+    const [row] = projectInventory(inventory, [selected, owner], selected, DEFAULT_INVENTORY_FILTERS);
+    render(<InventoryItem row={row} inventory={inventory} selectedActor={selected} {...actions()} />);
+    expect(screen.getByText('Recommended')).toHaveClass('stat-positive');
+    expect(screen.getByText(/Improves combat without losses/)).toBeVisible();
+    expect(screen.getByText('For Vor vs empty weapon')).toBeVisible();
+    expect(screen.getByText('Equipped: Ayla - weapon')).toBeVisible();
+    expect(screen.getByText('+10 Useful MP')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Move' })).toHaveAttribute('title', 'Move from Ayla to Vor');
+  });
+
+  it('does not show protected baseline zeroes as actual combat changes', () => {
+    const candidate = itemFixture({ id: 'locked', locked: true, stats: { baseDamage: 100 } });
+    const inventory = inventoryFixture([candidate]);
+    const [row] = projectInventory(inventory, [actor], actor, DEFAULT_INVENTORY_FILTERS);
+    render(<InventoryItem row={row} inventory={inventory} selectedActor={actor} {...actions()} />);
+    expect(screen.getByText('Protected')).toBeVisible();
+    expect(screen.getByText(/Locked item/)).toBeVisible();
+    expect(screen.getByText('Combat comparison unavailable')).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Combat changes' })).not.toBeInTheDocument();
   });
 });

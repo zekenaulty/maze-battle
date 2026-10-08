@@ -36,7 +36,8 @@ try {
       request.onsuccess = () => {
         const slot = request.result;
         if (!slot) { reject(new Error('Initial autosave missing')); return; }
-        const sword = itemFixture({ id: 'preview-sword', locked: true });
+        const sword = itemFixture({ id: 'preview-sword', locked: true, stats: { baseDamage: 10 } });
+        const tradeoff = itemFixture({ id: 'preview-tradeoff', displayName: 'Tradeoff blade', stats: { baseDamage: 5, maxHp: 1, intellect: 300 } });
         const wand = itemFixture({ id: 'preview-wand', displayName: 'Oak Wand of the Patient Stargazer', rarity: 'rare', stats: { intellect: 8, baseDamage: 3 } });
         const shield = itemFixture({ id: 'preview-shield', displayName: 'Old King Buckler', slot: 'offhand', rarity: 'legendary', stats: { vitality: 3, maxHp: 5 }, legendaryPower: { id: 'old-king', name: 'Old King', description: 'A forgotten ruler still lends strength.' } });
         slot.game.mode = 'manual';
@@ -44,7 +45,7 @@ try {
         slot.game.party.forEach((actor) => { actor.equipment = {}; actor.autoBattle = false; });
         slot.game.party[0].equipment = { weapon: sword.id, offhand: shield.id };
         slot.game.party[1].equipment = { weapon: wand.id };
-        slot.game.inventory.items.push(sword, wand, shield);
+        slot.game.inventory.items.push(sword, wand, shield, tradeoff);
         store.put(slot);
       };
       request.onerror = () => reject(request.error);
@@ -77,6 +78,19 @@ try {
     await page.screenshot({ path: `${output}/${viewport.width}x${viewport.height}-comparison.png` });
     await page.getByRole('button', { name: 'Reset inventory filters' }).click();
     await page.getByRole('button', { name: /Vor/ }).click();
+    await page.getByRole('searchbox').fill('Tradeoff blade');
+    const comparison = page.locator('[data-item-id="preview-tradeoff"] .item-comparison');
+    await expect(comparison).toHaveAttribute('data-gear-decision', 'obsolete');
+    await expect(comparison).toContainText('Not recommended');
+    await expect(comparison).toContainText('Too much offense lost');
+    await expect(comparison.getByRole('list', { name: 'Combat changes' }).locator('li')).toHaveCount(3);
+    await comparison.scrollIntoViewIfNeeded();
+    assert.equal(await comparison.evaluate((element) => [element, ...element.querySelectorAll('span, small, ul, li')].some((child) => child.scrollWidth > child.clientWidth + 2)), false);
+    await page.screenshot({ path: `${output}/${viewport.width}x${viewport.height}-evaluation.png` });
+    if (!await page.getByLabel('Status', { exact: true }).isVisible()) await page.locator('.inventory-filter-options summary').click();
+    await page.getByLabel('Status', { exact: true }).selectOption('upgrades');
+    assert.equal(await page.locator('.inventory-item').count(), 0);
+    await page.getByRole('button', { name: 'Reset inventory filters' }).click();
   }
   await page.getByRole('tab', { name: 'Equipment', exact: true }).click();
   assert.equal(await page.locator('.equipment-slot').count(), 8);
@@ -121,7 +135,7 @@ try {
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
   assert.deepEqual(errors, []);
-  console.log(`PASS: 22 screenshots, four viewports, all eight slots, search/reset, actor transfer, disabled cast reasons, native autofocus/Tab containment/cancel/restore/reopen; ${output}`);
+  console.log(`PASS: 26 screenshots, four viewports, authoritative combat comparison/recommendation filter, all eight slots, search/reset, actor transfer, disabled cast reasons, native autofocus/Tab containment/cancel/restore/reopen; ${output}`);
 } finally {
   await browser?.close();
   await server.close();

@@ -8,7 +8,7 @@ import { InventoryItem } from './InventoryItem';
 import { InventoryPolicyControls } from './InventoryPolicyControls';
 
 export type InventoryActions = Pick<CharactersDialogProps, 'onEquipItem' | 'onUseItem' | 'onSellItem' | 'onStashItem' | 'canSellItems' | 'canStashItems' | 'canUseTownPortal' | 'onToggleItemLock'>;
-type InventoryPanelProps = InventoryActions & Pick<CharactersDialogProps, 'party' | 'inventory' | 'onAutoEquip' | 'inventoryPolicy' | 'onInventoryPolicyChange'> & {
+type InventoryPanelProps = InventoryActions & Pick<CharactersDialogProps, 'party' | 'inventory' | 'stash' | 'onAutoEquip' | 'inventoryPolicy' | 'onInventoryPolicyChange'> & {
   selectedActor: ActorState;
   slotFilter: EquipmentSlot | 'all';
   onSlotFilterChange: (slot: EquipmentSlot | 'all') => void;
@@ -18,7 +18,7 @@ export function InventoryPanel(props: InventoryPanelProps) {
   const { inventory, party, selectedActor, slotFilter, onSlotFilterChange } = props;
   const [filters, setFilters] = useState(DEFAULT_INVENTORY_FILTERS);
   const activeFilters = { ...filters, slot: slotFilter };
-  const rows = projectInventory(inventory, party, selectedActor, activeFilters);
+  const rows = projectInventory(inventory, party, selectedActor, activeFilters, props.stash);
   const reset = () => { setFilters(DEFAULT_INVENTORY_FILTERS); onSlotFilterChange('all'); };
 
   return <section className="inventory-panel">

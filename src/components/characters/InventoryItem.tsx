@@ -23,7 +23,7 @@ export function InventoryItem({ row, selectedActor, inventory, onEquipItem, onUs
   return <article className={`inventory-item rarity-${item.rarity} ${owner ? 'is-equipped' : ''}`} data-item-id={item.id} aria-label={item.displayName} title={getItemTooltip(item, equippedLabel)}>
     <div>
       <div className="inventory-item-title"><strong>{itemSummary(item)}</strong>{owner && <b className="item-equipped-badge">{equippedLabel}</b>}{item.locked && <b className="item-locked-badge">Locked</b>}</div>
-      <span className="item-meta">{comparison ? `Approx. GS ${comparison.score} - ` : ''}Lv {item.itemLevel} - {item.rarity} - {item.slot ?? item.consumableEffect ?? item.category}{quantity > 1 ? ` - Stack ${quantity}` : ''}</span>
+      <span className="item-meta">Lv {item.itemLevel} - {item.rarity} - {item.slot ?? item.consumableEffect ?? item.category}{quantity > 1 ? ` - Stack ${quantity}` : ''}{comparison ? ` - Approx. GS ${comparison.score}` : ''}</span>
       <ItemDetails item={item} comparison={comparison} />
     </div>
     <div className="inventory-actions">
