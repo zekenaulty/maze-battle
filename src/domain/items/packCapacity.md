@@ -24,8 +24,8 @@ mergeInventoryItems(
 );
 ```
 
-Use no exclusions for stash admission. Stack identity, merge values and
-consumption are unchanged. Awarded loot can still overflow without item loss;
+Use no exclusions for stash admission. Stack matching and value conservation
+remain owned by `itemStacks.ts` and `itemValue.ts`. Awarded loot can still overflow without item loss;
 its log now checks final equipped bag usage instead of the ownership-array size.
 
 `canApplyPackChange(before, projectedAfter)` validates equipment transitions.
@@ -38,15 +38,15 @@ move. Automatic stash upgrades likewise require room for displaced worn gear;
 equipping into an empty hero slot requires no bag space. Town care runs at most
 two cleanup/equip/stash passes before restocking, so cleanup can free that room.
 
-## UI handoff
+## UI projection
 
-Replace pack-capacity numerators in TownScreen, TownStorage and InventoryPanel
-with `packSlotUsage(game)`. Keep ownership/filter-result counts based on the
-actual item arrays. Update `canReceiveTownItem` previews to pass the fifth
-argument for pack destinations only; stash capacity is unchanged. A blanket
-"pack full" condition must not disable full-pack equipment replacements.
+TownScreen, TownStorage and InventoryPanel use `packSlotUsage(game)` (through
+`inventoryPackUsage` for character props). Ownership/filter-result counts still
+use the actual item arrays. `canReceiveTownItem` previews pass the fifth argument
+for pack destinations only; stash capacity is unchanged. Equipment actions show
+specific capacity reasons while allowing full-pack replacements.
 
 Domain purchases, withdrawals, automatic supply transfers, autoCare fullness
 checks and inventoryDiagnostics already use the shared capacity projection.
-No UI, shared types, stack-key/combine/consume logic or sale logic is changed
-by this capacity work.
+`PackCapacityState` is the narrow inventory/party/stash projection shared by
+domain actions and UI. It does not require game layout or rendering state.

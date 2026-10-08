@@ -72,8 +72,9 @@ for (const width of [1440, 390]) {
     await expect(page.locator('.inventory-panel header')).toContainText(`Gold ${186 + resale} - Pack 3/4`);
     await page.getByRole('tab', { name: 'Equipment', exact: true }).click();
     await page.getByRole('button', { name: `Unequip Iron Sword from ${game.party[0].displayName}` }).click();
-    await expect.poll(async () => packSlotUsage(await saved(page))).toBe(4);
+    await expect.poll(async () => (await saved(page)).party[0].equipment.weapon).toBeUndefined();
     const final = await saved(page);
+    expect(packSlotUsage(final)).toBe(4);
     expect(final.inventory.gold).toBe(186 + resale);
     expect(final.party[0].equipment.weapon).toBeUndefined();
     expect(final.party[1].equipment.weapon).toBe(wand.id);

@@ -21,7 +21,7 @@ export function TownStorage({ game, onSellJunk, onWithdrawStash, onStashItem, on
   const [query, setQuery] = useState('');
   const [confirmSale, setConfirmSale] = useState(false);
   const junk = junkItemsForSale(game);
-  const saleValue = junk.reduce((sum, item) => sum + getSellValue(item) * Math.max(1, item.quantity ?? 1), 0);
+  const saleValue = junk.reduce((sum, item) => sum + getSellValue(item, itemQuantity(item)), 0);
   const items = (source === 'stash' ? game.stash.items : game.inventory.items).filter((item) => item.displayName.toLowerCase().includes(query.trim().toLowerCase()));
   const ambiguous = ambiguousItemIds(game);
   function unavailable(item: ItemInstance) {

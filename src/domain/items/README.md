@@ -60,6 +60,8 @@ Normalization preserves all owned records beyond capacity. Valid equivalent
 stacks retain the first ID and exact total quantity; invalid quantities are
 preserved but unusable. Admission for buying/transferring is strict; awarded
 loot can overflow because there is no ground container to return it to.
+Worn gear stays in the ownership list but is excluded by `packSlotUsage`;
+see `packCapacity.md` for admission, replacement and unequip rules.
 
 Supply stacks match base, effect, potency, lock state and all other non-economic
 metadata, not cosmetic item level or price. Newly generated supplies use level 1

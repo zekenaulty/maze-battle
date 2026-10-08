@@ -26,6 +26,15 @@ records the combined application and supersedes their pending wiring notes.
   Approximate gear score is display-only. Rules and limitations are documented
   in `src/domain/items/README.md`. Locked, equipped, quest/non-gear, invalid and
   ambiguous-identity records are protected from automatic disposal.
+- Worn equipment remains in the ownership list but consumes no pack slot.
+  Purchases, transfers, unequip/move guards, auto town care and UI previews use
+  the same validated slot count. Full-pack replacements are allowed; returning
+  displaced gear requires space. Existing over-capacity items are never dropped.
+- Supply stacks match effect/potency rather than cosmetic floor level. New
+  supplies no longer gain meaningless levels. Old stack quantities and total
+  resale gold survive merging, use, partial transfer and reload. Town inventory
+  exposes Sell One, Sell All and a quantity slider with exact quotes. Equipped,
+  locked, quest/non-saleable, ambiguous or malformed records cannot be sold.
 - Global stop preserves individual actor preferences but prevents automatic
   combat, travel, waves and town continuation, including after reload. Blocked
   combat also uses this gate. Explicit restart restores automatic work.
@@ -73,14 +82,15 @@ identities; deterministic counters/outcomes exclude wall-clock performance.
 
 ## Acceptance evidence
 
-Final integrated results: production build, 328 unit/component tests, and 19
+Final integrated results: production build, 407 unit/component tests, and 21
 Playwright cases passed. The ticket board records the qualified scope.
 Tests use fresh Playwright contexts and fixture saves, never the user's current
 profile. Browser captures are generated under ignored `test-results` paths.
 
 Verified workflows include portal stock/reload, instant stop/reload, paid town
 recovery from a 229/36 pack and obsolete stash, skills and owner/stat displays,
-manual sale/equip, stack behavior, save confirmation/cancellation and diagnostic
+manual sale/equip, exact quantity sales, worn capacity, full-pack vendor/transfer
+previews, stack value conservation, save confirmation/cancellation and diagnostic
 self-play isolation. Layout checks cover desktop, mobile and short landscape,
 with canvas pixel checks and inspected screenshots.
 
@@ -88,14 +98,14 @@ Full-controller runs, three floors each, encounters enabled, no boosted stats:
 
 | Seed | Size | Steps | Battles won | Chests | Quests | Early descents |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 9x13 | 479 | 74 | 9 | 12 | 0 |
-| 7 | 9x13 | 339 | 51 | 9 | 12 | 0 |
-| 42 | 9x13 | 472 | 69 | 9 | 12 | 0 |
-| 99 | 9x13 | 477 | 75 | 9 | 12 | 0 |
-| 1 | 31x37 | 1110 | 174 | 9 | 12 | 0 |
-| 7 | 31x37 | 1287 | 209 | 9 | 12 | 0 |
-| 42 | 31x37 | 1420 | 232 | 9 | 12 | 0 |
-| 99 | 31x37 | 883 | 138 | 9 | 12 | 0 |
+| 1 | 9x13 | 472 | 83 | 9 | 12 | 0 |
+| 7 | 9x13 | 323 | 52 | 9 | 12 | 0 |
+| 42 | 9x13 | 337 | 49 | 9 | 12 | 0 |
+| 99 | 9x13 | 457 | 72 | 9 | 12 | 0 |
+| 1 | 31x37 | 1023 | 177 | 9 | 12 | 0 |
+| 7 | 31x37 | 1105 | 201 | 9 | 12 | 0 |
+| 42 | 31x37 | 1308 | 236 | 9 | 12 | 0 |
+| 99 | 31x37 | 930 | 150 | 9 | 12 | 0 |
 
 Every run finished with no remaining chests or active quests on cleared floors,
 no loss and no blocked state. Local JSON artifacts are under

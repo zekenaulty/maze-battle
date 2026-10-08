@@ -10,11 +10,11 @@ Goal: complete a reviewable RPG refinement release covering room topology, gener
 | --- | --- | --- | --- |
 | MB-01 | Poincare / codex/refine-topology | Complete | Bounded room placement, explicit graph, door-to-door narrow passages, seeded topology tests and render evidence |
 | MB-02 | Kuhn / codex/refine-expedition | Complete | Correct quest attribution, persistent auto target, route batching, recovery, explicit safe descent, complete-floor tests |
-| MB-03 | Pascal / codex/refine-pack-capacity + integration lead | In progress | Prior gear/resource work integrated; refine equipped-slot exclusion, effect-based supply stacks, exact quantity sales and value conservation |
-| MB-04 | Nash / codex/refine-stack-sales-ui | In progress | Prior character workflows integrated; add Sell One/All/quantity controls, accurate pack counts and matching admission previews |
+| MB-03 | Pascal / codex/refine-pack-capacity + integration lead | Complete | Tradeoff-aware gear/resource care, equipped-slot exclusion, effect-based supply stacks, exact quantity sales and value conservation |
+| MB-04 | Nash / codex/refine-stack-sales-ui | Complete | Responsive character workflows, Sell One/All/quantity controls, accurate pack counts and matching admission previews |
 | MB-05 | Hegel / codex/refine-screens | Complete | Review exploration, combat, town and saves against legacy/design; repair usable responsive workflows |
 | MB-06 | Integration lead | Complete | Transition telemetry for manual/auto play, bounded durable events, counters, export, diagnostics and seeded self-play runner |
-| MB-07 | Integration lead | In progress | Merge reviewed agent commits, verify cross-system behavior, desktop/mobile screenshots, update this board and leave test server running |
+| MB-07 | Integration lead | Complete | Reviewed isolated commits integrated; domain/browser/self-play gates passed, desktop/mobile screenshots inspected, evidence recorded and test server running |
 
 ## Ownership and integration
 
@@ -47,12 +47,13 @@ Goal: complete a reviewable RPG refinement release covering room topology, gener
 
 ## Completion record
 
-Integrated qualification at `168c097` on 2026-10-08 (re-run pending for capacity/stack-sales refinements):
+Integrated qualification on 2026-10-08, including the capacity/stack-sales refinements:
 
 - PASS: production TypeScript/Vite build.
-- PASS: 328 unit/component tests in 42 files, including seeded topology, 80 unboosted v2 expedition cases, gear tradeoffs, ownership/normalization, overflow repair, shared resources and persistence failure handling.
-- PASS: 19 Playwright cases. Desktop/mobile/short-landscape geometry, canvas pixels and inspected screenshots; actual save/portal/automation/character/diagnostics workflows; 229/36 pack recovery and obsolete stash sale.
+- PASS: 407 unit/component tests in 51 files, including seeded topology, 80 unboosted v2 expedition cases, gear tradeoffs, ownership/normalization, overflow repair, shared resources, persistence failure handling, worn-equipment capacity and exact quantity/value conservation.
+- PASS: 21 Playwright cases. Desktop/mobile/short-landscape geometry, canvas pixels and inspected screenshots; actual save/portal/automation/character/diagnostics workflows; 229/36 pack recovery and obsolete stash sale. Added 1440px/390px real town tests for legacy-stack consolidation, Sell One/All/slider, vendor/withdraw capacity, full-pack unequip guard and reload.
 - PASS: eight full-controller three-floor self-play runs, normal starting stats and random encounters, using live scheduling rules. Seeds 1, 7, 42, 99 at 9x13 and 31x37. Each collected 9 chests, completed 12 quests, retained no unfinished floor objectives and recorded zero premature descents or defeats.
 - PASS: same-seed self-play outcome/counter repeatability (excluding generated IDs/timestamps and measured execution cost).
+- Independent domain review found and repaired malformed null-quantity crediting, null stack-value handling and unsafe bulk-sale totals. Regression tests reject those transactions without silent record loss or repeated gold.
 - Retained boundaries, review context and reproduction commands: `docs/refinement-verification.md`. Gear policy: `src/domain/items/README.md`.
 - The test server remains on `http://127.0.0.1:5174/`. Tests used separate browser contexts and did not overwrite the user's saved expedition. Existing blocked saves remain stopped until explicitly resumed.
