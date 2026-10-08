@@ -92,7 +92,7 @@ const HEROES: Record<HeroRole, Omit<ActorState, 'id'>> = {
 
 const nowIso = () => new Date().toISOString();
 
-type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party' | 'inventoryPolicy' | 'townReturnMode'>> & {
+type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party' | 'inventoryPolicy' | 'townReturnMode' | 'automationPaused'>> & {
   battle?: Partial<Omit<BattleState, 'enemies'>> & { enemies?: Partial<EnemyState>[] };
   floors?: Partial<MazeFloorState>[];
   party?: Partial<ActorState>[];
@@ -100,12 +100,14 @@ type StoredGameState = Partial<Omit<GameState, 'battle' | 'floors' | 'party' | '
   monsterTags?: MonsterCategory[];
   inventoryPolicy?: Partial<InventoryPolicy>;
   townReturnMode?: unknown;
+  automationPaused?: unknown;
 };
 
-type GameStateOverrides = Partial<Omit<GameState, 'floors' | 'maze' | 'inventoryPolicy'>> & {
+type GameStateOverrides = Partial<Omit<GameState, 'floors' | 'maze' | 'inventoryPolicy' | 'automationPaused'>> & {
   floors?: Partial<MazeFloorState>[];
   maze?: Partial<GameState['maze']>;
   inventoryPolicy?: Partial<InventoryPolicy>;
+  automationPaused?: boolean;
 };
 
 export function createNewGameState(overrides: GameStateOverrides = {}): GameState {
@@ -133,6 +135,7 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     autoThrottleMs: normalizeAutoThrottleMs(overrides.autoThrottleMs),
     randomBattles: overrides.randomBattles ?? true,
     inventoryPolicy: overrides.inventoryPolicy === undefined ? undefined : normalizeInventoryPolicy(overrides.inventoryPolicy),
+    ...(typeof overrides.automationPaused === 'boolean' ? { automationPaused: overrides.automationPaused } : {}),
     autopilot: normalizeAutopilot(overrides.autopilot, dungeonLevel),
     townReturnMode: normalizeTownReturnMode(overrides.townReturnMode),
     mode: overrides.mode ?? 'manual',
@@ -173,6 +176,7 @@ export function normalizeGameState(state: StoredGameState): GameState {
     autoThrottleMs: state.autoThrottleMs,
     randomBattles: state.randomBattles,
     inventoryPolicy: state.inventoryPolicy,
+    ...(typeof state.automationPaused === 'boolean' ? { automationPaused: state.automationPaused } : {}),
     autopilot: state.autopilot,
     townReturnMode: normalizeTownReturnMode(state.townReturnMode),
     mode: state.mode,

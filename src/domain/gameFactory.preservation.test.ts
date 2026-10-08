@@ -9,6 +9,32 @@ import { leaveTown } from './town/town';
 import type { GameState } from './types';
 
 describe('factory preservation boundaries', () => {
+  it.each([true, false])('preserves automationPaused=%s without changing individual autoBattle choices', (automationPaused) => {
+    const base = createNewGameState({ maze: lineMaze(3) });
+    const flags = [false, true, false];
+    let game = createNewGameState({
+      ...base, automationPaused,
+      inventoryPolicy: { autoEquip: false, autoRestock: false },
+      party: base.party.map((actor, index) => ({ ...actor, autoBattle: flags[index] })),
+    });
+    expect(game).toHaveProperty('automationPaused', automationPaused);
+    for (let cycle = 0; cycle < 3; cycle++) {
+      game = normalizeGameState(JSON.parse(JSON.stringify(normalizeGameState(game))));
+      expect(game).toHaveProperty('automationPaused', automationPaused);
+      expect(game.party.map((actor) => actor.autoBattle)).toEqual(flags);
+      expect(game.inventoryPolicy).toMatchObject({ autoEquip: false, autoRestock: false });
+    }
+  });
+
+  it.each([undefined, null, 'true', 'false', 0, 1, [], {}])('omits absent or invalid automationPaused=%j', (automationPaused) => {
+    const base = createNewGameState({ maze: lineMaze(3) });
+    expect(base).not.toHaveProperty('automationPaused');
+    const restored = normalizeGameState({ ...base, automationPaused });
+    expect(restored).not.toHaveProperty('automationPaused');
+    expect(restored.party.map((actor) => actor.autoBattle)).toEqual(base.party.map((actor) => actor.autoBattle));
+    expect(createNewGameState(JSON.parse(JSON.stringify({ ...base, automationPaused })))).not.toHaveProperty('automationPaused');
+  });
+
   it('normalizes partial policies without enabling explicitly disabled automation', () => {
     const game = createNewGameState({
       maze: lineMaze(3),
