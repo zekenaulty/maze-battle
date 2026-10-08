@@ -40,7 +40,7 @@ export interface GridPosition {
   column: number;
 }
 
-export type MazeLayoutVersion = 'structured-v1';
+export type MazeLayoutVersion = 'structured-v1' | 'structured-v2';
 
 export type MazeRoomKind = 'start' | 'hub' | 'treasure' | 'safe' | 'boss' | 'exit';
 
@@ -51,6 +51,18 @@ export interface MazeLayoutState {
   rooms: MazeRoomState[];
   mainPath: GridPosition[];
   zones: MazeZoneState[];
+  connections?: MazeRoomConnection[];
+}
+
+export interface MazeRoomConnection {
+  id: string;
+  fromRoomId: string;
+  toRoomId: string;
+  kind: 'tree' | 'loop';
+  fromDoor: GridPosition;
+  toDoor: GridPosition;
+  path: GridPosition[];
+  width: 1;
 }
 
 export interface MazeRoomState {
@@ -162,6 +174,7 @@ export interface ItemInstance {
   consumableEffect?: ConsumableEffect;
   consumableAmount?: number;
   quantity?: number;
+  locked?: boolean;
 }
 
 export type EquipmentState = Partial<Record<EquipmentSlot, string>>;
@@ -211,6 +224,29 @@ export interface BattleState {
   round: number;
   log: string[];
   loot?: ItemInstance[];
+  origin?: { floor: number; roomId?: string; position: GridPosition };
+  defeated?: EnemyState[];
+}
+
+export interface InventoryPolicy {
+  autoEquip: boolean;
+  autoSellJunk: boolean;
+  autoStash: boolean;
+  autoRestock: boolean;
+  healthReserve: number;
+  manaReserve: number;
+  portalReserve: number;
+}
+
+export interface AutopilotState {
+  phase: 'planning' | 'travel' | 'interact' | 'combat' | 'town' | 'blocked';
+  floor: number;
+  targetId?: string;
+  targetPosition?: GridPosition;
+  route: Direction[];
+  lastPosition?: GridPosition;
+  stalledTicks: number;
+  reason: string;
 }
 
 export interface InventoryState {
@@ -241,6 +277,7 @@ export interface QuestTaskState {
   noun: string;
   required: number;
   progress: number;
+  monsterTags?: MonsterCategory[];
 }
 
 export interface QuestRewardState {
@@ -277,6 +314,9 @@ export interface GameState {
   mazeTexture: MazeTextureId;
   autoThrottleMs: number;
   randomBattles: boolean;
+  inventoryPolicy?: InventoryPolicy;
+  autopilot?: AutopilotState;
+  townReturnMode?: 'manual' | 'auto-play' | 'waves';
   mode: GameMode;
   facing: Direction;
   maze: MazeState;
