@@ -52,3 +52,10 @@ export function getActorGearScore(actor: ActorState, inventoryItems: ItemInstanc
     return item ? total + getItemGearScore(item, actor) : total;
   }, 0);
 }
+
+/** All current equipment is usable by every role; itemLevel is not a level requirement. */
+export function getGearUpgradeScore(item: ItemInstance, actor: ActorState, inventoryItems: ItemInstance[]): number {
+  if (!item.slot) return 0;
+  const equipped = inventoryItems.find((candidate) => candidate.id === actor.equipment[item.slot!] && candidate.slot === item.slot);
+  return getItemGearScore(item, actor) - (equipped ? getItemGearScore(equipped, actor) : 0);
+}

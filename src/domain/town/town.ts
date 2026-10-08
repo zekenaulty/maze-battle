@@ -1,20 +1,12 @@
 import type { GameState, VendorId } from '../types';
 import { BASE_ITEMS } from '../items/catalog';
-import { buyVendorItem, recoverParty } from '../items/inventory';
-import { syncGuildQuests } from '../quests/quests';
+import { buyVendorItem, manageAutoInventory, recoverParty } from '../items/inventory';
+import { useTownPortal } from './portal';
+
+export { canUseTownPortal, portalScrollCount, useTownPortal } from './portal';
 
 export function enterTown(game: GameState): GameState {
-  if (game.mode === 'town') {
-    return game;
-  }
-
-  return syncGuildQuests({
-    ...game,
-    mode: 'town',
-    battle: undefined,
-    activityLog: trimLog(['Returned to town.', ...game.activityLog]),
-    updatedAt: new Date().toISOString(),
-  });
+  return useTownPortal(game);
 }
 
 export function leaveTown(game: GameState): GameState {
@@ -24,14 +16,20 @@ export function leaveTown(game: GameState): GameState {
 
   return {
     ...game,
-    mode: 'manual',
+    mode: game.townReturnMode === 'auto-play' || game.townReturnMode === 'waves' ? game.townReturnMode : 'manual',
+    townReturnMode: undefined,
     activityLog: trimLog(['Left town.', ...game.activityLog]),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function useInn(game: GameState): GameState {
-  return recoverParty(game);
+  return game.mode === 'town' ? recoverParty(game) : game;
+}
+
+/** Call on town arrival; unchanged repeat calls do not spend, move stock or add logs. */
+export function maintainTown(game: GameState): GameState {
+  return game.mode === 'town' ? recoverParty(manageAutoInventory(game)) : game;
 }
 
 export function buyFromVendor(game: GameState, vendor: VendorId, baseId: string): GameState {
