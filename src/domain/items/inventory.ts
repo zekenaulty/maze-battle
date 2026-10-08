@@ -1,12 +1,13 @@
 import type { EquipmentSlot, GameState, InventoryState, ItemInstance, StashState } from '../types';
 import { itemSummary } from './catalog';
 import { createItemInstance } from './loot';
-import { clampActorVitals, getEffectiveActor, omitSlot, removeItemFromEquipment } from './equipment';
+import { clampActorVitals, getEffectiveActor, isEquipmentItem, omitSlot, removeItemFromEquipment } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
 import { normalizeInventoryPolicy } from './inventoryPolicy';
 import { consumeStackItem, itemQuantity, mergeInventoryItems, normalizeCapacity, stackInventoryItems } from './itemStacks';
 import { useTownPortal } from '../town/portal';
-import { ambiguousItemIds, duplicateItemIds } from './itemOwnership';
+import { ambiguousEquipmentIds, ambiguousItemIds, duplicateItemIds } from './itemOwnership';
+import { canApplyPackChange, equippedPackItemIds, packSlotUsage } from './packCapacity';
 
 export { getEffectiveActor, getEquipmentStats, getEquippedItems, isItemEquipped } from './equipment';
 export { autoEquipBestGear } from './equipmentOptimizer';
@@ -17,6 +18,7 @@ export { manageAutoInventory } from './autoInventory';
 export { BALANCED_GEAR_POLICY, evaluateGearUpgrade, evaluateLoadoutChange, getLoadoutMetrics } from './gearEvaluation';
 export type { GearEvaluation, GearEvaluationPolicy, GearMetrics, GearDecision, GearReason } from './gearEvaluation';
 export { ambiguousItemIds, ambiguousEquipmentIds } from './itemOwnership';
+export { packSlotUsage, equippedPackItemIds, canApplyPackChange } from './packCapacity';
 
 const STARTING_GOLD = 35;
 const STARTER_ITEMS = ['health-herb', 'mana-vial', 'town-portal'];
@@ -50,33 +52,35 @@ export function addItemsToInventory(game: GameState, items: ItemInstance[], sour
   if (items.length === 0) return game;
   // Awarded loot has no ground container to return to; retain it in an overfull pack.
   const protectedIds = duplicateItemIds([...game.inventory.items, ...game.stash.items, ...items]);
-  const { inventory, accepted } = mergeInventoryItems(game.inventory, items, true, protectedIds);
+  const { inventory, accepted } = mergeInventoryItems(game.inventory, items, true, protectedIds, equippedPackItemIds(game));
   if (accepted.length === 0) return game;
-  const overflow = inventory.items.length > inventory.capacity ? ' Pack over capacity; make room in town.' : '';
   const next: GameState = {
     ...game,
     inventory,
-    activityLog: [`${source}: ${accepted.map(itemSummary).join(', ')}.${overflow}`, ...game.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
   };
-  return normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(next) : next;
+  const equipped = normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(next) : next;
+  const overflow = packSlotUsage(equipped) > inventory.capacity ? ' Pack over capacity; make room in town.' : '';
+  return { ...equipped, activityLog: [`${source}: ${accepted.map(itemSummary).join(', ')}.${overflow}`, ...equipped.activityLog].slice(0, 12) };
 }
 
 export function equipItem(game: GameState, actorId: string, itemId: string): GameState {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   const actor = game.party.find((candidate) => candidate.id === actorId);
-  if (!item?.slot || !actor || ambiguousItemIds(game).has(itemId)) return game;
+  if (!item?.slot || !actor || !isEquipmentItem(item) || itemQuantity(item) !== 1 || !itemId || ambiguousEquipmentIds(game).has(itemId)) return game;
+  if (game.party.filter((candidate) => candidate.id === actorId).length !== 1 || actor.equipment[item.slot] === itemId) return game;
   const slot = item.slot;
   const party = game.party.map((candidate) => {
     const equipment = removeItemFromEquipment(candidate.equipment, itemId);
-    return clampActorVitals({
+    return {
       ...candidate,
       equipment: candidate.id === actorId ? { ...equipment, [slot]: item.id } : equipment,
-    }, game.inventory);
+    };
   });
+  if (!canApplyPackChange(game, { ...game, party })) return game;
   return {
     ...game,
-    party,
+    party: party.map((candidate) => clampActorVitals(candidate, game.inventory)),
     activityLog: [`${actor.displayName} equipped ${item.displayName}.`, ...game.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
   };
@@ -85,11 +89,13 @@ export function equipItem(game: GameState, actorId: string, itemId: string): Gam
 export function unequipItem(game: GameState, actorId: string, slot: EquipmentSlot): GameState {
   const actor = game.party.find((candidate) => candidate.id === actorId);
   if (!actor?.equipment[slot]) return game;
+  if (game.party.filter((candidate) => candidate.id === actorId).length !== 1) return game;
   const item = game.inventory.items.find((candidate) => candidate.id === actor.equipment[slot]);
+  const party = game.party.map((candidate) => candidate.id !== actorId ? candidate : { ...candidate, equipment: omitSlot(candidate.equipment, slot) });
+  if (!canApplyPackChange(game, { ...game, party })) return game;
   return {
     ...game,
-    party: game.party.map((candidate) => candidate.id !== actorId ? candidate
-      : clampActorVitals({ ...candidate, equipment: omitSlot(candidate.equipment, slot) }, game.inventory)),
+    party: party.map((candidate) => candidate.id !== actorId ? candidate : clampActorVitals(candidate, game.inventory)),
     activityLog: [`${actor.displayName} unequipped ${item?.displayName ?? slot}.`, ...game.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
   };

@@ -1,11 +1,12 @@
 import type { GameState } from '../types';
 import { ambiguousEquipmentIds } from './itemOwnership';
 import { itemQuantity } from './itemStacks';
+import { packSlotUsage } from './packCapacity';
 
 export function inventoryDiagnostics(game: GameState) {
   const items = [...game.inventory.items, ...game.stash.items];
   return {
-    pack: { used: game.inventory.items.length, capacity: game.inventory.capacity },
+    pack: { used: packSlotUsage(game), capacity: game.inventory.capacity },
     stash: { used: game.stash.items.length, capacity: game.stash.capacity },
     ambiguousIds: [...ambiguousEquipmentIds(game)],
     invalidQuantityIds: items.filter(item => itemQuantity(item) === 0).map(item => item.id),

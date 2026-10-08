@@ -2,6 +2,7 @@ import type { ActorState, EquipmentSlot, GameState, ItemInstance } from '../type
 import { clampActorVitals, EQUIPMENT_SLOTS, isEquipmentItem, omitSlot } from './equipment';
 import { BALANCED_GEAR_POLICY, evaluateGearUpgrade, evaluateLoadoutChange, type GearEvaluationPolicy } from './gearEvaluation';
 import { ambiguousEquipmentIds } from './itemOwnership';
+import { canApplyPackChange } from './packCapacity';
 
 export const MAX_EQUIPMENT_PASSES = 8;
 
@@ -13,7 +14,7 @@ export function autoEquipBestGear(game: GameState, policy: GearEvaluationPolicy 
   for (let pass = 0; pass < MAX_EQUIPMENT_PASSES; pass++) {
     let changed = false;
     for (const slot of EQUIPMENT_SLOTS) {
-      const assignments = bestSlotAssignments(party, game.party, items, slot, protectedIds, policy);
+      const assignments = bestSlotAssignments(game, party, items, slot, protectedIds, policy);
       party.forEach((actor, index) => {
         const id = assignments[index];
         changed ||= actor.equipment[slot] !== id;
@@ -25,39 +26,49 @@ export function autoEquipBestGear(game: GameState, policy: GearEvaluationPolicy 
   const changes = party.reduce((total, actor, index) => total + EQUIPMENT_SLOTS.filter(
     (slot) => actor.equipment[slot] !== game.party[index].equipment[slot],
   ).length, 0);
-  const equippedIds = new Set(party.flatMap((actor) => Object.values(actor.equipment)));
-  const withdrawn = game.mode === 'town' ? game.stash.items.filter((item) => !protectedIds.has(item.id) && isEquipmentItem(item) && equippedIds.has(item.id)) : [];
-  if (changes === 0 && withdrawn.length === 0) return game;
-  // An overfull legacy pack must not prevent equipping the upgrades that unblock cleanup.
-  const inventory = withdrawn.length ? { ...game.inventory, items: [...game.inventory.items, ...withdrawn] } : game.inventory;
-  const withdrawnItems = new Set(withdrawn);
+  const next = projectEquipment(game, party, protectedIds);
+  if (changes === 0 && next.inventory === game.inventory) return game;
+  if (!canApplyPackChange(game, next)) return game;
   return {
-    ...game,
-    inventory,
-    stash: withdrawn.length ? { ...game.stash, items: game.stash.items.filter((item) => !withdrawnItems.has(item)) } : game.stash,
-    party: party.map((actor) => clampActorVitals(actor, inventory)),
+    ...next,
+    party: party.map((actor) => clampActorVitals(actor, next.inventory)),
     activityLog: [`Auto equipped ${changes} upgrade${changes === 1 ? '' : 's'}.`, ...game.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
   };
 }
 
-function bestSlotAssignments(party: ActorState[], original: ActorState[], items: ItemInstance[], slot: EquipmentSlot, protectedIds: Set<string>, policy: GearEvaluationPolicy) {
+function projectEquipment(game: GameState, party: ActorState[], protectedIds: Set<string>): GameState {
+  const equippedIds = new Set(party.flatMap((actor) => Object.values(actor.equipment)));
+  const withdrawn = new Set(game.mode === 'town' ? game.stash.items.filter((item) => !protectedIds.has(item.id) && isEquipmentItem(item) && equippedIds.has(item.id)) : []);
+  return {
+    ...game, party,
+    inventory: withdrawn.size ? { ...game.inventory, items: [...game.inventory.items, ...withdrawn] } : game.inventory,
+    stash: withdrawn.size ? { ...game.stash, items: game.stash.items.filter((item) => !withdrawn.has(item)) } : game.stash,
+  };
+}
+
+function bestSlotAssignments(game: GameState, party: ActorState[], items: ItemInstance[], slot: EquipmentSlot, protectedIds: Set<string>, policy: GearEvaluationPolicy) {
   const current = party.map((actor) => actor.equipment[slot]);
+  const packIds = new Set(game.inventory.items.map((item) => item.id));
   const options = party.map((actor, index) => {
     const equipped = items.find((item) => item.id === current[index]);
     const unchanged = { id: current[index], benefit: 0 };
     if (current[index] && (!equipped || equipped.locked || !isEquipmentItem(equipped) || protectedIds.has(current[index]!))) return [unchanged];
-    const candidates = items.filter((item) => item.slot === slot && item.id !== current[index] && !protectedIds.has(item.id)).flatMap((item) => {
+    const candidates = items.filter((item) => item.slot === slot && typeof item.id === 'string' && item.id.length > 0
+      && (item.quantity === undefined || item.quantity === 1) && item.id !== current[index] && !protectedIds.has(item.id)).flatMap((item) => {
       const result = evaluateGearUpgrade(actor, item, items, policy);
       if (result.decision !== 'upgrade' && result.decision !== 'equivalent') return [];
       // Guards cover the complete pass, not just each incremental slot swap.
-      const total = evaluateLoadoutChange(original[index], { ...actor, equipment: { ...actor.equipment, [slot]: item.id } }, items, policy);
+      const total = evaluateLoadoutChange(game.party[index], { ...actor, equipment: { ...actor.equipment, [slot]: item.id } }, items, policy);
       return total.decision === 'upgrade' || total.decision === 'equivalent' ? [{ id: item.id, benefit: result.benefit }] : [];
     });
     // Stable sort preserves pack/stash input order on ties; random IDs never rank gear.
     candidates.sort((a, b) => b.benefit - a.benefit);
-    // With N heroes, at most N-1 of a hero's best N choices can be occupied.
-    return [unchanged, ...candidates.slice(0, party.length)];
+    // Keep N choices per capacity cost: stash admission must not hide a usable pack upgrade.
+    const best = [...candidates.filter((item) => packIds.has(item.id)).slice(0, party.length),
+      ...candidates.filter((item) => !packIds.has(item.id)).slice(0, party.length)];
+    best.sort((a, b) => b.benefit - a.benefit);
+    return [unchanged, ...best];
   });
   let best = [...current];
   let bestScore = 0;
@@ -67,6 +78,9 @@ function bestSlotAssignments(party: ActorState[], original: ActorState[], items:
   function walk(index: number, score: number, changes: number) {
     if (index === party.length) {
       if (score > bestScore + 1e-9 || (Math.abs(score - bestScore) <= 1e-9 && changes < bestChanges)) {
+        const projectedParty = party.map((actor, i) => ({ ...actor, equipment: assignments[i]
+          ? { ...actor.equipment, [slot]: assignments[i] } : omitSlot(actor.equipment, slot) }));
+        if (!canApplyPackChange(game, projectEquipment(game, projectedParty, protectedIds))) return;
         best = [...assignments];
         bestScore = score;
         bestChanges = changes;

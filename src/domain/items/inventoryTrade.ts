@@ -8,6 +8,7 @@ import { normalizeInventoryPolicy } from './inventoryPolicy';
 import { consumeStackItem, itemQuantity, mergeInventoryItems } from './itemStacks';
 import { createVendorItem } from './loot';
 import { getSellValue } from './itemValue';
+import { equippedPackItemIds } from './packCapacity';
 
 export { getSellValue } from './itemValue';
 
@@ -16,7 +17,7 @@ export function buyVendorItem(game: GameState, baseId: string, policy: GearEvalu
   if (game.mode !== 'town' || !base || !Number.isFinite(game.inventory.gold) || game.inventory.gold < base.value) return game;
   // Consumable potency does not scale with floor; fixed vendor level keeps repeat purchases stackable.
   const item = createVendorItem(baseId, base.slot ? game.dungeonLevel : 1);
-  const { inventory, accepted } = mergeInventoryItems(game.inventory, [item], false, ambiguousItemIds(game));
+  const { inventory, accepted } = mergeInventoryItems(game.inventory, [item], false, ambiguousItemIds(game), equippedPackItemIds(game));
   if (accepted.length === 0) return game;
   const next: GameState = {
     ...game,
@@ -88,7 +89,7 @@ export function stashItem(game: GameState, itemId: string): GameState {
 export function withdrawStashItem(game: GameState, itemId: string): GameState {
   const item = game.stash.items.find((candidate) => candidate.id === itemId);
   if (game.mode !== 'town' || !item || ambiguousItemIds(game).has(itemId)) return game;
-  const { inventory, accepted } = mergeInventoryItems(game.inventory, [item], false, ambiguousItemIds(game));
+  const { inventory, accepted } = mergeInventoryItems(game.inventory, [item], false, ambiguousItemIds(game), equippedPackItemIds(game));
   if (accepted.length === 0) return game;
   const next: GameState = {
     ...game,

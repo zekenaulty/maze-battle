@@ -1,6 +1,7 @@
 import type { ItemInstance } from '../types';
 import { duplicateItemIds } from './itemOwnership';
 import { getSellValue } from './itemValue';
+import { occupiedItemSlots } from './packCapacity';
 
 export interface ItemContainer {
   capacity: number;
@@ -35,7 +36,7 @@ export function stackInventoryItems(items: ItemInstance[], protectedIds: Readonl
 }
 
 // Capacity limits admission, never normalization of already-owned items.
-export function mergeInventoryItems<T extends ItemContainer>(container: T, incoming: ItemInstance[], allowOverflow = false, protectedIds: ReadonlySet<string> = new Set()) {
+export function mergeInventoryItems<T extends ItemContainer>(container: T, incoming: ItemInstance[], allowOverflow = false, protectedIds: ReadonlySet<string> = new Set(), excludedSlotIds: ReadonlySet<string> = new Set()) {
   const ambiguous = new Set([...protectedIds, ...duplicateItemIds([...container.items, ...incoming])]);
   const items = stackInventoryItems(container.items, ambiguous);
   const accepted: ItemInstance[] = [];
@@ -49,7 +50,7 @@ export function mergeInventoryItems<T extends ItemContainer>(container: T, incom
       : -1;
     if (index >= 0) {
       items[index] = combineStacks(items[index], item);
-    } else if (allowOverflow || items.length < container.capacity) {
+    } else if (allowOverflow || occupiedItemSlots(items, excludedSlotIds) + Number(!excludedSlotIds.has(item.id)) <= container.capacity) {
       items.push(usable && isStackableItem(item) ? { ...item, quantity: itemQuantity(item) } : item);
     } else {
       rejected.push(item);

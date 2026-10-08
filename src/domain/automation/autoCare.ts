@@ -4,13 +4,14 @@ import { canUseTownPortal, leaveTown, maintainTown, useTownPortal } from '../tow
 import { castExplorationSkill } from '../party/partyActions';
 import type { Rng } from '../combat/rng';
 import { blockAutopilot, planningState } from './autopilotState';
+import { packSlotUsage } from '../items/packCapacity';
 
 export function advanceTownCare(game: GameState): GameState {
   const ready = maintainTown(game);
   if (game.autopilot?.phase !== 'town') return {
     ...ready, autopilot: { ...(game.autopilot ?? planningState(game)), phase: 'town', reason: 'Rested and managed supplies.' },
   };
-  if (ready.inventory.items.length >= ready.inventory.capacity) {
+  if (packSlotUsage(ready) >= ready.inventory.capacity) {
     return blockAutopilot(ready, 'Pack is full after town care; sell, stash or unlock items.');
   }
   return { ...leaveTown(ready), autopilot: planningState(ready, 'Supplies ready; returning to expedition.') };
@@ -44,7 +45,7 @@ export function careBeforeTravel(game: GameState, rng: Rng, now: number): GameSt
       if (restored !== game) return restored;
     }
   }
-  const full = game.inventory.items.length >= game.inventory.capacity;
+  const full = packSlotUsage(game) >= game.inventory.capacity;
   const needsRest = dead || !lowest || lowest.hp < lowest.maxHp * 0.4;
   if (!full && !needsRest) return game;
   const reason = full ? 'Pack capacity reached; visiting town.' : 'Party needs recovery; visiting town.';

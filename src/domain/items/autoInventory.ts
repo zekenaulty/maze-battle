@@ -7,6 +7,7 @@ import { normalizeInventoryPolicy, setInventoryPolicy } from './inventoryPolicy'
 import { buyVendorItem, sellJunkItems, stashItem } from './inventoryTrade';
 import { consumeStackItem, itemQuantity, mergeInventoryItems, stackInventoryItems } from './itemStacks';
 import { stackPortion } from './itemValue';
+import { equippedPackItemIds } from './packCapacity';
 
 const SUPPLIES: Array<{ effect: ConsumableEffect; baseId: string; reserve: keyof Pick<InventoryPolicy, 'portalReserve' | 'healthReserve' | 'manaReserve'> }> = [
   { effect: 'townPortal', baseId: 'town-portal', reserve: 'portalReserve' },
@@ -18,10 +19,13 @@ const SUPPLIES: Array<{ effect: ConsumableEffect; baseId: string; reserve: keyof
 export function manageAutoInventory(game: GameState, gearPolicy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
   const policy = normalizeInventoryPolicy(game.inventoryPolicy);
   let next = compactContainers(setInventoryPolicy(game, policy));
-  if (policy.autoEquip && !(next.mode === 'town' && policy.autoSellJunk)) next = autoEquipBestGear(next, gearPolicy);
-  if (next.mode !== 'town') return next;
-  if (policy.autoSellJunk) next = sellJunkItems(next, gearPolicy);
-  if (policy.autoStash) next = stashSurplus(next, policy, gearPolicy);
+  if (next.mode !== 'town') return policy.autoEquip ? autoEquipBestGear(next, gearPolicy) : next;
+  // Cleanup can free the bag slot needed to return old worn gear during a stash upgrade.
+  for (let pass = 0; pass < 2; pass++) {
+    if (policy.autoSellJunk) next = sellJunkItems(next, gearPolicy);
+    else if (policy.autoEquip) next = autoEquipBestGear(next, gearPolicy);
+    if (policy.autoStash) next = stashSurplus(next, policy, gearPolicy);
+  }
   if (policy.autoRestock) next = restockSupplies(next, policy, gearPolicy);
   return next;
 }
@@ -91,7 +95,7 @@ function transferSupply(game: GameState, item: ItemInstance, quantity: number, d
   if (quantity <= 0 || ambiguousItemIds(game).has(item.id)) return game;
   const moved = { ...stackPortion(item, quantity), id: quantity === itemQuantity(item) ? item.id : crypto.randomUUID() };
   const target = destination === 'pack' ? game.inventory : game.stash;
-  const { inventory: merged, accepted } = mergeInventoryItems(target, [moved], false, ambiguousItemIds(game));
+  const { inventory: merged, accepted } = mergeInventoryItems(target, [moved], false, ambiguousItemIds(game), destination === 'pack' ? equippedPackItemIds(game) : undefined);
   if (accepted.length === 0) return game;
   return {
     ...game,
