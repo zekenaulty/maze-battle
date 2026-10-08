@@ -38,6 +38,9 @@ export function blockAutopilot(game: GameState, reason: string): GameState {
   const stopped = stopAutopilot(game, reason);
   return {
     ...stopped,
+    mode: stopped.mode === 'waves' ? 'manual' : stopped.mode,
+    battle: stopped.battle?.returnMode === 'waves' ? { ...stopped.battle, returnMode: 'manual' } : stopped.battle,
+    townReturnMode: stopped.townReturnMode === 'waves' ? 'manual' : stopped.townReturnMode,
     autopilot: { ...stopped.autopilot!, phase: 'blocked', route: [], stalledTicks: Math.max(1, stopped.autopilot!.stalledTicks) },
     activityLog: [`Auto stopped: ${reason}`, ...game.activityLog].slice(0, 20),
   };
