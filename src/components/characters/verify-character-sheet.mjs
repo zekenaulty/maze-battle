@@ -83,13 +83,26 @@ try {
   const swordRow = page.locator('[data-item-id="preview-sword"]');
   await swordRow.getByRole('button', { name: 'Move', exact: true }).click();
   assert.match(await swordRow.textContent(), /Equipped: Zyth - weapon/);
+  await page.getByRole('button', { name: /Ayla/ }).click();
+  await page.getByRole('tab', { name: 'Skills', exact: true }).click();
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 320, height: 640 }]) {
+    await page.setViewportSize(viewport);
+    for (const name of ['Heal', 'Group Heal', 'Resurrect']) {
+      const cast = page.getByRole('button', { name: `Cast ${name}`, exact: true });
+      assert(await cast.isDisabled());
+      assert.equal(await cast.getAttribute('title'), 'Casting unavailable');
+    }
+    const overflow = await page.locator('.character-skill').evaluateAll((cards) => cards.some((card) => card.scrollWidth > card.clientWidth + 2));
+    assert.equal(overflow, false);
+    await page.screenshot({ path: `${output}/${viewport.width}x${viewport.height}-casting.png` });
+  }
   await page.getByRole('button', { name: 'Close dialog' }).focus();
   await page.keyboard.press('Shift+Tab');
   assert(await page.getByRole('dialog').evaluate((dialog) => dialog.contains(document.activeElement)));
   await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('dialog').count(), 0);
   assert.deepEqual(errors, []);
-  console.log(`PASS: 20 screenshots, four viewports, all eight slots, search/reset, actor transfer, keyboard close; ${output}`);
+  console.log(`PASS: 22 screenshots, four viewports, all eight slots, search/reset, actor transfer, disabled cast reasons, keyboard close; ${output}`);
 } finally {
   await browser?.close();
   await server.close();

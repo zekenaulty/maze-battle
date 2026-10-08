@@ -39,7 +39,8 @@ describe('character projections', () => {
     expect(skillEffect(actor, 'heal')).toContain('35%');
     expect(skillEffect(actor, 'groupHeal')).toContain('25%');
     expect(skillEffect(actor, 'resurrect')).toContain('50%');
-    expect(projectSkill(actor, inventory, { id: 'teleport', cooldown: 0 }, 1000)?.status).toBe('Unavailable');
+    expect(skillEffect(actor, 'teleport')).toContain('random location in the maze, not to town');
+    expect(projectSkill(actor, inventory, { id: 'teleport', cooldown: 0 }, 1000)?.status).toBe('Needs 5 MP');
     expect(projectSkill(actor, inventory, { id: 'unknown' as SkillId, cooldown: 0 }, 1000)).toBeUndefined();
   });
 

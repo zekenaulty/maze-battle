@@ -10,10 +10,10 @@ Sources inspected with `git show main:<path>`:
 | Legacy source | Finding | Refinement disposition |
 | --- | --- | --- |
 | `battle/actors/ui/characters.js` | Fixed nameplates select one hero detail sheet; a 100ms loop refreshes every sheet. | Persistent responsive character selector, one selected sheet, keyboard navigation. Only the visible Skills view owns a 250ms timer; other views update from props. |
-| `battle/actors/ui/detailSheet.js` | Name/class/level/XP, health/mana/damage, available attributes and editable plus buttons. Skills show summaries, mana and cooldown; some can be cast outside combat. | Four views: Stats, Equipment, Skills, Inventory. Base/gear/effective table, rolled attack range, HP/MP/XP bars and XP remaining. Optional attribute callbacks; informational skills, no invented casting API. |
+| `battle/actors/ui/detailSheet.js` | Name/class/level/XP, health/mana/damage, available attributes and editable plus buttons. Skills show summaries, mana and cooldown; some can be cast outside combat. | Four views: Stats, Equipment, Skills, Inventory. Base/gear/effective table, rolled attack range, HP/MP/XP bars and XP remaining. Optional attribute and exploration-casting callbacks; execution stays in the domain. |
 | `battle/actors/actorAttributes.js` | Vitality contributes 2 HP; intellect contributes 2 MP. Damage depends on the scaling attribute and base damage. | Stats and item replacement comparisons reuse `getEffectiveActor`; attack/skill damage reuse `damageRange`. Gear deltas include indirect HP/MP contributions, affixes and catalog legendary fallback stats. |
 | `battle/actors/actorLevel.js` | XP remaining is visible and level-up grants available points. The old implementation has its own level-up accounting. | Current `xpForNextLevel` is authoritative. No copying legacy XP arithmetic. Current `rewards.ts` grants five points and auto-spends them, so ordinarily no points remain for manual allocation. |
-| `battle/actors/skills/teleport.js` | A 20 MP, 2s out-of-combat skill actually teleports the party. | Current catalog retains the cost/timing, but `applySkill.ts` implements no travel effect. The sheet explicitly marks Teleport unavailable, with no travel effect implemented. Domain parity is not claimed. |
+| `battle/actors/skills/teleport.js` | A 20 MP, 2s out-of-combat skill actually teleports the party. | The sheet describes random-location mage Teleport separately from a town portal scroll. Casting needs the lead's `castExplorationSkill` callback; this isolated branch does not implement or qualify the travel effect. |
 
 Current inventory reference: `src/domain/items/inventory.ts`, `gearScore.ts`, `itemDetails.ts`, `catalog.ts`, and the pre-refinement `CharactersDialog.tsx`. Eight slots, stat/effect lines, ownership labels, stack quantities and Auto Equip remain. Added selected-character replacement deltas, lock badges, search across names/effects/owners, combined type/slot/rarity/status filters and descending score/gain/value/level/rarity sorts. Filters fold away to preserve mobile pack space. Equipment slot search opens the corresponding pack filter.
 
@@ -32,6 +32,9 @@ onSpendAttribute?: (
   attribute: 'strength' | 'vitality' | 'intellect',
 ) => void;
 canUseTownPortal?: boolean; // defaults to true for existing callers
+onCastSkill?: (actorId: string, skillId: SkillId) => void;
+allowOutOfCombatSkills?: boolean; // defaults to false
+now?: number; // epoch milliseconds; omit for the local live clock
 ```
 
 Lead wiring:
@@ -41,6 +44,8 @@ Lead wiring:
 - Route `onToggleItemLock(id)` to `toggleItemLock` through the same transition path. Badges already read `item.locked`; absent callback hides lock controls.
 - Route `onSpendAttribute(actorId, attribute)` to the lead's allocation service. Only show plus buttons when this callback is provided; disable them at zero available points. Preserve domain authority over point decrement and HP/MP increases/clamping.
 - Set `canUseTownPortal` from the shared portal eligibility rule, particularly false when already in town or otherwise ineligible. UI gates do not replace domain checks or resource consumption.
+- Wire `onCastSkill(actorId, skillId)` to `castExplorationSkill` in `domain/party/partyActions.ts` through the normal state transition. Pass `allowOutOfCombatSkills={!game.battle}`. No target is sent: the domain chooses the lowest-HP-ratio living ally, all living allies, or first fallen ally as appropriate. Teleport does not dispatch `onUseItem` or consume a scroll in the UI.
+- Optional `now` controls every Skills-view readiness/countdown calculation in epoch milliseconds, including the click guard. When supplied, the parent must advance it; the view starts no interval. When omitted, a 250ms interval exists only while Skills is mounted and clicks recheck wall-clock readiness.
 
 No new shared types requested. `ItemDetails` additionally accepts optional `comparison: ItemComparison`, exported from `src/viewModels/inventoryComparison.ts`; existing callers retain their behavior.
 
@@ -51,7 +56,7 @@ No new shared types requested. `ItemDetails` additionally accepts optional `comp
 - Sell prices describe one item; stash acts on the stack. Town-only actions remain gated by existing `canSellItems`/`canStashItems` and callbacks. Stash capacity is not passed to the sheet, so the domain must still reject a full stash.
 - Positive GS comparisons are role-specific slot improvements, not a promise of better party-wide assignment. Transfers label the current owner and compare against the selected actor's slot.
 - Attribute allocation, policy persistence and locking are callback-tested only in this worktree. End-to-end behavior of the lead's new mutations is not qualified here.
-- No out-of-combat skill casting was added. Teleport remains a domain implementation gap, not a working UI action.
+- Cast controls exist only for learned heal/groupHeal/resurrect/teleport. Visible reasons explain missing handler, outside-combat restriction, fallen caster, insufficient effective mana, cooldown/GCD, exhausted charges, or no eligible injured/fallen allies. Healing checks gear-effective HP. No effects, costs, timers or targets are applied locally; the domain must revalidate before execution. Exploration effects and teleport travel still require integration verification against the lead's service.
 
 ## Existing Test Hooks
 
@@ -69,8 +74,8 @@ These shared browser tests were not edited or run unchanged. The scoped browser 
 ## Verification
 
 - `npm run build`: PASS (TypeScript and production build).
-- `npm test`: PASS, 74 tests across 14 files, including 14 added projection/component tests.
+- `npm test`: PASS, 81 tests across 15 files, including 21 added projection/component tests. Follow-up tests cover all four dispatches, selection, target eligibility, every cast guard, accessible reasons and controlled/live clocks.
 - `node src/components/characters/verify-character-sheet.mjs`: PASS using the actual app and a seeded autosave, with a temporary Vite server on an OS-assigned free port and automatic browser/server cleanup.
 - Browser checks: Stats/Equipment/Skills/Inventory at 1280x900, 390x844, 320x640 and 844x390; no horizontal overflow in the measured dialog, panels, controls, tables and rows. Eight slots, actor selection, search/reset, item transfer, focus containment and Escape dismissal passed without page errors.
-- Twenty screenshots were generated under the ignored `test-results/character-sheet/` directory. Representative desktop equipment and mobile stats, skills, inventory and replacement comparison screenshots were visually inspected. Screenshots are local verification output, not committed artifacts.
+- Twenty-two screenshots were generated under the ignored `test-results/character-sheet/` directory. Representative desktop equipment and mobile stats, skills, inventory and replacement comparison screenshots were visually inspected. The added desktop/mobile casting views verify disabled reasons because baseline App does not wire the new callback. Enabled dispatch is component-tested, not domain-integrated. Screenshots are local verification output, not committed artifacts.
 - No persistent server left running. No merge/deployment or integrated release qualification claimed.

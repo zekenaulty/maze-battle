@@ -80,6 +80,7 @@
 .character-sheet .character-skill p { margin: 7px 0; line-height: 1.5; }
 .character-sheet .character-skill dl { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 12px; }
 .character-sheet .character-skill dl > div { gap: 6px; }
+.character-sheet .character-skill-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .character-sheet .inventory-panel { padding: 0; gap: 10px; }
 .character-sheet .inventory-panel header { margin: 0; gap: 8px; }
 .character-sheet .inventory-panel header > span { font-size: 12px; flex-basis: 200px; line-height: 1.6; }

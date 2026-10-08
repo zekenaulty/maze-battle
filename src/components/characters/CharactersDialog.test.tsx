@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CharactersDialog, type CharactersDialogProps } from '../CharactersDialog';
 import { characterFixture, inventoryFixture, itemFixture } from '../../viewModels/characterTestFixtures';
 
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 function setup(overrides: Partial<CharactersDialogProps> = {}) {
   const item = itemFixture();
@@ -121,5 +121,64 @@ describe('CharactersDialog', () => {
     expect(screen.getByRole('button', { name: /Vor/ })).toHaveAttribute('aria-pressed', 'true');
     rerender(<CharactersDialog {...props} party={[]} />);
     expect(screen.getByText('No characters in this party.')).toBeVisible();
+  });
+
+  it('casts the four exploration skills for the selected caster without supplying a target or using inventory', () => {
+    const healer = characterFixture({ id: 'ayla', displayName: 'Ayla', role: 'healer', mp: 50, maxMp: 60, skills: [{ id: 'heal', cooldown: 0 }, { id: 'groupHeal', cooldown: 0 }, { id: 'resurrect', cooldown: 0 }, { id: 'smite', cooldown: 0 }] });
+    const mage = characterFixture({ id: 'zyth', displayName: 'Zyth', role: 'mage', mp: 50, maxMp: 60, skills: [{ id: 'teleport', cooldown: 0 }] });
+    const onCastSkill = vi.fn();
+    const { props } = setup({ party: [healer, mage, characterFixture({ hp: 0 })], onCastSkill, allowOutOfCombatSkills: true, now: 1000 });
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }));
+    for (const name of ['Heal', 'Group Heal', 'Resurrect']) {
+      const button = screen.getByRole('button', { name: `Cast ${name}` });
+      expect(button).toBeEnabled();
+      fireEvent.click(button);
+    }
+    expect(screen.queryByRole('button', { name: 'Cast Smite' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));
+    expect(screen.getByText(/random location in the maze, not to town/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cast Teleport' }));
+    expect(onCastSkill.mock.calls).toEqual([['ayla', 'heal'], ['ayla', 'groupHeal'], ['ayla', 'resurrect'], ['zyth', 'teleport']]);
+    expect(props.onUseItem).not.toHaveBeenCalled();
+    expect(mage.mp).toBe(50);
+  });
+
+  it('shows an accessible reason and does not dispatch unavailable casts', () => {
+    const healer = characterFixture({ skills: [{ id: 'heal', cooldown: 0 }] });
+    const { props, rerender } = setup({ party: [healer], now: 1000, allowOutOfCombatSkills: true });
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }));
+    const button = screen.getByRole('button', { name: 'Cast Heal' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription('Casting unavailable');
+    const onCastSkill = vi.fn();
+    rerender(<CharactersDialog {...props} onCastSkill={onCastSkill} allowOutOfCombatSkills={false} />);
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription('Outside combat only');
+    fireEvent.click(button);
+    rerender(<CharactersDialog {...props} onCastSkill={onCastSkill} party={[{ ...healer, mp: 0 }]} />);
+    expect(button).toHaveAccessibleDescription('Needs 4 MP');
+    fireEvent.click(button);
+    expect(onCastSkill).not.toHaveBeenCalled();
+  });
+
+  it('uses controlled now without an interval and enables casting exactly at cooldown expiry', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const interval = vi.spyOn(window, 'setInterval');
+    const healer = characterFixture({ skills: [{ id: 'heal', cooldown: 0, cooldownUntil: 2000 }] });
+    const onCastSkill = vi.fn();
+    const { props, rerender } = setup({ party: [healer], onCastSkill, allowOutOfCombatSkills: true, now: 1000 });
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }));
+    expect(interval).not.toHaveBeenCalled();
+    const button = screen.getByRole('button', { name: 'Cast Heal' });
+    expect(button).toHaveAccessibleDescription('Cooldown 1s');
+    act(() => vi.advanceTimersByTime(1000));
+    expect(button).toBeDisabled();
+    rerender(<CharactersDialog {...props} now={2000} />);
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(onCastSkill).toHaveBeenCalledWith('vor', 'heal');
+    rerender(<CharactersDialog {...props} now={undefined} />);
+    expect(interval).toHaveBeenCalledOnce();
   });
 });

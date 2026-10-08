@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { ActorState, EquipmentSlot, InventoryPolicy, InventoryState } from '../domain/types';
+import type { ActorState, EquipmentSlot, InventoryPolicy, InventoryState, SkillId } from '../domain/types';
 import type { SpendableAttribute } from '../viewModels/characterSheet';
 import { Dialog } from './Dialog';
 import { CharacterNavigation, SheetNavigation, type SheetView } from './characters/CharacterNavigation';
@@ -28,6 +28,9 @@ export interface CharactersDialogProps {
   onInventoryPolicyChange?: (patch: Partial<InventoryPolicy>) => void;
   onToggleItemLock?: (itemId: string) => void;
   onSpendAttribute?: (actorId: string, attribute: SpendableAttribute) => void;
+  onCastSkill?: (actorId: string, skillId: SkillId) => void;
+  allowOutOfCombatSkills?: boolean;
+  now?: number;
   onClose: () => void;
 }
 
@@ -59,7 +62,7 @@ export function CharactersDialog(props: CharactersDialogProps) {
               }} />
             </section>
             <section id="character-skills" role="tabpanel" aria-labelledby="character-tab-Skills" hidden={view !== 'Skills'} tabIndex={0}>
-              {view === 'Skills' && <CharacterSkills actor={actor} inventory={inventory} />}
+              {view === 'Skills' && <CharacterSkills actor={actor} party={party} inventory={inventory} onCastSkill={props.onCastSkill} allowOutOfCombatSkills={props.allowOutOfCombatSkills} now={props.now} />}
             </section>
             <section id="character-inventory" role="tabpanel" aria-labelledby="character-tab-Inventory" hidden={view !== 'Inventory'} tabIndex={0}>
               <InventoryPanel {...props} selectedActor={actor} slotFilter={slotFilter} onSlotFilterChange={setSlotFilter} />
