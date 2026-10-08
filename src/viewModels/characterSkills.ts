@@ -48,11 +48,12 @@ export function isExplorationSkill(id: SkillId) {
 }
 
 export function explorationCastReason(actor: ActorState, inventory: InventoryState, skill: SkillState, context: {
-  party: ActorState[]; now: number; allowed?: boolean; hasHandler: boolean;
+  party: ActorState[]; now: number; allowed?: boolean; allowTeleport?: boolean; hasHandler: boolean;
 }): string | undefined {
   if (!isExplorationSkill(skill.id)) return 'Combat-only skill';
   if (!context.hasHandler) return 'Casting unavailable';
   if (!context.allowed) return 'Outside combat only';
+  if (skill.id === 'teleport' && context.allowTeleport === false) return 'Dungeon only';
   const projected = projectSkill(actor, inventory, skill, context.now);
   if (!projected) return 'Skill unavailable';
   if (projected.status !== 'Ready') return projected.status === 'Fallen' ? 'Caster is fallen' : projected.status;

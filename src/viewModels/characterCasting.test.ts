@@ -25,6 +25,15 @@ describe('exploration skill availability', () => {
     expect(explorationCastReason(caster, inventory, skill('heal'), { ...context, hasHandler: false })).toBe('Casting unavailable');
   });
 
+  it('gates only teleport when the host disallows dungeon travel', () => {
+    expect(explorationCastReason(caster, inventory, skill('teleport'), { ...context, allowTeleport: false })).toBe('Dungeon only');
+    expect(explorationCastReason(caster, inventory, skill('teleport'), { ...context, allowTeleport: true })).toBeUndefined();
+    expect(explorationCastReason(caster, inventory, skill('teleport'), context)).toBeUndefined();
+    for (const id of ['heal', 'groupHeal', 'resurrect'] as const) {
+      expect(explorationCastReason(caster, inventory, skill(id), { ...context, allowTeleport: false })).toBeUndefined();
+    }
+  });
+
   it('checks the living caster, effective mana, GCD, cooldown and charges at the supplied time', () => {
     expect(explorationCastReason({ ...caster, hp: 0 }, inventory, skill('heal'), context)).toBe('Caster is fallen');
     expect(explorationCastReason({ ...caster, mp: 3 }, inventory, skill('heal'), context)).toBe('Needs 1 MP');

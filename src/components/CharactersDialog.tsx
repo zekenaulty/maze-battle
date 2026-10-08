@@ -31,6 +31,7 @@ export interface CharactersDialogProps {
   onAutoSpendChange?: (actorId: string, enabled: boolean) => void;
   onCastSkill?: (actorId: string, skillId: SkillId) => void;
   allowOutOfCombatSkills?: boolean;
+  allowTeleport?: boolean;
   now?: number;
   onClose: () => void;
 }
@@ -63,7 +64,7 @@ export function CharactersDialog(props: CharactersDialogProps) {
               }} />
             </section>
             <section id="character-skills" role="tabpanel" aria-labelledby="character-tab-Skills" hidden={view !== 'Skills'} tabIndex={0}>
-              {view === 'Skills' && <CharacterSkills actor={actor} party={party} inventory={inventory} onCastSkill={props.onCastSkill} allowOutOfCombatSkills={props.allowOutOfCombatSkills} now={props.now} />}
+              {view === 'Skills' && <CharacterSkills actor={actor} party={party} inventory={inventory} onCastSkill={props.onCastSkill} allowOutOfCombatSkills={props.allowOutOfCombatSkills} allowTeleport={props.allowTeleport} now={props.now} />}
             </section>
             <section id="character-inventory" role="tabpanel" aria-labelledby="character-tab-Inventory" hidden={view !== 'Inventory'} tabIndex={0}>
               <InventoryPanel {...props} selectedActor={actor} slotFilter={slotFilter} onSlotFilterChange={setSlotFilter} />

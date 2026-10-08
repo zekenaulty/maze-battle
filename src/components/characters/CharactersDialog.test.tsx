@@ -193,6 +193,33 @@ describe('CharactersDialog', () => {
     expect(mage.mp).toBe(50);
   });
 
+  it('blocks town teleport with an accessible reason without blocking healing or resurrection', () => {
+    const healer = characterFixture({ id: 'ayla', displayName: 'Ayla', role: 'healer', mp: 50, maxMp: 60, skills: [{ id: 'heal', cooldown: 0 }, { id: 'groupHeal', cooldown: 0 }, { id: 'resurrect', cooldown: 0 }] });
+    const mage = characterFixture({ id: 'zyth', displayName: 'Zyth', role: 'mage', mp: 50, maxMp: 60, skills: [{ id: 'teleport', cooldown: 0 }] });
+    const onCastSkill = vi.fn();
+    const { props, rerender } = setup({ party: [healer, mage, characterFixture({ hp: 0 })], onCastSkill, allowOutOfCombatSkills: true, allowTeleport: false, now: 1000 });
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }));
+    for (const name of ['Heal', 'Group Heal', 'Resurrect']) {
+      const button = screen.getByRole('button', { name: `Cast ${name}` });
+      expect(button).toBeEnabled();
+      fireEvent.click(button);
+    }
+    expect(onCastSkill.mock.calls).toEqual([['ayla', 'heal'], ['ayla', 'groupHeal'], ['ayla', 'resurrect']]);
+    onCastSkill.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));
+    const teleport = screen.getByRole('button', { name: 'Cast Teleport' });
+    expect(teleport).toBeDisabled();
+    expect(teleport).toHaveAccessibleDescription('Dungeon only');
+    expect(screen.getByText('Dungeon only')).toBeVisible();
+    fireEvent.click(teleport);
+    expect(onCastSkill).not.toHaveBeenCalled();
+    rerender(<CharactersDialog {...props} allowTeleport />);
+    expect(teleport).toBeEnabled();
+    fireEvent.click(teleport);
+    expect(onCastSkill).toHaveBeenCalledExactlyOnceWith('zyth', 'teleport');
+    expect(props.onUseItem).not.toHaveBeenCalled();
+  });
+
   it('shows an accessible reason and does not dispatch unavailable casts', () => {
     const healer = characterFixture({ skills: [{ id: 'heal', cooldown: 0 }] });
     const { props, rerender } = setup({ party: [healer], now: 1000, allowOutOfCombatSkills: true });

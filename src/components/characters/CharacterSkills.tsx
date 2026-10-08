@@ -9,10 +9,11 @@ interface CharacterSkillsProps {
   inventory: InventoryState;
   onCastSkill?: (actorId: string, skillId: SkillId) => void;
   allowOutOfCombatSkills?: boolean;
+  allowTeleport?: boolean;
   now?: number;
 }
 
-export function CharacterSkills({ actor, party, inventory, onCastSkill, allowOutOfCombatSkills = false, now }: CharacterSkillsProps) {
+export function CharacterSkills({ actor, party, inventory, onCastSkill, allowOutOfCombatSkills = false, allowTeleport, now }: CharacterSkillsProps) {
   const [liveNow, setLiveNow] = useState(Date.now);
   useEffect(() => {
     if (now !== undefined) return;
@@ -20,7 +21,7 @@ export function CharacterSkills({ actor, party, inventory, onCastSkill, allowOut
     const timer = window.setInterval(() => setLiveNow(Date.now()), 250);
     return () => window.clearInterval(timer);
   }, [now]);
-  const castContext = { party, now: now ?? liveNow, allowed: allowOutOfCombatSkills, hasHandler: Boolean(onCastSkill) };
+  const castContext = { party, now: now ?? liveNow, allowed: allowOutOfCombatSkills, allowTeleport, hasHandler: Boolean(onCastSkill) };
   return <div className="character-skill-list">
     {(actor.skills ?? []).map((state) => {
       const skill = projectSkill(actor, inventory, state, castContext.now);
