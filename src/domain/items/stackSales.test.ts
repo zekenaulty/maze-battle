@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { ItemCategory } from '../types';
 import { normalizeGameState } from '../gameFactory';
-import { manageAutoInventory, normalizeInventory, sellItem, setInventoryPolicy, stashItem, withdrawStashItem } from './inventory';
+import { junkItemsForSale, manageAutoInventory, normalizeInventory, sellItem, sellJunkItems, setInventoryPolicy, stashItem, withdrawStashItem } from './inventory';
 import { consumeStackItem, itemQuantity, mergeInventoryItems, stackInventoryItems } from './itemStacks';
 import { getSellValue } from './itemValue';
 import { createItemInstance } from './loot';
@@ -36,7 +37,7 @@ describe('effect-based supply stacks and exact quantity sales', () => {
     const different = [
       { ...first, id: 'stronger', consumableAmount: 100 },
       { ...first, id: 'locked', locked: true },
-      { ...first, id: 'quest', category: 'quest' as const },
+      { ...first, id: 'quest', category: 'quest' as ItemCategory },
       { ...first, id: 'power', legendaryPower: { id: 'unique', name: 'Unique', description: 'Special effect' } },
     ];
     expect(stackInventoryItems([first, ...different])).toHaveLength(5);
@@ -89,7 +90,7 @@ describe('effect-based supply stacks and exact quantity sales', () => {
 
   it('protects locked, equipped, quest, ambiguous and invalid-price records', () => {
     const locked = supply('health-herb', 3, { locked: true });
-    const quest = supply('health-herb', 3, { category: 'quest' });
+    const quest = supply('health-herb', 3, { category: 'quest' as ItemCategory });
     const invalid = supply('health-herb', 3, { value: NaN });
     const badTotal = supply('health-herb', 3, { stackSellValue: Infinity });
     const equipped = gear('worn', {});
@@ -101,6 +102,31 @@ describe('effect-based supply stacks and exact quantity sales', () => {
     const overflow = inventoryGame([supply('health-herb')], { mode: 'town' });
     overflow.inventory.gold = Number.MAX_SAFE_INTEGER;
     expect(sellItem(overflow, overflow.inventory.items[0].id)).toBe(overflow);
+  });
+
+  it('does not credit malformed null quantities or silently reinterpret null stack values', () => {
+    const nullQuantity = JSON.parse(JSON.stringify({ ...supply('health-herb'), quantity: null }));
+    const nullValue = JSON.parse(JSON.stringify({ ...supply('health-herb', 3), stackSellValue: null }));
+    const game = inventoryGame([], { mode: 'town', inventory: { capacity: 36, gold: 0, items: [nullQuantity, nullValue] } });
+    expect(getSellValue(nullQuantity)).toBe(0);
+    expect(getSellValue(nullValue)).toBe(0);
+    for (let i = 0; i < 2; i++) {
+      expect(sellItem(game, nullQuantity.id)).toBe(game);
+      expect(sellItem(game, nullValue.id)).toBe(game);
+    }
+    expect(stackInventoryItems(game.inventory.items)).toEqual(game.inventory.items);
+    expect(consumeStackItem([nullValue], nullValue.id)[0].stackSellValue).toBeNull();
+  });
+
+  it('bulk junk sale preserves invalid records and refuses unsafe wallet totals atomically', () => {
+    const malformed = JSON.parse(JSON.stringify({ ...gear('bad-value', {}), stackSellValue: null }));
+    const huge = gear('unsafe-value', {}, { value: Number.MAX_VALUE });
+    let game = setInventoryPolicy(inventoryGame([malformed, huge], { mode: 'town' }), { autoEquip: false });
+    expect(junkItemsForSale(game)).toEqual([]);
+    expect(sellJunkItems(game)).toBe(game);
+    game = { ...game, inventory: { capacity: 36, gold: Number.MAX_SAFE_INTEGER - 1, items: [gear('junk', {})] } };
+    expect(sellJunkItems(game)).toBe(game);
+    expect(sellJunkItems({ ...game, inventory: { ...game.inventory, gold: 0.5 } }).inventory.items).toHaveLength(1);
   });
 
   it('conserves legacy value when auto care splits reserves between pack and stash', () => {

@@ -35,7 +35,7 @@ describe('one shared town portal resource', () => {
 
   it('consumes the explicitly selected stack, never a different one on stale item IDs', () => {
     const first = supply('town-portal', 2);
-    const selected = supply('town-portal', 1, { value: 100 });
+    const selected = supply('town-portal', 1, { displayName: 'Ancient Portal Scroll', value: 100 });
     const game = inventoryGame([first, selected]);
     expect(useTownPortal(game, 'missing')).toBe(game);
     const next = useConsumable(game, selected.id);

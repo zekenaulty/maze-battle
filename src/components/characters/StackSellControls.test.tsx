@@ -63,7 +63,7 @@ describe('stack sale controls', () => {
     expect(onSell).not.toHaveBeenCalled();
   });
 
-  it.each([NaN, Infinity, -1])('rejects invalid quote %s and exposes an accessible reason', (price) => {
+  it.each([NaN, Infinity, -1, 0, 1.5])('rejects invalid quote %s and exposes an accessible reason', (price) => {
     const onSell = vi.fn();
     render(<StackSellControls item={herb} getTotal={(amount) => amount === 5 ? price : 4} onSell={onSell} />);
     for (const button of screen.getAllByRole('button')) {

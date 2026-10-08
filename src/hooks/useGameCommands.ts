@@ -33,11 +33,7 @@ export function useGameCommands(transition: GameTransition) {
       equip: (actorId: string, id: string) => run('equip', g => equipItem(g, actorId, id)),
       unequip: (actorId: string, slot: EquipmentSlot) => run('unequip', g => unequipItem(g, actorId, slot)),
       useItem: (id: string, actorId?: string) => run('use-item', g => useConsumable(g, id, actorId)),
-      sell: (id: string, amount = 1) => run('sell', g => {
-        // The integrated domain validates the requested amount against the current stack.
-        const sellAmount: (game: GameState, itemId: string, quantity?: number) => GameState = sellItem;
-        return sellAmount(g, id, amount);
-      }),
+      sell: (id: string, amount = 1) => run('sell', g => sellItem(g, id, amount)),
       sellJunk: () => run('sell-junk', sellJunkItems),
       stash: (id: string) => run('stash', g => stashItem(g, id)),
       withdraw: (id: string) => run('withdraw', g => withdrawStashItem(g, id)),

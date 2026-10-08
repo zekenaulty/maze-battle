@@ -51,18 +51,18 @@ export function junkItemsForSale(game: GameState, scope: InventoryScope = 'all',
   const ambiguous = ambiguousItemIds(game);
   const candidates = scope === 'pack' ? game.inventory.items : scope === 'stash' ? game.stash.items : owned;
   return candidates.filter((item) => isEquipmentItem(item) && !item.locked && !isItemEquipped(game, item.id) && !ambiguous.has(item.id)
-    && Number.isFinite(item.value) && item.value >= 0 && itemQuantity(item) > 0
+    && getSellValue(item, itemQuantity(item)) > 0
     && !retainGearForParty(game.party, item, owned, policy));
 }
 
 export function sellJunkItems(game: GameState, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
-  if (game.mode !== 'town' || !Number.isFinite(game.inventory.gold) || game.inventory.gold < 0) return game;
+  if (game.mode !== 'town' || !Number.isSafeInteger(game.inventory.gold) || game.inventory.gold < 0) return game;
   const next = normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(game, policy) : game;
   const junk = junkItemsForSale(next, 'all', policy);
   if (junk.length === 0) return next;
   const sold = new Set(junk);
   const gold = junk.reduce((total, item) => total + getSellValue(item, itemQuantity(item)), 0);
-  if (!Number.isFinite(next.inventory.gold + gold)) return next;
+  if (!Number.isSafeInteger(gold) || !Number.isSafeInteger(next.inventory.gold + gold)) return next;
   return {
     ...next,
     inventory: { ...next.inventory, gold: next.inventory.gold + gold, items: next.inventory.items.filter((item) => !sold.has(item)) },

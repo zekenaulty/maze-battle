@@ -2,15 +2,13 @@ import type { ItemInstance } from '../types';
 import { duplicateItemIds } from './itemOwnership';
 import { getSellValue } from './itemValue';
 import { occupiedItemSlots } from './packCapacity';
+import { itemQuantity } from './itemQuantity';
+
+export { itemQuantity } from './itemQuantity';
 
 export interface ItemContainer {
   capacity: number;
   items: ItemInstance[];
-}
-
-export function itemQuantity(item: ItemInstance): number {
-  const quantity = item.quantity === undefined ? 1 : item.quantity;
-  return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0;
 }
 
 export function isStackableItem(item: ItemInstance): boolean {
@@ -67,7 +65,8 @@ export function consumeStackItem(items: ItemInstance[], itemId: string, amount =
   return items.flatMap((item) => {
     if (item.id !== itemId) return [item];
     const quantity = itemQuantity(item) - amount;
-    const stackSellValue = item.stackSellValue === undefined ? undefined : item.stackSellValue - getSellValue(item, amount);
+    const stackSellValue = item.stackSellValue === undefined || getSellValue(item, itemQuantity(item)) === 0
+      ? undefined : item.stackSellValue - getSellValue(item, amount);
     return quantity > 0 ? [{ ...item, quantity, ...(stackSellValue === undefined ? {} : { stackSellValue }) }] : [];
   });
 }

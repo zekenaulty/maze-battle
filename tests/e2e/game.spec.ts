@@ -317,14 +317,14 @@ test('sells inventory items from town', async ({ page }) => {
   const sword = page.locator('.inventory-item').filter({ hasText: 'Odd Sword' });
   await expect(sword).toBeVisible();
   await expect(sword.getByText('Equipped: Vor - weapon')).toBeVisible();
-  await expect(sword.getByRole('button', { name: 'Sell 51g', exact: true })).toBeDisabled();
+  await expect(sword.getByRole('button', { name: 'Sell One', exact: true })).toBeDisabled();
   await characters.getByRole('tab', { name: 'Equipment', exact: true }).click();
   await characters.getByRole('button', { name: 'Unequip Odd Sword from Vor', exact: true }).click();
   await expect(characters.locator('.equipment-slot').filter({ has: page.getByRole('button', { name: 'Browse weapon', exact: true }) })).toContainText('empty');
   await characters.getByRole('tab', { name: 'Inventory', exact: true }).click();
   await expect(sword.getByText('Equipped: Vor - weapon')).toHaveCount(0);
-  await expect(sword.getByRole('button', { name: 'Sell 51g', exact: true })).toBeEnabled();
-  await sword.getByRole('button', { name: 'Sell 51g' }).click();
+  await expect(sword.getByRole('button', { name: 'Sell One 51g', exact: true })).toBeEnabled();
+  await sword.getByRole('button', { name: 'Sell One 51g' }).click();
 
   await expect(page.locator('.inventory-panel')).toContainText('Gold 56');
   await expect(page.locator('.inventory-panel')).toContainText('Pack 0/10');

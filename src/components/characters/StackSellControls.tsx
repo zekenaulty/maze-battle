@@ -21,7 +21,7 @@ export function StackSellControls({ item, getTotal, onSell, disabledReason }: St
   const onePrice = protection ? undefined : getTotal(1);
   const allPrice = protection ? undefined : getTotal(quantity);
   const selectedPrice = protection ? undefined : getTotal(amount);
-  const validPrice = (price: number | undefined) => price !== undefined && Number.isFinite(price) && price >= 0;
+  const validPrice = (price: number | undefined) => price !== undefined && Number.isSafeInteger(price) && price > 0;
   const reason = protection ?? ([onePrice, allPrice, selectedPrice].every(validPrice) ? undefined : 'Invalid sale value');
   const priceLabel = (price: number | undefined) => validPrice(price) ? `${price}g` : '';
   const sell = (count: number) => {
