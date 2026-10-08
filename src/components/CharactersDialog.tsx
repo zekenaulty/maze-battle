@@ -20,7 +20,7 @@ export interface CharactersDialogProps {
   onUnequipItem: (actorId: string, slot: EquipmentSlot) => void;
   onUseItem: (itemId: string, actorId?: string) => void;
   onAutoEquip: () => void;
-  onSellItem?: (itemId: string) => void;
+  onSellItem?: (itemId: string, amount?: number) => void;
   onStashItem?: (itemId: string) => void;
   canSellItems?: boolean;
   canStashItems?: boolean;

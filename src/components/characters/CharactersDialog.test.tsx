@@ -93,14 +93,14 @@ describe('CharactersDialog', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'absent' } });
     expect(screen.getByText('No items match these filters.')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Reset inventory filters' }));
-    expect(screen.getByRole('status')).toHaveTextContent('2 of 2 items');
+    expect(screen.getByRole('status', { name: 'Inventory results' })).toHaveTextContent('2 of 2 items');
     fireEvent.click(screen.getByText('Filters and sort'));
     fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'consumable' } });
-    expect(screen.getByRole('status')).toHaveTextContent('1 of 2 items');
+    expect(screen.getByRole('status', { name: 'Inventory results' })).toHaveTextContent('1 of 2 items');
     fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Use' }));
     expect(props.onUseItem).toHaveBeenCalledWith('herb', 'zyth');
-    expect(screen.getByRole('button', { name: 'Sell 15g' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Sell One 15g' })).toBeEnabled();
   });
 
   it('filters authoritative recommendations for the selected actor and includes stash identities', () => {

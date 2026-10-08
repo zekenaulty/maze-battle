@@ -2,7 +2,9 @@ import type { ActorState, EquipmentSlot, InventoryState, ItemCategory, ItemRarit
 import type { GearDecision } from '../domain/items/gearEvaluation';
 import { getItemTooltip } from '../domain/items/itemDetails';
 import { getSellValue } from '../domain/items/inventory';
+import { duplicateItemIds } from '../domain/items/itemOwnership';
 import { compareItem, getEquippedItemOwner } from './inventoryComparison';
+import { saleDisabledReason } from './inventorySales';
 
 export interface InventoryFilters {
   query: string;
@@ -20,15 +22,18 @@ const DECISION_RANK: Record<GearDecision, number> = { upgrade: 3, equivalent: 2,
 export function projectInventory(inventory: InventoryState, party: ActorState[], selectedActor: ActorState, filters: InventoryFilters, stash?: StashState) {
   const terms = filters.query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   const ownedInventory = stash ? { ...inventory, items: [...inventory.items, ...stash.items] } : inventory;
+  const ambiguous = duplicateItemIds(ownedInventory.items);
   const occurrences = new Map<string, number>();
   const rows = inventory.items.map((item) => {
     // Assign display identity before filtering/sorting; domain actions still use item.id.
     const occurrence = occurrences.get(item.id) ?? 0;
     occurrences.set(item.id, occurrence + 1);
+    const owner = getEquippedItemOwner(item.id, party);
     return {
       displayKey: JSON.stringify([item.id, occurrence]),
       item,
-      owner: getEquippedItemOwner(item.id, party),
+      owner,
+      saleDisabledReason: saleDisabledReason(item, Boolean(owner), ambiguous.has(item.id)),
       comparison: compareItem(item, selectedActor, ownedInventory),
       sellValue: getSellValue(item),
     };

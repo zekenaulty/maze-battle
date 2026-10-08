@@ -33,7 +33,7 @@ export function InventoryPanel(props: InventoryPanelProps) {
     </div>
     <InventoryFilters filters={activeFilters} onChange={(patch) => { if (patch.slot !== undefined) onSlotFilterChange(patch.slot); setFilters({ ...filters, ...patch }); }} />
     {props.inventoryPolicy && <InventoryPolicyControls policy={props.inventoryPolicy} onChange={props.onInventoryPolicyChange} />}
-    <div className="inventory-result-count" role="status">{rows.length} of {inventory.items.length} items</div>
+    <div className="inventory-result-count" role="status" aria-label="Inventory results">{rows.length} of {inventory.items.length} items</div>
     <div className="inventory-list">
       {rows.map((row) => <InventoryItem key={row.displayKey} row={row} {...props} />)}
       {rows.length === 0 && <p className="empty-state">{inventory.items.length === 0 ? 'The pack is empty.' : 'No items match these filters.'}</p>}
