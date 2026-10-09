@@ -14,7 +14,7 @@ export function observeStream(checkpoint: StreamCheckpoint, room: StreamRoom, pa
     openedChestIds: Object.values(page.chests).filter(chest => chest.opened).map(chest => chest.id) };
   const observed = observeExpedition(local, resolvedSpaceSpec(room.space, room.connections), geometry);
   const visible = new Set(observed.visibleCells.map(addressKey));
-  return { ...observed, version: 2, topologyRevision: checkpoint.topologyRevision,
+  return { ...observed, version: 2, phase: checkpoint.phase, topologyRevision: checkpoint.topologyRevision,
     visibleFrontiers: room.sockets.filter(socket => socket.status === 'pending' && visible.has(addressKey(socket.source)))
       .map(socket => ({ ...socket.source, id: socket.id, direction: socket.direction, observedAt: checkpoint.revision })) };
 }
