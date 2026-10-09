@@ -10,6 +10,7 @@ export function useExpedition() {
   const runtime = useRef<ExpeditionRuntime | undefined>(undefined);
   const mounted = useRef(false);
   const auto = useRef(false);
+  const intent = useRef(0);
   const [view, setView] = useState<ExpeditionView>();
   const [playing, setPlaying] = useState(false);
   const [delay, setDelay] = useState(160);
@@ -33,6 +34,7 @@ export function useExpedition() {
   }, []);
 
   const stop = useCallback(() => {
+    intent.current++;
     auto.current = false;
     setPlaying(false);
     void runtime.current?.takeOver().catch(reason => {
@@ -43,8 +45,10 @@ export function useExpedition() {
     if (manual) stop();
     const state = runtime.current;
     if (!state || state.faulted) return;
+    const generation = intent.current;
     const result = await state.dispatch(command).catch(reason => ({ disposition: 'unresolved', reason: String(reason) }));
-    if (!mounted.current) return;
+    if (!mounted.current || runtime.current !== state || generation !== intent.current) return;
+    if (result.disposition === 'unavailable' && !state.faulted) return;
     setMessage(result.reason);
     if (result.disposition === 'applied' && command.type === 'move') setFacing(command.direction);
     if (result.disposition !== 'applied' || state.checkpoint.phase === 'complete') stop();

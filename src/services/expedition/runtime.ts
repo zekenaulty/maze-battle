@@ -6,6 +6,7 @@ import { SpaceResidency } from '../../domain/expedition/residency';
 import { ObservedRoutePlanner, type RouteKnowledgeChanges } from '../../domain/expedition/routePlanner';
 import type { ExpeditionCheckpoint, ExpeditionCommand, ExpeditionPlan } from '../../domain/expedition/types';
 import { beginExpeditionAction, claimExpeditionSession, settleExpeditionAction, type ExpeditionOwner } from '../../persistence/expeditionActionRepository';
+import { canonical, loadExpedition } from '../../persistence/expeditionRepository';
 import { EXPEDITION_SLOT } from './restore';
 
 export const RESIDENT_CELL_BUDGET = 512;
@@ -47,12 +48,17 @@ export class ExpeditionRuntime {
 
   async dispatch(command: ExpeditionCommand): Promise<ExpeditionActionResult> {
     const controlVersion = this.controlVersion;
+    const expectedRevision = this.checkpoint.revision;
     await this.control;
     const request: ExpeditionActionRequest = { version: 1, sessionId: this.owner.sessionId, epoch: this.owner.epoch,
-      actionId: crypto.randomUUID(), expectedRevision: this.checkpoint.revision, command };
+      actionId: crypto.randomUUID(), expectedRevision, command };
     const refused = (reason: string): ExpeditionActionResult => ({ actionId: request.actionId, disposition: 'unavailable',
       beforeRevision: request.expectedRevision, afterRevision: request.expectedRevision, reason });
     if (this.faulted || controlVersion !== this.controlVersion) return refused('Control changed.');
+    if (expectedRevision !== this.checkpoint.revision) {
+      this.planner.reset();
+      return refused('Checkpoint changed while waiting for control. Replan.');
+    }
     if (this.active) return refused('An action is already in flight.');
     this.active = this.execute(request);
     try { return await this.active; }
@@ -70,6 +76,18 @@ export class ExpeditionRuntime {
         beforeRevision: request.expectedRevision, afterRevision: checkpoint.revision, reason: transition.reason,
         observation: observeExpedition(checkpoint, spec, this.cache.get(spec)) };
       const receipt = await settleExpeditionAction(EXPEDITION_SLOT, request, { checkpoint, result });
+      if (canonical(receipt.result) !== canonical(result)) {
+        // A new owner may have reconciled this reservation while we computed.
+        // The original durable receipt wins; the tentative transition has no authority.
+        this.faulted = true;
+        this.planner.reset();
+        const saved = await loadExpedition(EXPEDITION_SLOT);
+        if (!saved) throw new Error('Unable to reconcile the saved checkpoint.');
+        this.checkpoint = saved.checkpoint;
+        this.changes = undefined;
+        this.publish(saved);
+        return receipt.result;
+      }
       this.checkpoint = checkpoint;
       this.changes = transition.changes;
       this.publish({ plan: this.plan, checkpoint });

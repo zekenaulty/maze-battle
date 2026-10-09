@@ -16,7 +16,10 @@ vi.mock('../../persistence/expeditionActionRepository', () => ({
   beginExpeditionAction: vi.fn(), claimExpeditionSession: vi.fn(),
   loadExpeditionAction: vi.fn(), loadExpeditionSession: vi.fn(), settleExpeditionAction: vi.fn(),
 }));
-vi.mock('../../persistence/expeditionRepository', () => ({ loadExpedition: vi.fn(), saveExpedition: vi.fn() }));
+vi.mock('../../persistence/expeditionRepository', async importOriginal => ({
+  ...await importOriginal<typeof import('../../persistence/expeditionRepository')>(),
+  loadExpedition: vi.fn(), saveExpedition: vi.fn(),
+}));
 
 function gate() {
   let resolve!: () => void;
@@ -60,10 +63,9 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-// These invariants fail at integration commit cdea65b. Remove .fails as each
-// production fix lands; repository I/O is mocked, runtime/restore/hook are real.
+// Repository I/O is mocked; runtime, restore and hook use production code.
 describe('integration review: deterministic control interleavings', () => {
-  it.fails('does not publish a tentative move after reload cancelled its pending receipt', async () => {
+  it('does not publish a tentative move after reload cancelled its pending receipt', async () => {
     const entered = gate();
     const release = gate();
     let receipt: DurableExpeditionReceipt;
@@ -99,7 +101,7 @@ describe('integration review: deterministic control interleavings', () => {
     expect(publish.mock.calls.every(([view]) => view.checkpoint.revision === 0)).toBe(true);
   });
 
-  it.fails('does not stamp a pre-takeover route decision with a later checkpoint revision', async () => {
+  it('does not stamp a pre-takeover route decision with a later checkpoint revision', async () => {
     const entered = gate();
     const release = gate();
     const runtime = new ExpeditionRuntime({ ...structuredClone(record), owner: session }, vi.fn());
@@ -128,7 +130,7 @@ describe('integration review: deterministic control interleavings', () => {
     expect(record.checkpoint.position).toMatchObject({ row: 0, column: 1 });
   });
 
-  it.fails('lets the latest manual key survive an earlier Control changed result', async () => {
+  it('lets the latest manual key survive an earlier Control changed result', async () => {
     const { result } = renderHook(() => useExpedition());
     await waitFor(() => expect(result.current.runtime).toBeDefined());
     const entered = gate();

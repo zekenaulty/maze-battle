@@ -28,7 +28,7 @@ Recipes pin generator version and seed; regeneration cannot depend on cache orde
 | --- | --- | --- | --- |
 | S0 | Integration lead | v2 expansion contracts added; gameplay binding pending | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
 | S1 | Ptolemy / codex/streaming-generation | Bounded macro generator and adversarial gates passed | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
-| S2 | Dewey / codex/streaming-storage | Durable action ledger integrated; paged topology in progress | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
+| S2 | Dewey / codex/streaming-storage | Paged topology and durable action ledger integrated; knowledge paging pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
 | S3 | Kant / codex/streaming-explorer | Observed-space route batches integrated; paged map pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
 | S4 | Integration lead | Durable local receipts and takeover integrated; transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
 | S5 | Integration lead + workers | First fixture passed; remaining gates open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
@@ -137,15 +137,25 @@ Implemented S0/S1 packet:
   PASS: full integrated 1,061-test / 66-file unit suite, 58 browser tests and
   production build. The subsequently added singleton-cell completion regression
   is qualified separately. Mobile 320x640 expedition screenshot inspected.
+- `746c586`: paged topology database with atomic reciprocal links, reserved-socket
+  resolution, original expansion receipts and an explicit logical UTF-8 byte quota.
+  PASS: twelve actual-IDB tests including 321 spaces, reload, races, quota rollback,
+  and rollback of topology when a later composed transaction phase fails.
+  Expansion reads 25 occupancy pages rather than all existing spaces. Byte accounting
+  includes stored keys and records, not browser-engine disk overhead.
+- Three additional control-race regressions now pass: a cancelled receipt cannot
+  publish a tentative checkpoint; superseded keys cannot cancel newer input; an old
+  route decision cannot be stamped with a new checkpoint revision. Nine expedition
+  browser cases and production build passed again after those fixes.
 
 Next integration order:
 
-1. Persist topology headers, spaces, sockets, links, occupancy pages and original
-   expansion receipts atomically, with bounded read/write sets and byte quotas.
-2. Bind observed pending sockets to bounded generation work. Unresolved sockets
+1. Bind observed pending sockets to bounded generation work. Unresolved sockets
    are not traversable doors; missing generation is not a wall or completed scope.
-3. Add a v2 gameplay checkpoint/knowledge-page transaction and durable command
+   Preparation must be a bounded, observable state transition, not a phantom move.
+2. Add a v2 gameplay checkpoint/knowledge-page transaction and durable command
    receipts. Finishing requires the sealed topology revision and complete objectives.
-4. Enable a separately saved v2 playable expedition. Preserve v1 records unchanged.
-5. Page discovered maps, add RPG systems through the same host commands, then
+   These records share the topology database/transaction, not a second commit domain.
+3. Enable a separately saved v2 playable expedition. Preserve v1 records unchanged.
+4. Page discovered maps, add RPG systems through the same host commands, then
    qualify the browser/service adapter against a fake Agentica provider.
