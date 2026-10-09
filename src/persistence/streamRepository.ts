@@ -9,6 +9,7 @@ import { DEFAULT_TOPOLOGY_QUOTA, type TopologyRoot } from './topology/types';
 import { recipeCopy, recipeScope, validId, validQuota, validRoot } from './topology/validation';
 import { loadStreamRoom, requireCurrentKnowledge, savedStreamKnowledge, streamControl, streamGeometry, streamRecord } from './streamRecords';
 import { validateStreamKnowledge } from './streamKnowledge';
+import { validateStreamEvidence } from './streamEvidence';
 import { natural, streamCheck, validateStreamCheckpoint, validateStreamControl } from './streamValidation';
 import type { StreamSnapshot } from './streamTypes';
 
@@ -19,6 +20,7 @@ async function snapshotAt(tx: TopologyTransaction, slot: string, root: TopologyR
   const room = await loadStreamRoom(tx, slot, checkpoint.position.spaceId, root.header, checkpoint.revision);
   const page = requireCurrentKnowledge(checkpoint, room);
   const geometry = streamGeometry()(room.space);
+  validateStreamEvidence(room, page, geometry);
   streamCheck(geometry.cells.some(cell => cell.row === checkpoint.position.row && cell.column === checkpoint.position.column), 'checkpoint is not on walkable floor');
   return { checkpoint, room, observation: observeStream(checkpoint, room, page, geometry) };
 }

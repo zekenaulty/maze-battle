@@ -7,6 +7,7 @@ import type { TopologyHeader } from '../domain/expedition/topology/types';
 import type { TopologyTransaction } from './topology/database';
 import { validId, validRoot, validSocket, validSpace } from './topology/validation';
 import { validateStreamKnowledge } from './streamKnowledge';
+import { validateStreamEvidence } from './streamEvidence';
 import { streamCheck, validateStreamCheckpoint, validateStreamControl } from './streamValidation';
 import type { StreamGeometryReader } from './streamTypes';
 
@@ -48,7 +49,9 @@ export async function loadStreamRoom(tx: TopologyTransaction, slot: string, id: 
     room.sockets.push(socket);
   }
   const knowledge = await savedStreamKnowledge(tx, slot, id, revision);
-  if (knowledge !== undefined) { validateStreamKnowledge(knowledge, id, revision, room); room.knowledge = knowledge; }
+  if (knowledge !== undefined) {
+    validateStreamKnowledge(knowledge, id, revision, room); validateStreamEvidence(room, knowledge); room.knowledge = knowledge;
+  }
   return room;
 }
 
@@ -64,5 +67,8 @@ export function requireCurrentKnowledge(checkpoint: StreamCheckpoint, room: Stre
   streamCheck(room.space.spec.id === checkpoint.position.spaceId && room.knowledge !== undefined, 'missing current observed page');
   streamCheck(room.knowledge.revision === checkpoint.revision
     && room.knowledge.cells[addressKey(checkpoint.position)]?.observedAt === checkpoint.revision, 'current page and checkpoint revision disagree');
+  streamCheck(checkpoint.collectedChests >= Object.values(room.knowledge.chests).filter(chest => chest.opened).length
+    && checkpoint.clearedSpaces >= Number(room.knowledge.cleared)
+    && (checkpoint.phase !== 'complete' || room.knowledge.cleared), 'current page progress disagrees with checkpoint counters');
   return room.knowledge;
 }

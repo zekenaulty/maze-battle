@@ -3,9 +3,11 @@ import type { StreamActionRequest, StreamCheckpoint, StreamRoom, StreamTransitio
 import type { TopologyHeader } from '../domain/expedition/topology/types';
 import { validateStreamKnowledge } from './streamKnowledge';
 import { streamCheck, validateStreamCheckpoint } from './streamValidation';
+import { validateStreamEvidence } from './streamEvidence';
+import type { StreamGeometryReader } from './streamTypes';
 
 export function validateStreamTransition(before: StreamCheckpoint, request: StreamActionRequest, transition: StreamTransition,
-  header: TopologyHeader, rooms: Map<string, StreamRoom>, expansions: number, expectedExpansions: number) {
+  header: TopologyHeader, rooms: Map<string, StreamRoom>, expansions: number, expectedExpansions: number, geometry: StreamGeometryReader) {
   const next = transition.checkpoint;
   validateStreamCheckpoint(next, header);
   streamCheck(typeof transition.applied === 'boolean' && typeof transition.reason === 'string' && transition.reason.length <= 2048
@@ -26,20 +28,28 @@ export function validateStreamTransition(before: StreamCheckpoint, request: Stre
   streamCheck(command === 'move' || sameAddress(next.position, before.position), 'non-move changed position');
   streamCheck(next.phase === (command === 'finish' ? 'complete' : before.phase), 'unexpected phase change');
   const ids = new Set<string>();
+  let newlyCleared = 0;
   for (const page of transition.pages) {
     const room = rooms.get(page.spaceId);
     streamCheck(room && !ids.has(page.spaceId) && page.revision === next.revision, 'unloaded, repeated or stale knowledge page');
     ids.add(page.spaceId);
     validateStreamKnowledge(page, room.space.spec.id, next.revision, room);
+    validateStreamEvidence(room, page, geometry(room.space));
     const prior = room.knowledge;
+    newlyCleared += Number(page.cleared && !prior?.cleared);
     if (prior) {
       for (const collection of ['cells', 'openings', 'chests'] as const) {
         streamCheck(Object.keys(prior[collection]).every(key => Object.hasOwn(page[collection], key)), 'forgot observed evidence');
       }
+      streamCheck(Object.values(prior.openings).every(port => !port.destination
+        || (page.openings[port.id].destination && sameAddress(port.destination, page.openings[port.id].destination!))), 'forgot learned destination');
       streamCheck(Object.values(prior.chests).every(chest => !chest.opened || page.chests[chest.id].opened)
         && prior.completedExits.every(id => page.completedExits.includes(id)) && (!prior.cleared || page.cleared)
         && (prior.parentOpeningId === undefined || prior.parentOpeningId === page.parentOpeningId), 'knowledge progress regressed');
     }
   }
   streamCheck(ids.has(next.position.spaceId), 'transition omitted current knowledge page');
+  const firstVisit = before.position.spaceId !== next.position.spaceId && !rooms.get(next.position.spaceId)?.knowledge;
+  streamCheck(next.visitedSpaces === before.visitedSpaces + Number(firstVisit)
+    && next.clearedSpaces === before.clearedSpaces + newlyCleared, 'transition progress disagrees with saved pages');
 }

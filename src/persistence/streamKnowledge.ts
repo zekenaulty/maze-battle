@@ -1,4 +1,5 @@
 import { addressKey } from '../domain/expedition/address';
+import { movePosition, opposite } from '../domain/maze/movement';
 import type { StreamKnowledgePage, StreamRoom } from '../domain/expedition/streaming/types';
 import { direction, natural, object, only, streamCheck, validAddress } from './streamValidation';
 import { validId } from './topology/validation';
@@ -39,6 +40,15 @@ export function validateStreamKnowledge(page: StreamKnowledgePage, id: string, r
       }
     }
   }
+  for (const cell of Object.values(page.cells)) for (const direction of cell.links) {
+    const next = { ...movePosition(cell, direction), spaceId: id };
+    validAddress(next);
+    if (room) streamCheck(next.row < room.space.spec.rows && next.column < room.space.spec.columns, 'known link leaves room');
+    const observed = page.cells[addressKey(next)];
+    streamCheck(!observed || observed.links.includes(opposite(direction)), 'nonreciprocal known cell links');
+  }
   for (const exit of page.completedExits) streamCheck(Object.hasOwn(page.openings, exit) && page.openings[exit].destination, 'unknown completed exit');
-  if (page.parentOpeningId !== undefined) streamCheck(Object.hasOwn(page.openings, page.parentOpeningId) && page.openings[page.parentOpeningId].destination, 'unknown parent opening');
+  if (page.parentOpeningId !== undefined) streamCheck(id !== 'entry' && Object.hasOwn(page.openings, page.parentOpeningId)
+    && page.openings[page.parentOpeningId].destination && !page.completedExits.includes(page.parentOpeningId), 'invalid parent opening');
+  else streamCheck(id === 'entry', 'missing parent opening');
 }

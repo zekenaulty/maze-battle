@@ -39,8 +39,10 @@ export function validateStreamCheckpoint(value: StreamCheckpoint, header: Topolo
     && value.version === 2 && value.worldId === header.recipe.worldId && value.floorId === header.recipe.floorId && value.scopeId === header.scopeId
     && natural(value.revision) && value.topologyRevision === header.revision && ['exploring', 'complete'].includes(value.phase)
     && natural(value.moves) && value.moves <= value.revision && natural(value.visitedSpaces) && value.visitedSpaces >= 1
+    && value.visitedSpaces <= value.moves + 1 && value.moves + value.collectedChests + value.topologyRevision <= value.revision
     && value.visitedSpaces <= 2 * header.rooms - 1 && natural(value.clearedSpaces) && value.clearedSpaces <= value.visitedSpaces
-    && natural(value.collectedChests) && value.collectedChests < header.rooms, 'invalid checkpoint identity or counters');
+    && natural(value.collectedChests) && value.collectedChests < header.rooms
+    && value.collectedChests <= Math.floor((value.visitedSpaces - 1) / 2), 'invalid checkpoint identity or counters');
   validAddress(value.position); validAddress(value.home);
   streamCheck(sameAddress(value.home, header.start), 'home changed');
   if (value.phase === 'complete') streamCheck(header.seal && sameAddress(value.position, value.home)

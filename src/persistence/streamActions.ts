@@ -6,6 +6,7 @@ import { validId } from './topology/validation';
 import { loadStreamRoom, requireCurrentKnowledge, streamControl, streamGeometry, streamRecord } from './streamRecords';
 import { streamActionSignature, streamCheck, validateStreamReceipt } from './streamValidation';
 import { validateStreamTransition } from './streamTransitions';
+import { validateStreamEvidence } from './streamEvidence';
 import type { StreamGeometryReader } from './streamTypes';
 
 async function actionAt(tx: TopologyTransaction, slot: string, request: StreamActionRequest | string, checkpoint: StreamCheckpoint) {
@@ -49,10 +50,14 @@ export async function executeStreamAction(slot: string, request: StreamActionReq
     let header = root.header;
     let expansions = 0;
     const rooms = new Map<string, StreamRoom>();
+    const geometry = streamGeometry(geometryReader);
     const loadRoom = async (id: string) => {
       streamCheck(rooms.has(id) || rooms.size < 2, 'command exceeded source/destination room budget');
       // Re-read staged records: preparing can resolve an index already loaded above.
       const room = await loadStreamRoom(tx, slot, id, header, checkpoint.revision);
+      const source = rooms.get(checkpoint.position.spaceId);
+      streamCheck(room.knowledge || !Object.values(source?.knowledge?.openings ?? {}).some(port => port.destination?.spaceId === id), 'previously visited room has lost its knowledge page');
+      if (room.knowledge) validateStreamEvidence(room, room.knowledge, geometry(room.space));
       rooms.set(id, room);
       return structuredClone(room);
     };
@@ -61,7 +66,6 @@ export async function executeStreamAction(slot: string, request: StreamActionReq
     const command = input.command;
     const expectedExpansions = command.type === 'prepare'
       && current.sockets.some(socket => socket.id === command.frontierId && socket.status === 'pending') ? 1 : 0;
-    const geometry = streamGeometry(geometryReader);
     const transition = await applyStreamCommand({ header, checkpoint: structuredClone(checkpoint), current, loadRoom,
       geometry: space => { streamCheck(rooms.has(space.spec.id), 'geometry requested outside loaded rooms'); return geometry(space); },
       prepareNext: async () => {
@@ -72,7 +76,7 @@ export async function executeStreamAction(slot: string, request: StreamActionReq
         return structuredClone(header);
       },
     }, input.command);
-    validateStreamTransition(checkpoint, input, transition, header, rooms, expansions, expectedExpansions);
+    validateStreamTransition(checkpoint, input, transition, header, rooms, expansions, expectedExpansions, geometry);
     for (const page of transition.pages) await tx.put('streamKnowledge', [slot, page.spaceId], page);
     if (transition.applied) await tx.put('streamCheckpoints', [slot], transition.checkpoint);
     const result: StreamActionResult = { actionId: input.actionId, disposition: transition.applied ? 'applied' : 'refused',
