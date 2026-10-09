@@ -8,9 +8,7 @@ import { DIRECTED_VERSION } from './types';
 import type { DirectedWorld, ObservationReceipt, WorldEvent } from './types';
 import { moveDirectedWorld } from './world';
 
-export function createDirectedFixture(options: { hiddenTrap?: boolean } = {}): {
-  session: DirectedSession; observations: ObservationReceipt[]; events: WorldEvent[];
-} {
+export function createDirectedWorld(options: { hiddenTrap?: boolean } = {}): DirectedWorld {
   const world: DirectedWorld = {
     id: 'W1', floorId: 'F1', revision: 0,
     spaces: {
@@ -43,6 +41,13 @@ export function createDirectedFixture(options: { hiddenTrap?: boolean } = {}): {
       if (next) cell.exits[direction] = { ...next };
     }
   }
+  return world;
+}
+
+export function createDirectedFixture(options: { hiddenTrap?: boolean } = {}): {
+  session: DirectedSession; observations: ObservationReceipt[]; events: WorldEvent[];
+} {
+  const world = createDirectedWorld(options);
   let session: DirectedSession = {
     version: DIRECTED_VERSION, revision: 0, epoch: 0, world,
     actor: { id: 'P1', position: { spaceId: 'H', row: 2, column: 2 } },
@@ -56,9 +61,10 @@ export function createDirectedFixture(options: { hiddenTrap?: boolean } = {}): {
     session = { ...session, knowledge: rememberDirected(session.knowledge, observation) };
   };
   observe();
-  const xs = [...Array.from({ length: 8 }, (_, index) => 9 - index), ...Array.from({ length: 8 }, (_, index) => 3 + index)];
-  for (const x of xs) {
-    const moved = moveDirectedWorld(session.world, session.actor, coordinates.get(`${x},2`)!);
+  for (let step = 0; step < 16; step++) {
+    const direction = step < 8 ? 'west' : 'east';
+    const destination = session.world.cells[addressKey(session.actor.position)].exits[direction]!;
+    const moved = moveDirectedWorld(session.world, session.actor, destination);
     session = { ...session, revision: session.revision + 1, world: moved.world, actor: moved.actor };
     events.push(moved.event);
     observe();

@@ -112,9 +112,13 @@
     },
     "C6": {
       "implementationLevel": "integration-acceptance-only", "runtimeQualified": false,
-      "scope": "AP03 durable operation acceptance, not persistence execution in this corpus; NS7 service restart deferred.",
+      "scope": "Domain first-step/cancel commands execute from an explicitly claimed fixture state; durable replay remains AP03 acceptance-only and NS7 service restart is deferred.",
       "lostAcknowledgement": {
-        "request": { "attemptId": "example:step:1", "owner": "example:owner", "epoch": 0, "expectedRevision": 17, "command": { "type": "step", "operationId": "example:operation:1", "sequence": 1 } },
+        "setup": {
+          "claim": { "owner": "example:owner", "epoch": 1, "revision": 17 },
+          "navigate": { "type": "navigate", "operationId": "example:operation:1", "target": { "kind": "feature", "featureId": "V", "arrival": "adjacent" } }
+        },
+        "request": { "attemptId": "example:step:1", "owner": "example:owner", "epoch": 1, "expectedRevision": 18, "command": { "type": "step", "operationId": "example:operation:1", "sequence": 0 } },
         "fault": "acknowledgement-dropped-after-commit", "retry": "identical-request-and-attempt", "expected": { "sameReceipt": true, "additionalEffects": 0 }
       },
       "cancel": { "command": { "type": "cancel", "operationId": "example:operation:1" }, "expectedOperationStatus": "cancelled", "expectedFurtherSteps": 0, "committedEffects": "retained" },

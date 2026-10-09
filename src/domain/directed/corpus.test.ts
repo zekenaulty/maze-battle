@@ -4,14 +4,19 @@ import { URL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { addressKey } from '../expedition/address';
 import type { CellAddress } from '../expedition/types';
-import { createDirectedFixture } from './fixture';
+import { createDirectedFixture, createDirectedWorld } from './fixture';
 import type { AnchorProposal, InspectionDisclosure, InspectionReceipt } from './futureContracts';
 import { emptyDirectedKnowledge, rememberDirected } from './knowledge';
 import type { DirectedCommand, DirectedRequest, NavigationTarget } from './operationTypes';
 import { observeDirected } from './perception';
+import { applyDirectedCommand } from './transition';
 import { DIRECTED_LIMITS, DIRECTED_VERSION } from './types';
 import type { DirectedSpace } from './types';
 import { canTraverseDirected, moveDirectedWorld } from './world';
+
+interface CorpusCase {
+  implementationLevel: string; runtimeQualified: boolean; scope: string; expectedNegativeOutcomes: string[];
+}
 
 interface Corpus {
   version: string; directedVersion: string; acceptanceRevision: string; contractsRevision: string;
@@ -30,7 +35,15 @@ interface Corpus {
   };
   examples: { implementationLevel: string; runtimeQualified: boolean; inspectionReceipts: InspectionReceipt[];
     anchorProposal: AnchorProposal; impossibleAnchorProposal: AnchorProposal };
-  cases: Record<string, { implementationLevel: string; runtimeQualified: boolean; scope: string; expectedNegativeOutcomes: string[] }>;
+  cases: Record<string, CorpusCase> & {
+    C6: CorpusCase & {
+      lostAcknowledgement: {
+        setup: { claim: { owner: string; epoch: number; revision: number }; navigate: Extract<DirectedCommand, { type: 'navigate' }> };
+        request: DirectedRequest;
+      };
+      cancel: { command: Extract<DirectedCommand, { type: 'cancel' }> };
+    };
+  };
 }
 
 const source = readFileSync(new URL('../../../docs/fixtures/directed-corpus-v1.json', import.meta.url), 'utf8');
@@ -94,7 +107,7 @@ describe('NS0 versioned proof corpus', () => {
   it('replays the exact legal corpus prelude and independently matches its observed footprints', () => {
     const { session, observations, events } = createDirectedFixture();
     const path = corpus.prelude.localPath.map(([spaceId, row, column]) => ({ spaceId, row, column }));
-    let world = { ...structuredClone(session.world), revision: 0 };
+    let world = createDirectedWorld();
     let actor = { id: corpus.identities.observerId, position: path[0] };
     let knowledge = emptyDirectedKnowledge(world.id, actor.id);
     expect(events).toHaveLength(corpus.prelude.events);
@@ -106,9 +119,10 @@ describe('NS0 versioned proof corpus', () => {
     })).toEqual(corpus.prelude.globalPath);
     for (let index = 0; index < path.length; index++) {
       if (index) {
-        expect(canTraverseDirected(world, actor.position, path[index])).toBe(true);
-        const moved = moveDirectedWorld(world, actor, path[index]);
-        expect(moved.event).toEqual(events[index - 1]);
+        const event = events[index - 1];
+        expect(canTraverseDirected(world, actor.position, event.position!)).toBe(true);
+        const moved = moveDirectedWorld(world, actor, event.position!);
+        expect(moved.event).toEqual(event);
         ({ world, actor } = moved);
       }
       const receipt = observeDirected(world, actor, knowledge, 'prelude');
@@ -173,8 +187,8 @@ describe('NS0 versioned proof corpus', () => {
       staleRememberedDoor: { featureId: 'D', rememberedState: 'locked', hostState: 'open',
         observerAt: { spaceId: 'L', row: 2, column: 2 }, afterRemoteLook: 'locked', afterLocalLook: 'open' },
     });
-    const request = { attemptId: 'example:step:1', owner: 'example:owner', epoch: 0, expectedRevision: 17,
-      command: { type: 'step', operationId: 'example:operation:1', sequence: 1 } } satisfies DirectedRequest;
+    const request = { attemptId: 'example:step:1', owner: 'example:owner', epoch: 1, expectedRevision: 18,
+      command: { type: 'step', operationId: 'example:operation:1', sequence: 0 } } satisfies DirectedRequest;
     const command = { type: 'cancel', operationId: 'example:operation:1' } satisfies DirectedCommand;
     expect(corpus.cases.C6).toMatchObject({
       lostAcknowledgement: { request, fault: 'acknowledgement-dropped-after-commit', retry: 'identical-request-and-attempt',
@@ -182,5 +196,39 @@ describe('NS0 versioned proof corpus', () => {
       cancel: { command, expectedOperationStatus: 'cancelled', expectedFurtherSteps: 0, committedEffects: 'retained' },
     });
     expect(corpus.cases.C3).toMatchObject({ remoteAudio: { grantsDoorState: false, grantsCausalLink: false } });
+  });
+
+  it('executes the C6 first step and cancel from the declared claimed prelude, without asserting durable replay', () => {
+    const { session } = createDirectedFixture();
+    const { setup, request } = corpus.cases.C6.lostAcknowledgement;
+    // Model claimDirectedSave's first-owner transition; IDB/replay qualification belongs to AP03.
+    const claimed = { ...session, owner: setup.claim.owner, epoch: session.epoch + 1, revision: session.revision + 1 };
+    expect(session).toMatchObject({ revision: 16, epoch: 0 });
+    expect(session.owner).toBeUndefined();
+    expect(claimed).toMatchObject(setup.claim);
+    const started = applyDirectedCommand(claimed, setup.navigate, 1000);
+    expect(started.outcome.status).toBe('applied');
+    expect(started.session).toMatchObject({ revision: 18, epoch: 1, operation: { status: 'running', nextStep: 0 } });
+    expect(request).toMatchObject({
+      owner: started.session.owner, epoch: started.session.epoch, expectedRevision: started.session.revision,
+      command: { type: 'step', operationId: started.session.operation!.id, sequence: started.session.operation!.nextStep },
+    });
+    const skipped = applyDirectedCommand(started.session, { type: 'step', operationId: setup.navigate.operationId, sequence: 1 }, 1001);
+    expect(skipped.outcome.status).toBe('refused');
+    expect(skipped.events).toEqual([]);
+    const moved = applyDirectedCommand(started.session, request.command, 1001);
+    expect(moved.outcome.status).toBe('applied');
+    expect(moved.events).toHaveLength(1);
+    expect(moved.events[0]).toMatchObject({ type: 'move', revision: session.world.revision + 1 });
+    expect(moved.session.actor.position).toEqual(started.session.operation!.route[0]);
+    expect(moved.session.revision).toBe(request.expectedRevision + 1);
+    expect(moved.session.operation).toMatchObject({ steps: 1, nextStep: 1 });
+    const cancelled = applyDirectedCommand(moved.session, corpus.cases.C6.cancel.command, 1002);
+    expect(cancelled.outcome.status).toBe('applied');
+    expect(cancelled.session.operation?.status).toBe('cancelled');
+    expect(cancelled.session.world).toEqual(moved.session.world);
+    expect(cancelled.events).toEqual([]);
+    expect(applyDirectedCommand(cancelled.session, { type: 'step', operationId: setup.navigate.operationId, sequence: 1 }, 1003)
+      .outcome.status).toBe('refused');
   });
 });
