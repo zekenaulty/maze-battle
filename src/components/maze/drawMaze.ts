@@ -42,6 +42,8 @@ interface MazeRenderOptions {
   camera?: MazeCameraState;
   mode?: MazeRenderMode;
   visibility?: MazeVisibilitySnapshot;
+  viewport?: MazeViewport;
+  showStairs?: boolean;
 }
 
 interface RenderBounds {
@@ -114,7 +116,7 @@ export function drawMaze(
     return;
   }
 
-  const viewport = createMazeCamera(maze, size, options.camera ?? DEFAULT_MAZE_CAMERA);
+  const viewport = options.viewport ?? createMazeCamera(maze, size, options.camera ?? DEFAULT_MAZE_CAMERA);
   const cellSize = cameraCellSize(size, viewport);
   if (cellSize < 4) {
     return;
@@ -131,10 +133,10 @@ export function drawMaze(
   drawLayoutOverlays(context, maze, cellSize, offsetX, offsetY, viewport);
   drawWalls(context, maze, cellSize, offsetX, offsetY, viewport);
   drawChests(context, chests, cellSize, offsetX, offsetY, viewport, options.visibility);
-  if (isInViewport(maze.start, viewport) && isCellExplored(options.visibility, maze.start)) {
+  if (options.showStairs !== false && isInViewport(maze.start, viewport) && isCellExplored(options.visibility, maze.start)) {
     drawStairs(context, maze.start, cellSize, offsetX, offsetY, 'up');
   }
-  if (isInViewport(maze.end, viewport) && isCellExplored(options.visibility, maze.end)) {
+  if (options.showStairs !== false && isInViewport(maze.end, viewport) && isCellExplored(options.visibility, maze.end)) {
     drawStairs(context, maze.end, cellSize, offsetX, offsetY, 'down');
   }
   drawPlayer(context, maze.active, facing, cellSize, offsetX, offsetY, now);

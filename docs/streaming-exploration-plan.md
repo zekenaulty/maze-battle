@@ -1,6 +1,7 @@
 # Structural streaming exploration
 
-Status: active. Branch: `codex/streaming-exploration`. Goal: S0-S5 below.
+Status: active; first isolated fixture qualified. Branch: `codex/streaming-exploration`.
+Goal: S0-S5 below. The overall goal is not complete.
 
 ## Architecture
 
@@ -25,12 +26,12 @@ Recipes pin generator version and seed; regeneration cannot depend on cache orde
 
 | ID | Owner | Status | Acceptance |
 | --- | --- | --- | --- |
-| S0 | Integration lead | In progress | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
-| S1 | Generation worker | Pending | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
-| S2 | Persistence worker | Pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
-| S3 | Exploration worker | Pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
-| S4 | Integration lead | Pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
-| S5 | Integration lead + workers | Pending | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
+| S0 | Integration lead | Fixture contracts qualified; expansion contract next | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
+| S1 | Ptolemy / codex/streaming-generation | Fixture integrated; macro expansion pending | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
+| S2 | Dewey / codex/streaming-storage | Fixture storage qualified; paging pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
+| S3 | Kant / codex/streaming-explorer | Knowledge-only baseline qualified; hierarchy pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
+| S4 | Integration lead | Local action boundary qualified; transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
+| S5 | Integration lead + workers | First fixture passed; remaining gates open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
 
 ## First playable gate
 
@@ -63,3 +64,45 @@ No worker may change the live save or unrelated Agentica checkout.
 
 - Planning/source review completed; no streaming implementation existed at start.
 - Existing town tab changes checkpointed at `41ada57`; ordinary app remains on 5174.
+- First test entry: `http://127.0.0.1:5174/?expedition=1`. It does not mount
+  `useGameSession` or open the ordinary game database. Its database is
+  `maze-battle-expeditions`, slot `structural-demo`.
+- Integrated generation: `f90e1ce`; observed-map explorer: `34b7122`;
+  persistence/residency: `28ba792`, corrected for sparse floor cells in `3931057`.
+- PASS: 930 tests in 60 files (`npx vitest run --maxWorkers=2`). Worker runs exposed
+  an existing equipment-heavy qualification timeout; the integrated suite passed
+  without relaxing that timeout. Equipment evaluation cost remains a profiling lead.
+- PASS: full 35-case browser suite, then final seven-case expedition suite including
+  two new cases for keyboard takeover and invalid saved geometry. Ordinary-save
+  bytes remained unchanged through the complete isolated expedition.
+- PASS: final production build and focused action-session tests. Result queries
+  return defensive copies, including after human takeover.
+- Visual checks: 1280x800 desktop and 320x640 mobile screenshots inspected; browser
+  canvas-pixel/layout checks also cover 390x780 and 844x390.
+
+## Current limitations and next packet
+
+The fixture has six rooms and five passages on an authored layout. `STRIDE` is
+fixture placement only, not the target world partition. Materialization is lazy;
+macro topology is not yet incremental. The loaded-cell budget is 512; total
+resident bytes, persisted history and map growth need separate later budgets.
+One complete finite checkpoint is written per action; records are not yet paged.
+The baseline planner traverses observed cells per decision, not a hierarchical
+route cache. No combat, equipment, floor descent or ordinary quest migration is
+enabled in the fixture. Action receipts currently survive within a session only;
+durable reconnect reconciliation must precede a remote service connection.
+No provider or cross-runtime Agentica service was exercised.
+
+Next S0/S1 packet:
+
+1. Add a separately versioned macro manifest with per-space schematic versions,
+   unresolved sockets, topology revision and explicit finite-scope sealing.
+2. Derive identities from scope/parent socket/child ordinal, not coordinates,
+   materialization order or retries. Derive candidate seeds independently.
+3. Expand a canonical frontier queue with bounded candidate attempts and reserved
+   fallback space. Visibility/prefetch requests must not decide collision winners.
+4. Commit both endpoints, reservations and resolution together; no dangling open
+   door may point at promised-but-uncommitted topology. Preserve visited geometry.
+5. Qualify reverse request order, collision exhaustion, reload around commit,
+   duplicate expansion requests, quota exhaustion and eventual scope sealing.
+6. Preserve spaces-v1 as sealed legacy scopes. Do not regenerate any saved floor.

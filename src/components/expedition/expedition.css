@@ -1,0 +1,28 @@
+.expedition-screen { width: 100%; height: 100dvh; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; background: var(--color-bg); }
+.expedition-screen header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--color-border); }
+.expedition-screen h1 { margin: 0 0 3px; font-size: 18px; }
+.expedition-screen header span, .expedition-metrics { color: var(--color-muted); font-size: 12px; }
+.expedition-screen nav { display: flex; align-items: center; gap: 6px; }
+.expedition-screen button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 6px 9px; }
+.expedition-screen nav a { margin-left: 8px; font-size: 13px; white-space: nowrap; }
+.expedition-screen a, .expedition-loading a { color: var(--color-primary); }
+.expedition-strip { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 8px 14px; font-size: 12px; }
+.expedition-strip label { display: flex; align-items: center; gap: 8px; }
+.expedition-strip input { width: 100px; }
+.expedition-strip output { display: inline-block; width: 5em; text-align: right; font-variant-numeric: tabular-nums; }
+.expedition-scene { min-width: 0; min-height: 0; }
+.expedition-scene canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.expedition-screen footer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 10px 14px; border-top: 1px solid var(--color-border); }
+.expedition-screen footer [role="status"] { font-size: 13px; min-width: 0; overflow-wrap: anywhere; flex: 1 1 240px; }
+.expedition-movement { display: none; }
+.expedition-loading { display: grid; place-content: center; gap: 12px; height: 100dvh; }
+@media (max-width: 600px) {
+  .expedition-screen header { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px; }
+  .expedition-screen nav { justify-content: space-between; }
+  .expedition-screen button { min-height: 44px; }
+  .expedition-strip, .expedition-screen footer { padding: 6px 10px; }
+  .expedition-strip label { margin-left: auto; }
+  .expedition-movement { display: flex; gap: 6px; margin-left: auto; }
+  .expedition-movement button { width: 44px; height: 44px; padding: 0; }
+}
+@media (pointer: coarse) { .expedition-movement { display: flex; gap: 6px; margin-left: auto; } }
