@@ -221,7 +221,7 @@ test('a stored undefined value is corrupt, not a missing slot eligible for creat
   expect(result.every(error => error.includes('Invalid expedition: record'))).toBe(true);
 });
 
-test('opened loot and regenerated snapshots survive eviction, checkpointing and reload', async ({ page }) => {
+test('opened loot and sparse snapshots survive eviction, checkpointing and reload', async ({ page }) => {
   const fixture = storageFixture();
   const before = await page.evaluate(async ({ plan, checkpoint }) => {
     const repositoryPath = '/src/persistence/expeditionRepository.ts';
@@ -229,7 +229,7 @@ test('opened loot and regenerated snapshots survive eviction, checkpointing and 
     const helperPath = '/src/domain/expedition/storage.testSupport.ts';
     const repo = await import(/* @vite-ignore */ repositoryPath);
     const { SpaceResidency } = await import(/* @vite-ignore */ residencyPath);
-    const { testGeometry } = await import(/* @vite-ignore */ helperPath);
+    const { sparseTestGeometry: testGeometry } = await import(/* @vite-ignore */ helperPath);
     const cache = new SpaceResidency(6, testGeometry);
     const first = cache.get(plan.spaces[0]);
     cache.get(plan.spaces[1]);
@@ -238,6 +238,7 @@ test('opened loot and regenerated snapshots survive eviction, checkpointing and 
     return { first, regenerated, stats: cache.stats() };
   }, fixture);
   expect(before.first).toEqual(before.regenerated);
+  expect(before.first.cells).toHaveLength(3);
   expect(before.stats).toEqual({ residentSpaces: 1, residentCells: 4, loads: 3, evictions: 2 });
   await page.reload();
   const after = await page.evaluate(async () => {
@@ -245,7 +246,7 @@ test('opened loot and regenerated snapshots survive eviction, checkpointing and 
     const residencyPath = '/src/domain/expedition/residency.ts';
     const helperPath = '/src/domain/expedition/storage.testSupport.ts';
     const { SpaceResidency } = await import(/* @vite-ignore */ residencyPath);
-    const { testGeometry } = await import(/* @vite-ignore */ helperPath);
+    const { sparseTestGeometry: testGeometry } = await import(/* @vite-ignore */ helperPath);
     const record = await (await import(/* @vite-ignore */ repositoryPath)).loadExpedition('fixture');
     return { record, geometry: new SpaceResidency(6, testGeometry).get(record.plan.spaces[0]) };
   });

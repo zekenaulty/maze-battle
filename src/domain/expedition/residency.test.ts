@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SpaceResidency } from './residency';
-import { storageFixture, testGeometry, testSpace } from './storage.testSupport';
+import { sparseTestGeometry, storageFixture, testGeometry, testSpace } from './storage.testSupport';
 import type { SpaceGeometry, SpaceSpec } from './types';
 
 describe('SpaceResidency', () => {
@@ -31,6 +31,32 @@ describe('SpaceResidency', () => {
     expect(new SpaceResidency(1, testGeometry).get(testSpace('one', 1, 1)).cells).toHaveLength(1);
   });
 
+  it('allows omitted obstacle cells while charging the entire bounding rectangle', () => {
+    const materialize = vi.fn(sparseTestGeometry);
+    const cache = new SpaceResidency(6, materialize);
+    const a = testSpace('a');
+    const first = cache.get(a);
+    expect(first.cells).toHaveLength(3);
+    expect(first.cells.some(cell => cell.row === 1 && cell.column === 0)).toBe(false);
+    expect(first.cells.find(cell => cell.row === 0 && cell.column === 0)!.links).toEqual(['east']);
+    expect(first.cells.find(cell => cell.row === 0 && cell.column === 1)!.links).toEqual(['south', 'west']);
+    cache.get(testSpace('b'));
+    expect(cache.stats()).toEqual({ residentSpaces: 1, residentCells: 4, loads: 2, evictions: 1 });
+    expect(cache.get(a)).toEqual(first);
+    expect(materialize).toHaveBeenCalledTimes(3);
+  });
+
+  it('accepts a single walkable cell and sparse interior pillars with reciprocal routes', () => {
+    const one = new SpaceResidency(4, spec => testGeometry(spec, [
+      { row: 0, column: 1 }, { row: 1, column: 0 }, { row: 1, column: 1 },
+    ]));
+    expect(one.get(testSpace()).cells).toEqual([{ row: 0, column: 0, links: [] }]);
+    expect(one.stats().residentCells).toBe(4);
+    const ring = new SpaceResidency(9, spec => testGeometry(spec, [{ row: 1, column: 1 }]));
+    expect(ring.get(testSpace('pillar', 3, 3)).cells).toHaveLength(8);
+    expect(ring.stats().residentCells).toBe(9);
+  });
+
   it.each([0, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])('rejects bad budget %s', budget => {
     expect(() => new SpaceResidency(budget, testGeometry)).toThrow(RangeError);
   });
@@ -52,8 +78,9 @@ describe('SpaceResidency', () => {
     ['seed', s => { s.seed++; }], ['kind', s => { s.kind = 'passage'; }],
     ['name', s => { s.name = 'renamed'; }], ['origin', s => { s.origin.row++; }],
     ['dimensions', s => { s.rows++; }], ['chest id', s => { s.chests[0].id = 'other'; }],
-    ['chest location', s => { s.chests[0].cell.row = 0; }], ['opening id', s => { s.openings[0].id = 'other'; }],
-    ['opening location', s => { s.openings[0].cell.row++; }], ['opening direction', s => { s.openings[0].direction = 'north'; }],
+    ['chest location', s => { s.chests[0].cell.column = 0; }], ['opening id', s => { s.openings[0].id = 'other'; }],
+    ['opening location', s => { s.openings[0].cell.row++; s.chests[0].cell.column = 0; }],
+    ['opening direction', s => { s.openings[0].direction = 'north'; }],
     ['opening target', s => { s.openings[0].destination.spaceId = 'other'; }],
   ];
   it.each(drifts)('replaces the cached identity after %s drift', (_label, change) => {
@@ -90,7 +117,12 @@ describe('SpaceResidency', () => {
 
   const invalid: [string, (geometry: SpaceGeometry) => void][] = [
     ['identity', g => { g.spaceId = 'other'; }], ['dimensions', g => { g.rows++; }],
-    ['cell count', g => { g.cells.pop(); }], ['duplicate cells', g => { g.cells[1] = g.cells[0]; }],
+    ['empty geometry', g => { g.cells = []; }], ['excess cells', g => { g.cells.push(g.cells[0]); }],
+    ['duplicate cells', g => { g.cells[1] = g.cells[0]; }],
+    ['link into an omitted obstacle', g => { g.cells.pop(); }],
+    ['nonreciprocal link', g => { g.cells[1].links = g.cells[1].links.filter(link => link !== 'west'); }],
+    ['out-of-bounds link', g => { g.cells[0].links.push('north'); }],
+    ['east boundary link wrapping into the next row', g => { g.cells[1].links.push('east'); g.cells[2].links.push('west'); }],
     ['cell bounds', g => { g.cells[0].row = -1; }], ['bad links', g => { Object.assign(g.cells[0], { links: ['up'] }); }],
     ['sparse links', g => { g.cells[0].links = new Array(1); }],
     ['uncloneable result', g => { Object.assign(g, { extra: () => undefined }); }],
@@ -121,7 +153,7 @@ describe('SpaceResidency', () => {
     expect(Object.isFrozen(first.cells[0].links)).toBe(true);
     expect(() => first.cells[0].links.push('north')).toThrow();
     output.cells[0].links.push('south');
-    expect(first.cells[0].links).toEqual([]);
+    expect(first.cells[0].links).toEqual(['east', 'south']);
     expect(Object.isFrozen(spec)).toBe(false);
     cache.get(testSpace('other'));
     const regenerated = cache.get(spec);

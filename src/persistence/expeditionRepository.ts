@@ -2,7 +2,7 @@ import { openDB, type DBSchema } from 'idb';
 import { addressKey, sameAddress } from '../domain/expedition/address';
 import type { CellAddress, ExpeditionCheckpoint, ExpeditionPlan, SpaceSpec } from '../domain/expedition/types';
 import type { GridPosition } from '../domain/types';
-import { opposite } from '../domain/maze/movement';
+import { movePosition, opposite } from '../domain/maze/movement';
 
 type ExpeditionRecord = { plan: ExpeditionPlan; checkpoint: ExpeditionCheckpoint };
 interface ExpeditionDb extends DBSchema {
@@ -12,9 +12,10 @@ interface ExpeditionDb extends DBSchema {
 const directions = ['north', 'east', 'south', 'west'];
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && Object.prototype.toString.call(value) === '[object Object]';
-const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+const text = (value: unknown, maxLength = 128): value is string =>
+  typeof value === 'string' && value.length <= maxLength && value.trim().length > 0;
 const natural = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
-const finite = (value: unknown) => typeof value === 'number' && Number.isFinite(value);
+const seed = (value: unknown) => natural(value) && value <= 0xffffffff;
 const point = (value: unknown): value is GridPosition =>
   object(value) && Number.isSafeInteger(value.row) && Number.isSafeInteger(value.column);
 const inside = (value: unknown, spec: SpaceSpec) => point(value) && value.row >= 0 && value.column >= 0 &&
@@ -31,34 +32,46 @@ export function validateExpeditionRecord(value: unknown): asserts value is Exped
   const checkpoint = value.checkpoint as unknown as ExpeditionCheckpoint;
   const recipe = plan.recipe;
   check(object(recipe) && recipe.version === 'spaces-v1', 'recipe version');
-  check(text(recipe.worldId) && text(recipe.floorId) && text(plan.scopeId), 'plan identity');
-  check(natural(recipe.level) && recipe.level > 0 && finite(recipe.seed), 'recipe parameters');
-  check(Array.isArray(plan.spaces) && plan.spaces.length > 0, 'spaces');
+  check(text(recipe.worldId) && text(recipe.floorId) && text(plan.scopeId, 512), 'plan identity');
+  check(natural(recipe.level) && recipe.level > 0 && seed(recipe.seed), 'recipe parameters');
+  check(Array.isArray(plan.spaces) && plan.spaces.length > 0 && plan.spaces.length <= 24, 'spaces');
   const spaces = new Map<string, SpaceSpec>();
   const chests = new Map<string, CellAddress>();
+  const openingIds = new Set<string>();
+  let totalCells = 0;
   for (const spec of plan.spaces) {
     check(object(spec) && text(spec.id) && !spaces.has(spec.id), 'space identity');
     check(['room', 'passage'].includes(spec.kind) && text(spec.name) && point(spec.origin), 'space metadata');
     check(natural(spec.rows) && spec.rows > 0 && natural(spec.columns) && spec.columns > 0 &&
-      Number.isSafeInteger(spec.rows * spec.columns) && finite(spec.seed), 'space dimensions/seed');
-    check(Array.isArray(spec.openings) && Array.isArray(spec.chests), 'space contents');
+      spec.rows * spec.columns <= 512 && seed(spec.seed), 'space dimensions/seed');
+    check(Number.isSafeInteger(spec.origin.row + (spec.rows - 1)) &&
+      Number.isSafeInteger(spec.origin.column + (spec.columns - 1)), 'space bounds');
+    check(Array.isArray(spec.openings) && spec.openings.length <= 2 * (spec.rows + spec.columns) &&
+      Array.isArray(spec.chests) && spec.chests.length <= spec.rows * spec.columns, 'space contents');
     spaces.set(spec.id, spec);
+    totalCells += spec.rows * spec.columns;
+    const chestCells = new Set<string>();
     for (const chest of spec.chests) {
       check(object(chest) && text(chest.id) && !chests.has(chest.id) && inside(chest.cell, spec), 'chest identity');
-      chests.set(chest.id, { spaceId: spec.id, row: chest.cell.row, column: chest.cell.column });
+      const location = { spaceId: spec.id, row: chest.cell.row, column: chest.cell.column };
+      check(!chestCells.has(addressKey(location)), 'duplicate chest cell');
+      chestCells.add(addressKey(location));
+      chests.set(chest.id, location);
     }
   }
   const address = (candidate: unknown): candidate is CellAddress => object(candidate) && text(candidate.spaceId) &&
     spaces.has(candidate.spaceId) && inside(candidate, spaces.get(candidate.spaceId)!);
   for (const spec of plan.spaces) {
-    const ids = new Set<string>();
     const ports = new Set<string>();
     for (const opening of spec.openings) {
-      check(object(opening) && text(opening.id) && !ids.has(opening.id), 'opening identity');
+      check(object(opening) && text(opening.id) && !openingIds.has(opening.id), 'opening identity');
       check(inside(opening.cell, spec) && directions.includes(opening.direction) && address(opening.destination), 'opening address');
+      check(opening.destination.spaceId !== spec.id && !inside(movePosition(opening.cell, opening.direction), spec), 'opening boundary');
+      check(!spec.chests.some(chest => chest.id === opening.id ||
+        (chest.cell.row === opening.cell.row && chest.cell.column === opening.cell.column)), 'chest overlaps opening');
       const port = JSON.stringify([opening.cell.row, opening.cell.column, opening.direction]);
       check(!ports.has(port), 'duplicate opening port');
-      ids.add(opening.id);
+      openingIds.add(opening.id);
       ports.add(port);
     }
   }
@@ -78,20 +91,21 @@ export function validateExpeditionRecord(value: unknown): asserts value is Exped
   check(natural(checkpoint.revision) && natural(checkpoint.moves), 'checkpoint counters');
   check(address(checkpoint.position) && address(checkpoint.home), 'checkpoint address');
   check(['exploring', 'returning', 'complete'].includes(checkpoint.phase), 'checkpoint phase');
-  check(Array.isArray(checkpoint.openedChestIds) && Array.from(checkpoint.openedChestIds).every(id => chests.has(id)) &&
+  check(Array.isArray(checkpoint.openedChestIds) && checkpoint.openedChestIds.length <= chests.size &&
+    Array.from(checkpoint.openedChestIds).every(id => chests.has(id)) &&
     new Set(checkpoint.openedChestIds).size === checkpoint.openedChestIds.length, 'opened chest identities');
   const knowledge = checkpoint.knowledge;
   check(object(knowledge) && object(knowledge.cells) && object(knowledge.openings) && object(knowledge.chests), 'knowledge');
+  const limits: Record<string, number> = { cells: totalCells, openings: openingIds.size, chests: chests.size };
   for (const [kind, entries] of Object.entries(knowledge)) {
     check(['cells', 'openings', 'chests'].includes(kind) && object(entries), 'knowledge kind');
-    const seen = new Set<string>();
-    for (const entry of Object.values(entries)) {
-      check(object(entry) && address(entry) && natural(entry.observedAt), 'knowledge address/time');
-      const identity = kind === 'cells' ? addressKey(entry) : JSON.stringify([entry.spaceId, entry.id]);
-      check(!seen.has(identity), 'duplicate knowledge identity');
-      seen.add(identity);
+    check(Object.keys(entries).length <= limits[kind], 'knowledge count');
+    for (const [key, entry] of Object.entries(entries)) {
+      check(object(entry) && address(entry) && natural(entry.observedAt) &&
+        entry.observedAt <= checkpoint.revision, 'knowledge address/time');
+      check(key === (kind === 'cells' ? addressKey(entry) : entry.id), 'knowledge key');
       if (kind === 'cells') {
-        check(Array.isArray(entry.links) && Array.from(entry.links).every(link => directions.includes(link)) &&
+        check(Array.isArray(entry.links) && entry.links.length <= 4 && Array.from(entry.links).every(link => directions.includes(link)) &&
           new Set(entry.links).size === entry.links.length, 'known links');
       } else if (kind === 'chests') {
         check(text(entry.id) && chests.has(entry.id) && sameAddress(entry, chests.get(entry.id)!) &&

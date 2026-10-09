@@ -1,4 +1,7 @@
 import type { SpaceGeometry, SpaceSpec } from './types';
+import type { MazeCellState } from '../types';
+import { movePosition, opposite } from '../maze/movement';
+import { cellKey } from '../maze/key';
 
 type Resident = { identity: string; geometry: SpaceGeometry; cells: number };
 
@@ -19,7 +22,9 @@ function identity(spec: SpaceSpec): string {
   ]);
 }
 
-/** LRU bounded by cells, not space count. Every space must fit on its own.
+/** LRU charges each space's full rows * columns, including omitted solid cells.
+ * Walkable cells may be sparse; local links never cross a space's boundary.
+ * Every space must fit on its own.
  * Geometry is an owned, deeply frozen snapshot; callers must clone before mutation.
  * The materializer is fixed for this instance. Use a new instance for a new recipe
  * version/world; the complete SpaceSpec (including seed) identifies each cached load.
@@ -56,18 +61,26 @@ export class SpaceResidency {
     // Nothing resident is changed until materialization, validation and ownership succeed.
     const geometry = structuredClone(this.materialize(freeze(structuredClone(spec))));
     if (!geometry || geometry.spaceId !== spec.id || geometry.rows !== spec.rows || geometry.columns !== spec.columns ||
-      !Array.isArray(geometry.cells) || geometry.cells.length !== cells) {
+      !Array.isArray(geometry.cells) || geometry.cells.length === 0 || geometry.cells.length > cells) {
       throw new Error(`Materialized geometry does not match space ${spec.id}`);
     }
-    const seen = new Set<number>();
+    const floor = new Map<string, MazeCellState>();
     for (const cell of geometry.cells) {
       if (!cell || !Number.isSafeInteger(cell.row) || !Number.isSafeInteger(cell.column) || cell.row < 0 || cell.row >= spec.rows ||
-        cell.column < 0 || cell.column >= spec.columns || !Array.isArray(cell.links) ||
+        cell.column < 0 || cell.column >= spec.columns || !Array.isArray(cell.links) || cell.links.length > 4 ||
         Array.from(cell.links).some(link => !['north', 'east', 'south', 'west'].includes(link)) || new Set(cell.links).size !== cell.links.length ||
-        seen.has(cell.row * spec.columns + cell.column)) {
+        floor.has(cellKey(cell))) {
         throw new Error(`Invalid materialized cell in space ${spec.id}`);
       }
-      seen.add(cell.row * spec.columns + cell.column);
+      floor.set(cellKey(cell), cell);
+    }
+    for (const cell of geometry.cells) {
+      for (const direction of cell.links) {
+        const neighbor = floor.get(cellKey(movePosition(cell, direction)));
+        if (!neighbor?.links.includes(opposite(direction))) {
+          throw new Error(`Missing or nonreciprocal materialized link in space ${spec.id}`);
+        }
+      }
     }
     freeze(geometry);
     if (previous) this.evict(spec.id);
