@@ -28,10 +28,12 @@ export default function ExpeditionApp() {
   const spec = plan.spaces.find(space => space.id === checkpoint.position.spaceId)!;
   const geometry = runtime.cache.get(spec);
   const stats = runtime.cache.stats();
+  const routing = runtime.planner.diagnostics.work;
   const knownSpaces = new Set(Object.values(checkpoint.knowledge.cells).map(cell => cell.spaceId)).size;
   const chestHere = Object.values(checkpoint.knowledge.chests).some(chest => !chest.opened && chest.spaceId === spec.id && chest.row === checkpoint.position.row && chest.column === checkpoint.position.column);
   return <main className="expedition-screen" data-revision={checkpoint.revision} data-phase={checkpoint.phase}
-    data-moves={checkpoint.moves} data-resident-cells={stats.residentCells} data-evictions={stats.evictions}>
+    data-moves={checkpoint.moves} data-resident-cells={stats.residentCells} data-evictions={stats.evictions}
+    data-route-plans={routing.plans} data-reused-steps={routing.reusedSteps} data-map-audits={routing.fullAudits}>
     <header>
       <div><h1>Guild Expedition</h1><span>{spec.name} - {checkpoint.position.row + 1}, {checkpoint.position.column + 1}</span></div>
       <nav aria-label="Expedition controls">

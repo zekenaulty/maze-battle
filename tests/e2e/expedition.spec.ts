@@ -89,10 +89,12 @@ test('invalid saved geometry reports an error without replacing the checkpoint',
     for (let row = 0; row < spec.rows; row++) {
       for (let column = 0; column < spec.columns; column++) {
         if (geometry.cells.some(cell => cell.row === row && cell.column === column)) continue;
-        const expected = record.checkpoint.revision;
         record.checkpoint.position = { spaceId: spec.id, row, column };
         record.checkpoint.revision++;
-        await repo.saveExpedition('structural-demo', record.plan, record.checkpoint, expected);
+        const { openExpeditionDatabase } = await import('/src/persistence/expeditionDatabase.ts');
+        const db = await openExpeditionDatabase();
+        await db.put('expeditions', record, 'structural-demo');
+        db.close();
         return record;
       }
     }

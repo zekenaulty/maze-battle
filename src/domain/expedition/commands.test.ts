@@ -56,4 +56,14 @@ describe('bounded expedition commands', () => {
     expect(refused.applied).toBe(false);
     expect(refused.checkpoint.revision).toBe(0);
   });
+
+  it('requires observation of singleton floor cells even without internal links', () => {
+    const single = { ...space('entry'), rows: 1, columns: 1 };
+    const singlePlan: ExpeditionPlan = { ...plan, spaces: [single], start: { spaceId: single.id, row: 0, column: 0 } };
+    const geometry: SpaceGeometry = { spaceId: single.id, rows: 1, columns: 1, cells: [{ row: 0, column: 0, links: [] }] };
+    const checkpoint = createExpeditionCheckpoint(singlePlan, () => geometry);
+    const unknown = { ...checkpoint, knowledge: { ...checkpoint.knowledge, cells: {} } };
+    expect(applyExpeditionCommand(singlePlan, unknown, { type: 'finish' }, () => geometry).applied).toBe(false);
+    expect(applyExpeditionCommand(singlePlan, checkpoint, { type: 'finish' }, () => geometry).applied).toBe(true);
+  });
 });

@@ -26,11 +26,11 @@ Recipes pin generator version and seed; regeneration cannot depend on cache orde
 
 | ID | Owner | Status | Acceptance |
 | --- | --- | --- | --- |
-| S0 | Integration lead | Fixture contracts qualified; expansion contract next | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
-| S1 | Ptolemy / codex/streaming-generation | Fixture integrated; macro expansion pending | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
-| S2 | Dewey / codex/streaming-storage | Fixture storage qualified; paging pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
-| S3 | Kant / codex/streaming-explorer | Knowledge-only baseline qualified; hierarchy pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
-| S4 | Integration lead | Local action boundary qualified; transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
+| S0 | Integration lead | v2 expansion contracts added; gameplay binding pending | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
+| S1 | Ptolemy / codex/streaming-generation | Bounded macro generator and adversarial gates passed | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
+| S2 | Dewey / codex/streaming-storage | Durable action ledger integrated; paged topology in progress | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
+| S3 | Kant / codex/streaming-explorer | Observed-space route batches integrated; paged map pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
+| S4 | Integration lead | Durable local receipts and takeover integrated; transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
 | S5 | Integration lead + workers | First fixture passed; remaining gates open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
 
 ## First playable gate
@@ -82,18 +82,23 @@ No worker may change the live save or unrelated Agentica checkout.
 
 ## Current limitations and next packet
 
-The fixture has six rooms and five passages on an authored layout. `STRIDE` is
-fixture placement only, not the target world partition. Materialization is lazy;
-macro topology is not yet incremental. The loaded-cell budget is 512; total
+The playable v1 fixture has six rooms and five passages on an authored layout.
+`STRIDE` is fixture placement only, not the target world partition. The separate
+v2 macro generator now expands one reserved frontier per bounded transaction;
+it is not yet connected to the playable expedition. The loaded-cell budget is 512; total
 resident bytes, persisted history and map growth need separate later budgets.
 One complete finite checkpoint is written per action; records are not yet paged.
-The baseline planner traverses observed cells per decision, not a hierarchical
-route cache. No combat, equipment, floor descent or ordinary quest migration is
-enabled in the fixture. Action receipts currently survive within a session only;
-durable reconnect reconciliation must precede a remote service connection.
+The browser now uses observed-space waypoint batches with exact local routes,
+bounded caches and complete host change sets. It prefers fewer door crossings,
+then distance, not a globally optimal tour. No combat, equipment, floor descent
+or ordinary quest migration is enabled in the fixture. Action receipts persist
+with checkpoint effects in IndexedDB, with an explicit 4,096-action slot budget.
+There is no receipt eviction/archive protocol yet. A reload fences the old owner
+and cancels an uncommitted local-only reservation by its original identity; this
+does not generalize to unconfirmed external effects.
 No provider or cross-runtime Agentica service was exercised.
 
-Next S0/S1 packet:
+Implemented S0/S1 packet:
 
 1. Add a separately versioned macro manifest with per-space schematic versions,
    unresolved sockets, topology revision and explicit finite-scope sealing.
@@ -106,3 +111,41 @@ Next S0/S1 packet:
 5. Qualify reverse request order, collision exhaustion, reload around commit,
    duplicate expansion requests, quota exhaustion and eventual scope sealing.
 6. Preserve spaces-v1 as sealed legacy scopes. Do not regenerate any saved floor.
+
+## Second milestone evidence and remaining integration
+
+- `57bf907` adds `spaces-v2`: versioned stone schematics, variable footprints,
+  canonical FIFO sockets, independently keyed candidates, reserved 5x5 fallback
+  rooms and explicit budget/spatial-limit sealing. Committed interiors never change.
+- `99cfa09` protects reservation ownership and bounds the spatial index. Its 16-cell
+  bins are lookup pages only, not room boundaries. A proposal tests at most eight
+  candidates and twenty occupancy queries; each query has at most nine buckets and
+  2,304 entry checks. Actual reviewed proposals peaked at 208 checks.
+- Worker review: 64 seeds each at levels 19, 80 and 1,000 reached 44, 166 and 2,006
+  rooms respectively. The quota is a ceiling; a genuinely enclosed frontier may
+  seal as `spatial-limit`. It must not be reported as reaching the requested quota.
+- The in-memory topology host is a reference/qualification host, not durable world
+  storage. It has an explicit receipt budget, and cannot justify an infinite world.
+- `bc08b5b`: additive v2 expedition DB migration, pending action reservations,
+  atomic checkpoint/effect/result settlement, epoch-CAS takeover and exact replay.
+- `7b75dfc`: bounded observed-space route batches. On the 6,000-known-cell fixture,
+  512 moves required four plans; 508 reused steps performed no BFS/map audit when
+  the host supplied complete changes. Real domain-transition tests verify those
+  change sets include both endpoints of a newly traversed opening.
+- Browser integration passes full exploration/loot/home, stop/reload/resume,
+  manual takeover, interrupted local reservation recovery and stale-tab fencing.
+  PASS: full integrated 1,061-test / 66-file unit suite, 58 browser tests and
+  production build. The subsequently added singleton-cell completion regression
+  is qualified separately. Mobile 320x640 expedition screenshot inspected.
+
+Next integration order:
+
+1. Persist topology headers, spaces, sockets, links, occupancy pages and original
+   expansion receipts atomically, with bounded read/write sets and byte quotas.
+2. Bind observed pending sockets to bounded generation work. Unresolved sockets
+   are not traversable doors; missing generation is not a wall or completed scope.
+3. Add a v2 gameplay checkpoint/knowledge-page transaction and durable command
+   receipts. Finishing requires the sealed topology revision and complete objectives.
+4. Enable a separately saved v2 playable expedition. Preserve v1 records unchanged.
+5. Page discovered maps, add RPG systems through the same host commands, then
+   qualify the browser/service adapter against a fake Agentica provider.

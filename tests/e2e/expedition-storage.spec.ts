@@ -158,7 +158,7 @@ test('corrupt stored records are rejected on load and write without repair', asy
     const corrupt = structuredClone(input);
     corrupt.checkpoint.openedChestIds.push('invented-loot');
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('maze-battle-expeditions', 1);
+      const request = indexedDB.open('maze-battle-expeditions');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -202,7 +202,7 @@ test('a stored undefined value is corrupt, not a missing slot eligible for creat
     const path = '/src/persistence/expeditionRepository.ts';
     const repo = await import(/* @vite-ignore */ path);
     await repo.loadExpedition('slot');
-    const request = indexedDB.open('maze-battle-expeditions', 1);
+    const request = indexedDB.open('maze-battle-expeditions');
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
