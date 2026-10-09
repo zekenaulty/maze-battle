@@ -249,7 +249,11 @@ describe('Agentica fixture client using the vendored SDK', () => {
     vi.mocked(saveAgenticaAction).mockImplementationOnce(async (...args) => { entered.resolve(); await gate.promise; return save(...args); });
     const action = f.sendAction(); await entered.promise;
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse(action.deadlineAt) + 1); gate.resolve();
-    expect(await f.result()).toMatchObject({ disposition: 'unavailable' }); expect(executeAgenticaAction).not.toHaveBeenCalled();
+    expect(await f.result()).toMatchObject({ disposition: 'unresolved' }); expect(executeAgenticaAction).not.toHaveBeenCalled();
+    const settled = await host.reconcile(action);
+    expect(settled).toMatchObject({ disposition: 'unavailable' });
+    expect(await host.reconcile(action)).toEqual(settled);
+    expect(executeAgenticaAction).not.toHaveBeenCalled();
   });
 
   it('keeps the exact reconciliation request when its caller mutates the original during a read', async () => {
