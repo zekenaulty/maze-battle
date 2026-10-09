@@ -37,6 +37,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     await expect(page.getByText('Lever: idle (current)')).toBeVisible();
     await page.getByRole('button', { name: 'Interact with destination' }).click();
     await expect(page.getByText('Lever: active (current)')).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Travel status' })).toHaveText('Interaction performed.');
     await page.screenshot({ path: info.outputPath(`directed-${viewport.width}-arrived.png`) });
     await page.getByRole('tab', { name: 'Evidence' }).click();
     await expect(page.getByText('0 (host-only)')).toBeVisible();

@@ -19,11 +19,14 @@ export function useDirectedPlay() {
   const [session, setSession] = useState<DirectedSession>();
   const [context, setContext] = useState<PresentedContext>();
   const [error, setError] = useState<string>();
+  const [message, setMessage] = useState<string>();
   const [playing, setPlaying] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [delay, setDelay] = useState(260);
   const queue = useRef(Promise.resolve());
   const alive = useRef(false);
+  const runAllowed = useRef(false);
 
   const refresh = async () => {
     const latest = await readDirectedSave(DIRECTED_SLOT);
@@ -45,7 +48,7 @@ export function useDirectedPlay() {
     const next = queue.current.then(async () => {
       if (alive.current) setBusy(true);
       try { await work(); if (alive.current) setError(undefined); }
-      catch (cause) { if (alive.current) { setError(String(cause)); setPlaying(false); } }
+      catch (cause) { runAllowed.current = false; if (alive.current) { setError(String(cause)); setPlaying(false); } }
       finally { if (alive.current) setBusy(false); }
     });
     queue.current = next;
@@ -64,6 +67,7 @@ export function useDirectedPlay() {
     const receipt = await executeDirectedRequest(DIRECTED_SLOT, request, Date.now());
     sessionStorage.removeItem(PENDING_KEY);
     await refresh();
+    if (alive.current) setMessage(receipt.result.reason);
     if (receipt.result.status === 'refused') throw new Error(receipt.result.reason);
   });
   useEffect(() => {
@@ -73,29 +77,35 @@ export function useDirectedPlay() {
       if (!initial.owner) await claimDirectedSave(DIRECTED_SLOT, owner.current);
       await recover(); await refresh();
     });
-    return () => { alive.current = false; };
+    return () => { alive.current = false; runAllowed.current = false; };
   }, []);
   useEffect(() => {
     if (!playing || busy || error || session?.operation?.status !== 'running') return;
     const operation = session.operation;
-    const timer = setTimeout(() => void dispatch({ type: 'step', operationId: operation.id, sequence: operation.nextStep }), delay);
+    const timer = setTimeout(() => {
+      if (runAllowed.current) void dispatch({ type: 'step', operationId: operation.id, sequence: operation.nextStep });
+    }, delay);
     return () => clearTimeout(timer);
   }, [playing, busy, error, session, delay]);
 
   const navigate = (target: NavigationTarget) => {
-    setPlaying(true);
+    runAllowed.current = true; setPlaying(true);
     void dispatch({ type: 'navigate', operationId: crypto.randomUUID(), target });
   };
   const cancel = () => {
-    setPlaying(false);
+    runAllowed.current = false; setPlaying(false);
     if (session?.operation?.status === 'running') void dispatch({ type: 'cancel', operationId: session.operation.id });
   };
   const takeControl = () => {
-    setPlaying(false);
+    runAllowed.current = false; setPlaying(false); setMessage(undefined);
     void enqueue(async () => { await recover(); await claimDirectedSave(DIRECTED_SLOT, owner.current); await refresh(); });
   };
   const reconcile = () => enqueue(async () => { await recover(); await refresh(); });
-  return { session, context, error, playing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
-    pause: () => setPlaying(false), resume: () => setPlaying(true),
+  const pause = () => {
+    runAllowed.current = false; setPlaying(false); setPausing(true);
+    void enqueue(async () => { await refresh(); }).finally(() => { if (alive.current) setPausing(false); });
+  };
+  return { session, context, error, message, playing, pausing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
+    pause, resume: () => { runAllowed.current = true; setPlaying(true); },
     controlled: session?.owner === owner.current };
 }

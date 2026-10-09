@@ -18,11 +18,11 @@ choices and errors never consult undiscovered truth. Arrival does not interact.
 
 | Ticket | Owner | Dependencies | Status | Acceptance |
 | --- | --- | --- | --- | --- |
-| AP-00 contracts/corpus | Lead + Boole | reviewed v0.2 | In progress | Versioned shapes, coordinates, negative cases, explicit deferred cases |
-| AP-01 world/observation lineage | Boole | AP-00 types | Qualified domain | Real observation prelude, hidden trap absent from view, stale history retained; 39 tests |
-| AP-02 actor navigation | Lead | AP-00/AP-01 | Qualified domain | Shared search machinery, known destinations, adjacent/occupy arrival, 64-step/4-replan limits; 7 tests |
-| AP-03 durable operations | Heisenberg | AP-00/AP-02 interface | Hardening | Atomic effect/receipt, exact retry, cancellation, takeover, reload; initial 13 browser tests pass |
-| AP-04 preview/qualification | Lead | AP-01--03 | In progress | Desktop/mobile preview, actual IndexedDB, corruption/race/isolation tests; initial 6 browser tests pass |
+| AP-00 contracts/corpus | Lead + Boole | reviewed v0.2 | Qualified contract | Versioned shapes, coordinates, executable C6 setup, explicit deferred cases |
+| AP-01 world/observation lineage | Boole + Lead | AP-00 types | Qualified domain | Independent genesis, real observation prelude, immutable sources and stale knowledge |
+| AP-02 actor navigation | Lead | AP-00/AP-01 | Qualified domain/browser | Shared search machinery, known destinations, explicit arrival, 64-step/4-replan limits |
+| AP-03 durable operations | Heisenberg + Lead | AP-00/AP-02 interface | Qualified browser IDB | Atomic receipts, source validation, exact retry, cancellation, takeover, reload |
+| AP-04 preview/qualification | Lead | AP-01--03 | Qualified local preview | Desktop/mobile pixels and screenshots, pause/reload, entry-point/save isolation |
 
 ## First Corpus
 
@@ -51,11 +51,70 @@ context relevance, graph paging beyond the 512-cell fixture, live activation pol
 
 ## Qualification Ledger
 
-Initial integrated runs: 97 focused domain tests (46 directed + 51 existing planner),
-13 actual browser IndexedDB tests, 6 navigation/UI browser tests; production build passes.
-Final hardening/regression runs pending. The first UI run failed three assertions due to
-an ambiguous status locator (the pace output is also a status); a named travel-status
-region resolved the ambiguity, and the rerun passed all six tests.
-The initial preview is a bounded host-execution proof, not ordinary RPG integration
-or evidence of live-model intelligence. Provider calls are zero by construction;
-local intentions/steps/observations/context bytes are reported separately.
+| Command (from isolated checkout) | Result | Evidence boundary |
+| --- | --- | --- |
+| `node node_modules/vitest/vitest.mjs run --maxWorkers=2` | PASS: 1,376 tests / 91 files | Full domain/UI-unit regression, including 58 directed tests |
+| `npx playwright test --config tests/e2e/directed-storage.config.ts` | PASS: 50 cases | Actual Chromium IndexedDB, atomic rollback, races, corruption, lineage and replay |
+| `npx playwright test --config tests/e2e/directed-play.config.ts` | PASS: 6 cases | Destination/reload/interaction; 1280x800 and 390x844 UI; takeover; previous entry points |
+| `npm run build` | PASS | TypeScript and production bundle, not deployment |
+| HTTP checks for ports 5174 and 5176 | PASS: both 200 | Original server preserved; separate preview available |
+
+Visual evidence: `test-results/directed-play/*/directed-*-start.png` and
+`directed-*-arrived.png`; reviewed alongside canvas color/nonblank and overflow checks.
+The final UI pause/status refinements were rerun through the six browser cases and
+the build after the full unit run. These are isolated local Chrome tests, not paid
+provider trials or qualification of installed Agentica services.
+
+Failures retained: the initial unconstrained regression run hit two existing 60-second
+simulation timeouts. A plain rerun passed; the final explicit two-worker run passed
+all 1,376 tests. The PowerShell npm wrapper did not forward one attempted concurrency
+flag; the recorded final command invokes Vitest directly. An early UI locator matched
+both the pace output and footer; the named status region fixed it. Later integrity
+checks exposed a real pause acknowledgment race; pause now drains the in-flight
+checkpoint before displaying the stable paused position, and reload tests pass.
+
+Independent review also closed source-inconsistent projection restoration, forged
+archived-context facts, repeated concealed-collision attempts, incorrect C6 sample
+preconditions, and replay tests that previously cloned final rather than initial truth.
+
+## Preview and Integration Contract
+
+Open `http://127.0.0.1:5176/?expedition=3`. The original checkout/port5174 is untouched.
+Only database `maze-battle-directed-v1`, slot `known-destination-proof-v1`, is used.
+The ordinary game and expedition 1/2 entry points retain their existing stores.
+
+`navigate` accepts either a known cell with `occupy` arrival or a known feature with
+`adjacent` interaction-range arrival (same cell also qualifies). One intention drives
+multiple local `step` transactions; there is no quest/loot objective selection or
+automatic interaction. `look`, explicit `interact`, `cancel`, and controller claims
+are separate operations. All actor routes use remembered facts, never system truth.
+The shared BFS also accepts a privileged system graph for diagnostics; it is not
+used as an actor fallback. Unknown-route failure says nothing about the actual world.
+
+Ownership/epoch, expected revision, operation ID, attempt ID and step sequence fence
+effects. Reload retains progress but does not silently resume. Pending attempts are
+reconciled before further work. The UI consumes the exact archived actor-context JSON;
+historical contexts are compared with their original source projection, not fresh truth.
+Collision observations record a blocked crossing without revealing an object's ID.
+Routine observations do not erase that evidence; successful traversal can supersede it.
+
+## Limits and Next Slices
+
+This preview is a bounded host-execution proof, not ordinary RPG or new Agentica-tool
+integration. Provider calls are zero by construction, not a measured model-efficiency
+claim. Existing external `maze.*` capabilities are unchanged. Wire destination-level
+intentions through those integration contracts in NS-6 after the intervening slices.
+
+The 53-cell fixture starts with 41 legitimately remembered cells; it does not expand
+or generate the reserved altar. Room bounds are public fixture spatial references;
+unseen cells/features are not granted by those bounds. Visibility remains the declared
+radius-two connected-cell fixture policy, not the proposed perception-stat evaluator.
+The lever changes only its own local state; distant door/audio effects remain NS-5.
+
+Intentions expire after 120 seconds of wall time (including pauses). Maps cap at 512
+cells, context at 64 KiB and journals at 4096 entries; full journals fail before effects.
+Loads currently validate bounded historical sources rather than cache trust across
+transactions. Paging, compaction and performance qualification at large history sizes
+are later work. No claim of protection against a script able to replace every source
+and checkpoint in the same origin is made. Service-process restart, live cognition,
+full perception/inspection, anchor admission and the combined NS-7 proof remain deferred.

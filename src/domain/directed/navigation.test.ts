@@ -100,4 +100,23 @@ describe('actor-directed known destination', () => {
     start.operation!.steps = 0; start.operation!.route = []; start.operation!.replans = 4;
     expect(applyDirectedCommand(start, { type: 'step', operationId: 'trip', sequence: 0 }, 1).session.operation?.reason).toContain('replan budget');
   });
+  it('refuses a known route longer than the entire intention budget before movement', () => {
+    const { session } = createDirectedFixture();
+    session.world.cells = {}; session.world.features = {};
+    session.world.spaces = { X: { id: 'X', name: 'Long corridor', originX: 0, originZ: 0, rows: 1, columns: 70 } };
+    session.knowledge.cells = {}; session.knowledge.features = {};
+    for (let column = 0; column < 70; column++) {
+      const address = { spaceId: 'X', row: 0, column };
+      const cell = { address, exits: { ...(column ? { west: { ...address, column: column - 1 } } : {}),
+        ...(column < 69 ? { east: { ...address, column: column + 1 } } : {}) } };
+      session.world.cells[addressKey(address)] = cell;
+      session.knowledge.cells[addressKey(address)] = { value: cell, observationId: 'synthetic-known-corridor', observedAt: 1 };
+    }
+    session.actor.position = { spaceId: 'X', row: 0, column: 0 };
+    const result = applyDirectedCommand(session, { type: 'navigate', operationId: 'long',
+      target: { kind: 'cell', address: { spaceId: 'X', row: 0, column: 69 }, arrival: 'occupy' } }, 0);
+    expect(result.session.operation).toMatchObject({ status: 'interrupted', route: [], steps: 0 });
+    expect(result.session.operation?.reason).toContain('step budget');
+    expect(result.events).toEqual([]);
+  });
 });

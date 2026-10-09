@@ -35,7 +35,7 @@ export default function DirectedPlayApp() {
             : { kind: 'feature', featureId: selected, arrival: 'adjacent' })} disabled={running || game.busy || !game.controlled}>
             <Navigation size={17} />Travel</button>
           <button aria-label={game.playing && running ? 'Pause travel' : 'Resume travel'} title={game.playing && running ? 'Pause travel' : 'Resume travel'}
-            disabled={!running || !game.controlled} onClick={game.playing ? game.pause : game.resume}>{game.playing && running ? <Pause size={18} /> : <Play size={18} />}</button>
+            disabled={!running || !game.controlled || game.pausing} onClick={game.playing ? game.pause : game.resume}>{game.playing && running ? <Pause size={18} /> : <Play size={18} />}</button>
           <button aria-label="Cancel travel" title="Cancel travel" disabled={!running || !game.controlled} onClick={game.cancel}><Square size={18} /></button>
           <button aria-label="Look around" title="Look around" disabled={game.busy || running || !game.controlled} onClick={() => void game.dispatch({ type: 'look' })}><Eye size={18} /></button>
           <button aria-label="Interact with destination" title="Interact with destination" disabled={game.busy || running || !view.interactable.includes(selected) || !game.controlled}
@@ -52,6 +52,7 @@ export default function DirectedPlayApp() {
         <details><summary>Presented context</summary><pre>{game.context!.json}</pre></details>
       </div>}
     </section>
-    <footer role="status" aria-label="Travel status">{game.error ?? (running && !game.playing ? 'Travel paused. Resume to continue the same intention.' : operation?.reason ?? 'Ready.')}</footer>
+    <footer role="status" aria-label="Travel status">{game.error ?? (game.pausing ? 'Pausing at checkpoint.'
+      : running && !game.playing ? 'Travel paused. Resume to continue the same intention.' : game.message ?? operation?.reason ?? 'Ready.')}</footer>
   </main>;
 }
