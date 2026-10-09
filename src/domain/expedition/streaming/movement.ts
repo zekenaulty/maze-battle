@@ -20,6 +20,7 @@ export async function moveStream(context: StreamCommandContext, checkpoint: Stre
     return { room, page };
   }
   const target = await context.loadRoom(port.destination.spaceId);
+  if (page.openings[port.id]?.destination && !target.knowledge) throw new Error('Previously visited room has lost its knowledge page');
   const targetSpec = resolvedSpaceSpec(target.space, target.connections);
   const reciprocal = targetSpec.openings.find(value => sameAddress(value.destination, checkpoint.position)
     && value.direction === opposite(direction) && value.cell.row === port.destination.row && value.cell.column === port.destination.column);
