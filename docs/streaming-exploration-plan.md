@@ -143,10 +143,19 @@ Implemented S0/S1 packet:
   and rollback of topology when a later composed transaction phase fails.
   Expansion reads 25 occupancy pages rather than all existing spaces. Byte accounting
   includes stored keys and records, not browser-engine disk overhead.
+- `a53f3dc` hardens point reads against corrupt stored undefined/null/primitives.
+  PASS: twenty paged-topology browser tests, including 49 corrupt-record cases.
+  Instrumentation counts actual exact-key reads: 25 occupancy pages and at most
+  34 records per expansion at 321 spaces. No scans or full-world copies occur.
 - Three additional control-race regressions now pass: a cancelled receipt cannot
   publish a tentative checkpoint; superseded keys cannot cancel newer input; an old
   route decision cannot be stamped with a new checkpoint revision. Nine expedition
   browser cases and production build passed again after those fixes.
+- Final integrated milestone PASS: 1,071 unit tests in 68 files, all 78 browser
+  tests, production build and whitespace checks. Browser assertions verify route
+  reuse, one post-reload map audit, and exactly one durable receipt per committed
+  fixture action. Original RPG save isolation remains covered. The goal is active;
+  this evidence does not qualify v2 gameplay or an Agentica service.
 
 Next integration order:
 
@@ -159,3 +168,12 @@ Next integration order:
 3. Enable a separately saved v2 playable expedition. Preserve v1 records unchanged.
 4. Page discovered maps, add RPG systems through the same host commands, then
    qualify the browser/service adapter against a fake Agentica provider.
+
+The next gameplay checkpoint needs two distinct revisions: canonical topology
+and observed gameplay. A pending doorway can request preparation only after it
+has been observed. One preparation command advances a bounded canonical batch;
+it does not assert that the player moved or reveal unrelated generated rooms.
+The checkpoint, changed knowledge pages and original command receipt join the
+topology transaction. Cancellation must reconcile that receipt, not regenerate
+under a different ID. Existing `spaces-v1` records remain on the sealed-fixture
+runtime; no migration silently changes their geometry or loot.

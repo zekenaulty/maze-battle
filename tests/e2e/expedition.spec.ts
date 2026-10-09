@@ -33,7 +33,12 @@ test('isolated expedition persists exploration, stops, resumes and completes wit
   await expect(page.getByRole('button', { name: 'Explore', exact: true })).toBeDisabled();
   expect(Number(await screen.getAttribute('data-evictions'))).toBeGreaterThan(0);
   expect(Number(await screen.getAttribute('data-resident-cells'))).toBeLessThanOrEqual(512);
+  expect(Number(await screen.getAttribute('data-reused-steps'))).toBeGreaterThan(20);
+  expect(Number(await screen.getAttribute('data-map-audits'))).toBe(1);
   const completed = await page.evaluate(async () => (await import('/src/persistence/expeditionRepository.ts')).loadExpedition('structural-demo'));
+  const ledger = await page.evaluate(async () => (await import('/src/persistence/expeditionActionRepository.ts')).loadExpeditionSession('structural-demo'));
+  expect(ledger!.pendingActionId).toBeNull();
+  expect(ledger!.receiptCount).toBe(completed!.checkpoint.revision);
   expect(completed!.checkpoint.position).toEqual(completed!.checkpoint.home);
   expect(completed!.checkpoint.openedChestIds).toHaveLength(completed!.plan.spaces.flatMap(space => space.chests).length);
   expect(new Set(Object.values(completed!.checkpoint.knowledge.cells).map(cell => cell.spaceId)).size).toBe(completed!.plan.spaces.length);
