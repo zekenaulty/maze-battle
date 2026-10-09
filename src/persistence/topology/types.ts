@@ -4,8 +4,9 @@ export interface TopologyRoot {
   header: TopologyHeader;
   quotaBytes: number;
   serializedBytes: number;
+  streamVersion?: 1;
 }
-export interface TopologySpacePage { space: TopologySpace; connections: TopologyConnection[] }
+export interface TopologySpacePage { space: TopologySpace; connections: TopologyConnection[]; socketSequences?: number[] }
 export interface ExpansionRequest { scopeId: string; requestId: string; expectedRevision: number }
 export interface ExpansionReceipt {
   request: ExpansionRequest;

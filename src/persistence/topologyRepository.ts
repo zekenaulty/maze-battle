@@ -91,7 +91,10 @@ export async function loadTopologyExpansionReceipt(slot: string, requestId: stri
 export async function expandTopologyNext(slot: string, request: ExpansionRequest): Promise<ExpansionResult> {
   validId(slot); validRequest(request);
   const snapshot = { scopeId: request.scopeId, requestId: request.requestId, expectedRevision: request.expectedRevision };
-  return topologyTransaction(tx => expandTopologyInTransaction(tx, slot, snapshot));
+  return topologyTransaction(async tx => {
+    if ((await rootAt(tx, slot))?.streamVersion !== undefined) throw new Error('Gameplay-managed topology requires a stream command');
+    return expandTopologyInTransaction(tx, slot, snapshot);
+  });
 }
 
 /**

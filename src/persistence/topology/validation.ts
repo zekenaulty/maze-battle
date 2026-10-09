@@ -28,6 +28,7 @@ export function validRoot(root: TopologyRoot) {
   validateRecipe(header.recipe);
   validQuota(root.quotaBytes);
   if (!Number.isSafeInteger(root.serializedBytes) || root.serializedBytes < 1 || root.serializedBytes > root.quotaBytes
+    || (root.streamVersion !== undefined && root.streamVersion !== 1)
     || header.version !== 1 || header.scopeId !== recipeScope(header.recipe)
     || header.roomBudget !== 6 + 2 * header.recipe.level
     || ![header.revision, header.rooms, header.nextSocket, header.socketCount].every(Number.isSafeInteger)
@@ -44,6 +45,9 @@ export function validSpace(page: TopologySpacePage, id: string) {
   validId(spec.id);
   boundsBuckets({ ...spec.origin, rows: spec.rows, columns: spec.columns });
   if (!Array.isArray(spec.openings) || !Array.isArray(spec.chests) || !Array.isArray(page.connections)) throw new Error('Invalid topology space collections');
+  if (page.socketSequences !== undefined && (!Array.isArray(page.socketSequences) || page.socketSequences.length > (spec.kind === 'room' ? 4 : 0)
+    || new Set(page.socketSequences).size !== page.socketSequences.length
+    || page.socketSequences.some(sequence => !Number.isSafeInteger(sequence) || sequence < 0))) throw new Error('Invalid room socket index');
   if (spec.id !== id || schematic !== 'stone-room-v1' || !Number.isInteger(spec.seed) || spec.seed < 0 || spec.seed > 0xffffffff
     || spec.openings.length !== 0 || !['room', 'passage'].includes(spec.kind)
     || (spec.kind === 'room' ? [spec.rows, spec.columns].some(size => size < 5 || size > 15 || size % 2 !== 1)

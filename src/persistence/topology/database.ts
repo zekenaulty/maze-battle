@@ -1,17 +1,23 @@
 import { openDB, type DBSchema, type IDBPTransaction, type StoreKey, type StoreNames, type StoreValue } from 'idb';
 import { TOPOLOGY_DATABASE, type TopologyRecords, type TopologyRoot } from './types';
+import type { StreamActionReceipt, StreamCheckpoint, StreamControl, StreamKnowledgePage } from '../../domain/expedition/streaming/types';
 
-// Future v2 checkpoint/knowledge/command stores belong HERE, not in another DB.
-// Add stores to this schema and lock list with an additive version migration.
+// All v2 checkpoint/knowledge/command effects share this schema and lock scope.
+// Add future stores here with an additive version migration, never a second DB.
 export interface TopologyDatabase extends DBSchema {
   roots: { key: string; value: TopologyRecords['roots'] };
   spaces: { key: [string, string]; value: TopologyRecords['spaces'] };
   sockets: { key: [string, number]; value: TopologyRecords['sockets'] };
   buckets: { key: [string, number, number]; value: TopologyRecords['buckets'] };
   receipts: { key: [string, string]; value: TopologyRecords['receipts'] };
+  streamCheckpoints: { key: [string]; value: StreamCheckpoint };
+  streamKnowledge: { key: [string, string]; value: StreamKnowledgePage };
+  streamControls: { key: [string]; value: StreamControl };
+  streamActions: { key: [string, string]; value: StreamActionReceipt };
 }
-export const TOPOLOGY_STORES = ['roots', 'spaces', 'sockets', 'buckets', 'receipts'] as const;
-export const TOPOLOGY_DATABASE_VERSION = 1;
+export const TOPOLOGY_STORES = ['roots', 'spaces', 'sockets', 'buckets', 'receipts',
+  'streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions'] as const;
+export const TOPOLOGY_DATABASE_VERSION = 2;
 type Name = StoreNames<TopologyDatabase>;
 type Key<N extends Name> = StoreKey<TopologyDatabase, N>;
 type Value<N extends Name> = StoreValue<TopologyDatabase, N>;
