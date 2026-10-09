@@ -1,7 +1,8 @@
 import { DIRECTED_LIMITS } from '../../domain/directed/types';
 import { JOURNALS, slotRange, type Counts, type DirectedTransaction, type SaveRecord } from './database';
 import { receipt } from './journalValidation';
-import { projection, session, world } from './stateValidation';
+import { validateLineage } from './lineage';
+import { session, world } from './stateValidation';
 import { check, integer, keys, object, same } from './values';
 
 export async function load(tx: DirectedTransaction, slot: string): Promise<SaveRecord | undefined> {
@@ -23,8 +24,7 @@ export async function load(tx: DirectedTransaction, slot: string): Promise<SaveR
     && record.counts.events === record.session.world.revision, 'journal sequence mismatch');
   const storedWorld = await tx.objectStore('worlds').get(slot);
   world(storedWorld); check(same(storedWorld, record.session.world), 'world checkpoint mismatch');
-  const latest = await tx.objectStore('projections').get([slot, record.session.knowledge.revision]);
-  projection(latest); check(same(latest, record.session.knowledge), 'projection checkpoint mismatch');
+  await validateLineage(tx, slot, record);
   return record;
 }
 export async function requireSave(tx: DirectedTransaction, slot: string): Promise<SaveRecord> {

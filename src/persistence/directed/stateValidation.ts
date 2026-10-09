@@ -12,6 +12,9 @@ function cell(value: unknown): asserts value is DirectedCell {
     check(['north', 'east', 'south', 'west'].includes(direction), 'invalid exit direction'); address(destination);
   }
 }
+function edge(value: unknown): asserts value is { from: CellAddress; to: CellAddress } {
+  object(value); keys(value, ['from', 'to']); address(value.from); address(value.to);
+}
 function space(value: unknown): asserts value is DirectedSpace {
   object(value); keys(value, ['id', 'name', 'originX', 'originZ', 'rows', 'columns']); id(value.id); text(value.name);
   check(Number.isSafeInteger(value.originX) && Number.isSafeInteger(value.originZ), 'invalid space origin');
@@ -53,7 +56,7 @@ export function world(value: unknown): asserts value is DirectedWorld {
   for (const item of Object.values(current.features)) worldPosition(item.position, current);
 }
 export function projection(value: unknown): asserts value is KnowledgeProjection {
-  serializable(value); object(value); keys(value, ['worldId', 'observerId', 'revision', 'cells', 'spaces', 'features', 'absent']);
+  serializable(value); object(value); keys(value, ['worldId', 'observerId', 'revision', 'cells', 'spaces', 'features', 'absent'], ['blockedEdges']);
   id(value.worldId); id(value.observerId); integer(value.revision);
   // Remembered exits can reach unobserved cells; do not reconcile them with live truth.
   for (const name of ['cells', 'spaces', 'features'] as const) {
@@ -71,6 +74,12 @@ export function projection(value: unknown): asserts value is KnowledgeProjection
   for (const [key, item] of entries(value.absent)) {
     id(key); object(item); keys(item, ['observationId', 'observedAt']); id(item.observationId); integer(item.observedAt);
     check(item.observedAt > 0 && item.observedAt <= value.revision, 'invalid absence evidence sequence');
+  }
+  if (value.blockedEdges !== undefined) for (const [key, item] of entries(value.blockedEdges)) {
+    object(item); keys(item, ['value', 'observationId', 'observedAt']); edge(item.value);
+    check(key === `${addressKey(item.value.from)}>${addressKey(item.value.to)}`, 'blocked edge key mismatch');
+    id(item.observationId); integer(item.observedAt);
+    check(item.observedAt > 0 && item.observedAt <= value.revision, 'invalid blocked edge evidence sequence');
   }
 }
 export function session(value: unknown): asserts value is DirectedSession {
@@ -96,8 +105,13 @@ export function observation(value: unknown, current: DirectedSession): asserts v
   check(['prelude', 'look', 'travel', 'interaction', 'obstruction'].includes(value.reason as string), 'invalid observation reason');
   object(value.coverage); keys(value.coverage, ['radius', 'basis', 'complete']); integer(value.coverage.radius, 512);
   check(value.coverage.basis === 'connected-cells' && value.coverage.complete === true, 'invalid observation coverage');
-  object(value.scene); keys(value.scene, ['position', 'cells', 'spaces', 'features', 'absentFeatureIds']); address(value.scene.position);
+  object(value.scene); keys(value.scene, ['position', 'cells', 'spaces', 'features', 'absentFeatureIds'], ['traversal']); address(value.scene.position);
   for (const name of ['cells', 'spaces', 'features', 'absentFeatureIds']) list(value.scene[name]);
   (value.scene.cells as unknown[]).forEach(cell); (value.scene.spaces as unknown[]).forEach(space);
   (value.scene.features as unknown[]).forEach(item => feature(item)); (value.scene.absentFeatureIds as unknown[]).forEach(id);
+  if (value.scene.traversal !== undefined) {
+    object(value.scene.traversal); keys(value.scene.traversal, ['from', 'to', 'passable']);
+    address(value.scene.traversal.from); address(value.scene.traversal.to);
+    check(typeof value.scene.traversal.passable === 'boolean', 'invalid traversal passability');
+  }
 }
