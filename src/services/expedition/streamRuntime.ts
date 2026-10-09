@@ -47,7 +47,7 @@ export class StreamRuntime {
     if (generation !== this.generation || this.active || this.faulted) return undefined;
     const { checkpoint, room } = this.snapshot;
     const decision = this.planner.choose(checkpoint, room.knowledge!, this.owner);
-    if (decision.command) return this.dispatch(decision.command);
+    if (decision.command) return this.start(decision.command);
     throw new Error(decision.reason);
   }
 
@@ -60,6 +60,13 @@ export class StreamRuntime {
       this.planner.reset();
       return undefined;
     }
+    return this.start(command);
+  }
+
+  // Planning and admission share one post-control turn; a second await would let
+  // another automatic caller enter the planner before this.active is assigned.
+  private async start(command: StreamCommand): Promise<StreamActionResult> {
+    const { revision, topologyRevision } = this.snapshot.checkpoint;
     const request: StreamActionRequest = { version: 2, actionId: crypto.randomUUID(), sessionId: this.owner.sessionId,
       epoch: this.owner.epoch, expectedRevision: revision, expectedTopologyRevision: topologyRevision, command };
     this.active = this.execute(request);

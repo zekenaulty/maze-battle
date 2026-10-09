@@ -33,7 +33,13 @@ export function useStreamExpedition() {
 
   const stop = useCallback(() => {
     intent.current++; automatic.current = false; setPlaying(false);
-    void runtime.current?.takeOver().catch(reason => { if (mounted.current) setError(String(reason)); });
+    const state = runtime.current;
+    void state?.takeOver().catch(reason => {
+      if (!mounted.current || runtime.current !== state) return;
+      // A failed claim faults this runtime, including a newer start intent.
+      intent.current++; automatic.current = false; setPlaying(false);
+      setError(String(reason));
+    });
   }, []);
 
   const dispatch = useCallback(async (command?: StreamCommand, manual = false) => {
