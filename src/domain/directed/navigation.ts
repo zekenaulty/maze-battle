@@ -14,7 +14,8 @@ export function actorNavigationGraph(knowledge: KnowledgeProjection): DirectedGr
     && (value.state === 'closed' || value.state === 'locked')).map(({ value }) => addressKey(value.position)));
   return new Map(Object.values(knowledge.cells).map(({ value }) => [addressKey(value.address), {
     address: { ...value.address }, exits: Object.fromEntries(Object.entries(value.exits)
-      .filter(([, to]) => !blocked.has(addressKey(to))).map(([direction, to]) => [direction, { ...to }])),
+      .filter(([, to]) => !blocked.has(addressKey(to)) && !knowledge.blockedEdges?.[`${addressKey(value.address)}>${addressKey(to)}`])
+      .map(([direction, to]) => [direction, { ...to }])),
   }]));
 }
 

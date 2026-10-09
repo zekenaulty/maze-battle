@@ -20,8 +20,9 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
   const events: WorldEvent[] = [];
   const refuse = (reason: string): DirectedTransition => ({ session: previous, observations: [], events: [],
     outcome: { status: 'refused', reason, position: { ...previous.actor.position }, operation: structuredClone(previous.operation) } });
-  const observe = (reason: ObservationReceipt['reason']) => {
+  const observe = (reason: ObservationReceipt['reason'], traversal?: ObservationReceipt['scene']['traversal']) => {
     const observation = observeDirected(session.world, session.actor, session.knowledge, reason);
+    if (traversal) observation.scene.traversal = structuredClone(traversal);
     session.knowledge = rememberDirected(session.knowledge, observation);
     observations.push(observation);
   };
@@ -30,7 +31,7 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
     return { session, observations, events, outcome: { status: 'applied', reason,
       position: { ...session.actor.position }, operation: structuredClone(session.operation) } };
   };
-  if (!Number.isSafeInteger(now) || now < 0 || !command) return refuse('Invalid request.');
+  if (!Number.isSafeInteger(now) || now < 0 || now > Number.MAX_SAFE_INTEGER - 120_000 || !command) return refuse('Invalid request.');
   if (command.type === 'navigate') {
     if (!validId(command.operationId) || !validTarget(command.target)) return refuse('Invalid destination request.');
     if (session.operation?.status === 'running') return refuse('An intention is already running.');
@@ -101,14 +102,16 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
   if (!next) return interrupt('No known route.');
   // Truth is consulted only to apply the immediate collision/move, never to pick a path.
   if (!canTraverseDirected(session.world, session.actor.position, next)) {
-    observe('obstruction'); operation.route = []; operation.reason = 'The next step is obstructed.';
+    observe('obstruction', { from: session.actor.position, to: next, passable: false });
+    operation.route = []; operation.reason = 'The next step is obstructed.';
     if (operation.replans >= DIRECTED_LIMITS.replans) return interrupt('Local replan budget exhausted.');
     return applied(operation.reason);
   }
+  const previousPosition = { ...session.actor.position };
   const result = moveDirectedWorld(session.world, session.actor, next);
   session.world = result.world; session.actor = result.actor; events.push(result.event);
   operation.route.shift(); operation.steps++;
-  observe('travel');
+  observe('travel', { from: previousPosition, to: next, passable: true });
   if (hasArrived(session.knowledge, session.actor.position, operation.target)) return arrive();
   return applied('Travel checkpoint recorded.');
 }

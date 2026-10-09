@@ -57,6 +57,19 @@ describe('actor-directed known destination', () => {
       expect(planKnownDestination(session.knowledge, session.actor.position, { ...target, featureId })).toEqual({ status: 'unavailable', reason: 'Destination is not known.' });
     }
   });
+  it('learns a concealed collision without object identity and stops retrying the blocked edge', () => {
+    const { session } = createDirectedFixture();
+    session.world.features.concealed = { id: 'concealed', kind: 'door', name: 'Private Gate',
+      position: { spaceId: 'W', row: 0, column: 1 }, state: 'closed', hidden: true };
+    const result = travel(session);
+    const collisions = result.checkpoints.flatMap(c => c.observations).filter(o => o.reason === 'obstruction');
+    expect(collisions).toHaveLength(1);
+    expect(JSON.stringify(collisions)).not.toContain('Private Gate');
+    expect(JSON.stringify(collisions)).not.toContain('concealed');
+    expect(result.session.operation?.reason).toBe('No known route.');
+    expect(result.session.operation?.replans).toBe(1);
+    expect(Object.keys(result.session.knowledge.blockedEdges ?? {})).toHaveLength(1);
+  });
   it('records the disappearance of a remembered destination only when its cell is observed', () => {
     const { session } = createDirectedFixture();
     delete session.world.features.V;

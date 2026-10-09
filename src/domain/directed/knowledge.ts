@@ -1,4 +1,4 @@
-import { addressKey } from '../expedition/address';
+import { addressKey, sameAddress } from '../expedition/address';
 import type { KnowledgeProjection, ObservationReceipt, Remembered } from './types';
 
 export function emptyDirectedKnowledge(worldId: string, observerId: string): KnowledgeProjection {
@@ -32,6 +32,16 @@ export function rememberDirected(knowledge: KnowledgeProjection, observation: Ob
     }
     delete next.features[id];
     next.absent[id] = { observationId: observation.id, observedAt: observation.sequence };
+  }
+  const traversal = observation.scene.traversal;
+  if (traversal) {
+    const { from, to, passable } = traversal;
+    if (!observedCells.has(addressKey(passable ? to : from))
+      || !sameAddress(observation.scene.position, passable ? to : from)) throw new Error('Traversal evidence requires local coverage.');
+    next.blockedEdges ??= {};
+    const key = `${addressKey(from)}>${addressKey(to)}`;
+    if (passable) delete next.blockedEdges[key];
+    else next.blockedEdges[key] = remember({ from, to });
   }
   next.revision = observation.sequence;
   return next;

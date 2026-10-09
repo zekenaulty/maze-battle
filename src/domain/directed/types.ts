@@ -35,6 +35,7 @@ export interface PerceivedScene {
   spaces: DirectedSpace[];
   features: ObservedFeature[];
   absentFeatureIds: string[];
+  traversal?: { from: CellAddress; to: CellAddress; passable: boolean };
 }
 /** Immutable source evidence; sourceWorldRevision is audit-only, not actor context. */
 export interface ObservationReceipt {
@@ -51,6 +52,7 @@ export interface KnowledgeProjection {
   spaces: Record<string, Remembered<DirectedSpace>>;
   features: Record<string, Remembered<ObservedFeature>>;
   absent: Record<string, { observationId: string; observedAt: number }>;
+  blockedEdges?: Record<string, Remembered<{ from: CellAddress; to: CellAddress }>>;
 }
 export interface PresentedContext {
   id: string; observerId: string; knowledgeRevision: number;
