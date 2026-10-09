@@ -1,6 +1,8 @@
 import { openDB, type DBSchema, type IDBPTransaction, type StoreKey, type StoreNames, type StoreValue } from 'idb';
 import { TOPOLOGY_DATABASE, type TopologyRecords, type TopologyRoot } from './types';
 import type { StreamActionReceipt, StreamCheckpoint, StreamControl, StreamKnowledgePage } from '../../domain/expedition/streaming/types';
+import type { AgenticaGameBinding } from '../../services/agentica/contracts';
+import type { StoredAgenticaAction } from '../agenticaRecords';
 
 // All v2 checkpoint/knowledge/command effects share this schema and lock scope.
 // Add future stores here with an additive version migration, never a second DB.
@@ -14,10 +16,12 @@ export interface TopologyDatabase extends DBSchema {
   streamKnowledge: { key: [string, string]; value: StreamKnowledgePage };
   streamControls: { key: [string]; value: StreamControl };
   streamActions: { key: [string, string]; value: StreamActionReceipt };
+  agenticaRuns: { key: [string, string]; value: AgenticaGameBinding };
+  agenticaActions: { key: [string, string]; value: StoredAgenticaAction };
 }
 export const TOPOLOGY_STORES = ['roots', 'spaces', 'sockets', 'buckets', 'receipts',
-  'streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions'] as const;
-export const TOPOLOGY_DATABASE_VERSION = 2;
+  'streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions', 'agenticaRuns', 'agenticaActions'] as const;
+export const TOPOLOGY_DATABASE_VERSION = 3;
 type Name = StoreNames<TopologyDatabase>;
 type Key<N extends Name> = StoreKey<TopologyDatabase, N>;
 type Value<N extends Name> = StoreValue<TopologyDatabase, N>;

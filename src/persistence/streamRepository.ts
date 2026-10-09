@@ -17,7 +17,8 @@ export type { StreamSnapshot, StreamGeometryReader } from './streamTypes';
 export { executeStreamAction, loadStreamAction } from './streamActions';
 export { ensureStreamPublicScope, getStreamPublicScope } from './streamPublicScope';
 
-async function snapshotAt(tx: TopologyTransaction, slot: string, root: TopologyRoot, checkpoint: StreamCheckpoint): Promise<StreamSnapshot> {
+/** Reads staged gameplay in the caller's transaction; does not commit or open a DB. */
+export async function snapshotAt(tx: TopologyTransaction, slot: string, root: TopologyRoot, checkpoint: StreamCheckpoint): Promise<StreamSnapshot> {
   const room = await loadStreamRoom(tx, slot, checkpoint.position.spaceId, root.header, checkpoint.revision);
   const page = requireCurrentKnowledge(checkpoint, room);
   const geometry = streamGeometry()(room.space);
