@@ -1,13 +1,8 @@
-import { openDB, type DBSchema } from 'idb';
+import { expeditionTransaction, openExpeditionDatabase, type ExpeditionRecord } from './expeditionDatabase';
 import { addressKey, sameAddress } from '../domain/expedition/address';
 import type { CellAddress, ExpeditionCheckpoint, ExpeditionPlan, SpaceSpec } from '../domain/expedition/types';
 import type { GridPosition } from '../domain/types';
 import { movePosition, opposite } from '../domain/maze/movement';
-
-type ExpeditionRecord = { plan: ExpeditionPlan; checkpoint: ExpeditionCheckpoint };
-interface ExpeditionDb extends DBSchema {
-  expeditions: { key: string; value: ExpeditionRecord };
-}
 
 const directions = ['north', 'east', 'south', 'west'];
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -121,21 +116,15 @@ export function validateExpeditionRecord(value: unknown): asserts value is Exped
 }
 
 // Object insertion order is not part of a persisted record's identity; array order is.
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (object(value)) return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
   return JSON.stringify(value);
 }
 
-function openDatabase() {
-  return openDB<ExpeditionDb>('maze-battle-expeditions', 1, {
-    upgrade(db) { db.createObjectStore('expeditions'); },
-  });
-}
-
 export async function loadExpedition(slotId: string): Promise<ExpeditionRecord | undefined> {
   check(text(slotId), 'slot id');
-  const db = await openDatabase();
+  const db = await openExpeditionDatabase();
   try {
     // An existing key with an undefined value is corruption, not an empty slot.
     const records = await db.getAll('expeditions', slotId, 1);
@@ -161,10 +150,9 @@ export async function saveExpedition(
   const record = structuredClone({ plan, checkpoint });
   validateExpeditionRecord(record);
   check(expectedRevision === null || expectedRevision <= record.checkpoint.revision, 'revision regression');
-  const db = await openDatabase();
-  const tx = db.transaction('expeditions', 'readwrite');
-  try {
-    const records = await tx.store.getAll(slotId, 1);
+  await expeditionTransaction('readwrite', async tx => {
+    const store = tx.objectStore('expeditions');
+    const records = await store.getAll(slotId, 1);
     if (records.length === 0) {
       check(expectedRevision === null, 'revision conflict: slot missing');
     } else {
@@ -173,29 +161,20 @@ export async function saveExpedition(
       check(expectedRevision !== null, 'revision conflict: slot exists');
       check(canonical(current.plan) === canonical(record.plan), 'plan identity changed');
       if (canonical(current) === canonical(record)) {
-        await tx.done;
         return;
       }
       check(current.checkpoint.revision === expectedRevision && record.checkpoint.revision > expectedRevision,
         'revision conflict');
     }
-    await tx.store.put(record, slotId);
-    await tx.done;
-  } catch (error) {
-    try { tx.abort(); } catch { /* A failed request may have already aborted the transaction. */ }
-    await tx.done.catch(() => undefined);
-    throw error;
-  } finally {
-    db.close();
-  }
+    check(await tx.objectStore('actionSessions').count(slotId) === 0, 'durable session requires atomic action commit');
+    await store.put(record, slotId);
+  });
 }
 
 export async function deleteExpedition(slotId: string): Promise<void> {
   check(text(slotId), 'slot id');
-  const db = await openDatabase();
-  try {
-    await db.delete('expeditions', slotId);
-  } finally {
-    db.close();
-  }
+  await expeditionTransaction('readwrite', async tx => {
+    check(await tx.objectStore('actionSessions').count(slotId) === 0, 'durable action history must be retained');
+    await tx.objectStore('expeditions').delete(slotId);
+  });
 }
