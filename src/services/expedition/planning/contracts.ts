@@ -15,8 +15,11 @@ export interface PlanningState {
 }
 export interface PlanningHost {
   read(): Promise<PlanningState>;
+  /** Fence owner and both revisions atomically. Rejection/unavailable requires exact receipt reconciliation. */
   execute(request: StreamActionRequest): Promise<StreamActionResult>;
+  /** Return only the original committed receipt matching every request field. */
   lookup(request: StreamActionRequest): Promise<StreamActionReceipt | undefined>;
+  /** Reclaim the bound owner only; never replace a newer owner. */
   release(): Promise<void>;
 }
 export interface PlanningFrame {

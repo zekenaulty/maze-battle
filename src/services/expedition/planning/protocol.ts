@@ -1,5 +1,5 @@
 import { streamActionSignature } from '../../../persistence/streamValidation';
-import type { StreamActionRequest } from '../../../domain/expedition/streaming/types';
+import type { StreamActionReceipt, StreamActionRequest, StreamActionResult } from '../../../domain/expedition/streaming/types';
 import { PLANNING_PROTOCOL, type PlanningAction, type PlanningBinding, type PlanningLimits, type ServiceMessage } from './contracts';
 
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype;
@@ -26,6 +26,29 @@ export function actionRequest(message: PlanningAction): StreamActionRequest {
   const result: StreamActionRequest = { version: 2, actionId: message.actionId, sessionId: message.binding.sessionId, epoch: message.binding.epoch,
     expectedRevision: message.expectedRevision, expectedTopologyRevision: message.expectedTopologyRevision, command: structuredClone(message.command) };
   streamActionSignature(result);
+  return result;
+}
+
+/** Host responses are evidence only for the exact immutable request admitted here. */
+export function actionResult(request: StreamActionRequest, value: StreamActionResult): StreamActionResult {
+  check(object(value) && value.actionId === request.actionId && value.beforeRevision === request.expectedRevision
+    && ['applied', 'refused', 'conflict', 'unavailable'].includes(value.disposition)
+    && natural(value.afterRevision) && natural(value.topologyRevision)
+    && typeof value.reason === 'string' && value.reason.length <= 2048, 'invalid action result');
+  if (value.disposition === 'applied' || value.disposition === 'refused') {
+    check(value.afterRevision === request.expectedRevision + Number(value.disposition === 'applied')
+      && value.topologyRevision >= request.expectedTopologyRevision
+      && value.topologyRevision <= request.expectedTopologyRevision + Number(value.disposition === 'applied' && request.command.type === 'prepare'),
+    'inconsistent result revisions');
+  }
+  return { actionId: value.actionId, disposition: value.disposition, beforeRevision: value.beforeRevision,
+    afterRevision: value.afterRevision, topologyRevision: value.topologyRevision, reason: value.reason };
+}
+export function receiptResult(request: StreamActionRequest, receipt: StreamActionReceipt): StreamActionResult {
+  const signature = streamActionSignature(request);
+  check(object(receipt) && receipt.signature === signature && streamActionSignature(receipt.request) === signature, 'receipt identity mismatch');
+  const result = actionResult(request, receipt.result);
+  check(result.disposition === 'applied' || result.disposition === 'refused', 'receipt is not committed evidence');
   return result;
 }
 

@@ -32,7 +32,7 @@ export function planningFixture(limits: Partial<PlanningLimits> = {}) {
       const before = world.checkpoint.revision;
       let result: StreamActionResult;
       if (switches.released || request.expectedRevision !== before || request.expectedTopologyRevision !== world.checkpoint.topologyRevision) {
-        result = { actionId: request.actionId, disposition: 'conflict', beforeRevision: before, afterRevision: before,
+        result = { actionId: request.actionId, disposition: 'conflict', beforeRevision: request.expectedRevision, afterRevision: before,
           topologyRevision: world.checkpoint.topologyRevision, reason: 'Conflict' };
       } else {
         const transition = await world.step(request.command);

@@ -1,6 +1,8 @@
 import type { CellAddress, KnownCell, KnownChest, KnownOpening } from '../../../domain/expedition/types';
+import { sameAddress } from '../../../domain/expedition/address';
 import type { KnownFrontier, StreamCheckpoint, StreamKnowledgePage, StreamObservation } from '../../../domain/expedition/streaming/types';
 import type { PlanningBinding, PlanningFrame, PlanningState } from './contracts';
+import { validateBinding } from './protocol';
 
 const address = (value: CellAddress): CellAddress => ({ spaceId: value.spaceId, row: value.row, column: value.column });
 const cell = (value: KnownCell): KnownCell => ({ ...address(value), links: [...value.links], observedAt: value.observedAt });
@@ -11,12 +13,16 @@ const records = <T>(values: Record<string, T>, copy: (value: T) => T) => Object.
 
 /** Do not spread host records: even the internal scope ID embeds the recipe seed. */
 export function projectPlanningFrame(state: PlanningState, binding: PlanningBinding, maxBytes: number): PlanningFrame {
+  validateBinding(binding);
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 131_072) throw new Error('Invalid planning frame byte budget');
   const source = state.checkpoint;
   const observed = state.observation;
   const page = state.knowledge;
   if (source.worldId !== binding.worldId || source.floorId !== binding.floorId
+    || observed.worldId !== source.worldId || observed.floorId !== source.floorId
     || source.scopeId !== observed.scopeId || source.revision !== observed.revision
     || source.topologyRevision !== observed.topologyRevision || page.spaceId !== source.position.spaceId
+    || !sameAddress(observed.position, source.position) || observed.phase !== source.phase
     || page.revision !== source.revision) throw new Error('Planning frame identity mismatch');
   if (Object.keys(page.cells).length > 225 || Object.keys(page.openings).length > 4
     || Object.keys(page.frontiers).length > 4 || Object.keys(page.chests).length > 1
