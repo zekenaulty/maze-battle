@@ -98,7 +98,7 @@ export class StreamPlanner {
     if (!this.owner || this.owner.identity !== identity || this.owner.epoch !== control.epoch || this.owner.sessionId !== control.sessionId) {
       this.invalidate();
       this.reset();
-      this.owner = { ...control, identity };
+      this.owner = { sessionId: control.sessionId, epoch: control.epoch, identity };
     }
     const previous = this.previous;
     if (previous && (checkpoint.revision < previous.revision || checkpoint.topologyRevision < previous.topologyRevision)) {
@@ -108,6 +108,8 @@ export class StreamPlanner {
       this.invalidate();
       this.page = undefined;
       this.pending = undefined;
+      this.previous = { revision: checkpoint.revision, topologyRevision: checkpoint.topologyRevision,
+        moves: checkpoint.moves, position: copyAddress(checkpoint.position) };
       return { reason: 'Expedition already complete.' };
     }
     const page = readPlannerPage(knowledgePage, checkpoint, this.last);

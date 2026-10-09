@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { addressKey } from '../address';
 import { StreamPlanner, STREAM_PLANNER_LIMITS } from './planner';
@@ -271,12 +272,18 @@ describe('streaming planner bounds and invalid observations', () => {
   });
 
   it('bounds nearest-chest grouping work to eight local searches', () => {
-    const f = fixture(32, Array.from({ length: 32 }, (_, i) => i));
+    const f = fixture(512, Array.from({ length: 512 }, (_, i) => i));
+    f.page.openings.north = { ...at(0), id: 'north', direction: 'north', observedAt: 0 };
+    f.page.openings.south = { ...at(0), id: 'south', direction: 'south', observedAt: 0 };
+    f.page.openings.west = { ...at(0), id: 'west', direction: 'west', observedAt: 0 };
+    f.page.openings.east = { ...at(511), id: 'east', direction: 'east', observedAt: 0 };
     const planner = new StreamPlanner();
     expect(choose(planner, f).command).toEqual({ type: 'collect' });
     expect(planner.diagnostics.lastWork.searches).toBe(STREAM_PLANNER_LIMITS.chestObjectives);
-    expect(planner.diagnostics.lastWork.expandedCells).toBe(8 * 32);
-    expect(planner.diagnostics.cache.batchSteps).toBe(15);
+    expect(planner.diagnostics.lastWork.expandedCells).toBe(8 * 512);
+    expect(planner.diagnostics.lastWork.examinedLinks).toBeLessThanOrEqual(8 * 4 * 512);
+    expect(planner.diagnostics.lastWork.auditedRecords).toBe(512 + 512 + 4);
+    expect(planner.diagnostics.cache).toEqual({ pages: 1, cells: 512, chests: 512, ports: 4, batchSteps: 15 });
   });
 
   it('bounds memory across 2000 paged spaces and backtracks without a hidden ancestor stack', () => {
