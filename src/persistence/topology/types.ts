@@ -5,6 +5,8 @@ export interface TopologyRoot {
   quotaBytes: number;
   serializedBytes: number;
   streamVersion?: 1;
+  /** Opaque external identity. The internal header.scopeId contains the recipe. */
+  publicScopeId?: string;
 }
 export interface TopologySpacePage { space: TopologySpace; connections: TopologyConnection[]; socketSequences?: number[] }
 export interface ExpansionRequest { scopeId: string; requestId: string; expectedRevision: number }

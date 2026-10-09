@@ -15,6 +15,7 @@ import type { StreamSnapshot } from './streamTypes';
 
 export type { StreamSnapshot, StreamGeometryReader } from './streamTypes';
 export { executeStreamAction, loadStreamAction } from './streamActions';
+export { ensureStreamPublicScope, getStreamPublicScope } from './streamPublicScope';
 
 async function snapshotAt(tx: TopologyTransaction, slot: string, root: TopologyRoot, checkpoint: StreamCheckpoint): Promise<StreamSnapshot> {
   const room = await loadStreamRoom(tx, slot, checkpoint.position.spaceId, root.header, checkpoint.revision);

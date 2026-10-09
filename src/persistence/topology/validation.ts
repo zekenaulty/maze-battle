@@ -11,6 +11,11 @@ export function validId(value: string) {
 export function validQuota(bytes: number) {
   if (!Number.isSafeInteger(bytes) || bytes < 1024 || bytes > MAX_TOPOLOGY_QUOTA) throw new Error('Invalid topology serialized-byte quota');
 }
+export function validPublicScopeId(value: unknown): asserts value is string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new Error('Invalid public scope UUID');
+  }
+}
 export function recipeCopy(recipe: TopologyRecipe): TopologyRecipe {
   validateRecipe(recipe);
   return { version: recipe.version, worldId: recipe.worldId, floorId: recipe.floorId, level: recipe.level, seed: recipe.seed };
@@ -24,6 +29,7 @@ export function validRequest(request: ExpansionRequest) {
     || !Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 0) throw new Error('Invalid expansion request');
 }
 export function validRoot(root: TopologyRoot) {
+  if (Object.hasOwn(root, 'publicScopeId')) validPublicScopeId(root.publicScopeId);
   const { header } = root;
   validateRecipe(header.recipe);
   validQuota(root.quotaBytes);
