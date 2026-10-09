@@ -1,11 +1,11 @@
 # Structural streaming exploration
 
-Status at integrated SDK commit `ba5aa1c`: v1 and incremental v2 isolated play,
-paged discovered maps, a separately saved level-19 fixture and the Agentica browser
-client are implemented. Actual cross-runtime fixture proof is **IN PROGRESS, not
-PASS**; live-provider qualification is **UNKNOWN**. Branch: `codex/streaming-exploration`.
-Goal: S0-S5 below. The overall goal is not complete. Historical test counts below
-belong to their recorded milestones, not a new full-suite qualification.
+Status: S0-S5 foundation acceptance is qualified, including isolated v2 play,
+paged discovered maps, a separate level-19 fixture and provider-free Agentica
+first-chest/recovery/takeover proof. Branch: `codex/streaming-exploration`.
+This closes the bounded exploration foundation, not the entire RPG migration.
+Post-foundation work is listed separately below. Live-provider status is UNKNOWN.
+Historical test counts belong to their recorded milestones.
 
 ## Architecture
 
@@ -33,10 +33,10 @@ Recipes pin generator version and seed; regeneration cannot depend on cache orde
 | --- | --- | --- | --- |
 | S0 | Integration lead | v2 contracts and persisted opaque public UUID integrated | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
 | S1 | Ptolemy / codex/streaming-generation | Bounded macro generator and adversarial gates passed | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
-| S2 | Dewey / codex/streaming-storage | Paged maps, atomic Agentica evidence and conservative settlement integrated; immutable manual saves/archival open | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
+| S2 | Dewey / codex/streaming-storage | Foundation acceptance passed; immutable manual saves/archival are follow-up work | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
 | S3 | Kant / codex/streaming-explorer | One-room route batches and paged map UI integrated; level-19 oracle run recorded | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
-| S4 | Integration lead | Internal harness qualified locally; HostProtocol v1 SDK/client integrated; cross-runtime proof IN PROGRESS | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
-| S5 | Integration lead + workers | v2 playable/reload/viewport evidence recorded; separate level-19 save integrated; service qualification open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
+| S4 | Integration lead | Internal full-floor harness and external first-chest/recovery/takeover gates passed | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
+| S5 | Integration lead + workers | Isolated playable, persistence, layout and provider-free integration gates passed | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
 
 ## First playable gate
 
@@ -63,9 +63,9 @@ No worker may change the live save or unrelated Agentica checkout.
 - Implemented: MB-A0 local gate and actual-IDB host, plus an Agentica HostProtocol
   v1 client using the existing generic SDK. `maze-planning/1` remains an internal
   harness contract, not the external wire protocol.
-- In progress: actual cross-runtime fixture qualification, including exact-evidence
-  reads after normal context compaction. This precedes any live-provider proof;
-  live-provider status remains UNKNOWN until explicitly exercised.
+- Qualified: actual cross-runtime first-chest fixture, exact-source reads after
+  compaction, original-result replay and takeover/new-epoch continuity. Whole-floor
+  service orchestration and live-provider qualification remain separate future gates.
 
 ## Historical first-fixture evidence
 
@@ -117,8 +117,8 @@ blanket authority to cancel unknown external effects.
 
 Agentica integration now retains immutable original observation/result evidence
 atomically with effects and offers non-executing settlement for provably abandoned
-pending attempts. Ordinary disconnect alone does not prove abandonment. Actual
-cross-runtime fixture qualification is IN PROGRESS, not PASS. See the
+pending attempts. Ordinary disconnect alone does not prove abandonment. The actual
+cross-runtime first-chest, replay and takeover fixture gates now pass. See the
 [planning adapter contract](planning-adapter-contract.md) for the separate internal
 harness and external HostProtocol v1 boundaries.
 
@@ -281,14 +281,19 @@ external-service qualification. The following milestone records their scope.
   with one worker and TypeScript checking. Tests use the real SDK/domain but mocked
   repository/transport. This is local client evidence, not service qualification.
 
-## Remaining qualification
+## Foundation qualification
 
-Actual cross-runtime browser/Agentica fixture proof is **IN PROGRESS, not PASS**.
-The integration lead is fixing fixture-provider exact-evidence reads after normal
-context compaction and will append the final qualification. Local tests, startup
-diagnosis or a WebSocket connection alone cannot establish end-to-end completion,
-recovery, provider-budget enforcement or service qualification. Live-provider
-status remains **UNKNOWN**.
+See [Agentica qualification](agentica-qualification.md) for exact versions, commands,
+named scenario evidence and limits. The normal RPG and v1 saves remain untouched.
+The level-19 map uses the available screen height at desktop and 320px mobile sizes;
+opening it pauses exploration and suppresses movement controls. Screenshots inspected.
+
+Recorded regression: 1,318 unit tests, 124 standard browser cases, 21 actual-IDB
+Agentica cases and the three separately enabled real-service browser cases passed.
+Six fixture parser tests cover current-user prompt selection and exact/receipt-linked
+evidence. Production build passed. See qualification notes for final SDK delta tests.
+
+## Post-foundation work
 
 Manual immutable save references, receipt/history archival and normal RPG
 quest/combat/inventory integration remain open. Future topology/navigation changes

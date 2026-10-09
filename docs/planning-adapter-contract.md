@@ -1,18 +1,19 @@
 # Browser-owned planning adapters
 
-Status at integrated SDK commit `ba5aa1c`: local harness, repository boundary and
-Agentica browser client implemented. Actual cross-runtime fixture proof is
-**IN PROGRESS, not PASS**. Live-provider qualification remains **UNKNOWN**.
+Status: browser-owned boundary and provider-free cross-runtime first-chest proof
+qualified. See [recorded evidence](evidence/agentica-fixture-2026-10-09.json) and
+[reproduction instructions](agentica-qualification.md). Live-provider status is
+**UNKNOWN**; this does not qualify the entire RPG or whole-floor service planning.
 
 Two contracts coexist; they are not interchangeable:
 
 | Surface | Contract | Evidence boundary |
 | --- | --- | --- |
 | Internal local harness | `maze-planning/1` in `src/services/expedition/planning/` | Same-runtime scripted planner and actual-IDB browser tests |
-| Agentica connection | Existing Agentica `HostProtocol.cs`, `protocolVersion: 1`, in `src/services/agentica/` | Pinned SDK and locally tested host integration; cross-runtime qualification still in progress |
+| Agentica connection | Existing Agentica `HostProtocol.cs`, `protocolVersion: 1`, in `src/services/agentica/` | Real Chromium/IndexedDB, SDK, WebSocket and .NET runner with a streamed provider fixture |
 
 The SDK is vendored without runtime edits from Agentica
-`4291c7ff38a7466fb1f57c99fed97a6de8ff65c3`; see
+`6dc1c6d510dde06aa67c3b0f5118e13894711af5`; see
 [`sdk/README.md`](../src/services/agentica/sdk/README.md). Agentica does not consume
 the internal `maze-planning/1` envelope. The earlier proposal to require that
 envelope on the .NET wire has been superseded by adoption of HostProtocol v1.
@@ -218,16 +219,24 @@ supported summaries may be surfaced as progress.
   SDK/domain with mocked repository and transport; they do not prove service
   interoperability. No client-policy or fixture changes were needed for the refresh.
 
-## Open qualification
+## Cross-runtime qualification
 
-MB-A4 actual browser/Agentica fixture proof is **IN PROGRESS, not PASS**. The
-integration lead is correcting fixture-provider exact-evidence reads after normal
-context compaction. Startup diagnosis, local SDK tests or a WebSocket connection
-do not qualify service completion, reconnect/restart recovery or provider budgets.
-The lead will append the final cross-runtime result, identities and evidence here.
+MB-A4 first-chest gate passes with service `10e14c6`, real host-owned commands and
+the provider-free streamed fixture. Normal and lost-acknowledgement cases collect
+one chest after three spaces; a deliberately refused move is followed by replanning.
+The lost original result is retransmitted exactly, and completion evidence replays
+unchanged after browser reload. Browser text deltas are correlated by callId and
+sequential provider ordinal and arrive before that call's provider completion.
 
-Still open: cross-runtime blocked/multi-call handling, incomplete streams, slow
-display, disconnect-after-commit, restart and budget evidence; manual immutable
-save references and receipt archival; ordinary RPG quest/combat/inventory integration.
+Human takeover at revision 8 fences further effects; the abandoned original action
+settles without execution. A new authorized epoch reprojects 38 offscreen remembered
+cells, preserving their original observedAt values. Exact-source retrieval returns
+those same entries. This is host-reprojected continuity, not automatic inheritance
+of old service hypotheses. Compaction remains enabled and exact-source reads are
+verified; direct, receipt-linked current observations avoid redundant map queries.
+
+Still open: service-process restart, incomplete provider streams, slow-display
+qualification, full-floor service orchestration and its repeated-run policy;
+manual immutable save references and receipt archival; ordinary RPG integration.
 Live-provider status is **UNKNOWN**. Authentication, production transport security,
 durable native-provider restart and multiplayer remain outside this initial slice.

@@ -30,6 +30,7 @@ for (const directory of await readdir(source, { withFileTypes: true })) {
 if (scenarios.length !== 3) throw new Error('Expected all three named successful scenario artifacts.');
 await mkdir('docs/evidence', { recursive: true });
 await writeFile(destination, JSON.stringify({ evidence: 'Provider-free Chromium, real SDK, WebSocket, .NET Agentica runner and IndexedDB',
-  serviceCommit: '10e14c6914f318761ee09b823d7f4b27af0b7c37', sdkSha256: createHash('sha256').update(sdk).digest('hex'),
+  serviceCommit: '10e14c6914f318761ee09b823d7f4b27af0b7c37', sdkCommit: '6dc1c6d510dde06aa67c3b0f5118e13894711af5',
+  sdkSha256: createHash('sha256').update(sdk).digest('hex'),
   seed: 20261008, maxStepsPerRun: 128, maxProviderCallsPerRun: 128, liveProvider: 'NOT EXERCISED', scenarios }, null, 2) + '\n');
 console.log(destination);
