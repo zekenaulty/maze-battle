@@ -3,6 +3,7 @@ import type { Direction } from '../../types';
 import { addressKey } from '../address';
 import { copyAddress } from '../explorationGraph';
 import type { CellAddress } from '../types';
+import { shortestRoutes } from '../shortestRoutes';
 import { STREAM_PLANNER_LIMITS, type PlannerPage, type StreamPlannerWork } from './plannerPage';
 import type { StreamCheckpoint, StreamCommand } from './types';
 
@@ -20,21 +21,17 @@ type Search = Map<string, RouteNode>;
 
 function search(page: PlannerPage, start: CellAddress, work: StreamPlannerWork): Search {
   work.searches++;
-  const queue = [addressKey(start)];
-  const reached: Search = new Map([[queue[0], { address: copyAddress(start), distance: 0 }]]);
-  for (let index = 0; index < queue.length; index++) {
-    work.expandedCells++;
-    const current = reached.get(queue[index])!;
-    for (const direction of page.cells.get(queue[index])!.links) {
+  const reached = shortestRoutes(addressKey(start), key => {
+    const cell = page.cells.get(key)!;
+    return cell.links.flatMap(direction => {
       work.examinedLinks++;
-      const address = { ...movePosition(current.address, direction), spaceId: page.spaceId };
-      const key = addressKey(address);
-      if (!page.cells.has(key) || reached.has(key)) continue;
-      reached.set(key, { address, distance: current.distance + 1, previous: queue[index], direction });
-      queue.push(key);
-    }
-  }
-  return reached;
+      const address = { ...movePosition(cell, direction), spaceId: page.spaceId };
+      return page.cells.has(addressKey(address)) ? [{ key: addressKey(address), edge: direction }] : [];
+    });
+  }, STREAM_PLANNER_LIMITS.cells, () => work.expandedCells++);
+  return new Map([...reached].map(([key, node]) => [key, {
+    address: copyAddress(page.cells.get(key)!), distance: node.distance, previous: node.previous, direction: node.edge,
+  }]));
 }
 
 function path(search: Search, target: CellAddress, reason: string): PlannerStep[] {

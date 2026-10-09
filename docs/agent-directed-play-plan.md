@@ -18,11 +18,11 @@ choices and errors never consult undiscovered truth. Arrival does not interact.
 
 | Ticket | Owner | Dependencies | Status | Acceptance |
 | --- | --- | --- | --- | --- |
-| AP-00 contracts/corpus | Lead | reviewed v0.2 | In progress | Versioned shapes, coordinates, negative cases, explicit deferred cases |
-| AP-01 world/observation lineage | World worker | AP-00 types | Ready | Real observation prelude, hidden trap absent from view, stale history retained |
-| AP-02 actor navigation | Lead | AP-00/AP-01 | Ready | Shared search machinery, known destinations, adjacent/occupy arrival, 64-step/4-replan limits |
-| AP-03 durable operations | Persistence worker | AP-00/AP-02 interface | Ready | Atomic effect/receipt, exact retry, cancellation, takeover, reload |
-| AP-04 preview/qualification | Lead | AP-01--03 | Ready | Desktop/mobile preview, actual IndexedDB, corruption/race/isolation tests |
+| AP-00 contracts/corpus | Lead + Boole | reviewed v0.2 | In progress | Versioned shapes, coordinates, negative cases, explicit deferred cases |
+| AP-01 world/observation lineage | Boole | AP-00 types | Qualified domain | Real observation prelude, hidden trap absent from view, stale history retained; 39 tests |
+| AP-02 actor navigation | Lead | AP-00/AP-01 | Qualified domain | Shared search machinery, known destinations, adjacent/occupy arrival, 64-step/4-replan limits; 7 tests |
+| AP-03 durable operations | Heisenberg | AP-00/AP-02 interface | Hardening | Atomic effect/receipt, exact retry, cancellation, takeover, reload; initial 13 browser tests pass |
+| AP-04 preview/qualification | Lead | AP-01--03 | In progress | Desktop/mobile preview, actual IndexedDB, corruption/race/isolation tests; initial 6 browser tests pass |
 
 ## First Corpus
 
@@ -51,7 +51,11 @@ context relevance, graph paging beyond the 512-cell fixture, live activation pol
 
 ## Qualification Ledger
 
-All evidence currently NOT-RUN. Exact commands and counts will be recorded here.
+Initial integrated runs: 97 focused domain tests (46 directed + 51 existing planner),
+13 actual browser IndexedDB tests, 6 navigation/UI browser tests; production build passes.
+Final hardening/regression runs pending. The first UI run failed three assertions due to
+an ambiguous status locator (the pace output is also a status); a named travel-status
+region resolved the ambiguity, and the rerun passed all six tests.
 The initial preview is a bounded host-execution proof, not ordinary RPG integration
 or evidence of live-model intelligence. Provider calls are zero by construction;
 local intentions/steps/observations/context bytes are reported separately.
