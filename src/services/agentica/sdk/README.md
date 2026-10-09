@@ -1,7 +1,7 @@
 # Agentica browser host SDK
 
 Vendored without edits from `zekenaulty/Agentica` commit
-`0343e3bbc6d481dc6f1dfbce845e88da83ddc131`:
+`62c5b5a2542b235598304cfe3eca3b45230ea770`:
 `Agentica.Lab.Web/wwwroot/sdk/agentica-host.mjs`.
 
 This dependency-free SDK owns transport, original-attempt custody callbacks and
