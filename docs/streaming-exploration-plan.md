@@ -1,7 +1,11 @@
 # Structural streaming exploration
 
-Status: active; v1 and incremental v2 isolated play qualified. Branch: `codex/streaming-exploration`.
-Goal: S0-S5 below. The overall goal is not complete.
+Status at integrated SDK commit `ba5aa1c`: v1 and incremental v2 isolated play,
+paged discovered maps, a separately saved level-19 fixture and the Agentica browser
+client are implemented. Actual cross-runtime fixture proof is **IN PROGRESS, not
+PASS**; live-provider qualification is **UNKNOWN**. Branch: `codex/streaming-exploration`.
+Goal: S0-S5 below. The overall goal is not complete. Historical test counts below
+belong to their recorded milestones, not a new full-suite qualification.
 
 ## Architecture
 
@@ -9,12 +13,13 @@ A maze node is refined into a bounded space of cells. A schematic expresses its
 interior and preserves explicit connections at its boundary. Gameplay roles attach
 to this structure; neither screen pages nor storage blocks define rooms.
 
-Preserve classic and structured-v1/v2 saves. Introduce an isolated `spaces-v1`
-expedition without touching the ordinary `maze-battle` save database. The first
+Preserve classic and structured-v1/v2 saves. The isolated `spaces-v1`
+expedition does not touch the ordinary `maze-battle` save database. The first
 fixture has a small, finite topology manifest and lazily materialized variable-size
 spaces. This is a qualification step, not a claim of unbounded topology generation.
-Later bounded macro expansion must replace the finite manifest behind the same
-address/opening contract before claiming effectively unlimited floors.
+Bounded macro expansion is now implemented separately as `spaces-v2`, behind the
+space-address/opening model. It still seals a finite scope and obeys explicit
+memory/storage/work limits; this is not an infinite-world or infinite-history claim.
 
 Generated topology, resident cells, and discovered knowledge are independent.
 Coordinates are space-local row/column; global placement is presentation metadata.
@@ -26,12 +31,12 @@ Recipes pin generator version and seed; regeneration cannot depend on cache orde
 
 | ID | Owner | Status | Acceptance |
 | --- | --- | --- | --- |
-| S0 | Integration lead | v2 gameplay binding integrated; public adapter identity in review | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
+| S0 | Integration lead | v2 contracts and persisted opaque public UUID integrated | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
 | S1 | Ptolemy / codex/streaming-generation | Bounded macro generator and adversarial gates passed | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
-| S2 | Dewey / codex/streaming-storage | Atomic gameplay/knowledge pages integrated; discovered-map query and immutable history pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
-| S3 | Kant / codex/streaming-explorer | One-room bounded planner integrated; map UI pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
-| S4 | Integration lead | Typed browser planning gate implemented; adversarial review and transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
-| S5 | Integration lead + workers | v2 playable, reload and viewport gates passed; service gates open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
+| S2 | Dewey / codex/streaming-storage | Paged maps, atomic Agentica evidence and conservative settlement integrated; immutable manual saves/archival open | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
+| S3 | Kant / codex/streaming-explorer | One-room route batches and paged map UI integrated; level-19 oracle run recorded | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
+| S4 | Integration lead | Internal harness qualified locally; HostProtocol v1 SDK/client integrated; cross-runtime proof IN PROGRESS | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
+| S5 | Integration lead + workers | v2 playable/reload/viewport evidence recorded; separate level-19 save integrated; service qualification open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
 
 ## First playable gate
 
@@ -44,23 +49,25 @@ Runtime work stays in small modules. Shared contracts and entrypoint wiring belo
 to the lead. Workers use isolated branches/worktrees and commit only owned files.
 No worker may change the live save or unrelated Agentica checkout.
 
-## Remaining gates after the first fixture
+## Post-first-fixture gate status
 
-- Incremental macro topology expansion with bounded placement, reservations,
-  connectivity-preserving fallback, and an explicit exploration-order contract.
-- Paged map/history and world records; manual saves reference immutable revisions.
-  Account for IndexedDB quota and archiving instead of promising infinite storage.
-- Level profiles scale connected complexity without increasing minimum cell size
-  or resident-memory limits. Floors remain finitely completable by default.
-- Room-aware camera and normal RPG quest/combat/inventory integration, through the
-  same commands and observations, after the isolated fixture passes.
-- Reconcile MB-A0 from the supplied Browser-Owned Streaming Adapter draft with
-  space addresses, checkpoints, scope identity, and truthful completion. Then add
-  the Agentica service host using its existing runner, not a second planner.
-- Cross-runtime fake-provider qualification precedes live-provider qualification.
-  Live-provider status must remain UNKNOWN until explicitly exercised.
+- Implemented: bounded macro placement, reservations, connectivity-preserving
+  fallback and canonical exploration-order-independent expansion.
+- Implemented: paged world records and revision-fenced discovered-map reads/UI.
+  Still open: immutable manual-save references and receipt/history archival.
+  IndexedDB logical quotas are enforced; no infinite-storage claim is made.
+- Implemented: level profiles and a separate level-19 save without increasing
+  minimum cell size or the 512-cell residency budget. Scopes remain finite.
+- Implemented: room-aware camera. Still open: normal RPG quest/combat/inventory
+  integration through the same commands and observations.
+- Implemented: MB-A0 local gate and actual-IDB host, plus an Agentica HostProtocol
+  v1 client using the existing generic SDK. `maze-planning/1` remains an internal
+  harness contract, not the external wire protocol.
+- In progress: actual cross-runtime fixture qualification, including exact-evidence
+  reads after normal context compaction. This precedes any live-provider proof;
+  live-provider status remains UNKNOWN until explicitly exercised.
 
-## Evidence
+## Historical first-fixture evidence
 
 - Planning/source review completed; no streaming implementation existed at start.
 - Existing town tab changes checkpointed at `41ada57`; ordinary app remains on 5174.
@@ -80,26 +87,40 @@ No worker may change the live save or unrelated Agentica checkout.
 - Visual checks: 1280x800 desktop and 320x640 mobile screenshots inspected; browser
   canvas-pixel/layout checks also cover 390x780 and 844x390.
 
-## Current limitations and next packet
+## Current implementation and limits
 
 The playable v1 fixture has six rooms and five passages on an authored layout.
 `STRIDE` is fixture placement only, not the target world partition. The separate
 v2 macro generator now expands one reserved frontier per bounded transaction and
-is connected to the separate `?expedition=2` screen. The loaded-cell budget is 512; total
-resident bytes, persisted history and map growth need separate later budgets.
+is connected to the separate `?expedition=2` screen. The loaded-cell budget is 512.
+Map reads/UI are paged and v2 storage has an explicit logical UTF-8 byte quota;
+these do not bound browser-engine disk overhead or provide historical archival.
 The v1 fixture writes a finite checkpoint per action. V2 writes a compact checkpoint,
 at most two room-local knowledge pages, and a compact original-action receipt in
 the same transaction as topology. It does not copy the discovered world per move.
-The browser now uses observed-space waypoint batches with exact local routes,
-bounded caches and complete host change sets. It prefers fewer door crossings,
-then distance, not a globally optimal tour. No combat, equipment, floor descent
-or ordinary quest migration is enabled in the fixture. Action receipts persist
-with checkpoint effects in IndexedDB, with an explicit 4,096-action slot budget.
-There is no receipt eviction/archive protocol yet. A reload fences the old owner
-and cancels an uncommitted local-only reservation by its original identity; this
-does not generalize to unconfirmed external effects.
-No provider or cross-runtime Agentica service was exercised. See
-[MB-A0 browser adapter contract](planning-adapter-contract.md) for the current packet.
+The v1 graph planner reuses waypoint batches and complete host change sets. The
+current v2 `StreamPlanner` instead consumes one observed room page: nearest local
+loot/internal frontiers first, then visible-frontier preparation, uncleared child
+exits, parent backtracking and finally home/finish. Learned ports, parentOpeningId
+and completedExits support this paged tree traversal without a whole-world graph.
+Exact local paths are bounded by 512 cells, four room ports/two passage ports and
+128 cached route steps. Normal movement reuses batches; discovery, objective change,
+deviation, control change or reload invalidates them. Neither planner promises a
+globally optimal tour. A future cyclic generator needs a different navigation contract.
+
+No combat, equipment, floor descent or ordinary quest migration is enabled in the
+fixture. V1 retains its explicit 4,096-action slot budget; v2 records participate
+in topology-database byte accounting, including Agentica reservations and full
+original results. There is no receipt eviction/archive protocol yet. Local reload
+recovery fences the old owner and reconciles original reservations; it is not
+blanket authority to cancel unknown external effects.
+
+Agentica integration now retains immutable original observation/result evidence
+atomically with effects and offers non-executing settlement for provably abandoned
+pending attempts. Ordinary disconnect alone does not prove abandonment. Actual
+cross-runtime fixture qualification is IN PROGRESS, not PASS. See the
+[planning adapter contract](planning-adapter-contract.md) for the separate internal
+harness and external HostProtocol v1 boundaries.
 
 Implemented S0/S1 packet:
 
@@ -115,7 +136,7 @@ Implemented S0/S1 packet:
    duplicate expansion requests, quota exhaustion and eventual scope sealing.
 6. Preserve spaces-v1 as sealed legacy scopes. Do not regenerate any saved floor.
 
-## Second milestone evidence and remaining integration
+## Historical second-milestone evidence
 
 - `57bf907` adds `spaces-v2`: versioned stone schematics, variable footprints,
   canonical FIFO sockets, independently keyed candidates, reserved 5x5 fallback
@@ -157,10 +178,12 @@ Implemented S0/S1 packet:
 - Final integrated milestone PASS: 1,071 unit tests in 68 files, all 78 browser
   tests, production build and whitespace checks. Browser assertions verify route
   reuse, one post-reload map audit, and exactly one durable receipt per committed
-  fixture action. Original RPG save isolation remains covered. The goal is active;
-  this evidence does not qualify v2 gameplay or an Agentica service.
+  fixture action. Original RPG save isolation remained covered. At that milestone,
+  this evidence did not yet qualify v2 gameplay or an Agentica service; later local
+  v2 evidence is recorded separately below.
 
-Next integration order:
+Historical next integration order (items 1-3 and map paging are now implemented;
+ordinary RPG integration and service qualification remain open):
 
 1. Bind observed pending sockets to bounded generation work. Unresolved sockets
    are not traversable doors; missing generation is not a wall or completed scope.
@@ -172,7 +195,7 @@ Next integration order:
 4. Page discovered maps, add RPG systems through the same host commands, then
    qualify the browser/service adapter against a fake Agentica provider.
 
-The next gameplay checkpoint needs two distinct revisions: canonical topology
+The implemented v2 gameplay checkpoint has two distinct revisions: canonical topology
 and observed gameplay. A pending doorway can request preparation only after it
 has been observed. One preparation command advances a bounded canonical batch;
 it does not assert that the player moved or reveal unrelated generated rooms.
@@ -181,7 +204,7 @@ topology transaction. Cancellation must reconcile that receipt, not regenerate
 under a different ID. Existing `spaces-v1` records remain on the sealed-fixture
 runtime; no migration silently changes their geometry or loot.
 
-## Third milestone: incremental playable rooms
+## Historical third milestone: incremental playable rooms
 
 - `e6d7077`: atomic v2 gameplay, current/destination knowledge-page reads and
   command receipts share the topology database and quota accounting. Preparation
@@ -199,7 +222,8 @@ runtime; no migration silently changes their geometry or loot.
 - PASS: six v2 browser/UI tests: complete actual autoplay, stop/reload/resume,
   all loot, home return, stale-tab fencing and keyboard takeover. Layout/canvas
   checks cover 1280x800, 320x640, 390x780 and 844x390. Desktop and 320x640 screenshots
-  inspected. Production build passed. Full combined regression follows integration.
+  inspected. Production build passed. At that milestone, combined regression was
+  still pending; these passes are scoped to the listed tests.
 - `68b4953`: two further race fixes plus 16 focused tests: planner admission is
   synchronous after the control barrier; rejected takeover also clears playback.
 - `9fafd78`: browser-owned planning contract, explicit projection and local action
@@ -209,7 +233,64 @@ runtime; no migration silently changes their geometry or loot.
 - Adapter review found internal scope IDs serialize the recipe seed. Public adapter
   bindings use a persisted random UUID; internal scope IDs must never be sent.
 
-Next: integrate adversarial persistence/adapter fixes and public identity, qualify
-the real-IDB adapter, add bounded discovered-map queries/UI, then cross-runtime
-service implementation. Manual immutable save references and receipt archival are
-still separate open gates; logical quotas are explicit, not infinite-storage claims.
+Those subsequent local packets are now integrated; they do not constitute an
+external-service qualification. The following milestone records their scope.
+
+## Fourth milestone: paged maps and Agentica host client
+
+- `6001731`, `2077d3c`: persisted public scope UUID and bounded discovered-map reads.
+  `listDiscoveredSpaces` reads at most 12 saved room summaries plus one lookahead;
+  `readDiscoveredSpace` reads one saved page. Public scope and gameplay/topology
+  revisions fence the view; each entry retains its observedAt provenance. No hidden
+  geometry, generation, observation refresh or historical reconstruction occurs.
+- `42c3dbb`, `ae38158`: paged map UI with one selected saved page, explicit
+  stale/unknown/corrupt states and superseded-read guards. It does not accumulate
+  the discovered world in a browser map cache. The level-19 fixture is available at
+  `?expedition=2&level=19`, in slot `streamed-demo-level-19`, floor `floor-19`, seed
+  `20261008`. Runtime/hook configuration keeps it separate from `streamed-demo`,
+  v1 and normal RPG saves; changing level does not rewrite an existing slot recipe.
+- Recorded level-19 worker oracle PASS: 1,971 commands (1,884 moves, 43 collects,
+  43 prepares, one finish), 172 crossings and 861 reused route steps; all 43 chests,
+  87 visited/cleared spaces and return home. This was the real seeded `StreamHarness`
+  with an unbounded in-memory oracle used only by the test. It is not a level-19
+  IndexedDB/browser performance result or an Agentica service run. The explicit
+  qualification test also asserts bounded planner work/cache sizes.
+- `23f24d7`, `2634e6f`, `7288f2d`: adversarial internal planning gate and durable
+  repository host. Recorded PASS: two actual-IDB browser tests; the observed-only
+  scripted planner completed 535 actions, all seven chests and home return, then
+  recovered the exact original finish result after reload. Protocol
+  `maze-planning/1` is internal-only; its separately read current frame is not an
+  immutable original Agentica observation.
+- `a503e39`, `61deb13`: actual Agentica HostProtocol `protocolVersion: 1` helpers
+  and fixture-only browser client. Five bounded capabilities require topologyRevision.
+  A persisted public UUID, new durable control epoch, stable objectiveId and
+  service-created runId/manifestHash are bound before any SDK action admission.
+  Both `outcome` and `run.terminated` are handled; reconnect/reconciliation does not
+  execute a replacement attempt. No paid-provider default is enabled.
+- `93c6687`: IndexedDB reservation/binding APIs and atomic Agentica execution.
+  The full immutable original result, including observation and completion evidence,
+  commits with the gameplay/topology effect and original domain receipt. Projection
+  or quota failure rolls the transaction back; replay never regenerates evidence.
+- `7ac70ac`, `26dab01`: non-executing pending settlement and client adoption.
+  Original receipt lookup comes first. Settlement requires an exact pending identity,
+  no effect receipt and proven epoch revocation or deadline expiry under consistent
+  ownership. Missing/corrupt history and valid-owner disconnects stay unresolved;
+  recovery of a proven-unstarted action does not restore the old owner's authority.
+- `ba5aa1c`: unmodified SDK pin
+  `4291c7ff38a7466fb1f57c99fed97a6de8ff65c3`. Recorded PASS: 53 focused client tests
+  with one worker and TypeScript checking. Tests use the real SDK/domain but mocked
+  repository/transport. This is local client evidence, not service qualification.
+
+## Remaining qualification
+
+Actual cross-runtime browser/Agentica fixture proof is **IN PROGRESS, not PASS**.
+The integration lead is fixing fixture-provider exact-evidence reads after normal
+context compaction and will append the final qualification. Local tests, startup
+diagnosis or a WebSocket connection alone cannot establish end-to-end completion,
+recovery, provider-budget enforcement or service qualification. Live-provider
+status remains **UNKNOWN**.
+
+Manual immutable save references, receipt/history archival and normal RPG
+quest/combat/inventory integration remain open. Future topology/navigation changes
+must retain bounded work and truthful finite-scope completion; none of the current
+milestones supports an infinite-world, infinite-storage or global-optimality claim.

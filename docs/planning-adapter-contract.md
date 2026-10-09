@@ -1,7 +1,21 @@
-# Browser planning adapter: MB-A0
+# Browser-owned planning adapters
 
-Protocol: `maze-planning/1`. Status: local implementation and qualification;
-not yet an Agentica service or a live-provider integration.
+Status at integrated SDK commit `ba5aa1c`: local harness, repository boundary and
+Agentica browser client implemented. Actual cross-runtime fixture proof is
+**IN PROGRESS, not PASS**. Live-provider qualification remains **UNKNOWN**.
+
+Two contracts coexist; they are not interchangeable:
+
+| Surface | Contract | Evidence boundary |
+| --- | --- | --- |
+| Internal local harness | `maze-planning/1` in `src/services/expedition/planning/` | Same-runtime scripted planner and actual-IDB browser tests |
+| Agentica connection | Existing Agentica `HostProtocol.cs`, `protocolVersion: 1`, in `src/services/agentica/` | Pinned SDK and locally tested host integration; cross-runtime qualification still in progress |
+
+The SDK is vendored without runtime edits from Agentica
+`4291c7ff38a7466fb1f57c99fed97a6de8ff65c3`; see
+[`sdk/README.md`](../src/services/agentica/sdk/README.md). Agentica does not consume
+the internal `maze-planning/1` envelope. The earlier proposal to require that
+envelope on the .NET wire has been superseded by adoption of HostProtocol v1.
 
 ## Ownership and scope
 
@@ -11,25 +25,25 @@ bounded actions; it never imports a game reducer or mutates IndexedDB directly.
 The normal RPG save is not part of this first adapter. Only an existing isolated
 `spaces-v2` expedition can be deliberately bound by the browser.
 
-Every message repeats an exact binding: sessionId, epoch, runId, objectiveId,
-actorId, worldId, floorId and public scopeId. The public scope is a persisted random
-UUID. Internal scope identity contains the generator recipe and MUST NOT cross the
-wire, including in observations, checkpoint copies, errors or observation IDs.
-Current source routes are `src/services/expedition/planning/` and the separately
-versioned `src/persistence/stream*` repositories.
+The internal harness repeats its exact binding on every message: sessionId, epoch,
+runId, objectiveId, actorId, worldId, floorId and public scopeId. The public scope is
+a persisted random UUID. Internal scope identity contains the generator recipe and
+MUST NOT cross either adapter boundary, including in observations, checkpoint
+copies, errors or observation IDs. The Agentica binding described below maps these
+host-owned identities to its existing wire contract, not to a second game model.
 
 Cells have a stable spaceId and zero-based local row/column. North decreases row;
 east increases column. Coordinates never refer to viewport pixels. Storage buckets,
 camera bounds and room bounds are different concepts.
 
-## Messages
+## Internal harness messages
 
 Browser to service: `start`, `observation`, `action.result`, `action.unresolved`,
 `progress.ack`, `outcome`, `error`. Service to browser: `observe`, `progress`,
 `action.request`, `action.query`, `outcome`. TypeScript contracts and strict complete
 JSON parsing are in `contracts.ts` and `protocol.ts`. Unknown fields are rejected.
 
-Example complete action envelope (illustrative IDs, not an executable grant):
+Example internal-only action envelope (illustrative IDs, not an executable grant):
 
 ```json
 {
@@ -52,9 +66,39 @@ Example complete action envelope (illustrative IDs, not an executable grant):
 }
 ```
 
-The later .NET host must consume this contract, not silently invent a parallel
-command model. Transport will use one browser-initiated WebSocket; implementing
-the schema and local gate does not establish that a network host exists.
+`PlanningSession` and `repositoryHost.ts` remain useful local gate and projection
+fixtures. Their receipt query, progress messages and budgets are not the Agentica
+transport API.
+
+## Agentica HostProtocol v1
+
+`openAgenticaClient({ slot, url, objective, onMessage?, onStatus? })` exposes
+`start`, `cancel`, `close`, `reconnect`, `reconcile` and current run information.
+It uses the generic SDK's browser-initiated WebSocket at `/api/host`; the fixture
+policy accepts only loopback `ws:` URLs with a configurable port. Only the explicit
+fixture provider is selected, with no credentials or paid-provider fallback.
+
+- `start` / `started` establishes the service-created runId and manifestHash.
+  The browser first claims a new durable control epoch. Its persisted public UUID
+  supplies sessionId and scopeId; objectiveId is stable per public scope/objective
+  kind (`first-chest` or `explore-collect-return`). Initial observations are projected
+  before the service run exists; provisional projection IDs are never durable grants.
+- The returned binding is validated and persisted before SDK reservation or action
+  hooks can proceed, including actions delivered before the start await completes.
+  Each action carries runId, sessionId, string sessionEpoch, manifestHash, actionId,
+  runnerRunId, stepId, capabilityId, arguments, expectedRevision and deadlineAt.
+- The five flat-schema capabilities are `maze.observe`, `maze.move`, `maze.collect`,
+  `maze.prepare` and `maze.finish`. Every argument object requires integer
+  topologyRevision; move also requires direction and prepare requires frontierId.
+- `action.request` / `action.result` dispatches an original attempt;
+  `action.reconcile` retrieves or conservatively settles that same identity.
+  The SDK's HTTP `/api/recovery` inventory/result exchange reconciles retained
+  attempts without executing commands. `resume` / `resumed` validates a retained
+  run without claiming a replacement epoch. No automatic new run is created.
+- `cancel` fences local admission immediately and attempts durable epoch fencing
+  before SDK stop; a failed fence remains unresolved. Both `outcome` and
+  `run.terminated` stop further admission. Disconnect or unknown acknowledgement
+  retains original custody, not permission to retry under a different identity.
 
 ## Command semantics
 
@@ -68,8 +112,9 @@ the schema and local gate does not establish that a network host exists.
 - `finish`: only at home with the finite topology sealed and all room-local
   exploration, loot and return-travel obligations complete.
 - `observe`: bounded current visible view and saved knowledge of the current room.
-- `action.query`: original request identity, read-only receipt lookup. Missing is
-  unresolved, not evidence that a possibly in-flight action had no effect.
+- Internal `action.query`: original request identity, read-only receipt lookup.
+  Agentica uses `action.reconcile` and recovery instead. Missing evidence alone
+  does not prove that a possibly in-flight action had no effect.
 
 Both gameplay and topology revisions are checked by the browser's transaction.
 An action ID plus its exact semantic request is immutable. Duplicate deliveries
@@ -84,15 +129,44 @@ revisions, current visible cells/interactions, a compact gameplay checkpoint and
 an opaque-scope observation ID. Hidden targets, placement coordinates, socket
 reservations, seeds, future room budgets and oracle distances are absent.
 
-A duplicate action result is original evidence. An accompanying current frame is
-separate evidence and may have a later revision; it does not imply a second effect.
-An external completion claim requires the matching committed `finish` receipt and
-the current complete game checkpoint. Provider exhaustion or a complete streamed
-proposal does not establish objective completion.
+The internal harness may accompany an original domain result with a separately
+read current frame at a later revision. That frame is explicitly separate evidence;
+this convenience is internal-only and does not satisfy the Agentica original-result
+contract.
+
+Agentica observations are at most 64 KiB and use only the public scope. The full
+original result, including observation ID, timestamp, observation contents,
+evidence ID and any completion evidence, is generated once and committed in the
+same IndexedDB transaction as the game effect, topology/knowledge updates and
+domain receipt. A later replay returns that exact result; it never regenerates
+the old observation from current state. Projection, validation or quota failure
+rolls back the effect/result transaction, leaving the prior pending reservation.
+
+`bindAgenticaRun` durably binds the service manifest; `saveAgenticaAction` creates
+pending reservations or confirms an identical completed record, but cannot invent
+a completed host result. `executeAgenticaAction` owns atomic execution;
+`reconcileAgenticaAction` is read-only original-result lookup.
+`settleAgenticaAction` never executes a command. Under the same transaction lock it
+may settle an exact pending reservation only when absence of domain/prepare effect
+receipts is proven and either a strictly newer control epoch proves revocation or
+the action deadline has expired under consistent ownership. It preserves already
+completed originals.
+Missing or inconsistent ownership, uncertain receipts and storage failure do not
+justify settlement. Disconnect or revision drift alone leaves a valid reservation
+unresolved. The client tries original lookup before settlement, both on reconciliation
+and after execution precheck failure; resolution does not restore an old owner's grant.
+
+Completion is host evidence, not provider prose. Internal explore/collect/return
+completion requires the matching committed `finish` receipt and complete checkpoint.
+Agentica `first-chest` evidence requires host-verified collected loot;
+`explore-collect-return` requires the host-completed finite expedition, including
+its finish transition and home return. The result's objective/evidence binding is
+retained atomically. Provider exhaustion or a complete streamed proposal is not
+objective completion.
 
 ## Budgets and intervention
 
-Default run: 128 admitted action attempts, 60 seconds, 128 KiB per frame. Hard
+Internal harness default: 128 admitted action attempts, 60 seconds, 128 KiB per frame. Hard
 limits: 4,096 attempts and 15 minutes. A run deadline applies before every new
 dispatch; an atomic action already dispatched may commit after cancellation or
 deadline. Receipt reconciliation remains available afterward. Incoming complete
@@ -105,24 +179,55 @@ service control. Human takeover fences future effects. Cancel does not imply tha
 an outstanding effect was rolled back; query the original attempt. A service
 restart does not automatically resume a runner or create a replacement attempt.
 
-The service must also enforce one provider call at a time, token/context/refinement
-budgets and frame provenance. These service gates are not implemented by the local
-browser adapter. Provider reasoning carriers are private; only supported summaries
-may be surfaced as progress.
+The committed Agentica fixture client requests 128 steps, 128 refinements, 64 plan
+continuations, a 900-second run timeout and a 45-second action timeout. Its fixture
+provider configuration specifies a 131,072-token context and 4,096-token output.
+The SDK client retains at most 128 messages and 2,048 action entries, with eight
+queued actions. These are distinct from the internal harness limits and from the
+database's logical byte quota; none implies unlimited history or a whole-floor
+completion guarantee within one run.
 
-## Remaining integration packets
+Service scheduling (one provider call at a time), normal context compaction, exact-evidence retrieval
+and budget enforcement require cross-runtime qualification. Local browser tests
+do not establish those gates. Provider reasoning carriers remain private; only
+supported summaries may be surfaced as progress.
 
-1. MB-A0: adversarial local gate tests, actual-IDB receipt recovery, reviewed
-   opaque-scope map paging and matching TypeScript/.NET payload fixtures.
-2. MB-A1: isolated Agentica service host using existing AgenticaRunner, awaited
-   ITool implementations, PlanningFrame projection and completion evaluator.
-3. MB-A2: browser connection controls, explicit takeover, independent telemetry
-   display and reliable request/result transport; keep local movement responsive.
-4. MB-A3: bounded observed-map/evidence retrieval with provenance. Hypotheses remain
-   separate from canonical knowledge; no implicit canonical-world refresh.
-5. MB-A4: cross-runtime fake-provider tests: multi-call/blocked-action recovery,
-   incomplete streams, slow display, disconnect-after-commit, restart and budgets.
+## Implemented milestones and evidence
 
-Only after those gates should ordinary RPG capabilities be added incrementally.
-Live-provider status remains UNKNOWN. Authentication, production transport security,
+- MB-A0 local boundary: `9fafd78`, `23f24d7`, `2634e6f` add projection, bounded
+  admission and adversarial ownership/acknowledgement guards. `7288f2d` integrates
+  the repository host. Recorded PASS: two actual-IDB browser tests, including 535
+  observed-only actions, all seven chests, home return and exact finish recovery
+  after reload. This was an internal scripted planner, not an Agentica service.
+- MB-A3 saved-map portion: `2077d3c`, `42c3dbb`, `ae38158` integrate public-UUID
+  revision-fenced paging and a bounded map panel. Lists return at most 12 saved
+  room summaries plus one lookahead; a room read returns only that saved knowledge
+  page. Stale views fail explicitly, and superseded UI reads cannot publish.
+  This is not historical reconstruction, canonical geometry access or an already
+  exposed Agentica map-retrieval capability. The separately saved
+  `?expedition=2&level=19` fixture uses slot `streamed-demo-level-19`; its recorded
+  local planner evidence is detailed in [the streaming plan](streaming-exploration-plan.md),
+  not evidence of an Agentica run at that level.
+- MB-A1/MB-A2 browser side: `a503e39`, `61deb13`, `93c6687`, `7ac70ac`, `26dab01`
+  integrate HostProtocol v1 helpers, durable start binding, atomic evidence and
+  non-executing settlement. IndexedDB/SDK test fixtures are local host tests, not
+  external-service qualification. Connection UI and service end-to-end evidence
+  must be reported separately from the implemented client API.
+- SDK refresh `ba5aa1c` pins Agentica `4291c7f` exactly. Recorded PASS: 53 focused
+  client tests with one worker and TypeScript checking. These tests use the real
+  SDK/domain with mocked repository and transport; they do not prove service
+  interoperability. No client-policy or fixture changes were needed for the refresh.
+
+## Open qualification
+
+MB-A4 actual browser/Agentica fixture proof is **IN PROGRESS, not PASS**. The
+integration lead is correcting fixture-provider exact-evidence reads after normal
+context compaction. Startup diagnosis, local SDK tests or a WebSocket connection
+do not qualify service completion, reconnect/restart recovery or provider budgets.
+The lead will append the final cross-runtime result, identities and evidence here.
+
+Still open: cross-runtime blocked/multi-call handling, incomplete streams, slow
+display, disconnect-after-commit, restart and budget evidence; manual immutable
+save references and receipt archival; ordinary RPG quest/combat/inventory integration.
+Live-provider status is **UNKNOWN**. Authentication, production transport security,
 durable native-provider restart and multiplayer remain outside this initial slice.
