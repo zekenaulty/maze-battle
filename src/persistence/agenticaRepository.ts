@@ -7,6 +7,7 @@ import { agenticaActionAt, agenticaRunAt } from './agenticaRecords';
 import { agenticaCheck, boundedJson, decodeAction, validateActionKey, validateRecordShape, validateRun } from './agenticaValidation';
 
 export { executeAgenticaAction } from './agenticaExecution';
+export { settleAgenticaAction } from './agenticaSettlement';
 
 /** Bind once under current ownership. Identical retries remain valid after takeover. */
 export async function bindAgenticaRun(slot: string, binding: AgenticaGameBinding): Promise<void> {

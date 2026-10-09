@@ -24,8 +24,9 @@ export function agenticaStreamRequest(action: AgenticaAction, binding: AgenticaG
   return { version: 2, actionId: commandId, ...binding.control, expectedRevision: action.expectedRevision,
     expectedTopologyRevision: action.arguments.topologyRevision as number, command };
 }
-/** Point reads only. Pending plus an existing domain receipt is corruption, not permission to replay an effect. */
-export async function agenticaActionAt(tx: TopologyTransaction, slot: string, key: string, root: TopologyRoot, checkpoint: StreamCheckpoint) {
+/** Point reads only. Settlement may inspect uncertain pending receipts, but must leave them unresolved. */
+export async function agenticaActionAt(tx: TopologyTransaction, slot: string, key: string, root: TopologyRoot, checkpoint: StreamCheckpoint,
+  options: { deferPendingReceipt?: boolean } = {}) {
   const stored = await tx.get('agenticaActions', [slot, key]);
   if (stored === undefined) return undefined;
   agenticaCheck(object(stored) && only(stored, 'version,commandId,record') && stored.version === 1, 'invalid stored action');
@@ -38,7 +39,7 @@ export async function agenticaActionAt(tx: TopologyTransaction, slot: string, ke
   const request = agenticaStreamRequest(action, binding, stored.commandId);
   const receipt = await tx.get('streamActions', [slot, stored.commandId]);
   if (stored.record.status === 'pending') {
-    agenticaCheck(!Object.hasOwn(stored.record, 'result') && receipt === undefined, 'invalid pending reservation');
+    agenticaCheck(!Object.hasOwn(stored.record, 'result') && (options.deferPendingReceipt || receipt === undefined), 'invalid pending reservation');
   } else {
     agenticaCheck(stored.record.status === 'completed', 'invalid durable status');
     const result = stored.record.result;
@@ -53,5 +54,5 @@ export async function agenticaActionAt(tx: TopologyTransaction, slot: string, ke
         && receipt.result.reason === result.summary, 'domain/external receipt mismatch');
     } else agenticaCheck(receipt === undefined, 'read-only/conflicted action has a domain effect');
   }
-  return { stored, action, binding };
+  return { stored, action, binding, hasDomainReceipt: receipt !== undefined };
 }
