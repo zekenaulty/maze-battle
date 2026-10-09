@@ -1,6 +1,6 @@
 import { expect, vi } from 'vitest';
 import { bindAgenticaRun, executeAgenticaAction, loadAgenticaAction, loadAgenticaRun,
-  reconcileAgenticaAction, saveAgenticaAction } from '../../persistence/agenticaRepository';
+  reconcileAgenticaAction, saveAgenticaAction, settleAgenticaAction } from '../../persistence/agenticaRepository';
 import { claimStreamControl, loadStreamControl, loadStreamSnapshot } from '../../persistence/streamRepository';
 import { ensureStreamPublicScope, getStreamPublicScope } from '../../persistence/streamPublicScope';
 import { planningFixture } from '../expedition/planning/testSupport';
@@ -55,7 +55,7 @@ export function clientFixture() {
     runs.set(binding.runId, structuredClone(binding));
   });
   vi.mocked(loadAgenticaRun).mockImplementation(async (_slot, runId) => structuredClone(runs.get(runId)));
-  vi.mocked(loadAgenticaAction).mockImplementation(async (_slot, key) => structuredClone(records.get(key)));
+  vi.mocked(loadAgenticaAction).mockImplementation(async (_slot, key) => structuredClone(records.get(key) ?? null));
   vi.mocked(saveAgenticaAction).mockImplementation(async (_slot, key, record) => {
     const old = records.get(key);
     if (old?.status === 'completed' && canonicalJson(old) !== canonicalJson(record)) throw new Error('Original record changed');
@@ -65,6 +65,25 @@ export function clientFixture() {
     const old = records.get(actionKey(action));
     if (old && old.fingerprint !== actionFingerprint(action)) throw new Error('Original identity changed');
     return old?.status === 'completed' ? structuredClone(old.result) : undefined;
+  });
+  vi.mocked(settleAgenticaAction).mockImplementation(async (_slot, action) => {
+    const old = records.get(actionKey(action));
+    if (!old) return undefined;
+    if (old.fingerprint !== actionFingerprint(action)) throw new Error('Original identity changed');
+    if (old.status === 'completed') return structuredClone(old.result);
+    const binding = runs.get(action.runId)!;
+    parseAgenticaCommand(action, binding);
+    if (state.control.epoch < binding.control.epoch
+      || (state.control.epoch === binding.control.epoch && state.control.sessionId !== binding.control.sessionId)) return undefined;
+    const revoked = state.control.epoch > binding.control.epoch;
+    if (!revoked && Date.parse(action.deadlineAt) > Date.now()) return undefined;
+    const checkpoint = local.world.checkpoint;
+    const result = createAgenticaResult(action, binding, { actionId: action.actionId,
+      disposition: revoked ? 'conflict' : 'unavailable', beforeRevision: checkpoint.revision,
+      afterRevision: checkpoint.revision, topologyRevision: checkpoint.topologyRevision,
+      reason: revoked ? 'Control ownership changed.' : 'Action deadline expired before execution.' }, await snapshot());
+    records.set(actionKey(action), { fingerprint: old.fingerprint, status: 'completed', result: structuredClone(result) });
+    return result;
   });
   vi.mocked(executeAgenticaAction).mockImplementation(async (_slot, action) => {
     const binding = runs.get(action.runId)!;

@@ -1,5 +1,5 @@
 import { bindAgenticaRun, executeAgenticaAction, loadAgenticaAction, loadAgenticaRun,
-  reconcileAgenticaAction, saveAgenticaAction } from '../../persistence/agenticaRepository';
+  reconcileAgenticaAction, saveAgenticaAction, settleAgenticaAction } from '../../persistence/agenticaRepository';
 import { claimStreamControl, loadStreamControl, loadStreamSnapshot } from '../../persistence/streamRepository';
 import { ensureStreamPublicScope, getStreamPublicScope } from '../../persistence/streamPublicScope';
 import type { StreamControl } from '../../domain/expedition/streaming/types';
@@ -165,8 +165,9 @@ export class AgenticaClient {
       return result;
     } catch {
       this.admitting = false;
-      if (!this.closed && !this.terminal && this.state !== 'cancelled') this.statusChanged('unresolved');
-      return await reconcileAgenticaAction(this.options.slot, structuredClone(action)).catch(() => undefined) ?? this.unresolved(action);
+      const original = await this.reconcile(action).catch(() => undefined);
+      if (!this.closed && !this.terminal && !this.cancelled) this.statusChanged(original?.disposition ?? 'unresolved');
+      return original ?? this.unresolved(action);
     }
   }
 
@@ -265,7 +266,8 @@ export class AgenticaClient {
       const binding = await loadAgenticaRun(this.options.slot, fixed.runId);
       if (!binding) throw new Error('Agentica action has no retained run.');
       parseAgenticaCommand(fixed, binding);
-      return await reconcileAgenticaAction(this.options.slot, fixed) ?? undefined;
+      // Only the repository can atomically prove a reservation never started. A disconnect alone cannot.
+      return await reconcileAgenticaAction(this.options.slot, fixed) ?? await settleAgenticaAction(this.options.slot, fixed);
     }
     const sessionId = await getStreamPublicScope(this.options.slot);
     if (!sessionId) throw new Error('Agentica scope has not been bound.');

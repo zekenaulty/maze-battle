@@ -7,7 +7,7 @@ import { deferred } from './clientPolicy';
 import { clientFixture, FixtureSocket } from './client.testSupport';
 
 vi.mock('../../persistence/agenticaRepository', () => ({ bindAgenticaRun: vi.fn(), executeAgenticaAction: vi.fn(),
-  loadAgenticaRun: vi.fn(), loadAgenticaAction: vi.fn(), saveAgenticaAction: vi.fn(), reconcileAgenticaAction: vi.fn() }));
+  loadAgenticaRun: vi.fn(), loadAgenticaAction: vi.fn(), saveAgenticaAction: vi.fn(), reconcileAgenticaAction: vi.fn(), settleAgenticaAction: vi.fn() }));
 vi.mock('../../persistence/streamRepository', () => ({ claimStreamControl: vi.fn(), loadStreamControl: vi.fn(), loadStreamSnapshot: vi.fn() }));
 vi.mock('../../persistence/streamPublicScope', () => ({ ensureStreamPublicScope: vi.fn(), getStreamPublicScope: vi.fn() }));
 
@@ -92,7 +92,7 @@ describe('Agentica fixture client using the vendored SDK', () => {
     const f = clientFixture(); const host = client(); await host.start();
     const first = f.sendAction(); const original = await f.result();
     f.state.control = { sessionId: 'human-now', epoch: f.state.control.epoch + 1 };
-    f.sendAction(f.action(undefined, 'late')); expect(await f.result('late')).toMatchObject({ disposition: 'unresolved' });
+    f.sendAction(f.action(undefined, 'late')); expect(await f.result('late')).toMatchObject({ disposition: 'conflict' });
     f.sendAction(first, 'action.reconcile');
     await vi.waitFor(() => expect(FixtureSocket.instances[0].sent.filter(value => value.type === 'action.result' && value.payload.actionId === first.actionId)).toHaveLength(2));
     expect(await f.result()).toEqual(original); expect(executeAgenticaAction).toHaveBeenCalledTimes(1);
@@ -148,7 +148,7 @@ describe('Agentica fixture client using the vendored SDK', () => {
     vi.mocked(loadStreamControl).mockImplementationOnce(async (...args) => { entered.resolve(); await gate.promise; return read(...args); });
     f.sendAction(); await entered.promise;
     f.state.control = { sessionId: 'human', epoch: f.state.control.epoch + 1 }; gate.resolve();
-    expect(await f.result()).toMatchObject({ disposition: 'unresolved' }); expect(executeAgenticaAction).not.toHaveBeenCalled();
+    expect(await f.result()).toMatchObject({ disposition: 'conflict' }); expect(executeAgenticaAction).not.toHaveBeenCalled();
   });
 
   it('finishes cancellation across an outstanding ownership claim without starting a service run', async () => {
@@ -249,7 +249,7 @@ describe('Agentica fixture client using the vendored SDK', () => {
     vi.mocked(saveAgenticaAction).mockImplementationOnce(async (...args) => { entered.resolve(); await gate.promise; return save(...args); });
     const action = f.sendAction(); await entered.promise;
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse(action.deadlineAt) + 1); gate.resolve();
-    expect(await f.result()).toMatchObject({ disposition: 'unresolved' }); expect(executeAgenticaAction).not.toHaveBeenCalled();
+    expect(await f.result()).toMatchObject({ disposition: 'unavailable' }); expect(executeAgenticaAction).not.toHaveBeenCalled();
   });
 
   it('keeps the exact reconciliation request when its caller mutates the original during a read', async () => {
