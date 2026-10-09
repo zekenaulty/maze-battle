@@ -20,6 +20,7 @@ export function choosePlacement(reader: TopologyReader, source: SpaceSpec, socke
     const room = childBounds(source, socket.direction, 7 + 2 * (value % 5), 7 + 2 * ((value >>> 4) % 5), 2 + (value >>> 8) % 6);
     const passage = passageBounds(source, room, socket.direction);
     if (!safe(room) || !safe(passage)) continue;
+    // This replayed field is a query budget, including short-circuited reads.
     work.occupancyQueries += 2;
     if (!reader.occupied(room, socket.id) && !reader.occupied(passage, socket.id)) return room;
   }

@@ -10,7 +10,7 @@ export class MemoryTopology implements TopologyReader {
   private readonly links = new Map<string, TopologyConnection[]>();
   private readonly receipts = new Map<string, { signature: string; revision: number }>();
   private readonly receiptLimit: number;
-  readonly occupancy = new OccupancyIndex();
+  private readonly occupancyIndex = new OccupancyIndex();
 
   constructor(recipe: TopologyRecipe, receiptLimit = 4096) {
     if (!Number.isSafeInteger(receiptLimit) || receiptLimit < 1) throw new Error('Invalid receipt budget');
@@ -21,7 +21,9 @@ export class MemoryTopology implements TopologyReader {
   header() { return structuredClone(this.current); }
   space(id: string) { return structuredClone(this.spaces.get(id)); }
   socket(sequence: number) { return structuredClone(this.sockets.get(sequence)); }
-  occupied(bounds: Bounds, except?: string) { return this.occupancy.occupied(bounds, except); }
+  occupied(bounds: Bounds, except?: string) { return this.occupancyIndex.occupied(bounds, except); }
+  // Inspection must not allow callers to consume reservations outside a commit.
+  get occupancy() { return { work: { ...this.occupancyIndex.work }, values: () => this.occupancyIndex.values() }; }
   connections(spaceId: string) { return structuredClone(this.links.get(spaceId) ?? []); }
   spaceIds() { return [...this.spaces.keys()]; }
 
@@ -41,8 +43,8 @@ export class MemoryTopology implements TopologyReader {
     const expected = this.current ? proposal?.status === 'ready' ? proposal.delta : undefined : createTopology(input.header.recipe);
     if (!expected || JSON.stringify(expected) !== signature) throw new Error('Invalid topology transaction');
     const delta = structuredClone(input);
-    for (const id of delta.removeOccupancy) this.occupancy.remove(id);
-    for (const entry of delta.addOccupancy) this.occupancy.add(entry);
+    for (const id of delta.removeOccupancy) this.occupancyIndex.remove(id);
+    for (const entry of delta.addOccupancy) this.occupancyIndex.add(entry);
     for (const value of delta.spaces) this.spaces.set(value.spec.id, value);
     for (const socket of delta.sockets) this.sockets.set(socket.sequence, socket);
     if (delta.resolved) this.sockets.set(delta.resolved.sequence, delta.resolved);

@@ -2,6 +2,8 @@ import { overlaps } from './geometry';
 import type { Bounds, Occupancy } from './types';
 
 const INDEX_SIZE = 16;
+export const MAX_QUERY_BUCKETS = 9;
+export const MAX_QUERY_ENTRY_CHECKS = MAX_QUERY_BUCKETS * INDEX_SIZE * INDEX_SIZE;
 
 function buckets(bounds: Bounds): string[] {
   if (![bounds.row, bounds.column, bounds.rows, bounds.columns].every(Number.isSafeInteger)
@@ -16,7 +18,8 @@ function buckets(bounds: Bounds): string[] {
   return result;
 }
 
-/** Index bins accelerate intersection tests; they do not align or constrain rooms. */
+/** Disjoint integer footprints bound each bin to 256 entries, each query to 9 bins.
+ * Index bins accelerate intersection tests; they do not align or constrain rooms. */
 export class OccupancyIndex {
   private readonly entries = new Map<string, Occupancy>();
   private readonly index = new Map<string, Map<string, Occupancy>>();
@@ -40,6 +43,7 @@ export class OccupancyIndex {
   add(value: Occupancy) {
     const keys = buckets(value.bounds);
     if (this.entries.has(value.id)) throw new Error('Duplicate occupancy identity');
+    if (this.occupied(value.bounds)) throw new Error('Overlapping occupancy footprint');
     const owned = structuredClone(value);
     this.entries.set(owned.id, owned);
     for (const key of keys) {
