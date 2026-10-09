@@ -22,7 +22,7 @@ export function recordBytes(store: string, key: unknown, value: unknown): number
   return value === undefined ? 0 : new TextEncoder().encode(JSON.stringify([store, key, value])).byteLength;
 }
 
-/** Bounded point reads and staged writes only. No cursor, getAll, or world-sized copy. */
+/** Exact-key, single-record reads and staged writes only. No scans or world-sized copy. */
 export class TopologyTransaction {
   private readonly tx: Transaction;
   private readonly cache = new Map<string, unknown>();
@@ -34,7 +34,16 @@ export class TopologyTransaction {
 
   private async cached<N extends Name>(store: N, key: Key<N>): Promise<Value<N> | undefined> {
     const id = JSON.stringify([store, key]);
-    if (!this.cache.has(id)) this.cache.set(id, await this.tx.objectStore(store).get(key));
+    if (!this.cache.has(id)) {
+      // get() conflates a missing key with stored undefined. Only [] means absent.
+      const records = await this.tx.objectStore(store).getAll(key, 1);
+      const value = records[0];
+      if (records.length && (store === 'buckets' ? !Array.isArray(value)
+        : value === null || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype)) {
+        throw new Error(`Invalid stored topology ${store} record`);
+      }
+      this.cache.set(id, value);
+    }
     return this.cache.get(id) as Value<N> | undefined;
   }
 

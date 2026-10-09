@@ -30,14 +30,23 @@ const harness = {
   },
   async trace<T>(action: () => Promise<T>) {
     const reads: Record<string, number> = {};
+    const methods: Record<string, number> = {};
     const prototype = IDBObjectStore.prototype;
-    const get = prototype.get;
-    const scans = ['getAll', 'getAllKeys', 'openCursor', 'openKeyCursor', 'count'] as const;
+    const get = prototype.get, getAll = prototype.getAll;
+    const scans = ['getAllKeys', 'getKey', 'openCursor', 'openKeyCursor', 'count'] as const;
     const originals = scans.map(name => prototype[name]);
-    prototype.get = function (key) { reads[this.name] = (reads[this.name] ?? 0) + 1; return get.call(this, key); };
+    const read = (store: string, method: string) => {
+      reads[store] = (reads[store] ?? 0) + 1; methods[method] = (methods[method] ?? 0) + 1;
+    };
+    prototype.get = function (key) { read(this.name, 'get'); return get.call(this, key); };
+    prototype.getAll = function (key, count) {
+      if (key === undefined || key === null || key instanceof IDBKeyRange || count !== 1) throw new Error('Unbounded host read: getAll');
+      indexedDB.cmp(key, key); // Reject options objects or other non-key arguments.
+      read(this.name, 'getAll'); return getAll.call(this, key, count);
+    };
     for (const name of scans) prototype[name] = (() => { throw new Error(`Unbounded host read: ${name}`); }) as never;
-    try { return { result: await action(), reads, total: Object.values(reads).reduce((a, b) => a + b, 0) }; }
-    finally { prototype.get = get; scans.forEach((name, index) => { prototype[name] = originals[index] as never; }); }
+    try { return { result: await action(), reads, methods, total: Object.values(reads).reduce((a, b) => a + b, 0) }; }
+    finally { prototype.get = get; prototype.getAll = getAll; scans.forEach((name, index) => { prototype[name] = originals[index] as never; }); }
   },
 };
 declare global { interface Window { paged: typeof harness } }

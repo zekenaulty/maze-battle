@@ -18,7 +18,7 @@ export async function stageDelta(tx: TopologyTransaction, slot: string, delta: T
   const spaces = new Map<string, TopologySpacePage>();
   if (frontier) spaces.set(frontier.source.space.spec.id, structuredClone(frontier.source));
   for (const space of delta.spaces) {
-    if (await tx.get('spaces', [slot, space.spec.id])) throw new Error('Topology space already exists');
+    if (await tx.get('spaces', [slot, space.spec.id]) !== undefined) throw new Error('Topology space already exists');
     spaces.set(space.spec.id, { space, connections: [] });
   }
   for (const link of delta.connections) {
@@ -34,7 +34,7 @@ export async function stageDelta(tx: TopologyTransaction, slot: string, delta: T
   }
   for (const socket of delta.sockets) {
     validSocket(socket, socket.sequence);
-    if (await tx.get('sockets', [slot, socket.sequence])) throw new Error('Topology socket already exists');
+    if (await tx.get('sockets', [slot, socket.sequence]) !== undefined) throw new Error('Topology socket already exists');
     await tx.put('sockets', [slot, socket.sequence], socket);
   }
   if (delta.resolved) await tx.put('sockets', [slot, delta.resolved.sequence], delta.resolved);

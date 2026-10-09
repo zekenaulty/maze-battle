@@ -12,7 +12,7 @@ export { topologyTransaction, type TopologyTransaction } from './topology/databa
 
 async function rootAt(tx: TopologyTransaction, slot: string) {
   const root = await tx.get('roots', slot);
-  if (root) validRoot(root);
+  if (root !== undefined) validRoot(root);
   return root;
 }
 function checkReceipt(receipt: ExpansionReceipt, requestId: string, root: TopologyRoot) {
@@ -34,7 +34,7 @@ export async function createTopologySlot(slot: string, recipe: TopologyRecipe, q
   const snapshot = recipeCopy(recipe);
   return topologyTransaction(async tx => {
     const existing = await rootAt(tx, slot);
-    if (existing) {
+    if (existing !== undefined) {
       if (existing.header.scopeId !== recipeScope(snapshot) || existing.quotaBytes !== quotaBytes) throw new Error('Topology slot identity or quota conflict');
       return existing;
     }
@@ -52,9 +52,9 @@ export async function loadTopologyHeader(slot: string) {
 export async function loadTopologySpace(slot: string, spaceId: string) {
   validId(slot); validId(spaceId);
   return topologyTransaction(async tx => {
-    if (!await rootAt(tx, slot)) return undefined;
+    if (await rootAt(tx, slot) === undefined) return undefined;
     const page = await tx.get('spaces', [slot, spaceId]);
-    if (page) validSpace(page, spaceId);
+    if (page !== undefined) validSpace(page, spaceId);
     return page;
   });
 }
@@ -63,9 +63,9 @@ export async function loadTopologySocket(slot: string, sequence: number) {
   if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('Invalid socket sequence');
   return topologyTransaction(async tx => {
     const root = await rootAt(tx, slot);
-    if (!root || sequence >= root.header.socketCount) return undefined;
+    if (root === undefined || sequence >= root.header.socketCount) return undefined;
     const socket = await tx.get('sockets', [slot, sequence]);
-    if (!socket) throw new Error('Missing topology socket');
+    if (socket === undefined) throw new Error('Missing topology socket');
     validSocket(socket, sequence);
     if (socket.status !== (sequence < root.header.nextSocket ? 'linked' : 'pending')) throw new Error('Inconsistent socket resolution');
     return socket;
@@ -75,9 +75,9 @@ export async function loadTopologyExpansionReceipt(slot: string, requestId: stri
   validId(slot); validId(requestId);
   return topologyTransaction(async tx => {
     const root = await rootAt(tx, slot);
-    if (!root) return undefined;
+    if (root === undefined) return undefined;
     const receipt = await tx.get('receipts', [slot, requestId]);
-    if (receipt) checkReceipt(receipt, requestId, root);
+    if (receipt !== undefined) checkReceipt(receipt, requestId, root);
     return receipt;
   });
 }
@@ -103,10 +103,10 @@ export async function expandTopologyInTransaction(tx: TopologyTransaction, slot:
   validId(slot); validRequest(request);
   const snapshot = { scopeId: request.scopeId, requestId: request.requestId, expectedRevision: request.expectedRevision };
   const root = await rootAt(tx, slot);
-  if (!root) throw new Error('Missing topology slot');
+  if (root === undefined) throw new Error('Missing topology slot');
   if (root.header.scopeId !== snapshot.scopeId) throw new Error('Topology scope conflict');
   const original = await tx.get('receipts', [slot, snapshot.requestId]);
-  if (original) {
+  if (original !== undefined) {
     checkReceipt(original, snapshot.requestId, root);
     if (original.request.expectedRevision !== snapshot.expectedRevision) throw new Error('Conflicting expansion request ID reuse');
     return original;

@@ -70,10 +70,10 @@ export class PagedOccupancy {
 export interface Frontier { reader: TopologyReader; occupancy: PagedOccupancy; source: TopologySpacePage; socket: ExpansionSocket }
 export async function loadFrontier(tx: TopologyTransaction, slot: string, header: TopologyHeader): Promise<Frontier> {
   const socket = await tx.get('sockets', [slot, header.nextSocket]);
-  if (!socket) throw new Error('Missing canonical socket');
+  if (socket === undefined) throw new Error('Missing canonical socket');
   validSocket(socket, header.nextSocket);
   const source = await tx.get('spaces', [slot, socket.source.spaceId]);
-  if (!source) throw new Error('Missing canonical source');
+  if (source === undefined) throw new Error('Missing canonical source');
   validSpace(source, socket.source.spaceId);
   const spec = source.space.spec;
   const cell = boundary(spec, socket.direction);
