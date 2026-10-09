@@ -12,6 +12,7 @@
 .expedition-strip output { display: inline-block; width: 5em; text-align: right; font-variant-numeric: tabular-nums; }
 .expedition-scene { min-width: 0; min-height: 0; }
 .expedition-scene.is-map { overflow: auto; }
+.expedition-screen.is-map-view { grid-template-rows: auto minmax(0, 1fr) auto; }
 .expedition-scene canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .expedition-screen footer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 10px 14px; border-top: 1px solid var(--color-border); }
 .expedition-screen footer [role="status"] { font-size: 13px; min-width: 0; overflow-wrap: anywhere; flex: 1 1 240px; }

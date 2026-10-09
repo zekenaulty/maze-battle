@@ -39,11 +39,17 @@
 .stream-map-legend span:nth-child(2) svg { color: #e6bd66; }
 .stream-map-legend span:nth-child(3) svg { color: #96d2f1; }
 .stream-map-legend span:nth-child(4) svg { color: #ee8b92; }
+.is-map-view .stream-map-panel { height: 100%; display: flex; flex-direction: column; }
+.is-map-view .stream-map-body { flex: 1; min-height: 0; }
+.is-map-view .stream-map-room-list { overflow: auto; }
+.is-map-view .stream-map-detail { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.is-map-view .stream-map-viewport { height: 100%; min-height: 0; aspect-ratio: auto; }
 @container stream-map (max-width: 600px) {
   .stream-map-toolbar { padding: 8px 10px; }
   .stream-map-controls button { min-width: 40px; min-height: 44px; padding: 8px; }
   .stream-map-controls button span { display: none; }
   .stream-map-body { grid-template-columns: minmax(0, 1fr); }
+  .is-map-view .stream-map-body { grid-template-rows: auto minmax(0, 1fr); }
   .stream-map-room-list { border-right: 0; border-bottom: 1px solid #394444; padding: 8px 10px; }
   .stream-map-room-list ul { display: none; }
   .stream-map-mobile-label { display: block; font-size: 11px; color: #bfcac5; margin-bottom: 5px; }

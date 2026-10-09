@@ -41,7 +41,7 @@ export default function StreamExpeditionApp() {
   const geometry = runtime.cache.get(room.space.spec);
   const stats = runtime.cache.stats();
   const planning = runtime.planner.diagnostics;
-  return <main className="expedition-screen stream-screen" data-revision={checkpoint.revision} data-topology-revision={checkpoint.topologyRevision}
+  return <main className={`expedition-screen stream-screen${mapOpen ? ' is-map-view' : ''}`} data-revision={checkpoint.revision} data-topology-revision={checkpoint.topologyRevision}
     data-phase={checkpoint.phase} data-moves={checkpoint.moves} data-visited-spaces={checkpoint.visitedSpaces}
     data-chests={checkpoint.collectedChests} data-resident-cells={stats.residentCells} data-evictions={stats.evictions}
     data-planner-pages={planning.cache.pages} data-planner-cells={planning.cache.cells} data-reused-steps={planning.work.reusedSteps}>
@@ -58,15 +58,15 @@ export default function StreamExpeditionApp() {
         <a href="/" title="Main game" aria-label="Main game"><ArrowLeft size={20} /></a>
       </nav>
     </header>
-    <div className="expedition-strip">
+    {!mapOpen && <div className="expedition-strip">
       <span>Mapped {checkpoint.visitedSpaces} - Cleared {checkpoint.clearedSpaces} - Loot {checkpoint.collectedChests}</span>
       <label>Pace <input aria-label="Exploration pace" type="range" min={20} max={800} step={20} value={session.delay} onChange={event => session.setDelay(Number(event.target.value))} /><output>{session.delay}ms</output></label>
-    </div>
+    </div>}
     <section className={`expedition-scene${mapOpen ? ' is-map' : ''}`}>{mapOpen
       ? <StreamMapPanel slot={runtime.slot} current={checkpoint.position} revision={checkpoint.revision} />
       : <ExpeditionCanvas checkpoint={projection.canvasCheckpoint} spec={projection.spec} geometry={geometry} facing={session.facing} frontiers={projection.frontiers} minimumViewCells={9} />}</section>
     <footer>
-      <div role="status">{session.error ?? session.message}</div>
+      <div role="status">{session.error ?? (mapOpen ? 'Exploration paused.' : session.message)}</div>
       <span className="expedition-metrics">Loaded {stats.residentCells}/{STREAM_CELL_BUDGET} - Evictions {stats.evictions} - Checkpoint {checkpoint.revision}</span>
       {session.error && <button type="button" onClick={() => location.reload()}><RotateCcw size={16} />Reload</button>}
       {!mapOpen && <div className="expedition-movement" aria-label="Movement">
