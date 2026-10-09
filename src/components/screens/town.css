@@ -1,11 +1,19 @@
-.town-screen.refined-screen { grid-template-rows: auto auto minmax(0, 1fr); }
+.town-screen.refined-screen { grid-template-rows: auto auto auto minmax(0, 1fr); }
 .town-screen.refined-screen > .screen-bar { grid-row: 1; }
 .town-screen.refined-screen > .screen-auto-status { grid-row: 2; }
-.town-screen.refined-screen .town-content { grid-row: 3; min-height: 0; overflow: auto; }
-.town-screen.refined-screen .town-grid { overflow: visible; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.town-screen.refined-screen .town-card { min-width: 0; min-height: 0; background: none; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; box-shadow: none; padding: 12px 0; }
+.town-screen .town-navigation { grid-row: 3; min-width: 0; border-bottom: 1px solid var(--color-border); }
+.town-screen .town-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.town-screen .town-tabs button { min-width: 0; min-height: 44px; padding: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; font-size: 13px; }
+.town-screen .town-tabs button[aria-selected="true"] { border-bottom-color: var(--color-primary); background: var(--color-panel-soft); color: var(--color-text); }
+.town-screen .town-tabs svg { flex-shrink: 0; }
+.town-screen.refined-screen .town-content { grid-row: 4; display: grid; min-height: 0; min-width: 0; overflow: hidden; }
+.town-screen .town-panel { min-height: 0; min-width: 0; overflow: auto; padding: 16px 18px; }
+.town-screen .town-panel[hidden] { display: none; }
+.town-screen.refined-screen .town-card { max-width: 1040px; margin: 0 auto; min-width: 0; min-height: 0; background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+.town-screen.refined-screen .town-inn, .town-screen.refined-screen .town-policy { max-width: 560px; margin-left: 0; }
 .town-screen.refined-screen .town-card h2 { margin: 0 0 4px; font-size: 18px; }
-.town-screen.refined-screen .guild-card { grid-template-rows: auto auto; grid-row: span 2; }
+.town-screen .guild-filters { display: flex; gap: 6px; }
+.town-screen .guild-filters button[aria-pressed="true"] { border-color: var(--color-primary); }
 .town-screen.refined-screen .guild-contract { grid-template-columns: minmax(0, 1fr) auto; }
 .town-screen.refined-screen .guild-contract > div { grid-column: 1 / -1; }
 .town-screen.refined-screen .guild-contract strong { white-space: normal; overflow-wrap: anywhere; }
@@ -19,19 +27,23 @@
 .town-screen .town-stock-row > div { min-width: 0; display: grid; gap: 6px; }
 .town-screen .town-stock-row button { padding: 4px 10px; }
 .town-screen .town-stock-action { max-width: 120px; text-align: center; }
-.town-screen .town-feedback { margin: 0; padding: 8px 18px 0; font-size: 12px; color: var(--color-muted); overflow-wrap: anywhere; }
+.town-screen .town-feedback { margin: 0; padding: 6px 10px; font-size: 12px; line-height: 16px; max-height: 44px; overflow: auto; color: var(--color-muted); overflow-wrap: anywhere; }
 .town-screen .town-storage { grid-column: 1 / -1; }
 .town-screen .town-storage-tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .town-screen .town-storage-tools > div { display: flex; gap: 4px; }
 .town-screen .town-storage-tools button[aria-pressed="true"] { border-color: var(--color-primary); }
 .town-screen .town-storage-tools input { min-width: 0; width: 180px; }
-.town-screen .town-storage-list { max-height: 420px; overflow: auto; }
+.town-screen .town-storage-list { max-height: none; overflow: visible; }
 .town-screen .town-stock-row .town-storage-actions { display: flex; gap: 4px; flex-wrap: wrap; max-width: 160px; justify-content: flex-end; }
 .town-screen .town-policy label { display: flex; align-items: center; gap: 8px; }
 .town-screen .town-policy input[type="number"] { width: 80px; margin-left: auto; }
 .town-screen input[type="search"], .town-screen input[type="number"] { border: 1px solid var(--color-border-strong); border-radius: 4px; background: var(--color-bg); color: var(--color-text); padding: 6px 8px; }
 @media (max-width: 700px) {
-  .town-screen.refined-screen .town-grid { grid-template-columns: minmax(0, 1fr); padding: 10px; gap: 10px; }
-  .town-screen.refined-screen .guild-card { grid-row: auto; }
+  .town-screen .screen-bar nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 32px; width: 100%; gap: 4px; }
+  .town-screen .screen-bar nav button { min-width: 0; padding: 0 3px; font-size: 12px; white-space: normal; }
+  .town-screen .screen-bar nav .screen-icon { width: 32px; }
+  .town-screen .town-panel { padding: 12px 10px; }
+  .town-screen .town-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .town-screen .town-tabs button { font-size: 12px; gap: 4px; }
   .town-screen .town-stock-row .town-storage-actions { max-width: 110px; }
 }

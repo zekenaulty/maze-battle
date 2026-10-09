@@ -1,13 +1,26 @@
-import { Activity } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
+import { Activity, BedSingle, Castle, FlaskConical, Hammer, Settings2, Warehouse } from 'lucide-react';
 import type { GameState, InventoryPolicy, VendorId } from '../domain/types';
-import { getEffectiveActor, packSlotUsage } from '../domain/items/inventory';
+import { normalizeInventoryPolicy, packSlotUsage } from '../domain/items/inventory';
 import { AutoStatus } from './screens/AutoStatus';
 import { TownGuild } from './screens/TownGuild';
 import { TownStorage } from './screens/TownStorage';
 import { TownVendor } from './screens/TownVendor';
 import { TownPolicy } from './screens/TownPolicy';
+import { TownInn } from './screens/TownInn';
+import { ScreenTabs } from './screens/ScreenTabs';
 import './screens/screens.css';
 import './screens/town.css';
+
+const TABS = [
+  { id: 'guild', label: 'Guild', icon: Castle },
+  { id: 'blacksmith', label: 'Blacksmith', icon: Hammer },
+  { id: 'alchemist', label: 'Alchemist', icon: FlaskConical },
+  { id: 'storage', label: 'Storage', icon: Warehouse },
+  { id: 'inn', label: 'Inn', icon: BedSingle },
+  { id: 'care', label: 'Auto Care', icon: Settings2 },
+] as const;
+type TownTab = typeof TABS[number]['id'];
 
 interface TownScreenProps {
   game: GameState;
@@ -30,10 +43,18 @@ interface TownScreenProps {
 
 export function TownScreen({ game, onLeave, onRest, onBuy, onAcceptQuest, onClaimQuest, onSellJunk, onWithdrawStash, onCharacters, onSaves,
   autoActive = game.townReturnMode === 'auto-play', onAutoToggle, onStashItem, onToggleItemLock, onInventoryPolicyChange, onDiagnostics }: TownScreenProps) {
-  const rested = game.party.every((actor) => {
-    const effective = getEffectiveActor(actor, game.inventory);
-    return effective.hp === effective.maxHp && effective.mp === effective.maxMp;
-  });
+  const [selected, setSelected] = useState<TownTab>('guild');
+  const id = useId();
+  const tabs = TABS.filter(tab => tab.id !== 'care' || onInventoryPolicyChange);
+  const active = tabs.some(tab => tab.id === selected) ? selected : 'guild';
+  const panels: Record<TownTab, ReactNode> = {
+    guild: <TownGuild game={game} onAcceptQuest={onAcceptQuest} onClaimQuest={onClaimQuest} />,
+    blacksmith: <TownVendor vendor="blacksmith" title={`${String.fromCodePoint(0x2692)} Blacksmith`} game={game} onBuy={onBuy} />,
+    alchemist: <TownVendor vendor="alchemist" title={`${String.fromCodePoint(0x2697)} Alchemist`} game={game} onBuy={onBuy} />,
+    storage: <TownStorage game={game} onSellJunk={onSellJunk} onWithdrawStash={onWithdrawStash} onStashItem={onStashItem} onToggleItemLock={onToggleItemLock} />,
+    inn: <TownInn game={game} onRest={onRest} />,
+    care: onInventoryPolicyChange ? <TownPolicy policy={normalizeInventoryPolicy(game.inventoryPolicy)} onChange={onInventoryPolicyChange} /> : null,
+  };
   return (
     <main className="game-screen town-screen refined-screen">
       <div className="screen-bar">
@@ -50,20 +71,15 @@ export function TownScreen({ game, onLeave, onRest, onBuy, onAcceptQuest, onClai
         </nav>
       </div>
       <AutoStatus game={game} active={autoActive} />
+      <div className="town-navigation">
+        <ScreenTabs id={id} label="Town services" tabs={tabs} selected={active} onSelect={setSelected} />
+        {game.activityLog[0] && <p className="town-feedback" role="status" title={game.activityLog[0]}>{game.activityLog[0]}</p>}
+      </div>
       <div className="town-content">
-        {game.activityLog[0] && <p className="town-feedback" role="status">{game.activityLog[0]}</p>}
-        <div className="town-grid">
-          <section className="town-card town-inn">
-            <h2>{String.fromCodePoint(0x1f6cf)} Inn</h2>
-            <span>{rested ? 'The party is fully rested.' : 'Restore the party to full HP and MP.'}</span>
-            <button type="button" disabled={rested} onClick={onRest}>Rest - Free</button>
-          </section>
-          <TownGuild game={game} onAcceptQuest={onAcceptQuest} onClaimQuest={onClaimQuest} />
-          <TownVendor vendor="blacksmith" title={`${String.fromCodePoint(0x2692)} Blacksmith`} game={game} onBuy={onBuy} />
-          <TownVendor vendor="alchemist" title={`${String.fromCodePoint(0x2697)} Alchemist`} game={game} onBuy={onBuy} />
-          <TownStorage game={game} onSellJunk={onSellJunk} onWithdrawStash={onWithdrawStash} onStashItem={onStashItem} onToggleItemLock={onToggleItemLock} />
-          {game.inventoryPolicy && onInventoryPolicyChange && <TownPolicy policy={game.inventoryPolicy} onChange={onInventoryPolicyChange} />}
-        </div>
+        {tabs.map(tab => <section className="town-panel" key={tab.id} role="tabpanel" tabIndex={0}
+          id={`${id}-panel-${tab.id}`} aria-labelledby={`${id}-tab-${tab.id}`} hidden={active !== tab.id}>
+          {panels[tab.id]}
+        </section>)}
       </div>
     </main>
   );

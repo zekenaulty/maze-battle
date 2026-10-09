@@ -29,6 +29,7 @@ describe('town capacity UI', () => {
     const before = structuredClone(game);
     const { container } = render(<TownScreen game={game} onLeave={noop} onRest={noop} onBuy={noop} onAcceptQuest={noop} onClaimQuest={noop} onSellJunk={noop} onWithdrawStash={noop} onCharacters={noop} onSaves={noop} />);
     expect(container.querySelector('.screen-status')).toHaveTextContent('Pack 0/1 - Stash 1/1');
+    fireEvent.click(screen.getByRole('tab', { name: 'Storage' }));
     expect(screen.getByRole('button', { name: 'Pack 0/1' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Stash 1/1' })).toBeVisible();
     expect(game).toEqual(before);

@@ -109,6 +109,7 @@ describe('town', () => {
     game.stash.items = Array.from({ length: 12 }, (_, index) => ({ ...createVendorItem('rusty-sword'), displayName: `Sword ${index}` }));
     const onWithdrawStash = vi.fn();
     render(<TownScreen {...townProps} game={game} onWithdrawStash={onWithdrawStash} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Storage' }));
     expect(screen.getAllByRole('button', { name: 'Withdraw' })).toHaveLength(12);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search storage' }), { target: { value: 'Sword 11' } });
     fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
@@ -123,6 +124,7 @@ describe('town', () => {
     expect(canReceiveTownItem(game, createVendorItem('rusty-sword'))).toBe(false);
     expect(container.items).toEqual([herb]);
     render(<TownScreen {...townProps} game={game} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Alchemist' }));
     expect(screen.getByRole('button', { name: 'Buy 6g' })).toBeEnabled();
     expect(screen.getAllByText('Pack full').length).toBeGreaterThan(0);
   });
@@ -141,6 +143,7 @@ describe('town', () => {
     game.inventory.items.push({ ...createVendorItem('rusty-sword'), displayName: 'Obsolete test sword', stats: {}, value: 20 });
     const onSellJunk = vi.fn();
     const { rerender } = render(<TownScreen {...townProps} game={game} onSellJunk={onSellJunk} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Storage' }));
     const sale = screen.getByRole('button', { name: 'Sell obsolete gear (1) - 10g (pack and stash)' });
     expect(sale).toHaveAttribute('title', 'All rarities. Keeps upgrades, equipped or locked gear, quest items and supplies.');
     fireEvent.click(sale);
@@ -162,11 +165,13 @@ describe('town', () => {
     game.inventoryPolicy = { autoEquip: true, autoSellJunk: false, autoStash: false, autoRestock: false, healthReserve: 1, manaReserve: 1, portalReserve: 1 };
     const onStashItem = vi.fn(), onToggleItemLock = vi.fn(), onInventoryPolicyChange = vi.fn(), onAutoToggle = vi.fn(), onDiagnostics = vi.fn();
     render(<TownScreen {...townProps} game={game} autoActive onStashItem={onStashItem} onToggleItemLock={onToggleItemLock} onInventoryPolicyChange={onInventoryPolicyChange} onAutoToggle={onAutoToggle} onDiagnostics={onDiagnostics} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Storage' }));
     fireEvent.click(screen.getByRole('button', { name: /^Pack / }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Deposit' })[0]);
     expect(onStashItem).toHaveBeenCalledWith(game.inventory.items[0].id);
     fireEvent.click(screen.getByRole('button', { name: `Lock ${game.inventory.items[0].displayName}` }));
     expect(onToggleItemLock).toHaveBeenCalledWith(game.inventory.items[0].id);
+    fireEvent.click(screen.getByRole('tab', { name: 'Auto Care' }));
     fireEvent.click(screen.getByLabelText('Auto sell obsolete gear (pack and stash, all rarities)'));
     expect(onInventoryPolicyChange).toHaveBeenCalledWith({ ...game.inventoryPolicy, autoSellJunk: true });
     fireEvent.click(screen.getByRole('button', { name: 'Stop Auto' }));

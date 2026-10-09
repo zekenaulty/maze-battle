@@ -69,7 +69,21 @@ for (const size of [{ width: 1280, height: 800 }, { width: 390, height: 780 }, {
     await page.goto('/tests/e2e/screens-fixture.html?screen=town');
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: info.outputPath('town.png') });
+    const townTabs = page.getByRole('tablist', { name: 'Town services' });
+    for (const name of ['Guild', 'Blacksmith', 'Alchemist', 'Storage', 'Inn', 'Auto Care']) {
+      await townTabs.getByRole('tab', { name, exact: true }).click();
+      await expect(page.getByRole('tabpanel')).toHaveCount(1);
+      await expect(page.getByRole('tabpanel', { name, exact: true })).toBeVisible();
+      await expect(townTabs).toBeInViewport();
+      await expect(page.getByRole('button', { name: 'Stop Auto', exact: true })).toBeInViewport();
+      await expectNoHorizontalOverflow(page);
+      await page.screenshot({ path: info.outputPath(`town-${name.toLowerCase().replace(' ', '-')}.png`) });
+    }
+    await townTabs.getByRole('tab', { name: 'Storage', exact: true }).click();
     await page.getByRole('searchbox', { name: 'Search storage' }).fill('Stored sword 12');
+    await townTabs.getByRole('tab', { name: 'Inn', exact: true }).click();
+    await townTabs.getByRole('tab', { name: 'Storage', exact: true }).click();
+    await expect(page.getByRole('searchbox', { name: 'Search storage' })).toHaveValue('Stored sword 12');
     await page.getByRole('button', { name: 'Withdraw' }).click();
     await expect(page.getByText('No matching items.')).toBeVisible();
     await page.getByRole('button', { name: 'Diagnostics' }).click();

@@ -36,10 +36,12 @@ for (const width of [1440, 390]) {
     }, game);
     await page.goto('/');
     await expect(page.locator('.town-screen .screen-status')).toContainText('Pack 3/4');
+    await page.getByRole('tab', { name: 'Alchemist', exact: true }).click();
     const portal = page.locator('.vendor-card .town-stock-row').filter({ hasText: 'Town Portal' });
     await expect(portal.getByRole('button', { name: 'Buy 14g' })).toBeEnabled();
     await portal.getByRole('button', { name: 'Buy 14g' }).click();
     await expect(page.locator('.screen-status')).toContainText('Pack 4/4');
+    await page.getByRole('tab', { name: 'Storage', exact: true }).click();
     const storedMana = page.locator('.town-storage-list .town-stock-row').filter({ hasText: 'Mana Vial' });
     await expect(storedMana.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
     await storedMana.getByRole('button', { name: 'Withdraw' }).click();
