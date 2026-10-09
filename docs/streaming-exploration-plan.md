@@ -1,6 +1,6 @@
 # Structural streaming exploration
 
-Status: active; first isolated fixture qualified. Branch: `codex/streaming-exploration`.
+Status: active; v1 and incremental v2 isolated play qualified. Branch: `codex/streaming-exploration`.
 Goal: S0-S5 below. The overall goal is not complete.
 
 ## Architecture
@@ -26,12 +26,12 @@ Recipes pin generator version and seed; regeneration cannot depend on cache orde
 
 | ID | Owner | Status | Acceptance |
 | --- | --- | --- | --- |
-| S0 | Integration lead | v2 expansion contracts added; gameplay binding pending | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
+| S0 | Integration lead | v2 gameplay binding integrated; public adapter identity in review | Typed identities, spaces, openings, observations, checkpoint and finite-scope completion contracts |
 | S1 | Ptolemy / codex/streaming-generation | Bounded macro generator and adversarial gates passed | Deterministic variable room/passage schematics; reciprocal ports, reachability, bounded work, generation-order tests |
-| S2 | Dewey / codex/streaming-storage | Paged topology and durable action ledger integrated; knowledge paging pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
-| S3 | Kant / codex/streaming-explorer | Observed-space route batches integrated; paged map pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
-| S4 | Integration lead | Durable local receipts and takeover integrated; transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
-| S5 | Integration lead + workers | First fixture passed; remaining gates open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
+| S2 | Dewey / codex/streaming-storage | Atomic gameplay/knowledge pages integrated; discovered-map query and immutable history pending | Separate IndexedDB records, revision-checked checkpoint writes, bounded cell residency, unchanged loot after reload/eviction |
+| S3 | Kant / codex/streaming-explorer | One-room bounded planner integrated; map UI pending | Knowledge-only waypoint decisions, nearby objective batching, frontiers, return route and resumable mapping |
+| S4 | Integration lead | Typed browser planning gate implemented; adversarial review and transport pending | Browser-owned command boundary, epoch/revision/idempotency, takeover, allowlisted observations, scripted adapter qualification |
+| S5 | Integration lead + workers | v2 playable, reload and viewport gates passed; service gates open | Playable isolated expedition, long seeded/reload tests, mobile/desktop screenshots, no ordinary-save mutation |
 
 ## First playable gate
 
@@ -84,10 +84,12 @@ No worker may change the live save or unrelated Agentica checkout.
 
 The playable v1 fixture has six rooms and five passages on an authored layout.
 `STRIDE` is fixture placement only, not the target world partition. The separate
-v2 macro generator now expands one reserved frontier per bounded transaction;
-it is not yet connected to the playable expedition. The loaded-cell budget is 512; total
+v2 macro generator now expands one reserved frontier per bounded transaction and
+is connected to the separate `?expedition=2` screen. The loaded-cell budget is 512; total
 resident bytes, persisted history and map growth need separate later budgets.
-One complete finite checkpoint is written per action; records are not yet paged.
+The v1 fixture writes a finite checkpoint per action. V2 writes a compact checkpoint,
+at most two room-local knowledge pages, and a compact original-action receipt in
+the same transaction as topology. It does not copy the discovered world per move.
 The browser now uses observed-space waypoint batches with exact local routes,
 bounded caches and complete host change sets. It prefers fewer door crossings,
 then distance, not a globally optimal tour. No combat, equipment, floor descent
@@ -96,7 +98,8 @@ with checkpoint effects in IndexedDB, with an explicit 4,096-action slot budget.
 There is no receipt eviction/archive protocol yet. A reload fences the old owner
 and cancels an uncommitted local-only reservation by its original identity; this
 does not generalize to unconfirmed external effects.
-No provider or cross-runtime Agentica service was exercised.
+No provider or cross-runtime Agentica service was exercised. See
+[MB-A0 browser adapter contract](planning-adapter-contract.md) for the current packet.
 
 Implemented S0/S1 packet:
 
@@ -177,3 +180,36 @@ The checkpoint, changed knowledge pages and original command receipt join the
 topology transaction. Cancellation must reconcile that receipt, not regenerate
 under a different ID. Existing `spaces-v1` records remain on the sealed-fixture
 runtime; no migration silently changes their geometry or loot.
+
+## Third milestone: incremental playable rooms
+
+- `e6d7077`: atomic v2 gameplay, current/destination knowledge-page reads and
+  command receipts share the topology database and quota accounting. Preparation
+  is an explicit visible-frontier action, not movement or an unbounded generation loop.
+- `6d96c7c`, `5c6a240`, `1975622`: a planner consumes one saved room page, batches
+  nearby objectives with exact local BFS, and persists parent/completed-exit
+  waypoints. Geometry is a tree in this version; this is not a globally optimal
+  tour and a future cyclic generator requires a corresponding navigation contract.
+- `1cc987f`: separately saved playable v2 at `http://127.0.0.1:5174/?expedition=2`.
+  Database `maze-battle-topology-v2`, slot `streamed-demo`; normal game and v1 saves
+  remain untouched. Narrow passages retain the same minimum camera scale.
+- PASS: 72 focused domain/storage unit tests; 11 actual-IDB gameplay tests. A full
+  15-space / 7-chest fixture took 2,697 qualification commands with at most 41 point
+  reads per command. Indexed room lookup remains bounded at 321 generated spaces.
+- PASS: six v2 browser/UI tests: complete actual autoplay, stop/reload/resume,
+  all loot, home return, stale-tab fencing and keyboard takeover. Layout/canvas
+  checks cover 1280x800, 320x640, 390x780 and 844x390. Desktop and 320x640 screenshots
+  inspected. Production build passed. Full combined regression follows integration.
+- `68b4953`: two further race fixes plus 16 focused tests: planner admission is
+  synchronous after the control barrier; rejected takeover also clears playback.
+- `9fafd78`: browser-owned planning contract, explicit projection and local action
+  gate. Twelve tests include full observed-only fake-planner completion, duplicate
+  delivery, stale revision, cancellation, unknown acknowledgement and bounded progress.
+  This is same-runtime qualification, not an Agentica service or network test.
+- Adapter review found internal scope IDs serialize the recipe seed. Public adapter
+  bindings use a persisted random UUID; internal scope IDs must never be sent.
+
+Next: integrate adversarial persistence/adapter fixes and public identity, qualify
+the real-IDB adapter, add bounded discovered-map queries/UI, then cross-runtime
+service implementation. Manual immutable save references and receipt archival are
+still separate open gates; logical quotas are explicit, not infinite-storage claims.

@@ -5,6 +5,7 @@ import { addressKey } from '../address';
 import { materializeTopologySpace, resolvedSpaceSpec } from '../topology/projection';
 import { observeStream } from './observation';
 import { StreamHarness } from './testSupport';
+import { StreamPlanner } from './planner';
 
 async function walk(test: StreamHarness, row: number, column: number) {
   const spaceId = test.checkpoint.position.spaceId;
@@ -108,5 +109,22 @@ describe('streamed gameplay transitions', () => {
     expect((await test.step({ type: 'finish' })).applied).toBe(false);
     expect(test.checkpoint.phase).toBe('exploring');
     expect(test.checkpoint.revision).toBe(0);
+  });
+
+  it('refuses completion if chest totals disagree even when room progress is complete', async () => {
+    const test = new StreamHarness();
+    const planner = new StreamPlanner();
+    for (let step = 0; step < 4096; step++) {
+      const decision = planner.choose(test.checkpoint, test.room().knowledge!, { sessionId: 'test', epoch: 0 });
+      if (!decision.command) throw new Error(decision.reason);
+      if (decision.command.type === 'finish') break;
+      expect((await test.step(decision.command)).applied).toBe(true);
+    }
+    const count = test.checkpoint.collectedChests;
+    expect(count).toBe(test.topology.header().rooms - 1);
+    test.checkpoint.collectedChests--;
+    expect((await test.step({ type: 'finish' })).applied).toBe(false);
+    test.checkpoint.collectedChests = count;
+    expect((await test.step({ type: 'finish' })).applied).toBe(true);
   });
 });

@@ -58,7 +58,8 @@ export async function applyStreamCommand(context: StreamCommandContext, command:
   } else if (command.type === 'finish') {
     const count = header.rooms * 2 - 1;
     if (!sameAddress(next.position, next.home) || !header.seal || header.seal.revision !== current.topologyRevision
-      || current.visitedSpaces !== count || current.clearedSpaces !== count || !roomCleared(room, page, context.geometry(room.space))) {
+      || current.visitedSpaces !== count || current.clearedSpaces !== count || current.collectedChests !== header.rooms - 1
+      || !roomCleared(room, page, context.geometry(room.space))) {
       return refuse('Explore the sealed scope, collect its chests, and return home first.');
     }
     next.phase = 'complete';
