@@ -7,7 +7,8 @@ import { PlanningSession } from './session';
 
 /** Deliberate browser takeover of an existing isolated stream slot. Never creates a game. */
 export async function openRepositoryPlanningSession(slot: string, runId: string, objectiveId: string, limits: PlanningLimits = DEFAULT_PLANNING_LIMITS) {
-  validateLimits(limits);
+  const fixedLimits = structuredClone(limits);
+  validateLimits(fixedLimits);
   const initial = await loadStreamSnapshot(slot);
   const scopeId = await ensureStreamPublicScope(slot);
   const before = await loadStreamControl(slot);
@@ -16,7 +17,7 @@ export async function openRepositoryPlanningSession(slot: string, runId: string,
     worldId: initial.checkpoint.worldId, floorId: initial.checkpoint.floorId };
   validateBinding(binding);
   await claimStreamControl(slot, owner.sessionId, before?.epoch ?? null);
-  let released = false;
+  let release: Promise<void> | undefined;
   const host: PlanningHost = {
     async read() {
       const snapshot = await loadStreamSnapshot(slot);
@@ -25,17 +26,18 @@ export async function openRepositoryPlanningSession(slot: string, runId: string,
     },
     execute: request => executeStreamAction(slot, request),
     lookup: request => loadStreamAction(slot, request),
-    async release() {
-      if (released) return;
-      const control = await loadStreamControl(slot);
-      if (control?.sessionId === owner.sessionId && control.epoch === owner.epoch) {
-        // CAS never steals a newer manual/other-tab owner when release races takeover.
-        await claimStreamControl(slot, owner.sessionId, owner.epoch);
-      }
-      released = true;
+    release() {
+      // Concurrent cancellations share the attempt; a failure permits an explicit retry.
+      return release ??= Promise.resolve().then(async () => {
+        const control = await loadStreamControl(slot);
+        if (control?.sessionId === owner.sessionId && control.epoch === owner.epoch) {
+          // CAS never steals a newer manual/other-tab owner when release races takeover.
+          await claimStreamControl(slot, owner.sessionId, owner.epoch);
+        }
+      }).catch(error => { release = undefined; throw error; });
     },
   };
-  return new PlanningSession(host, binding, limits);
+  return new PlanningSession(host, binding, fixedLimits);
 }
 
 /** Read-only original-attempt reconciliation after browser reload or service reconnect. */
