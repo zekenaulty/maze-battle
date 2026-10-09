@@ -2,66 +2,17 @@
 import { expect, it } from 'vitest';
 import { opposite } from '../../maze/movement';
 import { sameAddress } from '../address';
-import { expandTopology } from '../topology/generation';
-import { MemoryTopology } from '../topology/memoryTopology';
-import { materializeTopologySpace } from '../topology/projection';
-import type { ExpansionSocket } from '../topology/types';
 import { StreamPlanner } from './planner';
-import { applyStreamCommand, initializeStream } from './transition';
-import type { StreamCheckpoint, StreamCommand, StreamKnowledgePage, StreamRoom } from './types';
+import { StreamHarness } from './testSupport';
 
-// The reference host owns generated topology and durable pages. The planner receives
-// only cloned checkpoints/current observed pages, never this host or its load function.
-function host(seed: number, level = 1) {
-  const topology = new MemoryTopology({ version: 'spaces-v2', worldId: 'planner-integration', floorId: 'one', seed, level });
-  const pages = new Map<string, StreamKnowledgePage>();
-  const sockets = new Map<string, Map<string, ExpansionSocket>>();
-  const rememberSocket = (socket: ExpansionSocket) => {
-    let room = sockets.get(socket.source.spaceId);
-    if (!room) { room = new Map(); sockets.set(socket.source.spaceId, room); }
-    room.set(socket.id, structuredClone(socket));
-  };
-  for (let index = 0; index < topology.header().socketCount; index++) rememberSocket(topology.socket(index)!);
-  const loadRoom = async (id: string): Promise<StreamRoom> => ({
-    space: topology.space(id)!, connections: topology.connections(id), sockets: [...(sockets.get(id)?.values() ?? [])],
-    knowledge: structuredClone(pages.get(id)),
-  });
-  let checkpoint: StreamCheckpoint;
-  const save = (transition: ReturnType<typeof initializeStream>) => {
-    checkpoint = structuredClone(transition.checkpoint);
-    for (const page of transition.pages) pages.set(page.spaceId, structuredClone(page));
-  };
-  return {
-    topology, pages,
-    get checkpoint() { return structuredClone(checkpoint); },
-    get page() { return structuredClone(pages.get(checkpoint.position.spaceId)!); },
-    async initialize() {
-      const header = topology.header();
-      save(initializeStream(header, await loadRoom(header.start.spaceId), materializeTopologySpace));
-    },
-    async execute(command: StreamCommand) {
-      const transition = await applyStreamCommand({ header: topology.header(), checkpoint: structuredClone(checkpoint),
-        current: await loadRoom(checkpoint.position.spaceId), loadRoom, geometry: materializeTopologySpace,
-        prepareNext: async () => {
-          const proposal = expandTopology(topology, topology.header().revision, `prepare-${checkpoint.revision}`);
-          if (proposal.status !== 'ready') throw new Error(`Unexpected expansion ${proposal.status}`);
-          expect(topology.commit(proposal.delta).status).toBe('applied');
-          for (const socket of proposal.delta.sockets) rememberSocket(socket);
-          if (proposal.delta.resolved) rememberSocket(proposal.delta.resolved);
-          return topology.header();
-        },
-      }, command);
-      expect(transition.applied, `${command.type}: ${transition.reason}`).toBe(true);
-      save(transition);
-      return transition;
-    },
-  };
+// Only the test oracle owns world maps. No harness or room is passed to the planner.
+function observedPage(world: StreamHarness) {
+  return structuredClone(world.pages.get(world.checkpoint.position.spaceId)!);
 }
 
 it.each([{ seed: 1, pending: false }, { seed: 55, pending: true }, { seed: 20261008, pending: true }])(
   'explores, prepares, collects and returns through real v2 commands with reloads (seed $seed)', async ({ seed, pending }) => {
-  const world = host(seed, 2);
-  await world.initialize();
+  const world = new StreamHarness(seed, 2);
   let planner = new StreamPlanner();
   let epoch = 0;
   let reusedSteps = 0;
@@ -74,13 +25,15 @@ it.each([{ seed: 1, pending: false }, { seed: 55, pending: true }, { seed: 20261
       planner = new StreamPlanner();
       epoch++;
     }
-    const before = world.checkpoint;
-    const decision = planner.choose(before, world.page, { sessionId: 'observed-runtime', epoch });
+    const before = structuredClone(world.checkpoint);
+    const decision = planner.choose(before, observedPage(world), { sessionId: 'observed-runtime', epoch });
     expect(decision.command, `revision ${before.revision}: ${decision.reason}`).toBeDefined();
-    const transition = await world.execute(decision.command!);
+    const transition = await world.step(decision.command!);
+    expect(transition.applied, `${decision.command!.type}: ${transition.reason}`).toBe(true);
     const after = world.checkpoint;
     expect(planner.diagnostics.cache.cells).toBeLessThanOrEqual(512);
-    expect(planner.diagnostics.cache.ports).toBeLessThanOrEqual(4);
+    const maxPorts = world.topology.space(before.position.spaceId)!.spec.kind === 'passage' ? 2 : 4;
+    expect(planner.diagnostics.cache.ports).toBeLessThanOrEqual(maxPorts);
     expect(planner.diagnostics.cache.pages).toBe(1);
     expect(planner.diagnostics.cache.batchSteps).toBeLessThanOrEqual(128);
     expect(planner.diagnostics.lastWork.expandedCells).toBeLessThanOrEqual(8 * 512);
@@ -89,7 +42,7 @@ it.each([{ seed: 1, pending: false }, { seed: 55, pending: true }, { seed: 20261
       expect(after.position).toEqual(before.position);
       expect(after.moves).toBe(before.moves);
       expect(after.revision).toBe(before.revision + 1);
-      if (world.page.frontiers[decision.command!.frontierId]) {
+      if (observedPage(world).frontiers[decision.command!.frontierId]) {
         pendingPreparations++;
         expect(after.topologyRevision).toBe(before.topologyRevision + 1);
       }
@@ -98,7 +51,7 @@ it.each([{ seed: 1, pending: false }, { seed: 55, pending: true }, { seed: 20261
       crossings++;
       expect(transition.pages).toHaveLength(2);
       const source = transition.pages.find(page => page.spaceId === before.position.spaceId)!;
-      const target = world.page;
+      const target = observedPage(world);
       expect(Object.values(source.openings).some(port => sameAddress(port, before.position)
         && port.destination && sameAddress(port.destination, after.position))).toBe(true);
       expect(Object.values(target.openings).some(port => sameAddress(port, after.position)
@@ -120,23 +73,22 @@ it.each([{ seed: 1, pending: false }, { seed: 55, pending: true }, { seed: 20261
 });
 
 it('revisits an unfinished child after a manual early return and planner reload', async () => {
-  const world = host(55);
-  await world.initialize();
+  const world = new StreamHarness(55);
   const planner = new StreamPlanner();
   for (let step = 0; step < 500; step++) {
-    const before = world.checkpoint;
-    const decision = planner.choose(before, world.page, { sessionId: 'original', epoch: 0 });
+    const before = structuredClone(world.checkpoint);
+    const decision = planner.choose(before, observedPage(world), { sessionId: 'original', epoch: 0 });
     expect(decision.command, decision.reason).toBeDefined();
-    await world.execute(decision.command!);
+    expect((await world.step(decision.command!)).applied).toBe(true);
     if (before.position.spaceId === world.checkpoint.position.spaceId) continue;
-    expect(world.page.cleared).toBe(false);
+    expect(observedPage(world).cleared).toBe(false);
     if (decision.command!.type !== 'move') throw new Error('Crossing was not a move');
     const direction = decision.command!.direction;
-    await world.execute({ type: 'move', direction: opposite(direction) });
+    expect((await world.step({ type: 'move', direction: opposite(direction) })).applied).toBe(true);
     expect(world.checkpoint.position).toEqual(before.position);
-    expect(world.page.completedExits).toEqual([]);
+    expect(observedPage(world).completedExits).toEqual([]);
     const reloaded = new StreamPlanner();
-    expect(reloaded.choose(world.checkpoint, world.page, { sessionId: 'replacement', epoch: 1 }).command)
+    expect(reloaded.choose(structuredClone(world.checkpoint), observedPage(world), { sessionId: 'replacement', epoch: 1 }).command)
       .toEqual({ type: 'move', direction });
     return;
   }
