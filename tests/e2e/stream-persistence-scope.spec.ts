@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { TOPOLOGY_DATABASE_VERSION } from '../../src/persistence/topology/database';
 import type {} from './stream-persistence-fixture';
 
 const fixture = '/tests/e2e/stream-persistence-fixture.html';
@@ -24,7 +25,7 @@ test('old gameplay saves acquire one random UUID without changing gameplay or re
     const db = await openDB(topology.TOPOLOGY_DATABASE), version = db.version; db.close();
     return { id, calls, absent, version, before, after, outcome, replay: await api.executeStreamAction('stream', input) };
   });
-  expect(result.absent).toBeUndefined(); expect(result.calls).toBe(1); expect(result.version).toBe(2);
+  expect(result.absent).toBeUndefined(); expect(result.calls).toBe(1); expect(result.version).toBe(TOPOLOGY_DATABASE_VERSION);
   expect(result.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   expect(result.replay).toEqual(result.outcome);
   expect(result.after.records.filter(record => record.store !== 'roots')).toEqual(result.before.records.filter(record => record.store !== 'roots'));

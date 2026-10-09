@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { TOPOLOGY_DATABASE_VERSION, TOPOLOGY_STORES } from '../../src/persistence/topology/database';
 import type {} from './stream-persistence-fixture';
 
 test.beforeEach(async ({ page }) => {
@@ -35,8 +36,8 @@ test('additive database upgrade preserves old topology records and refuses legac
       after.records.some(value => value.store === old.store && JSON.stringify(value.key) === JSON.stringify(old.key) && JSON.stringify(value.value) === JSON.stringify(old.value))),
       root: await topology.loadTopologyHeader(slot) };
   });
-  expect(result.version).toBe(2);
-  expect(result.stores).toEqual(expect.arrayContaining(['streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions']));
+  expect(result.version).toBe(TOPOLOGY_DATABASE_VERSION);
+  expect(result.stores).toEqual(expect.arrayContaining([...TOPOLOGY_STORES]));
   expect(result.same).toBe(true); expect(result.root?.streamVersion).toBeUndefined();
   expect(result.adoption).toContain('legacy/topology-only'); expect(result.snapshot).toContain('not gameplay managed');
 });

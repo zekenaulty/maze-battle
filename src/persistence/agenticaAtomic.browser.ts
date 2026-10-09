@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { TOPOLOGY_DATABASE_VERSION } from './topology/database';
 import type {} from './agenticaTest.fixture';
 
 const fixture = '/src/persistence/agenticaTest.fixture.html';
@@ -80,7 +81,7 @@ test('version-2 migration preserves existing records, identity, byte totals and 
     const missing = await api.loadAgenticaRun('stream', 'absent');
     return { original, after, version, stores, sentinel, scope, beforeBinding, missing };
   });
-  expect(result.version).toBe(3); expect(result.stores).toContain('agenticaActions'); expect(result.stores).toContain('agenticaRuns');
+  expect(result.version).toBe(TOPOLOGY_DATABASE_VERSION); expect(result.stores).toContain('agenticaActions'); expect(result.stores).toContain('agenticaRuns');
   expect(result.after).toEqual(result.original); expect(result.sentinel).toEqual({ sentinel: true }); expect(result.missing).toBeUndefined();
   expect(result.beforeBinding.checkpoint.revision).toBe(1);
 });
