@@ -2,14 +2,12 @@ import { StreamPlanner } from '../../domain/expedition/streaming/planner';
 import type { StreamActionRequest, StreamActionResult, StreamCommand, StreamControl } from '../../domain/expedition/streaming/types';
 import { SpaceResidency } from '../../domain/expedition/residency';
 import { materializeSpace } from '../../domain/expedition/schematic';
-import type { TopologyRecipe } from '../../domain/expedition/topology/types';
 import type { Direction } from '../../domain/types';
 import { claimStreamControl, createStreamSlot, executeStreamAction, loadStreamAction,
   loadStreamControl, loadStreamSnapshot, type StreamSnapshot } from '../../persistence/streamRepository';
+import { STREAM_CELL_BUDGET, STREAM_SLOT, streamConfiguration, type StreamConfiguration } from './streamConfiguration';
 
-export const STREAM_CELL_BUDGET = 512;
-export const STREAM_SLOT = 'streamed-demo';
-export const STREAM_RECIPE: TopologyRecipe = { version: 'spaces-v2', worldId: STREAM_SLOT, floorId: 'floor-1', seed: 20261008, level: 1 };
+export { STREAM_CELL_BUDGET, STREAM_SLOT, STREAM_RECIPE } from './streamConfiguration';
 
 /** One current knowledge page, bounded geometry, and disposable local route batches. */
 export class StreamRuntime {
@@ -23,11 +21,13 @@ export class StreamRuntime {
   private control: Promise<void> = Promise.resolve();
   private active?: Promise<StreamActionResult>;
   private readonly publish: (snapshot: StreamSnapshot) => void;
+  readonly slot: string;
 
-  constructor(snapshot: StreamSnapshot, owner: StreamControl, publish: (snapshot: StreamSnapshot) => void) {
+  constructor(snapshot: StreamSnapshot, owner: StreamControl, publish: (snapshot: StreamSnapshot) => void, slot = STREAM_SLOT) {
     this.snapshot = snapshot;
     this.owner = owner;
     this.publish = publish;
+    this.slot = slot;
   }
 
   takeOver() {
@@ -36,7 +36,7 @@ export class StreamRuntime {
     const active = this.active;
     this.control = this.control.then(async () => {
       await active;
-      this.owner = await claimStreamControl(STREAM_SLOT, this.owner.sessionId, this.owner.epoch);
+      this.owner = await claimStreamControl(this.slot, this.owner.sessionId, this.owner.epoch);
     }).catch(error => { this.faulted = true; throw error; });
     return this.control;
   }
@@ -77,18 +77,18 @@ export class StreamRuntime {
   private async execute(request: StreamActionRequest): Promise<StreamActionResult> {
     let result: StreamActionResult;
     try {
-      result = await executeStreamAction(STREAM_SLOT, request, space => {
+      result = await executeStreamAction(this.slot, request, space => {
         if (space.schematic !== 'stone-room-v1') throw new Error('Unsupported schematic');
         return this.cache.get(space.spec);
       });
     } catch (error) {
       // Reconcile this exact attempt. Never turn an unknown acknowledgement into a new action.
-      const original = await loadStreamAction(STREAM_SLOT, request).catch(() => undefined);
+      const original = await loadStreamAction(this.slot, request).catch(() => undefined);
       if (!original) { this.faulted = true; throw error; }
       result = original.result;
     }
     try {
-      const saved = await loadStreamSnapshot(STREAM_SLOT);
+      const saved = await loadStreamSnapshot(this.slot);
       if (result.disposition === 'applied' && request.command.type === 'move') this.lastDirection = request.command.direction;
       this.snapshot = saved;
       if (saved.checkpoint.revision !== result.afterRevision) this.planner.reset();
@@ -99,10 +99,11 @@ export class StreamRuntime {
   }
 }
 
-export async function openStreamRuntime(cancelled: () => boolean, publish: (snapshot: StreamSnapshot) => void) {
-  await createStreamSlot(STREAM_SLOT, STREAM_RECIPE);
-  const previous = await loadStreamControl(STREAM_SLOT);
+export async function openStreamRuntime(cancelled: () => boolean, publish: (snapshot: StreamSnapshot) => void, configuration: StreamConfiguration = streamConfiguration()) {
+  const { slot, recipe } = configuration;
+  await createStreamSlot(slot, recipe);
+  const previous = await loadStreamControl(slot);
   if (cancelled()) return undefined;
-  const owner = await claimStreamControl(STREAM_SLOT, crypto.randomUUID(), previous?.epoch ?? null);
-  return new StreamRuntime(await loadStreamSnapshot(STREAM_SLOT), owner, publish);
+  const owner = await claimStreamControl(slot, crypto.randomUUID(), previous?.epoch ?? null);
+  return new StreamRuntime(await loadStreamSnapshot(slot), owner, publish, slot);
 }

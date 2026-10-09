@@ -3,8 +3,9 @@ import type { Direction } from '../domain/types';
 import type { StreamCommand } from '../domain/expedition/streaming/types';
 import type { StreamSnapshot } from '../persistence/streamRepository';
 import { openStreamRuntime, type StreamRuntime } from '../services/expedition/streamRuntime';
+import { streamConfiguration } from '../services/expedition/streamConfiguration';
 
-export function useStreamExpedition() {
+export function useStreamExpedition(level = 1) {
   const runtime = useRef<StreamRuntime | undefined>(undefined);
   const mounted = useRef(false);
   const intent = useRef(0);
@@ -19,7 +20,8 @@ export function useStreamExpedition() {
   useEffect(() => {
     let cancelled = false;
     mounted.current = true;
-    void openStreamRuntime(() => cancelled, snapshot => { if (!cancelled) setView(snapshot); }).then(state => {
+    runtime.current = undefined; setView(undefined); setError(undefined); setPlaying(false);
+    void openStreamRuntime(() => cancelled, snapshot => { if (!cancelled) setView(snapshot); }, streamConfiguration(level)).then(state => {
       if (cancelled || !state) return;
       runtime.current = state;
       setView(state.snapshot);
@@ -29,7 +31,7 @@ export function useStreamExpedition() {
       cancelled = true; mounted.current = false; automatic.current = false; intent.current++;
       void runtime.current?.takeOver().catch(() => undefined);
     };
-  }, []);
+  }, [level]);
 
   const stop = useCallback(() => {
     intent.current++; automatic.current = false; setPlaying(false);
