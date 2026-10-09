@@ -34,10 +34,17 @@ export function DirectedCanvas({ view }: { view: DirectedViewModel }) {
       const columnStart = small ? room.originX - Math.floor((columns - room.columns) / 2) : -1;
       const rowStart = small ? room.originZ - Math.floor((rows - room.rows) / 2) : -1;
       const viewport = { rows, columns, rowStart, columnStart, rowEnd: rowStart + rows, columnEnd: columnStart + columns };
-      drawMaze(ctx, { width, height }, maze, [], 'south', 0, { viewport, showStairs: false, visibility });
       const size = Math.floor(Math.min((width - 16) / columns, (height - 16) / rows));
       const left = Math.floor((width - size * columns) / 2) - columnStart * size;
       const top = Math.floor((height - size * rows) / 2) - rowStart * size;
+      ctx.fillStyle = '#040814'; ctx.fillRect(0, 0, width, height);
+      // The legacy renderer outlines unknown rectangular bounds. Clip to remembered cells.
+      ctx.save(); ctx.beginPath();
+      const edge = Math.max(2, size * 0.12);
+      for (const cell of cells) ctx.rect(left + cell.column * size - edge, top + cell.row * size - edge, size + 2 * edge, size + 2 * edge);
+      ctx.clip();
+      drawMaze(ctx, { width, height }, maze, [], 'south', 0, { viewport, showStairs: false, visibility });
+      ctx.restore();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = `${Math.round(size * 0.45)}px "Segoe UI Emoji", sans-serif`;
       for (const entry of view.features) {

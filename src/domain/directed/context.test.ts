@@ -20,7 +20,7 @@ describe('exact directed consumer context', () => {
       + '"cells":[{"value":{"address":{"spaceId":"H","row":2,"column":2},"exits":{}},'
       + '"observationId":"W1:P1:observation:1","observedAt":1,"status":"current"}],'
       + '"spaces":[{"value":{"id":"H","name":"Hall","originX":8,"originZ":0,"rows":5,"columns":5},'
-      + '"observationId":"W1:P1:observation:1","observedAt":1,"status":"current"}],"features":[],"absent":[]}';
+      + '"observationId":"W1:P1:observation:1","observedAt":1,"status":"current"}],"features":[],"absent":[],"blockedEdges":[]}';
     expect(context).toEqual({
       id: 'presentation-1', observerId: 'P1', knowledgeRevision: 1, purpose: 'human-view',
       observationIds: ['W1:P1:observation:1'], json: expected, bytes: new TextEncoder().encode(expected).byteLength,

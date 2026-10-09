@@ -54,7 +54,10 @@ export function useDirectedPlay() {
   const dispatch = (command: DirectedCommand) => enqueue(async () => {
     await recover();
     const current = await readDirectedSave(DIRECTED_SLOT);
-    if (!current || current.owner !== owner.current) throw new Error('Another controller owns this save. Take control to continue.');
+    if (!current || current.owner !== owner.current) {
+      await refresh();
+      throw new Error('Another controller owns this save. Take control to continue.');
+    }
     const request: DirectedRequest = { attemptId: crypto.randomUUID(), owner: owner.current,
       epoch: current.epoch, expectedRevision: current.revision, command };
     sessionStorage.setItem(PENDING_KEY, JSON.stringify(request));
@@ -91,7 +94,8 @@ export function useDirectedPlay() {
     setPlaying(false);
     void enqueue(async () => { await recover(); await claimDirectedSave(DIRECTED_SLOT, owner.current); await refresh(); });
   };
-  return { session, context, error, playing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl,
+  const reconcile = () => enqueue(async () => { await recover(); await refresh(); });
+  return { session, context, error, playing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
     pause: () => setPlaying(false), resume: () => setPlaying(true),
     controlled: session?.owner === owner.current };
 }

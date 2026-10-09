@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Hand, Navigation, Pause, Play, Square } from 'lucide-react';
+import { ArrowLeft, Eye, Hand, Navigation, Pause, Play, RotateCcw, Square } from 'lucide-react';
 import { useDirectedPlay } from '../../hooks/useDirectedPlay';
 import { directedViewModel } from '../../viewModels/directedViewModel';
 import { DirectedCanvas } from './DirectedCanvas';
@@ -38,9 +38,10 @@ export default function DirectedPlayApp() {
             disabled={!running || !game.controlled} onClick={game.playing ? game.pause : game.resume}>{game.playing && running ? <Pause size={18} /> : <Play size={18} />}</button>
           <button aria-label="Cancel travel" title="Cancel travel" disabled={!running || !game.controlled} onClick={game.cancel}><Square size={18} /></button>
           <button aria-label="Look around" title="Look around" disabled={game.busy || running || !game.controlled} onClick={() => void game.dispatch({ type: 'look' })}><Eye size={18} /></button>
-          <button aria-label="Interact with destination" title="Interact with destination" disabled={game.busy || running || !feature || !game.controlled}
+          <button aria-label="Interact with destination" title="Interact with destination" disabled={game.busy || running || !view.interactable.includes(selected) || !game.controlled}
             onClick={() => void game.dispatch({ type: 'interact', featureId: selected })}><Hand size={18} /></button>
           {!game.controlled && <button onClick={game.takeControl} disabled={game.busy}><Hand size={17} />Take control</button>}
+          {game.error && <button onClick={() => void game.reconcile()} disabled={game.busy} aria-label="Reconcile pending action" title="Reconcile pending action"><RotateCcw size={18} /></button>}
         </div>
         <div className="directed-details"><span>{feature ? `${feature.value.name}: ${feature.value.state} (${feature.status})` : 'Hall center'}</span>
           <label>Pace<input type="range" aria-label="Travel pace" min={120} max={900} step={20} value={game.delay} onChange={event => game.setDelay(Number(event.target.value))} /><output>{game.delay}ms</output></label>
