@@ -42,6 +42,10 @@ export default function DirectedPlayApp() {
             onClick={() => void game.dispatch({ type: 'interact', featureId: selected })}><Hand size={18} /></button>
           {!game.controlled && <button onClick={game.takeControl} disabled={game.busy}><Hand size={17} />Take control</button>}
           {game.error && <button onClick={() => void game.reconcile()} disabled={game.busy} aria-label="Reconcile pending action" title="Reconcile pending action"><RotateCcw size={18} /></button>}
+          {view.blockedCrossings.map(({ to, direction }) => <button key={`${to.spaceId}:${to.row}:${to.column}`}
+            aria-label={`Retry ${direction} crossing`} title={`Retry ${direction} crossing`}
+            disabled={game.busy || running || !game.controlled}
+            onClick={() => void game.dispatch({ type: 'retry-crossing', to })}><RotateCcw size={18} />{direction}</button>)}
         </div>
         <div className="directed-details"><span>{feature ? `${feature.value.name}: ${feature.value.state} (${feature.status})` : 'Hall center'}</span>
           <label>Pace<input type="range" aria-label="Travel pace" min={120} max={900} step={20} value={game.delay} onChange={event => game.setDelay(Number(event.target.value))} /><output>{game.delay}ms</output></label>

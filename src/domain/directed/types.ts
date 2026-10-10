@@ -36,6 +36,10 @@ export interface PerceivedScene {
   features: ObservedFeature[];
   absentFeatureIds: string[];
   traversal?: { from: CellAddress; to: CellAddress; passable: boolean };
+  crossingRecovery?: { policyVersion: 'observed-door-change-v1'; edges: CrossingRecovery[] };
+}
+export interface CrossingRecovery {
+  from: CellAddress; to: CellAddress; featureId: string; change: 'opened' | 'removed';
 }
 /** Immutable source evidence; sourceWorldRevision is audit-only, not actor context. */
 export interface ObservationReceipt {

@@ -96,9 +96,60 @@ effects. Reload retains progress but does not silently resume. Pending attempts 
 reconciled before further work. The UI consumes the exact archived actor-context JSON;
 historical contexts are compared with their original source projection, not fresh truth.
 Collision observations record a blocked crossing without revealing an object's ID.
-Routine observations do not erase that evidence; successful traversal can supersede it.
+Unchanged observations do not erase that evidence. Successful traversal or the explicitly
+receipted local door-change recovery described below can supersede the current blockage.
 
 ## Limits and Next Slices
+
+### Slice 1: Navigation Recovery (2026-10-10)
+
+Completed goal: repair stale collision recovery without a world-truth navigation fallback.
+
+| Ticket | Status | Acceptance |
+| --- | --- | --- |
+| NR-01 recovery evidence | Qualified domain/IDB | A newly observed local open/removed door permits one reconsideration; unchanged or unseen changes never erase collisions |
+| NR-02 deliberate retry | Qualified domain/IDB/browser | One explicit local blocked-crossing attempt, stopped travel only, no target interaction or automatic continuation |
+| NR-03 qualification | Qualified local | 1,388 unit tests, 56 actual-IDB cases, 8 browser cases and production build passed; desktop/mobile screenshots inspected |
+
+Recovery observations carry an additive `observed-door-change-v1` envelope. Historical
+observations without it retain their original projection semantics. A reconsidered
+crossing is not certified safe: actual collision still applies, and a second concealed
+obstacle creates new blocking evidence. An unchanged open door cannot erase that new
+collision. Deliberate retry also recovers older saves or still-concealed passages, but
+only by physically attempting the single previously blocked crossing at the actor.
+No automatic retry loop, generation, NS-3 perception policy or new Agentica tool is added.
+
+Qualification from this isolated checkout (base `32f7ca4`, recovery changes):
+
+- `node node_modules/vitest/vitest.mjs run src/domain/directed --maxWorkers=2`:
+  70 tests / 8 files passed, including 12 new recovery cases.
+- `node node_modules/vitest/vitest.mjs run --maxWorkers=2`:
+  1,388 tests / 92 files passed in 138.65 seconds.
+- `node node_modules/@playwright/test/cli.js test --config tests/e2e/directed-storage.config.ts`:
+  56 actual-Chromium/IndexedDB cases passed. New cases prove source-preserving recovery,
+  exact lost-ack replay after reload/takeover, cancellation, and rejection of invented,
+  unsupported-policy or extra-field recovery evidence.
+- `node node_modules/@playwright/test/cli.js test --config tests/e2e/directed-play.config.ts --output=test-results/directed-play-recovery-qualified`:
+  8 cases passed. Screenshots inspected at 1280x800 and 390x844; explicit retry remains
+  stopped after one crossing and reload, and existing navigation/entry points still work.
+- `npm run build` and `git diff --check`: passed. Preview HTTP 200 at
+  `http://127.0.0.1:5176/?expedition=3`; original checkout remains clean.
+
+Failure retained: the initial browser cohort passed 7 cases but the mobile recovery
+fixture failed to load its module. Its network trace records Chrome
+`net::ERR_NO_BUFFER_SPACE` before gameplay began. A fresh full browser cohort passed
+without changing code, assertions, timeouts or budgets. Original trace is retained in
+`test-results/directed-play`; successful screenshots are under
+`test-results/directed-play-recovery-qualified`. This is local provider-free evidence,
+not Agentica service, live-provider or ordinary-save migration qualification.
+
+### Deferred Roadmap
+
+Next bounded order: NS-3 graduated perception/inspection; NS-4a scoped memory;
+NS-4b bounded historical reads/checkpoints; adoption of the destination executor across
+previously discovered streamed rooms; then the NS-6 destination-level service proof.
+Keep remote mechanisms and anchored generation as separate NS-5 slices before the
+combined NS-7 scenario. Ordinary RPG integration stays a separate migration gate.
 
 This preview is a bounded host-execution proof, not ordinary RPG or new Agentica-tool
 integration. Provider calls are zero by construction, not a measured model-efficiency

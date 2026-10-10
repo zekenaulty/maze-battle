@@ -1,6 +1,7 @@
 import { addressKey, sameAddress } from '../expedition/address';
 import type { Direction } from '../types';
 import type { CellAddress } from '../expedition/types';
+import { observedCrossingRecovery } from './crossingRecovery';
 import type {
   DirectedActor, DirectedCell, DirectedWorld, KnowledgeProjection, ObservationReceipt, ObservedFeature,
 } from './types';
@@ -58,10 +59,13 @@ export function observeDirected(
     .filter(({ value }) => seen.has(addressKey(value.position)) && !features.some(feature => feature.id === value.id))
     .map(({ value }) => value.id).sort();
   const sequence = knowledge.revision + 1;
-  return {
+  const observation: ObservationReceipt = {
     id: `${world.id}:${actor.id}:observation:${sequence}`, worldId: world.id, observerId: actor.id,
     sequence, sourceWorldRevision: world.revision, policyVersion: 'fixture-visibility-v1', reason,
     coverage: { radius, basis: 'connected-cells', complete: true },
     scene: { position: address(actor.position), cells, spaces, features, absentFeatureIds },
   };
+  const edges = observedCrossingRecovery(knowledge, observation.scene);
+  if (edges.length) observation.scene.crossingRecovery = { policyVersion: 'observed-door-change-v1', edges };
+  return observation;
 }

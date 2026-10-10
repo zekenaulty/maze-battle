@@ -16,6 +16,8 @@ const corruptions = [
   ['blocked-key', 'blocked edge key mismatch'], ['blocked-evidence', 'invalid blocked edge evidence sequence'],
   ['blocked-address', 'invalid sequence or bound'], ['blocked-invented', 'historical projection differs from sources'],
   ['traversal-boolean', 'invalid traversal passability'], ['traversal-fields', 'unexpected fields'],
+  ['recovery-invented', 'new local door evidence'], ['recovery-policy', 'unsupported crossing recovery policy'],
+  ['recovery-fields', 'unexpected fields'],
 ] as const;
 
 for (const [variant, message] of corruptions) test(`${variant}: all consumers fail closed without mutation`, async ({ page }) => {
@@ -56,6 +58,13 @@ for (const [variant, message] of corruptions) test(`${variant}: all consumers fa
         const traversal = { from: first.scene.position, to: first.scene.position,
           passable: variant === 'traversal-boolean' ? 'false' : false, ...(variant === 'traversal-fields' ? { featureId: 'T' } : {}) };
         first.scene.traversal = traversal as unknown as NonNullable<typeof first.scene.traversal>;
+        await tx.objectStore('observations').put(first, ['fixture', 1]);
+      }
+      if (variant.startsWith('recovery-')) {
+        const recovery = { policyVersion: variant === 'recovery-policy' ? 'invented-policy' : 'observed-door-change-v1',
+          edges: [{ from: first.scene.position, to: first.scene.position, featureId: 'D', change: 'opened',
+            ...(variant === 'recovery-fields' ? { privateTarget: 'T' } : {}) }] };
+        first.scene.crossingRecovery = recovery as NonNullable<typeof first.scene.crossingRecovery>;
         await tx.objectStore('observations').put(first, ['fixture', 1]);
       }
       if (variant.startsWith('source-')) {

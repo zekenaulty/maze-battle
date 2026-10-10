@@ -3,6 +3,7 @@ import type { CellAddress } from '../expedition/types';
 import { rememberDirected } from './knowledge';
 import { actorNavigationGraph, hasArrived, planKnownDestination, routeHasEdge } from './navigation';
 import { observeDirected } from './perception';
+import { retryDirectedCrossing } from './retryCrossing';
 import type { DirectedCommand, DirectedSession, DirectedTransition, NavigationTarget } from './operationTypes';
 import { DIRECTED_LIMITS, type ObservationReceipt, type WorldEvent } from './types';
 import { canTraverseDirected, interactDirectedWorld, moveDirectedWorld } from './world';
@@ -32,6 +33,7 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
       position: { ...session.actor.position }, operation: structuredClone(session.operation) } };
   };
   if (!Number.isSafeInteger(now) || now < 0 || now > Number.MAX_SAFE_INTEGER - 120_000 || !command) return refuse('Invalid request.');
+  if (command.type === 'retry-crossing') return retryDirectedCrossing(previous, command.to);
   if (command.type === 'navigate') {
     if (!validId(command.operationId) || !validTarget(command.target)) return refuse('Invalid destination request.');
     if (session.operation?.status === 'running') return refuse('An intention is already running.');

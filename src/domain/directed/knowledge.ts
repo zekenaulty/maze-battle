@@ -1,4 +1,5 @@
 import { addressKey, sameAddress } from '../expedition/address';
+import { applyCrossingRecovery } from './crossingRecovery';
 import type { KnowledgeProjection, ObservationReceipt, Remembered } from './types';
 
 export function emptyDirectedKnowledge(worldId: string, observerId: string): KnowledgeProjection {
@@ -33,6 +34,7 @@ export function rememberDirected(knowledge: KnowledgeProjection, observation: Ob
     delete next.features[id];
     next.absent[id] = { observationId: observation.id, observedAt: observation.sequence };
   }
+  applyCrossingRecovery(knowledge, next, observation.scene);
   const traversal = observation.scene.traversal;
   if (traversal) {
     const { from, to, passable } = traversal;

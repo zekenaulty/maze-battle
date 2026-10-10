@@ -105,7 +105,7 @@ export function observation(value: unknown, current: DirectedSession): asserts v
   check(['prelude', 'look', 'travel', 'interaction', 'obstruction'].includes(value.reason as string), 'invalid observation reason');
   object(value.coverage); keys(value.coverage, ['radius', 'basis', 'complete']); integer(value.coverage.radius, 512);
   check(value.coverage.basis === 'connected-cells' && value.coverage.complete === true, 'invalid observation coverage');
-  object(value.scene); keys(value.scene, ['position', 'cells', 'spaces', 'features', 'absentFeatureIds'], ['traversal']); address(value.scene.position);
+  object(value.scene); keys(value.scene, ['position', 'cells', 'spaces', 'features', 'absentFeatureIds'], ['traversal', 'crossingRecovery']); address(value.scene.position);
   for (const name of ['cells', 'spaces', 'features', 'absentFeatureIds']) list(value.scene[name]);
   (value.scene.cells as unknown[]).forEach(cell); (value.scene.spaces as unknown[]).forEach(space);
   (value.scene.features as unknown[]).forEach(item => feature(item)); (value.scene.absentFeatureIds as unknown[]).forEach(id);
@@ -113,5 +113,16 @@ export function observation(value: unknown, current: DirectedSession): asserts v
     object(value.scene.traversal); keys(value.scene.traversal, ['from', 'to', 'passable']);
     address(value.scene.traversal.from); address(value.scene.traversal.to);
     check(typeof value.scene.traversal.passable === 'boolean', 'invalid traversal passability');
+  }
+  if (value.scene.crossingRecovery !== undefined) {
+    const recovery = value.scene.crossingRecovery;
+    object(recovery); keys(recovery, ['policyVersion', 'edges']);
+    check(recovery.policyVersion === 'observed-door-change-v1', 'unsupported crossing recovery policy');
+    list(recovery.edges, 4);
+    recovery.edges.forEach(item => {
+      object(item); keys(item, ['from', 'to', 'featureId', 'change']);
+      address(item.from); address(item.to); id(item.featureId);
+      check(item.change === 'opened' || item.change === 'removed', 'invalid crossing recovery change');
+    });
   }
 }

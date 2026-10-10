@@ -20,6 +20,7 @@ export type DirectedCommand =
   | { type: 'step'; operationId: string; sequence: number }
   | { type: 'cancel'; operationId: string }
   | { type: 'look' }
+  | { type: 'retry-crossing'; to: CellAddress }
   | { type: 'interact'; featureId: string };
 export interface DirectedRequest {
   attemptId: string; owner: string; epoch: number; expectedRevision: number; command: DirectedCommand;

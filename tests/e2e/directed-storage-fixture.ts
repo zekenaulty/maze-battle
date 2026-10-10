@@ -1,9 +1,11 @@
 import * as repository from '../../src/persistence/directed';
 import type { DirectedCommand, DirectedRequest } from '../../src/domain/directed/operationTypes';
 import { transaction } from '../../src/persistence/directed/database';
+import { setRecoveryGate, setupRecovery } from './directed-crossing-fixture';
 
 const harness = {
   ...repository,
+  setRecoveryGate, setupRecovery,
   async setup(slot = 'fixture', owner = 'owner-a') {
     await repository.createDirectedSave(slot);
     return repository.claimDirectedSave(slot, owner);
