@@ -1,0 +1,134 @@
+{
+  "version": "ns0-corpus-v1",
+  "directedVersion": "directed-v1",
+  "acceptanceRevision": "reviewed-architecture-v0.2",
+  "contractsRevision": "fddbb48",
+  "evidenceBoundary": "Contract examples and provider-free local fixture proof only; not integrated runtime, live-provider or service qualification.",
+  "identities": { "worldId": "W1", "floorId": "F1", "observerId": "P1" },
+  "budgets": { "steps": 64, "replans": 4, "cells": 512, "bytes": 65536 },
+  "coordinates": { "xIncreases": "east", "zIncreases": "south", "column": "x - originX", "row": "z - originZ" },
+  "spaces": [
+    { "id": "H", "name": "Hall", "originX": 8, "originZ": 0, "rows": 5, "columns": 5 },
+    { "id": "L", "name": "Lever Room", "originX": 0, "originZ": 0, "rows": 5, "columns": 5 },
+    { "id": "W", "name": "West Passage", "originX": 5, "originZ": 2, "rows": 1, "columns": 3 }
+  ],
+  "positions": [
+    { "id": "P1", "global": [10, 2], "local": { "spaceId": "H", "row": 2, "column": 2 } },
+    { "id": "V", "global": [2, 2], "local": { "spaceId": "L", "row": 2, "column": 2 } },
+    { "id": "D", "global": [12, 2], "local": { "spaceId": "H", "row": 2, "column": 4 } },
+    { "id": "T", "global": [6, 2], "local": { "spaceId": "W", "row": 0, "column": 1 } }
+  ],
+  "reservedOnly": {
+    "altar": { "spaceId": "A", "footprint": { "x": 20, "z": 0, "width": 5, "depth": 5 }, "materialized": false },
+    "gap": { "footprint": { "x": 13, "z": 2, "width": 7, "depth": 1 }, "materialized": false }
+  },
+  "prelude": {
+    "globalPath": [[10,2],[9,2],[8,2],[7,2],[6,2],[5,2],[4,2],[3,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,2]],
+    "localPath": [["H",2,2],["H",2,1],["H",2,0],["W",0,2],["W",0,1],["W",0,0],["L",2,4],["L",2,3],["L",2,2],["L",2,3],["L",2,4],["W",0,0],["W",0,1],["W",0,2],["H",2,0],["H",2,1],["H",2,2]],
+    "events": 16, "observations": 17, "worldRevision": 16, "knowledgeRevision": 17,
+    "materializedCells": 53, "rememberedCells": 41, "providerCalls": 0,
+    "coverage": { "radius": 2, "basis": "connected-cells", "complete": true },
+    "footprintEncoding": "Each interval is [row, firstColumn, lastColumn], inclusive; observed union, not full truth.",
+    "observedFootprints": {
+      "H": [[0,0,2],[1,0,3],[2,0,4],[3,0,3],[4,0,2]],
+      "L": [[0,2,4],[1,1,4],[2,0,4],[3,1,4],[4,2,4]],
+      "W": [[0,0,2]]
+    }
+  },
+  "examples": {
+    "implementationLevel": "contract-example-only",
+    "runtimeQualified": false,
+    "notice": "Synthetic receipts, not runtime evidence. Grades 0/1/2/3 illustrate vocabulary, not a policy or game balance. Proposal permissions are requests, not authority.",
+    "inspectionReceipts": [
+      {
+        "id": "example:inspection:0",
+        "request": { "attemptId": "example:inspect:0", "observerId": "P1", "policyVersion": "ns0-inspection-example-v1", "effectivePerception": 0, "conditions": { "range": 1, "occluded": false, "conditionTags": [], "deliberate": false } },
+        "result": { "grade": "undetected" },
+        "coverage": { "completed": true, "omissions": [] }, "evidenceIds": ["example:evidence:0"]
+      },
+      {
+        "id": "example:inspection:1",
+        "request": { "attemptId": "example:inspect:1", "observerId": "P1", "policyVersion": "ns0-inspection-example-v1", "effectivePerception": 1, "conditions": { "range": 1, "occluded": false, "conditionTags": [], "deliberate": false } },
+        "result": { "grade": "suspicious", "cue": "An irregular seam in the passage floor.", "direction": "east" },
+        "coverage": { "completed": true, "omissions": [] }, "evidenceIds": ["example:evidence:1"]
+      },
+      {
+        "id": "example:inspection:2",
+        "request": { "attemptId": "example:inspect:2", "observerId": "P1", "policyVersion": "ns0-inspection-example-v1", "effectivePerception": 2, "conditions": { "range": 1, "occluded": false, "conditionTags": [], "deliberate": false } },
+        "result": { "grade": "detected", "featureId": "T", "properties": { "kind": "trap" } },
+        "coverage": { "completed": true, "omissions": [] }, "evidenceIds": ["example:evidence:2"]
+      },
+      {
+        "id": "example:inspection:3",
+        "request": { "attemptId": "example:inspect:3", "observerId": "P1", "policyVersion": "ns0-inspection-example-v1", "effectivePerception": 3, "conditions": { "range": 1, "occluded": false, "conditionTags": [], "deliberate": true } },
+        "result": { "grade": "examined", "featureId": "T", "properties": { "kind": "trap", "trigger": "pressure plate" }, "actionableDetail": ["Avoid the center plate."] },
+        "coverage": { "completed": true, "omissions": [] }, "evidenceIds": ["example:evidence:3"]
+      }
+    ],
+    "anchorProposal": {
+      "id": "example:anchor:altar", "floorId": "F1", "purpose": "Reserve the future altar room, not materialize it.",
+      "footprint": { "x": 20, "z": 0, "width": 5, "depth": 5 },
+      "constraints": { "connections": ["H"], "generationPermissions": ["request:gap:x13..19:z2"] },
+      "provenance": { "sourceId": "ns0-corpus-v1", "revision": "reviewed-architecture-v0.2" }
+    },
+    "impossibleAnchorProposal": {
+      "id": "example:anchor:overlap", "floorId": "F1", "purpose": "Negative example overlapping immutable occupied Hall H.",
+      "footprint": { "x": 8, "z": 0, "width": 5, "depth": 5 },
+      "constraints": { "connections": ["H"], "generationPermissions": [] },
+      "provenance": { "sourceId": "ns0-corpus-v1", "revision": "reviewed-architecture-v0.2" }
+    }
+  },
+  "cases": {
+    "C1": {
+      "implementationLevel": "fixture-domain-proof", "runtimeQualified": false,
+      "scope": "NS1 legal prelude and trap invariance; NS2 lead navigation and NS6 service invocation need separate qualification.",
+      "target": { "kind": "feature", "featureId": "V", "arrival": "adjacent" },
+      "expected": { "providerCalls": 0, "trapChangesActorEvidence": false, "leverStateAfterArrival": "idle" },
+      "expectedNegativeOutcomes": ["No hidden trap disclosure.", "No lever interaction on arrival.", "No provider call for each local movement step."]
+    },
+    "C2": {
+      "implementationLevel": "contract-example-only", "runtimeQualified": false,
+      "scope": "NS3 inspection policy deferred; examples.inspectionReceipts are typed synthetic outcomes only.",
+      "expectedNegativeOutcomes": ["Undetected has no feature identity or cue.", "Suspicion is not detection.", "No examined grade without deliberate inspection.", "No perception evaluator qualification from example receipts."]
+    },
+    "C3": {
+      "implementationLevel": "contract-example-only", "runtimeQualified": false,
+      "scope": "NS5 remote audio and causality deferred; current lever interaction has no remote mechanism.",
+      "remoteAudio": { "observerAt": { "spaceId": "L", "row": 2, "column": 2 }, "hypotheticalRemoteFeature": "D", "audibleCue": "A distant click.", "grantsDoorState": false, "grantsCausalLink": false },
+      "expectedNegativeOutcomes": ["A world event is not an observer receipt.", "No remote door identity, state or causal certainty from a click alone.", "No audio propagation qualification from this example."]
+    },
+    "C4": {
+      "implementationLevel": "fixture-domain-proof", "runtimeQualified": false,
+      "scope": "NS1 stale knowledge; unavailable navigation outcome is a lead integration acceptance case.",
+      "unavailableDestination": { "target": { "kind": "cell", "address": { "spaceId": "A", "row": 2, "column": 2 }, "arrival": "occupy" }, "expected": "unavailable-from-actor-knowledge" },
+      "staleRememberedDoor": { "featureId": "D", "rememberedState": "locked", "hostState": "open", "observerAt": { "spaceId": "L", "row": 2, "column": 2 }, "afterRemoteLook": "locked", "afterLocalLook": "open" },
+      "expectedNegativeOutcomes": ["No invented route to unavailable A.", "Unknown actor route does not prove no world route.", "Remote truth change does not refresh remembered door state."]
+    },
+    "C5": {
+      "implementationLevel": "contract-example-only", "runtimeQualified": false,
+      "scope": "NS5 anchor solver and admission deferred; examples match AnchorProposal, not an admission decision.",
+      "impossibleAnchor": { "proposalId": "example:anchor:overlap", "conflictsWith": "H", "expected": "not-admitted", "reason": "Overlaps immutable occupied cells; no permission to replace them.", "materialized": false },
+      "expectedNegativeOutcomes": ["Proposal provenance is not generation authority.", "Do not silently relocate or materialize the impossible footprint.", "A and the connecting gap stay absent from the NS0 runtime fixture."]
+    },
+    "C6": {
+      "implementationLevel": "integration-acceptance-only", "runtimeQualified": false,
+      "scope": "Domain first-step/cancel commands execute from an explicitly claimed fixture state; durable replay remains AP03 acceptance-only and NS7 service restart is deferred.",
+      "lostAcknowledgement": {
+        "setup": {
+          "claim": { "owner": "example:owner", "epoch": 1, "revision": 17 },
+          "navigate": { "type": "navigate", "operationId": "example:operation:1", "target": { "kind": "feature", "featureId": "V", "arrival": "adjacent" } }
+        },
+        "request": { "attemptId": "example:step:1", "owner": "example:owner", "epoch": 1, "expectedRevision": 18, "command": { "type": "step", "operationId": "example:operation:1", "sequence": 0 } },
+        "fault": "acknowledgement-dropped-after-commit", "retry": "identical-request-and-attempt", "expected": { "sameReceipt": true, "additionalEffects": 0 }
+      },
+      "cancel": { "command": { "type": "cancel", "operationId": "example:operation:1" }, "expectedOperationStatus": "cancelled", "expectedFurtherSteps": 0, "committedEffects": "retained" },
+      "expectedNegativeOutcomes": ["No new effect for a lost-ack retry.", "No further step after cancellation.", "No rollback of already committed movement.", "No stale-owner effect after takeover.", "Reload does not invent a new attempt."]
+    },
+    "C7": {
+      "implementationLevel": "fixture-domain-proof", "runtimeQualified": false,
+      "scope": "NS1 in-memory reconstruction of world events, observations, knowledge and exact presented JSON; NS7 combined service proof deferred.",
+      "expected": { "independentEvidenceLayers": 4, "exactPresentedBytes": true },
+      "expectedNegativeOutcomes": ["No hidden world or host revision in actor context.", "No replacing archived presented bytes with a later reconstruction.", "No treating provider-free fixture proof as live-system qualification."]
+    }
+  }
+}

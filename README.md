@@ -1,45 +1,60 @@
 # Maze Battle
-Browser-based dungeon crawler that mixes procedural mazes with an auto-battling trio of heroes. Built as a lightweight ES module app meant to run anywhere a static web server can serve `index.html`.
 
-## Quick start
-- From the repo root run a simple server (modules need HTTP, not `file://`):
-  - `python -m http.server 8000` or `npx http-server .`
-- Open `http://localhost:8000` and the game boots immediately; eruda is preloaded for mobile debugging.
+A browser dungeon crawler with procedural mazes, a three-hero party, automatic
+combat and exploration, equipment, loot and guild quests. This branch is the
+React/TypeScript and IndexedDB rewrite.
 
-## Gameplay loop
-- Each dungeon level spawns a fresh maze using one of several generators (Aldous-Broder, Wilsons, Hunt-and-Kill, Recursive Backtracker, Prim's, Growing Tree). Maze scale grows with level.
-- Explore with the on-screen d-pad. A random-encounter toggle lets you roam peacefully or trigger battles as you move.
-- Clear fights, reach the exit, and the party advances to a bigger, denser layout. Health/mana are restored on level-up and between waves as designed.
-- Failing a fight wipes the party and restarts at level 1; progress autosaves frequently.
+## Run and Verify
 
-## Controls and UI
-- Header buttons: `AUTO PLAY` (maze navigation AI), `FIGHT WAVES` (continuous combat), `CHARACTERS` (inspect/allocate stats), `SAVES` (local save/load/new run).
-- Joystick footer: movement buttons plus a checkbox for enabling random encounters.
-- In battle: top buttons for pause/auto-play/waves; action bars for manual casts; double-click a nameplate to pop a detail sheet without leaving combat.
+- `npm install` installs dependencies.
+- `npm run dev` starts Vite; use the URL printed by the server.
+- `npm run build` type-checks and builds production assets.
+- `npm run test` runs unit tests.
+- `npm run e2e` runs the default Playwright cohort. Bounded persistence and
+  experimental cohorts have their own configurations under `tests/e2e`.
 
-## Heroes and skills
-- **Vor (Warrior):** Strength-scaling frontline with `slash`, charged `cleave` (multi-target), and `slam` (room-wide burst). Auto-spends points into Strength/Vitality.
-- **Ayla (Healer):** Intellect-scaling support with `heal`, `group heal`, `resurrect`, and a free `smite`. Prioritizes revives and party health before attacking.
-- **Zyth (Mage):** Intellect burst/AoE via `arcane blast`, `magic missles`, `arcane wave`; `wand` regens mana; `teleport` is usable out of combat to reposition in the maze.
-- All heroes have auto-battle logic tuned to their kits and will self-assign level-up points; manual action bar input always works when battles are unpaused.
+Explore with WASD or arrow keys; touch devices also have a directional pad.
+Auto explores and completes floor objectives, Waves runs repeated fights, and
+Stop Auto returns control without resetting individual character preferences.
+Party, town, saves and diagnostics are separate views.
 
-## Combat system
-- Encounters: Moving in the maze rolls several dice; if conditions match and random battles are enabled, a fight starts. Separate `FIGHT WAVES` mode chains battles endlessly for farming.
-- Enemies: Spawn count varies (1-10) with levels loosely around the dungeon depth. Targeting biases toward the Warrior but swaps if targets fall.
-- Loot/XP: Each kill grants gold and XP (scaling with enemy level). Level-ups award spendable attribute points; damage and resource pools scale off those stats.
-- Failure/Reset: When the party dies, combat stops, an alert pops, and the game restarts at dungeon level 1.
+## State and Execution Boundaries
 
-## Maze generation and movement
-- Canvas-based renderer with start/end/active markers; optional solution/histogram overlays are supported in the renderer.
-- AutoPilot mode pathfinds toward the exit using the current maze distance map, automatically investing level-up points and toggling combat modes as needed.
-- Teleportation: Rare random teleports can occur after moves; the Mage's `teleport` skill deliberately relocates the party at a mana cost.
+- `src/domain`: game rules, generation, combat, inventory and quest transitions.
+- `src/persistence`: browser-owned saves, custody and durable execution records.
+- `src/services` and `src/hooks`: runtime coordination and React adapters.
+- `src/components`: player-facing views and controls.
 
-## Saving and persistence
-- `localStorage` holds an auto-save slot plus user-created slots (capped to a handful). Most movement, maze completions, and generator finishes trigger an auto-save.
-- The Saves modal lists summaries, loads runs, deletes slots, and can wipe the auto-save to start a new game.
+Ordinary play uses a single-writer owner/epoch/revision fence in IndexedDB.
+Additional tabs are read-only until Take control. A mutation is shown as accepted
+only after its fenced save commits; stale tabs cannot overwrite game progress or
+current diagnostics. Manual snapshots remain separate from the active autosave.
+Diagnostics storage failure does not undo an accepted gameplay transaction.
 
-## Project layout
-- `app.js` wires the UI (header, stage, joystick) to `GameLevel`, AutoPilot, wave fighter, and save management.
-- `battle/` contains actors, skills, combat UI (battle modal, action bars, spawner), and persistence helpers.
-- `mazes/` holds the grid/cell logic, multiple maze generators, and the canvas renderer/scaler.
-- `ui/` provides shared components (modals, loader, header, joystick, alerts, stage) and styling hooks.
+The original JavaScript localStorage saves are a one-way import source, not a
+second runtime state format. Back up browser data before clearing site storage.
+
+The experimental streamed and agent-directed views remain distinct from ordinary
+RPG play. Host-side fixtures do not establish live-provider integration or paid
+model qualification. See [qualification](docs/agentica-qualification.md),
+[agent-directed slices](docs/agent-directed-play-plan.md), and
+[streaming design](docs/streaming-exploration-plan.md) for implemented boundaries
+and remaining work.
+
+## Preserved Original
+
+The annotated `legacy-final` tag identifies the original vanilla JavaScript
+implementation at `05f30282955e711e558169a3e279ddfbeba83c8f`. It retains the
+original gameplay documentation, generators, heroes, skills and save producer.
+Use this fixed reference instead of `main`, which will eventually advance:
+
+```powershell
+git show legacy-final:README.md
+git show legacy-final:battle/gameLevel.js
+git show legacy-final:battle/saveData.js
+git show legacy-final:mazes/maze.js
+```
+
+The legacy game uses ES modules served over HTTP and localStorage. Its old
+static-server instructions apply to that tag, not this Vite source tree.
+Historical archive files from main are retained as reference, not runtime code.

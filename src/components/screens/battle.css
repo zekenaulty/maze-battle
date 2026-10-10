@@ -1,0 +1,48 @@
+.battle-screen.refined-screen { grid-template-rows: auto auto minmax(148px, 1fr) minmax(0, 450px); }
+.battle-screen.refined-screen > .screen-bar { grid-row: 1; }
+.battle-screen.refined-screen > .screen-auto-status { grid-row: 2; }
+.battle-screen.refined-screen .battlefield { grid-row: 3; }
+.battle-screen.refined-screen .battle-bottom { grid-row: 4; }
+.battle-screen.refined-screen .battlefield { min-height: 0; align-content: start; }
+.battle-screen.refined-screen .battle-bottom { min-height: 0; max-height: none; overflow: hidden; padding: 10px; }
+.battle-screen.refined-screen .battle-panel-content { min-height: 0; overflow: auto; }
+.battle-action-panel { min-width: 0; min-height: 0; }
+.battle-action-panel .battle-actions { overflow: visible; }
+.battle-action-panel .battle-character { min-width: 0; grid-template-columns: minmax(130px, 0.55fr) minmax(160px, 0.65fr) minmax(0, 1.4fr); box-shadow: none; }
+.battle-action-panel .battle-character-title strong { overflow-wrap: anywhere; }
+.battle-action-panel .battle-character-skills { grid-template-rows: repeat(2, 48px); grid-auto-rows: 48px; min-height: 102px; }
+.battle-action-panel .battle-character-skills button { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 15px; gap: 0; height: 48px; min-height: 48px; padding: 3px 6px; }
+.battle-action-panel .skill-button-name { white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.1; }
+.battle-action-panel .skill-button-meta { justify-self: start; font-size: 10px; }
+.battle-member-selector { display: none; }
+.battle-screen.refined-screen .show-log .battle-panel-content { display: grid; grid-template-rows: auto minmax(80px, 1fr); gap: 8px; }
+.battle-screen.refined-screen .show-log .battle-log { min-height: 0; overflow-wrap: anywhere; }
+.battle-action-panel.vitals-only .battle-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.battle-action-panel.vitals-only .battle-character { grid-template-columns: minmax(0, 1fr); grid-template-areas: "character-title" "character-vitals"; }
+.battle-action-panel.vitals-only .battle-character header { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 700px), (max-height: 540px) {
+  .battle-screen.refined-screen { grid-template-rows: auto auto minmax(148px, 1fr) minmax(0, 330px); }
+  .battle-screen.refined-screen .screen-bar nav { gap: 4px; width: 100%; }
+  .battle-screen.refined-screen .throttle-control { order: 1; min-height: 32px; }
+  .battle-screen.refined-screen .battle-bottom { padding: 8px; }
+  .battle-member-selector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-bottom: 8px; }
+  .battle-member-selector button { display: grid; gap: 2px; min-width: 0; min-height: 44px; padding: 4px; }
+  .battle-member-selector strong { overflow-wrap: anywhere; font-size: 12px; }
+  .battle-member-selector small { font-size: 10px; }
+  .battle-action-panel .battle-character:not(.is-selected-member) { display: none; }
+  .battle-action-panel .battle-character { grid-template-columns: minmax(90px, 0.6fr) minmax(0, 1fr); grid-template-areas: "character-title character-vitals" "character-skills character-skills"; gap: 8px; }
+  .battle-action-panel.vitals-only .battle-actions { grid-template-columns: minmax(0, 1fr); }
+  .battle-action-panel.vitals-only .battle-character { grid-template-columns: minmax(90px, 0.6fr) minmax(0, 1fr); grid-template-areas: "character-title character-vitals"; }
+  .battle-action-panel.vitals-only .battle-character header { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-height: 540px) and (min-width: 701px) {
+  .battle-screen.refined-screen { grid-template-columns: 160px minmax(0, 1fr); grid-template-rows: max-content max-content minmax(0, 1fr); }
+  .battle-screen.refined-screen > .screen-bar, .battle-screen.refined-screen > .screen-auto-status { grid-column: 1 / -1; }
+  .battle-screen.refined-screen .screen-bar nav { width: auto; }
+  .battle-screen.refined-screen .battlefield { grid-column: 1; grid-row: 3; padding: 8px; }
+  .battle-screen.refined-screen .battle-bottom { grid-column: 2; grid-row: 3; border-left: 1px solid var(--color-border); }
+}
+@media (max-height: 540px) and (max-width: 700px) {
+  .battle-screen.refined-screen { grid-template-rows: max-content max-content 148px 360px; overflow: auto; }
+  .battle-screen.refined-screen > .screen-bar { position: sticky; top: 0; background: var(--color-panel); }
+}
