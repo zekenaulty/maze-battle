@@ -4,6 +4,7 @@ import { slotRange, type DirectedTransaction, type SaveRecord } from './database
 import { context, contextFromSource } from './journalValidation';
 import { observation, projection } from './stateValidation';
 import { check, same } from './values';
+import { verifyWitness } from './witnesses';
 
 function sameProjection(left: KnowledgeProjection, right: KnowledgeProjection) {
   const withEdges = (value: KnowledgeProjection & { blockedEdges?: unknown }) => ({ ...value, blockedEdges: value.blockedEdges ?? {} });
@@ -22,6 +23,7 @@ export async function validateLineage(tx: DirectedTransaction, slot: string, rec
     check(++contextCount <= DIRECTED_LIMITS.history, 'context journal bound exceeded');
     const value = cursor.value;
     context(value, current);
+    if (value.selection) await verifyWitness(tx, slot, 'contexts', value.id, value);
     check(same(cursor.key, [slot, value.id]), 'context key mismatch');
     check(value.knowledgeRevision > 0, 'context missing historical observation');
     const ids = contextsByRevision.get(value.knowledgeRevision) ?? [];

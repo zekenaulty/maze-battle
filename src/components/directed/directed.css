@@ -29,6 +29,17 @@
 .directed-inspection-results p { margin: 8px 0; }
 .directed-inspection-results dl { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0 0; }
 .directed-inspection-results dd { margin: 3px 0 0; color: #b7c4cc; }
+.directed-memory { font-size: 12px; max-height: 240px; overflow: auto; }
+.directed-memory .directed-actions input { width: 100px; min-height: 38px; padding: 6px; border: 1px solid #54616a; border-radius: 4px; background: #293239; color: #e3e8ec; }
+.directed-memory .directed-actions select { width: 100px; }
+.directed-memory-result { margin-top: 10px; overflow: auto; }
+.directed-memory-meta { color: #a8b4bd; margin: 6px 0; }
+.directed-memory table { width: 100%; border-collapse: collapse; text-align: left; }
+.directed-memory th, .directed-memory td { padding: 5px 8px 5px 0; border-bottom: 1px solid #384149; overflow-wrap: anywhere; }
+.directed-memory td button { display: flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; border: 1px solid #54616a; border-radius: 4px; color: #e3e8ec; background: #293239; }
+.directed-memory-facts { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; }
+.directed-memory-facts dd { margin: 3px 0; overflow-wrap: anywhere; }
+.directed-memory pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 90px; overflow: auto; }
 .directed-screen footer { min-height: 30px; padding: 7px 16px; font-size: 12px; color: #d5bc77; overflow-wrap: anywhere; }
 @media (max-width: 650px) {
   .directed-header { padding: 7px 10px; }.directed-controls { padding: 0 10px 8px; }

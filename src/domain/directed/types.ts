@@ -1,6 +1,7 @@
 import type { Direction } from '../types';
 import type { CellAddress } from '../expedition/types';
 import type { ExaminedFeature, InspectionEvidence, PerceptionProfileId, PerceptionProvenance, SuspiciousCue } from './perceptionTypes';
+import type { MemoryContextSelection } from './contextSelection';
 
 export const DIRECTED_VERSION = 'directed-v1' as const;
 export const DIRECTED_LIMITS = { cells: 512, steps: 64, replans: 4, bytes: 65_536, history: 4096 } as const;
@@ -73,6 +74,7 @@ export interface KnowledgeProjection {
 export interface PresentedContext {
   id: string; observerId: string; knowledgeRevision: number;
   purpose: 'human-view' | 'decision-fixture';
+  selection?: MemoryContextSelection;
   observationIds: string[];
   /** Exact UTF-8 JSON supplied to the consumer, not reconstructed later. */
   json: string; bytes: number;

@@ -4,11 +4,12 @@ import { useDirectedPlay } from '../../hooks/useDirectedPlay';
 import { directedViewModel } from '../../viewModels/directedViewModel';
 import { DirectedCanvas } from './DirectedCanvas';
 import { DirectedInspection } from './DirectedInspection';
+import { DirectedMemory } from './DirectedMemory';
 import './directed.css';
 
 export default function DirectedPlayApp() {
   const game = useDirectedPlay();
-  const [tab, setTab] = useState<'travel' | 'inspect' | 'evidence'>('travel');
+  const [tab, setTab] = useState<'travel' | 'inspect' | 'memory' | 'evidence'>('travel');
   const [selected, setSelected] = useState('V');
   const view = useMemo(() => game.context && directedViewModel(game.context), [game.context]);
   const operation = game.session?.operation;
@@ -25,6 +26,7 @@ export default function DirectedPlayApp() {
       <div role="tablist" aria-label="Expedition panels">
         <button role="tab" aria-selected={tab === 'travel'} onClick={() => setTab('travel')}>Travel</button>
         <button role="tab" aria-selected={tab === 'inspect'} onClick={() => setTab('inspect')}>Inspect</button>
+        <button role="tab" aria-selected={tab === 'memory'} onClick={() => { setTab('memory'); void game.loadMemory({ kind: 'overview' }); }}>Memory</button>
         <button role="tab" aria-selected={tab === 'evidence'} onClick={() => setTab('evidence')}>Evidence</button>
       </div>
       {tab === 'travel' ? <div role="tabpanel" aria-label="Travel">
@@ -53,6 +55,7 @@ export default function DirectedPlayApp() {
           <label>Pace<input type="range" aria-label="Travel pace" min={120} max={900} step={20} value={game.delay} onChange={event => game.setDelay(Number(event.target.value))} /><output>{game.delay}ms</output></label>
         </div>
       </div> : tab === 'inspect' ? <DirectedInspection view={view} disabled={game.busy || Boolean(running) || !game.controlled} dispatch={game.dispatch} />
+        : tab === 'memory' ? <DirectedMemory context={game.memoryContext} busy={game.busy} recall={game.loadMemory} />
         : <div role="tabpanel" aria-label="Evidence" className="directed-evidence">
         <dl><div><dt>Steps / bound</dt><dd>{operation?.steps ?? 0} / 64</dd></div><div><dt>Replans / bound</dt><dd>{operation?.replans ?? 0} / 4</dd></div>
           <div><dt>Knowledge revision</dt><dd>{view.knowledgeRevision}</dd></div><div><dt>Context bytes</dt><dd>{view.bytes}</dd></div><div><dt>Provider calls</dt><dd>0 (host-only)</dd></div></dl>

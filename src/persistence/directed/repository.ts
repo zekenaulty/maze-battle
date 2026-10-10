@@ -1,19 +1,17 @@
-import { presentDirected } from '../../domain/directed/context';
 import { createDirectedFixture } from '../../domain/directed/fixture';
 import { applyDirectedCommand } from '../../domain/directed/transition';
 import type { DirectedReceipt, DirectedRequest, DirectedSession, DirectedTransition } from '../../domain/directed/operationTypes';
-import { DIRECTED_LIMITS, type PresentedContext } from '../../domain/directed/types';
+import { DIRECTED_LIMITS } from '../../domain/directed/types';
 import { transaction, type DirectedTransaction, type SaveRecord } from './database';
 import { appendHistory } from './history';
-import { context, receipt } from './journalValidation';
+import { receipt } from './journalValidation';
 import { capacity, load, requireSave } from './records';
 import { assertUnusedOperation, originalReceipt, storeReceipt } from './attempts';
-import { saveHeadWitness, verifyWitness, witness } from './witnesses';
-import { contextFromSource } from './journalValidation';
-import { observation, projection } from './stateValidation';
+import { saveHeadWitness } from './witnesses';
 import { request as validateRequest } from './requestValidation';
 import { session as validateSession } from './stateValidation';
 import { check, id, integer, same } from './values';
+export { captureDirectedContext, captureDirectedMemoryContext } from './contexts';
 
 async function checkpoint(tx: DirectedTransaction, slot: string, record: SaveRecord) {
   validateSession(record.session);
@@ -111,38 +109,5 @@ export async function reconcileDirectedRequest(slot: string, input: DirectedRequ
   return transaction(async tx => {
     const record = await load(tx, slot);
     return record ? originalReceipt(tx, slot, request, record) : undefined;
-  });
-}
-export async function captureDirectedContext(slot: string, contextId: string, purpose: PresentedContext['purpose']): Promise<PresentedContext> {
-  id(slot); id(contextId);
-  check(purpose === 'human-view' || purpose === 'decision-fixture', 'invalid context purpose');
-  return transaction(async tx => {
-    const record = await requireSave(tx, slot);
-    const rows = await tx.objectStore('contexts').getAll([slot, contextId], 1);
-    if (rows.length) {
-      context(rows[0], record.session);
-      if (record.historyMode) {
-        const value = rows[0], sequence = value.knowledgeRevision;
-        await verifyWitness(tx, slot, 'contexts', contextId, value);
-        const source = await tx.objectStore('observations').get([slot, sequence]);
-        const knowledge = await tx.objectStore('projections').get([slot, sequence]);
-        observation(source, record.session); projection(knowledge);
-        await verifyWitness(tx, slot, 'observations', sequence, source);
-        await verifyWitness(tx, slot, 'projections', sequence, knowledge);
-        contextFromSource(value, knowledge, source, record.session.world.floorId);
-      }
-      check(rows[0].id === contextId && rows[0].purpose === purpose, 'context ID payload conflict');
-      return rows[0];
-    }
-    capacity(record.counts, { contexts: 1 });
-    const presented = presentDirected(structuredClone(record.session), contextId, purpose);
-    context(presented, record.session);
-    check(presented.id === contextId && presented.purpose === purpose, 'context identity mismatch');
-    await tx.objectStore('contexts').add(presented, [slot, contextId]);
-    if (record.historyMode) await witness(tx, slot, 'contexts', contextId, presented);
-    record.counts.contexts++;
-    await tx.objectStore('saves').put(record, slot);
-    await saveHeadWitness(tx, slot, record);
-    return presented;
   });
 }

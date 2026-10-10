@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { DirectedCommand, DirectedRequest, DirectedSession, NavigationTarget } from '../domain/directed/operationTypes';
 import type { PresentedContext } from '../domain/directed/types';
 import { isPerceptionProfile } from '../domain/directed/perceptionTypes';
+import type { MemoryContextSelection } from '../domain/directed/contextSelection';
 import { captureDirectedContext, claimDirectedSave, createDirectedSave, executeDirectedRequest,
-  readDirectedSave, reconcileDirectedRequest } from '../persistence/directed';
+  readDirectedSave, reconcileDirectedRequest, captureDirectedMemoryContext } from '../persistence/directed';
 
 export const DIRECTED_SLOT = 'known-destination-proof-v1';
 const OWNER_KEY = 'maze-directed-controller-v1';
@@ -23,6 +24,7 @@ export function useDirectedPlay() {
   const owner = useRef<string>(controller());
   const [session, setSession] = useState<DirectedSession>();
   const [context, setContext] = useState<PresentedContext>();
+  const [memoryContext, setMemoryContext] = useState<PresentedContext>();
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [playing, setPlaying] = useState(false);
@@ -106,11 +108,15 @@ export function useDirectedPlay() {
     void enqueue(async () => { await recover(); await claimDirectedSave(slot, owner.current); await refresh(); });
   };
   const reconcile = () => enqueue(async () => { await recover(); await refresh(); });
+  const loadMemory = (selection: MemoryContextSelection) => enqueue(async () => {
+    const captured = await captureDirectedMemoryContext(slot, crypto.randomUUID(), 'human-view', selection);
+    if (alive.current) setMemoryContext(captured);
+  });
   const pause = () => {
     runAllowed.current = false; setPlaying(false); setPausing(true);
     void enqueue(async () => { await refresh(); }).finally(() => { if (alive.current) setPausing(false); });
   };
-  return { session, context, error, message, playing, pausing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
+  return { session, context, memoryContext, loadMemory, error, message, playing, pausing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
     pause, resume: () => { runAllowed.current = true; setPlaying(true); },
     controlled: session?.owner === owner.current };
 }
