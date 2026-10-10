@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type {} from './directed-stream-fixture';
+import { TOPOLOGY_DATABASE_VERSION } from '../../src/persistence/topology/database';
 
 const fixture = '/tests/e2e/directed-stream-fixture.html';
 test.beforeEach(async ({ page }) => { await page.goto(fixture); await page.waitForFunction(() => !!window.directedStream); });
@@ -158,7 +159,7 @@ test('additive v3 migration preserves every old stream record and normal stream 
     const moved = await h.act({ type: 'move', direction: 'west' }, 'old-stream');
     return { old, upgraded, moved };
   });
-  expect(result.upgraded.version).toBe(4);
+  expect(result.upgraded.version).toBe(TOPOLOGY_DATABASE_VERSION);
   expect(result.upgraded.records).toEqual(result.old);
   expect(result.moved.checkpoint.moves).toBe(1);
 });

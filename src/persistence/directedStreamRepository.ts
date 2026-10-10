@@ -7,12 +7,13 @@ import { executeStreamActionInTransaction } from './streamActions';
 import { savedStreamKnowledge, streamControl, streamRecord } from './streamRecords';
 import { streamCheck, validateStreamControl } from './streamValidation';
 import type { StreamGeometryReader } from './streamTypes';
-import { topologyTransaction } from './topology/database';
+import { topologyTransaction, type TopologyTransaction } from './topology/database';
 import { validId } from './topology/validation';
 import { directedRecordAt, reconcileDirectedAt, retireDirectedPending, revokeDirectedAt, sameStreamControl, writeDirectedRecord } from './directedStreamRecords';
 import type { DirectedStreamSession, StoredDirectedStreamOperation } from './directedStreamTypes';
 import { configuredDestinationLimits } from '../config/directedTravel';
-import { destinationExpired, snapshotDestinationLimits, type DestinationLimits } from '../domain/directed/destinationLimits';
+import { destinationExpired, snapshotDestinationLimits, exceedsLimit, limitReached, type DestinationLimits } from '../domain/directed/destinationLimits';
+import { loadDirectedStreamKnowledge } from '../services/expedition/directed/knowledge';
 
 export async function loadDirectedStreamSession(slot: string, operationId?: string): Promise<DirectedStreamSession> {
   validId(slot);
@@ -43,24 +44,32 @@ export async function openDirectedStreamSession(slot: string, sessionId: string)
 
 export async function startDurableDirectedStreamTravel(slot: string, owner: StreamControl,
   input: { id: string; target: StreamDestination }, now: () => number = Date.now, limits?: DestinationLimits) {
+  const token = structuredClone(owner), intent = structuredClone(input);
+  const policy = limits === undefined ? undefined : snapshotDestinationLimits(limits);
+  return topologyTransaction(tx => startDurableDirectedStreamTravelInTransaction(tx, slot, token, intent, now, policy));
+}
+
+export async function startDurableDirectedStreamTravelInTransaction(tx: TopologyTransaction, slot: string, owner: StreamControl,
+  input: { id: string; target: StreamDestination }, now: () => number = Date.now, limits?: DestinationLimits, admissionOnly = false) {
   validId(slot); validId(input.id); validateStreamControl(owner);
   const intent = structuredClone(input), token = structuredClone(owner);
   const policy = limits === undefined ? undefined : snapshotDestinationLimits(limits);
-  return topologyTransaction(async tx => {
-    const { root, checkpoint } = await streamRecord(tx, slot);
-    const control = await streamControl(tx, slot);
-    streamCheck(sameStreamControl(control, token), 'directed owner changed');
-    const active = (await directedRecordAt(tx, slot, checkpoint)).record;
-    streamCheck(!active?.state.pending && (!active || active.state.paused || active.state.operation.status !== 'running'), 'cancel the active intention first');
-    streamCheck(await tx.get('directedStreamOperations', [slot, intent.id]) === undefined, 'directed operation ID was already used');
-    const { state } = await startDirectedStreamTravel({ checkpoint, control: token }, { ...intent, limits: policy ?? configuredDestinationLimits() },
-      id => savedStreamKnowledge(tx, slot, id, checkpoint.revision), now);
-    const record: StoredDirectedStreamOperation = { version: 1, revision: 0, state };
-    await tx.put('directedStreamHeads', [slot], { version: 1, operationId: intent.id });
-    await tx.stageRoot(slot, root);
-    return writeDirectedRecord(tx, slot, record);
-  });
+  const { root, checkpoint } = await streamRecord(tx, slot);
+  const control = await streamControl(tx, slot);
+  streamCheck(sameStreamControl(control, token), 'directed owner changed');
+  const active = (await directedRecordAt(tx, slot, checkpoint)).record;
+  streamCheck(!active?.state.pending && (!active || active.state.paused || active.state.operation.status !== 'running'), 'cancel the active intention first');
+  streamCheck(await tx.get('directedStreamOperations', [slot, intent.id]) === undefined, 'directed operation ID was already used');
+  const { state } = await startDirectedStreamTravel({ checkpoint, control: token }, { ...intent, limits: policy ?? configuredDestinationLimits() },
+    id => savedStreamKnowledge(tx, slot, id, checkpoint.revision), now);
+  if (admissionOnly && state.operation.status === 'interrupted') throw new DirectedAdmissionRefused(state.operation.reason);
+  const record: StoredDirectedStreamOperation = { version: 1, revision: 0, state };
+  await tx.put('directedStreamHeads', [slot], { version: 1, operationId: intent.id });
+  await tx.stageRoot(slot, root);
+  return writeDirectedRecord(tx, slot, record);
 }
+
+export class DirectedAdmissionRefused extends Error {}
 
 /** Commit the exact original request before dispatch. Every await remains within the topology transaction. */
 export async function prepareDurableDirectedStreamMove(slot: string, owner: StreamControl,
@@ -128,9 +137,14 @@ export async function executeDurableDirectedStreamMove(slot: string, owner: Stre
 /** Serialize with all effects, reconcile first, revoke the epoch, then acknowledge. */
 export async function stopDurableDirectedStreamTravel(slot: string, owner: StreamControl,
   operationId: string, kind: 'cancel' | 'pause' = 'cancel'): Promise<DirectedStreamSession> {
+  const token = structuredClone(owner);
+  return topologyTransaction(tx => stopDurableDirectedStreamTravelInTransaction(tx, slot, token, operationId, kind));
+}
+
+export async function stopDurableDirectedStreamTravelInTransaction(tx: TopologyTransaction, slot: string, owner: StreamControl,
+  operationId: string, kind: 'cancel' | 'pause' = 'cancel'): Promise<DirectedStreamSession> {
   validId(slot); validId(operationId); validateStreamControl(owner);
   const token = structuredClone(owner);
-  return topologyTransaction(async tx => {
     const { checkpoint } = await streamRecord(tx, slot);
     const current = await streamControl(tx, slot);
     const { record, active } = await directedRecordAt(tx, slot, checkpoint, operationId);
@@ -138,11 +152,48 @@ export async function stopDurableDirectedStreamTravel(slot: string, owner: Strea
     await reconcileDirectedAt(tx, slot, record, checkpoint);
     const control = await revokeDirectedAt(tx, slot, token.sessionId);
     retireDirectedPending(record, kind === 'cancel' ? 'Travel cancelled.' : 'Travel paused after an uncertain acknowledgement.');
-    if (kind === 'cancel') record.state = cancelDirectedStreamTravel(record.state);
+    if (kind === 'cancel') {
+      record.state = cancelDirectedStreamTravel(record.state);
+      if (record.state.operation.status === 'interrupted') record.state.operation = stopDestinationOperation(record.state.operation, 'cancelled', 'Travel cancelled.');
+    }
     else if (record.state.operation.status === 'running') {
       record.state.operation = stopDestinationOperation(record.state.operation, 'interrupted', record.state.operation.reason);
     }
     await writeDirectedRecord(tx, slot, record);
     return { checkpoint, control, record };
-  });
+}
+
+export function adoptDurableDirectedStreamTravel(slot: string, owner: StreamControl,
+  input: { operationId: string; revision: number }, now: () => number = Date.now) {
+  const token = structuredClone(owner), intent = structuredClone(input);
+  return topologyTransaction(tx => adoptDurableDirectedStreamTravelInTransaction(tx, slot, token, intent, now));
+}
+
+/** Explicit new custody, same semantic intention. Budgets and original receipts never reset. */
+export async function adoptDurableDirectedStreamTravelInTransaction(tx: TopologyTransaction, slot: string, owner: StreamControl,
+  input: { operationId: string; revision: number }, now: () => number = Date.now) {
+  validId(slot); validId(input.operationId); validateStreamControl(owner);
+  const token = structuredClone(owner), intent = structuredClone(input);
+  const { checkpoint } = await streamRecord(tx, slot);
+  streamCheck(sameStreamControl(await streamControl(tx, slot), token), 'adoption owner changed');
+  const { record, active } = await directedRecordAt(tx, slot, checkpoint, intent.operationId);
+  streamCheck(record && active && record.revision === intent.revision && record.state.paused, 'adoption requires the current paused intention');
+  await reconcileDirectedAt(tx, slot, record, checkpoint);
+  const state = record.state, operation = state.operation;
+  streamCheck(['running', 'interrupted'].includes(operation.status), 'terminal intention cannot be adopted');
+  streamCheck(operation.epoch !== token.epoch, 'adoption requires new ownership');
+  streamCheck(checkpoint.phase === 'exploring' && !destinationExpired(operation, now()), 'intention hard deadline exhausted');
+  const limits = snapshotDestinationLimits(operation.limits);
+  const loaded = await loadDirectedStreamKnowledge({ checkpoint, control: token }, operation.target,
+    id => savedStreamKnowledge(tx, slot, id, checkpoint.revision), state.blocked);
+  streamCheck(loaded.plan.status === 'ready', 'destination lacks an actor-known route');
+  streamCheck(!exceedsLimit(operation.steps + loaded.plan.route.length, limits.steps), 'intention step budget exhausted');
+  streamCheck(!limitReached(operation.replans, limits.replans), 'intention replan budget exhausted');
+  retireDirectedPending(record, 'Original attempt reconciled before explicit adoption.');
+  record.state.frame = { checkpoint: structuredClone(checkpoint), control: token };
+  record.state.paused = false;
+  record.state.operation = { ...operation, epoch: token.epoch, status: loaded.plan.route.length ? 'running' : 'arrived',
+    replans: operation.replans + 1, route: loaded.plan.route, reason: loaded.plan.route.length ? 'Explicitly adopted under new ownership.' : 'Arrived. No interaction performed.' };
+  streamCheck(!destinationExpired(operation, now()), 'intention deadline expired before adoption commit');
+  return writeDirectedRecord(tx, slot, record);
 }

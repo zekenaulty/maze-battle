@@ -1,5 +1,10 @@
 # NS-6 Host Preparation
 
+Historical checkpoint at `7cdea05`. The destination binding, adoption and paired
+service proof implemented after this checkpoint are documented in
+[NS-6 paired integration](ns6-paired-integration.md). The outstanding-work list
+below describes that earlier preparation checkpoint, not the current branch.
+
 10 October 2026. Base: merged PR #1, `b12a8c3`. Work is isolated on
 `codex/ns6-integration`; the existing 5176 preview and ordinary saves are untouched.
 

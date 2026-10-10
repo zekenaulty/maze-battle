@@ -1,4 +1,15 @@
 import type { AgenticaAction, AgenticaActionRecord, AgenticaResult, AgenticaStart } from '../contracts';
+export interface HostOperationEvent {
+  hostId: string; sessionId: string; sessionEpoch: string; actionId: string; operationId: string;
+  sequence: number; eventId: string; kind: 'progress' | 'transfer' | 'decision' | 'completed' | 'blocked' | 'cancelled';
+  observation: import('../contracts').AgenticaObservation; summary: string; usage?: Record<string, unknown>;
+  completion?: { objectiveId: string; evidenceId: string; summary: string }; nextSessionEpoch?: string;
+}
+export interface AgenticaOperationEntry {
+  request: AgenticaStart; action: AgenticaAction; admission?: AgenticaResult; activeEpoch: string;
+  latestEvent?: HostOperationEvent; state: string; wakeRunId?: string;
+  usage: { steps: number; refinements: number; continuations: number; providerCalls: number };
+}
 
 export const PROTOCOL_VERSION: 1;
 export function canonicalJson(value: unknown): string;
@@ -26,6 +37,9 @@ export class AgenticaHost {
   start(request: AgenticaStart): Promise<AgenticaStarted>;
   resume(request: { runId: string; sessionId: string; sessionEpoch: string }): Promise<AgenticaMessage>;
   stop(runId: string): Promise<AgenticaMessage>;
+  listOperations(request: { hostId: string; sessionId: string }): Promise<AgenticaOperationEntry[]>;
+  signalOperation(event: HostOperationEvent, options?: { fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry>;
+  wakeOperation(event: HostOperationEvent): Promise<AgenticaStarted>;
   recover(request: { hostId: string; sessionId: string;
     reconcile?(action: AgenticaAction, record: AgenticaActionRecord | null, entry: unknown): Promise<AgenticaResult | null | undefined>;
   }): Promise<{ actionId: string; runId: string; sessionEpoch: string; status: string; resolved: boolean }[]>;

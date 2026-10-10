@@ -4,6 +4,8 @@ import type { StreamActionReceipt, StreamCheckpoint, StreamControl, StreamKnowle
 import type { AgenticaGameBinding } from '../../services/agentica/contracts';
 import type { StoredAgenticaAction } from '../agenticaRecords';
 import type { DirectedStreamHead, StoredDirectedStreamOperation } from '../directedStreamTypes';
+import type { DirectedAgenticaBinding } from '../../services/agentica/directed/contracts';
+import type { DirectedHostAction, DirectedHostOperation, DirectedHostEvent } from '../directedAgentica/types';
 
 // All v2 checkpoint/knowledge/command effects share this schema and lock scope.
 // Add future stores here with an additive version migration, never a second DB.
@@ -21,11 +23,16 @@ export interface TopologyDatabase extends DBSchema {
   agenticaActions: { key: [string, string]; value: StoredAgenticaAction };
   directedStreamHeads: { key: [string]; value: DirectedStreamHead };
   directedStreamOperations: { key: [string, string]; value: StoredDirectedStreamOperation };
+  directedAgenticaRuns: { key: [string, string]; value: DirectedAgenticaBinding };
+  directedAgenticaActions: { key: [string, string]; value: DirectedHostAction };
+  directedAgenticaOperations: { key: [string, string]; value: DirectedHostOperation };
+  directedAgenticaEvents: { key: [string, string, number]; value: DirectedHostEvent };
 }
 export const TOPOLOGY_STORES = ['roots', 'spaces', 'sockets', 'buckets', 'receipts',
   'streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions', 'agenticaRuns', 'agenticaActions',
-  'directedStreamHeads', 'directedStreamOperations'] as const;
-export const TOPOLOGY_DATABASE_VERSION = 4;
+  'directedStreamHeads', 'directedStreamOperations', 'directedAgenticaRuns', 'directedAgenticaActions',
+  'directedAgenticaOperations', 'directedAgenticaEvents'] as const;
+export const TOPOLOGY_DATABASE_VERSION = 5;
 type Name = StoreNames<TopologyDatabase>;
 type Key<N extends Name> = StoreKey<TopologyDatabase, N>;
 type Value<N extends Name> = StoreValue<TopologyDatabase, N>;

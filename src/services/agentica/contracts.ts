@@ -16,11 +16,13 @@ export interface AgenticaResult {
   beforeRevision: number; afterRevision: number; evidenceId: string; summary: string;
   observation?: AgenticaObservation;
   completion?: { objectiveId: string; evidenceId: string; summary: string };
+  operation?: { operationId: string; summary: string; usage?: Record<string, unknown> };
 }
 export interface AgenticaActionRecord {
   fingerprint: string; status: 'pending' | 'unresolved' | 'completed'; result?: AgenticaResult;
 }
 export interface AgenticaCapability {
+  durableHandoff?: boolean;
   id: string; name: string; description: string; kind: 'query' | 'action'; effect: 'readOnly' | 'writesLocalState';
   inputSchema: { fields: { name: string; type: 'string' | 'integer'; required: boolean; description?: string;
     allowedValues?: string[]; minimum?: number; maximum?: number }[]; allowAdditionalProperties: false };
