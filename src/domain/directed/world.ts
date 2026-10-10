@@ -21,7 +21,7 @@ export function moveDirectedWorld(world: DirectedWorld, actor: DirectedActor, to
   next.revision++;
   return {
     world: next,
-    actor: { id: actor.id, position: { ...to } },
+    actor: { ...actor, position: { ...to } },
     event: {
       id: `${world.id}:event:${next.revision}`, revision: next.revision, type: 'move',
       subjectId: actor.id, position: { ...to }, before: addressKey(actor.position), after: addressKey(to),

@@ -27,12 +27,12 @@ function snapshotRequest(request: DirectedRequest) {
   validateRequest(request);
   return structuredClone(request);
 }
-export async function createDirectedSave(slot: string): Promise<DirectedSession> {
+export async function createDirectedSave(slot: string, options: Parameters<typeof createDirectedFixture>[0] = {}): Promise<DirectedSession> {
   id(slot);
   return transaction(async tx => {
     const existing = await load(tx, slot);
     if (existing) return existing.session;
-    const fixture = createDirectedFixture();
+    const fixture = createDirectedFixture(options);
     validateSession(fixture.session);
     const record: SaveRecord = { session: fixture.session, counts: { observations: 0, projections: 0, events: 0, contexts: 0, receipts: 0 } };
     await appendHistory(tx, slot, record.counts, undefined, fixture.session, fixture.observations, fixture.events);
@@ -83,7 +83,7 @@ export async function executeDirectedRequest(slot: string, input: DirectedReques
     for (const name of ['receipts', 'observations', 'projections', 'events'] as const) {
       check(record.counts[name] < DIRECTED_LIMITS.history, `${name} journal full`);
     }
-    const transition: DirectedTransition = applyDirectedCommand(structuredClone(current), structuredClone(request.command), now);
+    const transition: DirectedTransition = applyDirectedCommand(structuredClone(current), structuredClone(request.command), now, request.attemptId);
     validateSession(transition.session);
     const next = transition.session;
     check(next.world.id === current.world.id && next.world.floorId === current.world.floorId && next.actor.id === current.actor.id,

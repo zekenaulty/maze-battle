@@ -25,6 +25,12 @@ export function presentDirected(session: DirectedSession, id: string, purpose: P
     cells: entries(knowledge.cells), spaces: entries(knowledge.spaces), features: entries(knowledge.features),
     absent: Object.keys(knowledge.absent).sort().map(featureId => ({ featureId, ...provenance(knowledge.absent[featureId]) })),
     blockedEdges: entries(knowledge.blockedEdges ?? {}),
+    ...(knowledge.perception ? {
+      perception: { value: knowledge.perception.value, ...provenance(knowledge.perception) },
+      cues: knowledge.cues ? { value: knowledge.cues.value, ...provenance(knowledge.cues) } : undefined,
+      examinations: entries(knowledge.examinations ?? {}),
+      inspection: knowledge.inspection ? { value: knowledge.inspection.value, ...provenance(knowledge.inspection) } : undefined,
+    } : {}),
   });
   const bytes = new TextEncoder().encode(json).byteLength;
   if (bytes > DIRECTED_LIMITS.bytes) throw new Error('Directed context exceeds byte limit.');

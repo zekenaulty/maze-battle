@@ -1,15 +1,12 @@
 import type { CellAddress } from '../expedition/types';
+import type { InspectionDirection } from './perceptionTypes';
+import type { DestinationOperation } from './destinationExecution';
 import type { DirectedActor, DirectedWorld, KnowledgeProjection, ObservationReceipt, WorldEvent } from './types';
 
 export type NavigationTarget =
   | { kind: 'cell'; address: CellAddress; arrival: 'occupy' }
   | { kind: 'feature'; featureId: string; arrival: 'adjacent' };
-export interface NavigationOperation {
-  id: string; target: NavigationTarget; status: 'running' | 'arrived' | 'cancelled' | 'interrupted';
-  epoch: number; steps: number; replans: number; nextStep: number;
-  route: CellAddress[]; reason: string;
-  startedAt: number; deadline: number;
-}
+export type NavigationOperation = DestinationOperation<NavigationTarget>;
 export interface DirectedSession {
   version: 'directed-v1'; revision: number; epoch: number; owner?: string;
   world: DirectedWorld; actor: DirectedActor; knowledge: KnowledgeProjection;
@@ -20,6 +17,7 @@ export type DirectedCommand =
   | { type: 'step'; operationId: string; sequence: number }
   | { type: 'cancel'; operationId: string }
   | { type: 'look' }
+  | { type: 'inspect'; direction: InspectionDirection }
   | { type: 'retry-crossing'; to: CellAddress }
   | { type: 'interact'; featureId: string };
 export interface DirectedRequest {

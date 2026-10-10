@@ -1,6 +1,7 @@
 import type { CellAddress } from '../domain/expedition/types';
 import type { KnowledgeProjection, PresentedContext } from '../domain/directed/types';
 import { sameAddress } from '../domain/expedition/address';
+import type { ExaminedFeature, InspectionEvidence, PerceptionProvenance, SuspiciousCue } from '../domain/directed/perceptionTypes';
 
 type ContextEntry<T> = { value: T; observationId: string; observedAt: number; status: 'current' | 'remembered' };
 export function directedViewModel(context: PresentedContext) {
@@ -9,6 +10,10 @@ export function directedViewModel(context: PresentedContext) {
     spaces: ContextEntry<KnowledgeProjection['spaces'][string]['value']>[];
     features: ContextEntry<KnowledgeProjection['features'][string]['value']>[];
     blockedEdges?: ContextEntry<{ from: CellAddress; to: CellAddress }>[];
+    perception?: ContextEntry<PerceptionProvenance>;
+    cues?: ContextEntry<SuspiciousCue[]>;
+    examinations?: ContextEntry<ExaminedFeature>[];
+    inspection?: ContextEntry<InspectionEvidence>;
   } = JSON.parse(context.json);
   const here = data.cells.find(entry => sameAddress(entry.value.address, data.position));
   const interactable = data.features.filter(({ value, status }) => status === 'current'

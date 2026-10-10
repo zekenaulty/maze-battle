@@ -1,11 +1,11 @@
 import { isAddress } from '../expedition/explorationGraph';
-import type { CellAddress } from '../expedition/types';
+import { beginDestinationStep, blockDestinationStep, completeDestinationStep, createDestinationOperation, resolveDestinationStep } from './destinationExecution';
 import { rememberDirected } from './knowledge';
 import { actorNavigationGraph, hasArrived, planKnownDestination, routeHasEdge } from './navigation';
 import { observeDirected } from './perception';
 import { retryDirectedCrossing } from './retryCrossing';
 import type { DirectedCommand, DirectedSession, DirectedTransition, NavigationTarget } from './operationTypes';
-import { DIRECTED_LIMITS, type ObservationReceipt, type WorldEvent } from './types';
+import { type ObservationReceipt, type WorldEvent } from './types';
 import { canTraverseDirected, interactDirectedWorld, moveDirectedWorld } from './world';
 
 const validId = (value: unknown): value is string => typeof value === 'string' && /^[\w:-]{1,128}$/.test(value);
@@ -15,7 +15,7 @@ function validTarget(target: NavigationTarget): boolean {
 }
 
 /** One bounded transaction's decision. This is not the automatic objective-selection policy. */
-export function applyDirectedCommand(previous: DirectedSession, command: DirectedCommand, now: number): DirectedTransition {
+export function applyDirectedCommand(previous: DirectedSession, command: DirectedCommand, now: number, attemptId?: string): DirectedTransition {
   const session = structuredClone(previous);
   const observations: ObservationReceipt[] = [];
   const events: WorldEvent[] = [];
@@ -39,13 +39,7 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
     if (session.operation?.status === 'running') return refuse('An intention is already running.');
     observe('look');
     const plan = planKnownDestination(session.knowledge, session.actor.position, command.target);
-    const arrived = plan.status === 'ready' && plan.route.length === 0;
-    const tooFar = plan.status === 'ready' && plan.distance > DIRECTED_LIMITS.steps;
-    session.operation = { id: command.operationId, target: structuredClone(command.target),
-      status: plan.status === 'unavailable' || tooFar ? 'interrupted' : arrived ? 'arrived' : 'running',
-      epoch: session.epoch, steps: 0, replans: 0, nextStep: 0, route: plan.status === 'ready' && !tooFar ? plan.route : [],
-      reason: tooFar ? 'Destination exceeds travel step budget.' : plan.status === 'unavailable' ? plan.reason : arrived ? 'Arrived. No interaction performed.' : 'Travelling to the selected destination.',
-      startedAt: now, deadline: now + 120_000 };
+    session.operation = createDestinationOperation({ id: command.operationId, target: command.target, epoch: session.epoch, now, plan });
     return applied(session.operation.reason);
   }
   if (command.type === 'cancel') {
@@ -56,6 +50,15 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
     return applied(session.operation.reason);
   }
   if (command.type === 'look') { observe('look'); return applied('Observation recorded.'); }
+  if (command.type === 'inspect') {
+    if (session.operation?.status === 'running') return refuse('Cancel travel before inspecting.');
+    if (!session.actor.perceptionProfile || !validId(attemptId)
+      || !['here', 'north', 'east', 'south', 'west'].includes(command.direction)) return refuse('Inspection is unavailable.');
+    const observation = observeDirected(session.world, session.actor, session.knowledge, 'inspection', { direction: command.direction, attemptId });
+    session.knowledge = rememberDirected(session.knowledge, observation);
+    observations.push(observation);
+    return applied('Inspection recorded.');
+  }
   if (command.type === 'interact') {
     if (session.operation?.status === 'running') return refuse('Cancel travel before interacting.');
     // The supplied ID must already be actor-known before the host checks mechanics.
@@ -68,52 +71,36 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
     return applied('Interaction performed.');
   }
   if (command.type !== 'step') return refuse('Unsupported request.');
-  const operation = session.operation;
-  if (!operation || operation.id !== command.operationId || operation.status !== 'running'
-    || operation.epoch !== session.epoch || command.sequence !== operation.nextStep) return refuse('No matching active step.');
-  operation.nextStep++;
-  const interrupt = (reason: string) => {
-    operation.status = 'interrupted'; operation.reason = reason; operation.route = [];
-    return applied(reason);
-  };
-  if (now >= operation.deadline) return interrupt('Travel time budget exhausted.');
-  if (operation.steps >= DIRECTED_LIMITS.steps) return interrupt('Travel step budget exhausted.');
+  const begin = beginDestinationStep(session.operation, { id: command.operationId, epoch: session.epoch, sequence: command.sequence, now });
+  if (begin.kind === 'refused') return refuse(begin.reason);
+  session.operation = begin.operation;
+  if (begin.kind === 'stopped') return applied(begin.operation.reason);
+  const operation = begin.operation;
   observe('travel');
-  if (operation.target.kind === 'feature' && !session.knowledge.features[operation.target.featureId]) {
-    return interrupt('Destination is no longer known at its remembered location.');
-  }
-  const arrive = () => {
-    operation.status = 'arrived'; operation.reason = 'Arrived. No interaction performed.'; operation.route = [];
-    return applied(operation.reason);
-  };
-  if (hasArrived(session.knowledge, session.actor.position, operation.target)) return arrive();
   const graph = actorNavigationGraph(session.knowledge);
   let from = session.actor.position;
   const validRoute = operation.route.length > 0 && operation.route.every(to => {
     const valid = routeHasEdge(graph, from, to); from = to; return valid;
   }) && hasArrived(session.knowledge, from, operation.target);
-  if (!validRoute) {
-    if (operation.replans >= DIRECTED_LIMITS.replans) return interrupt('Local replan budget exhausted.');
-    operation.replans++;
-    const plan = planKnownDestination(session.knowledge, session.actor.position, operation.target);
-    if (plan.status !== 'ready') return interrupt(plan.reason);
-    if (plan.distance > DIRECTED_LIMITS.steps - operation.steps) return interrupt('Destination exceeds remaining travel step budget.');
-    operation.route = plan.route;
-  }
-  const next: CellAddress | undefined = operation.route[0];
-  if (!next) return interrupt('No known route.');
+  const decision = resolveDestinationStep(operation, {
+    arrived: hasArrived(session.knowledge, session.actor.position, operation.target), routeValid: validRoute,
+    destinationKnown: operation.target.kind === 'cell' || Boolean(session.knowledge.features[operation.target.featureId]),
+    plan: () => planKnownDestination(session.knowledge, session.actor.position, operation.target),
+  });
+  session.operation = decision.operation;
+  if (decision.kind === 'stopped') return applied(decision.operation.reason);
+  const { next } = decision;
   // Truth is consulted only to apply the immediate collision/move, never to pick a path.
   if (!canTraverseDirected(session.world, session.actor.position, next)) {
     observe('obstruction', { from: session.actor.position, to: next, passable: false });
-    operation.route = []; operation.reason = 'The next step is obstructed.';
-    if (operation.replans >= DIRECTED_LIMITS.replans) return interrupt('Local replan budget exhausted.');
-    return applied(operation.reason);
+    session.operation = blockDestinationStep(decision.operation);
+    return applied(session.operation.reason);
   }
   const previousPosition = { ...session.actor.position };
   const result = moveDirectedWorld(session.world, session.actor, next);
   session.world = result.world; session.actor = result.actor; events.push(result.event);
-  operation.route.shift(); operation.steps++;
   observe('travel', { from: previousPosition, to: next, passable: true });
-  if (hasArrived(session.knowledge, session.actor.position, operation.target)) return arrive();
+  session.operation = completeDestinationStep(decision.operation, hasArrived(session.knowledge, session.actor.position, operation.target));
+  if (session.operation.status === 'arrived') return applied(session.operation.reason);
   return applied('Travel checkpoint recorded.');
 }

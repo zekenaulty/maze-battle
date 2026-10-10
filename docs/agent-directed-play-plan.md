@@ -3,7 +3,24 @@
 Acceptance revision: NS-0 corpus v1 / reviewed architecture v0.2 (2026-10-09).
 Base: `cdcc4d8`. Branch: `codex/actor-navigation-v1`, isolated from the running game.
 
-## Goal and Boundaries
+## Active Continuation Goal (2026-10-10)
+
+Complete slices 2--5 as one continuous goal, rather than stopping after each
+ticket. Slice boundaries are integration and qualification checkpoints, not
+requests for renewed permission. Parent owns integration on
+`codex/actor-navigation-v1`; parallel workers use isolated branches/worktrees.
+Ordinary saves, paid providers, and the later service/causality/anchor roadmap
+remain outside this goal.
+
+| Ticket | Owner / scope | Status | Acceptance |
+| --- | --- | --- | --- |
+| NS-3 | Lead: perception, inspection, durable schemas, preview | Focused domain/IDB/UI qualified; integrated regression still pending | Four disclosure grades; human/agent parity; opaque cues; coverage and provenance; no repeated-inspection farming; unchanged old receipts |
+| NS-4a | Huygens: pure memory projections and retrieval; lead integrates | In progress, isolated worktree | Current/near/distant scope, bounded evidence retrieval, no unseen refresh or map dump; exact delivered context retained |
+| NS-4b | Helmholtz: persistence checkpoints/pages; lead integrates schemas | In progress, isolated worktree | Bounded normal reads, retained exact evidence, measured growth, reload/replay/cancellation at limits; explicit integrity-on-access versus full-audit boundary |
+| NS-2 follow-through | Descartes: learned-room route adapter; lead integrates execution | In progress, isolated worktree | One destination executor across three known rooms, including an unloaded room; bounded residency, doorway semantics, untouched prior saves; no objective selection |
+| NS-Q | Lead: integrated qualification | Pending | Focused domain and real IndexedDB tests, growing-history benchmark, desktop/mobile browser checks, regression suite, build, updated evidence ledger |
+
+## First-Tranche Goal and Boundaries
 
 Qualify NS-0 contracts, NS-1 observer evidence separation, and the first NS-2
 known-destination vertical. Use a separate `directed-v1` database and preview.

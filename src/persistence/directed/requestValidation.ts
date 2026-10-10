@@ -27,6 +27,8 @@ export function request(value: unknown): asserts value is DirectedRequest {
     case 'step': keys(command, ['type', 'operationId', 'sequence']); id(command.operationId); integer(command.sequence, DIRECTED_LIMITS.history); break;
     case 'cancel': keys(command, ['type', 'operationId']); id(command.operationId); break;
     case 'look': keys(command, ['type']); break;
+    case 'inspect': keys(command, ['type', 'direction']);
+      check(['here', 'north', 'east', 'south', 'west'].includes(command.direction as string), 'invalid inspection direction'); break;
     case 'retry-crossing': keys(command, ['type', 'to']); address(command.to); break;
     case 'interact': keys(command, ['type', 'featureId']); id(command.featureId); break;
     default: throw new Error('Directed storage: invalid command');

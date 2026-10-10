@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DirectedCommand, DirectedRequest, DirectedSession, NavigationTarget } from '../domain/directed/operationTypes';
 import type { PresentedContext } from '../domain/directed/types';
+import { isPerceptionProfile } from '../domain/directed/perceptionTypes';
 import { captureDirectedContext, claimDirectedSave, createDirectedSave, executeDirectedRequest,
   readDirectedSave, reconcileDirectedRequest } from '../persistence/directed';
 
@@ -15,6 +16,10 @@ function controller() {
 }
 
 export function useDirectedPlay() {
+  const requestedProfile = new URLSearchParams(window.location.search).get('perception');
+  const perceptionProfile = isPerceptionProfile(requestedProfile) ? requestedProfile : undefined;
+  const slot = perceptionProfile ? `${DIRECTED_SLOT}-${perceptionProfile}` : DIRECTED_SLOT;
+  const pendingKey = perceptionProfile ? `${PENDING_KEY}:${slot}` : PENDING_KEY;
   const owner = useRef<string>(controller());
   const [session, setSession] = useState<DirectedSession>();
   const [context, setContext] = useState<PresentedContext>();
@@ -29,20 +34,20 @@ export function useDirectedPlay() {
   const runAllowed = useRef(false);
 
   const refresh = async () => {
-    const latest = await readDirectedSave(DIRECTED_SLOT);
+    const latest = await readDirectedSave(slot);
     if (!latest) throw new Error('Directed save is unavailable.');
-    const presented = await captureDirectedContext(DIRECTED_SLOT, `${owner.current}:view:${latest.knowledge.revision}`, 'human-view');
+    const presented = await captureDirectedContext(slot, `${owner.current}:view:${latest.knowledge.revision}`, 'human-view');
     if (alive.current) { setSession(latest); setContext(presented); }
     return latest;
   };
   const recover = async () => {
-    const stored = sessionStorage.getItem(PENDING_KEY);
+    const stored = sessionStorage.getItem(pendingKey);
     if (!stored) return;
     const request: DirectedRequest = JSON.parse(stored);
-    const original = await reconcileDirectedRequest(DIRECTED_SLOT, request);
+    const original = await reconcileDirectedRequest(slot, request);
     // Atomic IDB transactions make absence after this serialized read a no-effect result.
-    if (!original) await executeDirectedRequest(DIRECTED_SLOT, request, Date.now());
-    sessionStorage.removeItem(PENDING_KEY);
+    if (!original) await executeDirectedRequest(slot, request, Date.now());
+    sessionStorage.removeItem(pendingKey);
   };
   const enqueue = (work: () => Promise<void>) => {
     const next = queue.current.then(async () => {
@@ -56,16 +61,16 @@ export function useDirectedPlay() {
   };
   const dispatch = (command: DirectedCommand) => enqueue(async () => {
     await recover();
-    const current = await readDirectedSave(DIRECTED_SLOT);
+    const current = await readDirectedSave(slot);
     if (!current || current.owner !== owner.current) {
       await refresh();
       throw new Error('Another controller owns this save. Take control to continue.');
     }
     const request: DirectedRequest = { attemptId: crypto.randomUUID(), owner: owner.current,
       epoch: current.epoch, expectedRevision: current.revision, command };
-    sessionStorage.setItem(PENDING_KEY, JSON.stringify(request));
-    const receipt = await executeDirectedRequest(DIRECTED_SLOT, request, Date.now());
-    sessionStorage.removeItem(PENDING_KEY);
+    sessionStorage.setItem(pendingKey, JSON.stringify(request));
+    const receipt = await executeDirectedRequest(slot, request, Date.now());
+    sessionStorage.removeItem(pendingKey);
     await refresh();
     if (alive.current) setMessage(receipt.result.reason);
     if (receipt.result.status === 'refused') throw new Error(receipt.result.reason);
@@ -73,8 +78,8 @@ export function useDirectedPlay() {
   useEffect(() => {
     alive.current = true;
     void enqueue(async () => {
-      const initial = await createDirectedSave(DIRECTED_SLOT);
-      if (!initial.owner) await claimDirectedSave(DIRECTED_SLOT, owner.current);
+      const initial = await createDirectedSave(slot, { perceptionProfile });
+      if (!initial.owner) await claimDirectedSave(slot, owner.current);
       await recover(); await refresh();
     });
     return () => { alive.current = false; runAllowed.current = false; };
@@ -98,7 +103,7 @@ export function useDirectedPlay() {
   };
   const takeControl = () => {
     runAllowed.current = false; setPlaying(false); setMessage(undefined);
-    void enqueue(async () => { await recover(); await claimDirectedSave(DIRECTED_SLOT, owner.current); await refresh(); });
+    void enqueue(async () => { await recover(); await claimDirectedSave(slot, owner.current); await refresh(); });
   };
   const reconcile = () => enqueue(async () => { await recover(); await refresh(); });
   const pause = () => {

@@ -1,4 +1,6 @@
-/** NS-0 vocabulary only. NS-3 policy and NS-5 admission are not implemented. */
+/** Historical NS-0 examples, not executable requests. Runtime inspection uses
+ * perceptionTypes with host-resolved profiles; callers cannot supply perception power.
+ * NS-5 anchor admission remains vocabulary only. */
 export interface InspectionRequest {
   attemptId: string; observerId: string; policyVersion: string;
   effectivePerception: number;

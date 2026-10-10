@@ -24,6 +24,11 @@
 .directed-evidence dl { display: flex; flex-wrap: wrap; gap: 10px 25px; margin: 0 0 10px; }
 .directed-evidence dt { color: #a8b4bd; }.directed-evidence dd { margin: 3px 0 0; font-variant-numeric: tabular-nums; }
 .directed-evidence pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 90px; overflow: auto; }
+.directed-inspect-directions { display: flex; gap: 6px; }
+.directed-inspection-results { max-height: 130px; overflow: auto; font-size: 12px; overflow-wrap: anywhere; }
+.directed-inspection-results p { margin: 8px 0; }
+.directed-inspection-results dl { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0 0; }
+.directed-inspection-results dd { margin: 3px 0 0; color: #b7c4cc; }
 .directed-screen footer { min-height: 30px; padding: 7px 16px; font-size: 12px; color: #d5bc77; overflow-wrap: anywhere; }
 @media (max-width: 650px) {
   .directed-header { padding: 7px 10px; }.directed-controls { padding: 0 10px 8px; }

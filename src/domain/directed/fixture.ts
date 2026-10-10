@@ -7,6 +7,8 @@ import { observeDirected } from './perception';
 import { DIRECTED_VERSION } from './types';
 import type { DirectedWorld, ObservationReceipt, WorldEvent } from './types';
 import { moveDirectedWorld } from './world';
+import type { PerceptionProfileId } from './perceptionTypes';
+import { isPerceptionProfile } from './perceptionTypes';
 
 export function createDirectedWorld(options: { hiddenTrap?: boolean } = {}): DirectedWorld {
   const world: DirectedWorld = {
@@ -24,6 +26,7 @@ export function createDirectedWorld(options: { hiddenTrap?: boolean } = {}): Dir
   };
   if (options.hiddenTrap ?? true) world.features.T = {
     id: 'T', kind: 'trap', name: 'Hidden Trap', position: { spaceId: 'W', row: 0, column: 1 }, state: 'idle', hidden: true,
+    examinationDetail: 'A pressure-sensitive floor mechanism. No safe disarm method is known.',
   };
   const coordinates = new Map<string, CellAddress>();
   for (const space of Object.values(world.spaces)) {
@@ -44,15 +47,17 @@ export function createDirectedWorld(options: { hiddenTrap?: boolean } = {}): Dir
   return world;
 }
 
-export function createDirectedFixture(options: { hiddenTrap?: boolean } = {}): {
+export function createDirectedFixture(options: { hiddenTrap?: boolean; perceptionProfile?: PerceptionProfileId } = {}): {
   session: DirectedSession; observations: ObservationReceipt[]; events: WorldEvent[];
 } {
   const world = createDirectedWorld(options);
+  if (options.perceptionProfile !== undefined && !isPerceptionProfile(options.perceptionProfile)) throw new Error('Unknown fixture perception profile.');
   let session: DirectedSession = {
     version: DIRECTED_VERSION, revision: 0, epoch: 0, world,
     actor: { id: 'P1', position: { spaceId: 'H', row: 2, column: 2 } },
     knowledge: emptyDirectedKnowledge('W1', 'P1'),
   };
+  if (options.perceptionProfile) session.actor.perceptionProfile = options.perceptionProfile;
   const observations: ObservationReceipt[] = [];
   const events: WorldEvent[] = [];
   const observe = () => {

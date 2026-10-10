@@ -1,5 +1,6 @@
 import { addressKey, sameAddress } from '../expedition/address';
 import { applyCrossingRecovery } from './crossingRecovery';
+import { assertPerceptionEvidence } from './perceptionEvidence';
 import type { KnowledgeProjection, ObservationReceipt, Remembered } from './types';
 
 export function emptyDirectedKnowledge(worldId: string, observerId: string): KnowledgeProjection {
@@ -15,6 +16,7 @@ export function rememberDirected(knowledge: KnowledgeProjection, observation: Ob
     throw new Error('Observation sequence must immediately follow knowledge revision.');
   }
   const next = structuredClone(knowledge);
+  assertPerceptionEvidence(observation);
   const remember = <T>(value: T): Remembered<T> => ({
     value: structuredClone(value), observationId: observation.id, observedAt: observation.sequence,
   });
@@ -33,6 +35,17 @@ export function rememberDirected(knowledge: KnowledgeProjection, observation: Ob
     }
     delete next.features[id];
     next.absent[id] = { observationId: observation.id, observedAt: observation.sequence };
+  }
+  if (observation.scene.cues) next.cues = remember(observation.scene.cues);
+  if (observation.perception) next.perception = remember(observation.perception);
+  if (observation.scene.inspection) next.inspection = remember(observation.scene.inspection);
+  for (const examination of observation.scene.examinations ?? []) {
+    if (!observation.scene.features.some(feature => feature.id === examination.featureId)
+      || !observation.scene.inspection || observation.perception?.effectiveValue !== 3) {
+      throw new Error('Examination requires deliberate local inspection and permitted detection.');
+    }
+    next.examinations ??= {};
+    next.examinations[examination.featureId] = remember(examination);
   }
   applyCrossingRecovery(knowledge, next, observation.scene);
   const traversal = observation.scene.traversal;

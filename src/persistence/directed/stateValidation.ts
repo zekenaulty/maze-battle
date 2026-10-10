@@ -3,6 +3,9 @@ import { addressKey } from '../../domain/expedition/address';
 import type { CellAddress } from '../../domain/expedition/types';
 import type { DirectedCell, DirectedSpace, DirectedWorld, KnowledgeProjection, ObservationReceipt, ObservedFeature } from '../../domain/directed/types';
 import { DIRECTED_VERSION } from '../../domain/directed/types';
+import { assertPerceptionEvidence } from '../../domain/directed/perceptionEvidence';
+import { isPerceptionProfile } from '../../domain/directed/perceptionTypes';
+import * as perceive from './perceptionValidation';
 import { address, operation } from './requestValidation';
 import { check, entries, id, integer, keys, list, object, serializable, text } from './values';
 
@@ -24,11 +27,13 @@ function space(value: unknown): asserts value is DirectedSpace {
     && Number.isSafeInteger((value.originZ as number) + (value.rows - 1)), 'invalid space extent');
 }
 function feature(value: unknown, truth = false): asserts value is ObservedFeature {
-  object(value); keys(value, ['id', 'kind', 'name', 'position', 'state'], truth ? ['hidden'] : []);
+  object(value); keys(value, ['id', 'kind', 'name', 'position', 'state'], truth ? ['hidden', 'examinationDetail'] : ['disclosure']);
   id(value.id); text(value.name); address(value.position);
   check(['lever', 'door', 'trap', 'chest', 'altar'].includes(value.kind as string), 'invalid feature kind');
   check(['idle', 'active', 'locked', 'closed', 'open'].includes(value.state as string), 'invalid feature state');
   check(value.hidden === undefined || typeof value.hidden === 'boolean', 'invalid hidden marker');
+  check(value.disclosure === undefined || value.disclosure === 'detected', 'invalid feature disclosure');
+  if (value.examinationDetail !== undefined) text(value.examinationDetail);
 }
 function worldPosition(position: CellAddress, current: DirectedWorld) {
   check(Object.hasOwn(current.spaces, position.spaceId), 'world position references missing space');
@@ -56,8 +61,15 @@ export function world(value: unknown): asserts value is DirectedWorld {
   for (const item of Object.values(current.features)) worldPosition(item.position, current);
 }
 export function projection(value: unknown): asserts value is KnowledgeProjection {
-  serializable(value); object(value); keys(value, ['worldId', 'observerId', 'revision', 'cells', 'spaces', 'features', 'absent'], ['blockedEdges']);
+  serializable(value); object(value); keys(value, ['worldId', 'observerId', 'revision', 'cells', 'spaces', 'features', 'absent'], ['blockedEdges', 'cues', 'perception', 'inspection', 'examinations']);
   id(value.worldId); id(value.observerId); integer(value.revision);
+  if (value.cues !== undefined) perceive.remembered(value.cues, value.revision, perceive.cues);
+  if (value.perception !== undefined) perceive.remembered(value.perception, value.revision, perceive.perception);
+  if (value.inspection !== undefined) perceive.remembered(value.inspection, value.revision, perceive.inspection);
+  if (value.examinations !== undefined) for (const [key, item] of entries(value.examinations)) {
+    perceive.remembered(item, value.revision, perceive.examination);
+    object(item); object(item.value); check(item.value.featureId === key, 'examination key mismatch');
+  }
   // Remembered exits can reach unobserved cells; do not reconcile them with live truth.
   for (const name of ['cells', 'spaces', 'features'] as const) {
     for (const [key, item] of entries(value[name])) {
@@ -87,7 +99,8 @@ export function session(value: unknown): asserts value is DirectedSession {
   check(value.version === DIRECTED_VERSION, 'unsupported save version'); integer(value.revision); integer(value.epoch);
   if (value.owner !== undefined) id(value.owner);
   world(value.world); projection(value.knowledge);
-  object(value.actor); keys(value.actor, ['id', 'position']); id(value.actor.id); address(value.actor.position);
+  object(value.actor); keys(value.actor, ['id', 'position'], ['perceptionProfile']); id(value.actor.id); address(value.actor.position);
+  check(value.actor.perceptionProfile === undefined || isPerceptionProfile(value.actor.perceptionProfile), 'unsupported actor perception profile');
   worldPosition(value.actor.position as unknown as CellAddress, value.world);
   check(value.knowledge.worldId === value.world.id && value.knowledge.observerId === value.actor.id, 'save scope mismatch');
   if (value.operation !== undefined) {
@@ -97,15 +110,19 @@ export function session(value: unknown): asserts value is DirectedSession {
 }
 export function observation(value: unknown, current: DirectedSession): asserts value is ObservationReceipt {
   serializable(value); object(value);
-  keys(value, ['id', 'worldId', 'observerId', 'sequence', 'sourceWorldRevision', 'policyVersion', 'reason', 'coverage', 'scene']);
+  keys(value, ['id', 'worldId', 'observerId', 'sequence', 'sourceWorldRevision', 'policyVersion', 'reason', 'coverage', 'scene'], ['perception']);
   id(value.id); integer(value.sequence); integer(value.sourceWorldRevision);
   check(value.worldId === current.world.id && value.observerId === current.actor.id, 'observation scope mismatch');
   check(value.sequence <= current.knowledge.revision && value.sourceWorldRevision <= current.world.revision, 'future observation');
-  check(value.policyVersion === 'fixture-visibility-v1', 'unsupported observation policy');
-  check(['prelude', 'look', 'travel', 'interaction', 'obstruction'].includes(value.reason as string), 'invalid observation reason');
+  check(['fixture-visibility-v1', 'fixture-perception-v1'].includes(value.policyVersion as string), 'unsupported observation policy');
+  if (value.perception !== undefined) perceive.perception(value.perception);
+  check(['prelude', 'look', 'travel', 'interaction', 'obstruction', 'inspection'].includes(value.reason as string), 'invalid observation reason');
   object(value.coverage); keys(value.coverage, ['radius', 'basis', 'complete']); integer(value.coverage.radius, 512);
   check(value.coverage.basis === 'connected-cells' && value.coverage.complete === true, 'invalid observation coverage');
-  object(value.scene); keys(value.scene, ['position', 'cells', 'spaces', 'features', 'absentFeatureIds'], ['traversal', 'crossingRecovery']); address(value.scene.position);
+  object(value.scene); keys(value.scene, ['position', 'cells', 'spaces', 'features', 'absentFeatureIds'], ['traversal', 'crossingRecovery', 'cues', 'examinations', 'inspection']); address(value.scene.position);
+  if (value.scene.cues !== undefined) perceive.cues(value.scene.cues);
+  if (value.scene.inspection !== undefined) perceive.inspection(value.scene.inspection);
+  if (value.scene.examinations !== undefined) { list(value.scene.examinations); value.scene.examinations.forEach(perceive.examination); }
   for (const name of ['cells', 'spaces', 'features', 'absentFeatureIds']) list(value.scene[name]);
   (value.scene.cells as unknown[]).forEach(cell); (value.scene.spaces as unknown[]).forEach(space);
   (value.scene.features as unknown[]).forEach(item => feature(item)); (value.scene.absentFeatureIds as unknown[]).forEach(id);
@@ -125,4 +142,5 @@ export function observation(value: unknown, current: DirectedSession): asserts v
       check(item.change === 'opened' || item.change === 'removed', 'invalid crossing recovery change');
     });
   }
+  assertPerceptionEvidence(value as unknown as ObservationReceipt);
 }

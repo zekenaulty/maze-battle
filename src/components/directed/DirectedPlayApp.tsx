@@ -3,11 +3,12 @@ import { ArrowLeft, Eye, Hand, Navigation, Pause, Play, RotateCcw, Square } from
 import { useDirectedPlay } from '../../hooks/useDirectedPlay';
 import { directedViewModel } from '../../viewModels/directedViewModel';
 import { DirectedCanvas } from './DirectedCanvas';
+import { DirectedInspection } from './DirectedInspection';
 import './directed.css';
 
 export default function DirectedPlayApp() {
   const game = useDirectedPlay();
-  const [tab, setTab] = useState<'travel' | 'evidence'>('travel');
+  const [tab, setTab] = useState<'travel' | 'inspect' | 'evidence'>('travel');
   const [selected, setSelected] = useState('V');
   const view = useMemo(() => game.context && directedViewModel(game.context), [game.context]);
   const operation = game.session?.operation;
@@ -23,6 +24,7 @@ export default function DirectedPlayApp() {
     <section className="directed-controls">
       <div role="tablist" aria-label="Expedition panels">
         <button role="tab" aria-selected={tab === 'travel'} onClick={() => setTab('travel')}>Travel</button>
+        <button role="tab" aria-selected={tab === 'inspect'} onClick={() => setTab('inspect')}>Inspect</button>
         <button role="tab" aria-selected={tab === 'evidence'} onClick={() => setTab('evidence')}>Evidence</button>
       </div>
       {tab === 'travel' ? <div role="tabpanel" aria-label="Travel">
@@ -50,7 +52,8 @@ export default function DirectedPlayApp() {
         <div className="directed-details"><span>{feature ? `${feature.value.name}: ${feature.value.state} (${feature.status})` : 'Hall center'}</span>
           <label>Pace<input type="range" aria-label="Travel pace" min={120} max={900} step={20} value={game.delay} onChange={event => game.setDelay(Number(event.target.value))} /><output>{game.delay}ms</output></label>
         </div>
-      </div> : <div role="tabpanel" aria-label="Evidence" className="directed-evidence">
+      </div> : tab === 'inspect' ? <DirectedInspection view={view} disabled={game.busy || Boolean(running) || !game.controlled} dispatch={game.dispatch} />
+        : <div role="tabpanel" aria-label="Evidence" className="directed-evidence">
         <dl><div><dt>Steps / bound</dt><dd>{operation?.steps ?? 0} / 64</dd></div><div><dt>Replans / bound</dt><dd>{operation?.replans ?? 0} / 4</dd></div>
           <div><dt>Knowledge revision</dt><dd>{view.knowledgeRevision}</dd></div><div><dt>Context bytes</dt><dd>{view.bytes}</dd></div><div><dt>Provider calls</dt><dd>0 (host-only)</dd></div></dl>
         <details><summary>Presented context</summary><pre>{game.context!.json}</pre></details>

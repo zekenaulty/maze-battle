@@ -51,7 +51,8 @@ export function DirectedCanvas({ view }: { view: DirectedViewModel }) {
         const at = global(entry.value.position);
         if (at.column < columnStart || at.column >= columnStart + columns || at.row < rowStart || at.row >= rowStart + rows) continue;
         ctx.globalAlpha = entry.status === 'current' ? 1 : 0.5;
-        const symbol = entry.value.kind === 'lever' ? '\u{1F579}' : entry.value.kind === 'door' ? '\u{1F6AA}' : '\u{1F4E6}';
+        const symbol = entry.value.kind === 'lever' ? '\u{1F579}' : entry.value.kind === 'door' ? '\u{1F6AA}'
+          : entry.value.kind === 'trap' ? '\u26A0' : '\u{1F4E6}';
         ctx.fillText(symbol, left + (at.column + 0.5) * size, top + (at.row + 0.5) * size);
       }
       ctx.globalAlpha = 1;
