@@ -46,7 +46,8 @@ export function DirectedMemory({ context, busy, recall, sourceContext, loadSourc
         <div><dt>Knowledge</dt><dd>{data.status}</dd></div><div><dt>Bearing</dt><dd>{data.geographicBearing.direction}</dd></div>
         <div><dt>Route</dt><dd>{routeLabel(data.route)}</dd></div>
         <div><dt>Evidence</dt><dd>{data.feature?.evidence.status ?? data.room?.evidence.status ?? 'Unknown'}</dd></div>
-        {data.feature && <div><dt>Examination</dt><dd>{data.examination?.value.detail ?? 'Uninspected'}</dd></div>}
+        {data.feature && <div><dt>Examination</dt><dd>{data.examination?.value.detail
+          ?? (data.omissions.causes.facts || data.omissions.causes.bytes ? 'Detail omitted' : 'Uninspected')}</dd></div>}
       </dl>}
       <div className="directed-memory-meta">Omitted detail: {data.omissions.cells} cells, {data.omissions.features} features, {data.omissions.rooms} rooms</div>
       <DirectedSources ids={context!.observationIds} context={sourceContext} busy={busy} load={loadSource} />

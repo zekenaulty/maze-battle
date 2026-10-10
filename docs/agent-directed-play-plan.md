@@ -1,9 +1,9 @@
-# Agent-Directed Play: First Tranche
+# Agent-Directed Play: Implementation and Qualification
 
 Acceptance revision: NS-0 corpus v1 / reviewed architecture v0.2 (2026-10-09).
 Base: `cdcc4d8`. Branch: `codex/actor-navigation-v1`, isolated from the running game.
 
-## Active Continuation Goal (2026-10-10)
+## Completed Continuation Goal (2026-10-10)
 
 Complete slices 2--5 as one continuous goal, rather than stopping after each
 ticket. Slice boundaries are integration and qualification checkpoints, not
@@ -14,11 +14,35 @@ remain outside this goal.
 
 | Ticket | Owner / scope | Status | Acceptance |
 | --- | --- | --- | --- |
-| NS-3 | Lead: perception, inspection, durable schemas, preview | Focused domain/IDB/UI qualified; integrated regression still pending | Four disclosure grades; human/agent parity; opaque cues; coverage and provenance; no repeated-inspection farming; unchanged old receipts |
-| NS-4a | Volta: pure memory projections and retrieval; lead integrates | Module testing in isolated worktree; integration pending | Current/near/distant scope, bounded evidence retrieval, no unseen refresh or map dump; exact delivered context retained |
-| NS-4b | Lead: persistence checkpoints/pages | Implemented; 67 actual-IDB cases pass; integrated regression pending | Bounded normal reads, retained exact evidence, measured growth, reload/replay/cancellation at limits; explicit integrity-on-access versus full-audit boundary |
-| NS-2 follow-through | Cicero: learned-room adapter and durable stream integration; lead reviews | Adapter committed; durable integration in progress | One destination executor across three known rooms, including an unloaded room; bounded residency, doorway semantics, untouched prior saves; no objective selection |
-| NS-Q | Lead: integrated qualification | Pending | Focused domain and real IndexedDB tests, growing-history benchmark, desktop/mobile browser checks, regression suite, build, updated evidence ledger |
+| NS-3 | Lead: perception, inspection, durable schemas, preview | Qualified locally; review regressions closed | Four disclosure grades; human/agent parity; opaque cues; coverage and provenance; no repeated-inspection farming; unchanged old receipts |
+| NS-4a | Volta: pure memory projections and retrieval; lead integrates | Qualified locally; independent review regression closed | Current/near/distant scope, bounded evidence retrieval, no unseen refresh or map dump; exact delivered context retained |
+| NS-4b | Lead: persistence checkpoints/pages | Qualified locally; growth and capacity cases pass | Bounded normal reads, retained exact evidence, measured growth, reload/replay/cancellation at limits; explicit integrity-on-access versus full-audit boundary |
+| NS-2 follow-through | Cicero: learned-room adapter and durable stream integration; lead reviews | Integrated; native-IDB and compatibility cohorts pass | One destination executor across three known rooms, including an unloaded room; bounded residency, doorway semantics, untouched prior saves; no objective selection |
+| NS-Q | Lead: integrated qualification | Complete at the local provider-free evidence level | Focused domain and real IndexedDB tests, growing-history benchmark, desktop/mobile browser checks, regression suite, build, updated evidence ledger |
+
+### Continuation Evidence
+
+| Check | Result | Boundary / artifact |
+| --- | --- | --- |
+| Full two-worker Vitest regression after streamed integration | 1,545 tests / 104 files PASS, 159.74s | Domain and unit regression; no provider calls |
+| Independent source archive review | 16 tests PASS after omission-label repair | Real validators over mocked transport; not native storage proof |
+| Directed native IndexedDB | 73 cases PASS | `test-results/directed-storage-final`; checkpoint/legacy, exact replay, source contexts, quota rollback, capacity cancellation |
+| Streamed destination native IndexedDB | 14 cases PASS | `test-results/directed-stream-final`; three rooms, unloaded target, cancellation races, additive v3-to-v4 upgrade |
+| Existing stream compatibility | 11 cases PASS | `test-results/directed-stream-compat-final`; includes 2,697-command, 15-space floor and reload |
+| Desktop/mobile and earlier entry points | 12 cases PASS | `test-results/directed-play-combined`; canvas/overflow plus screenshots |
+| Final one-line presentation repair | 16 review tests, two memory browser cases and build PASS | `test-results/directed-memory-review-fixed`; no engine changes after full regression |
+| TypeScript / production bundle / whitespace | PASS | Compilation is not deployment |
+
+The preview at `http://127.0.0.1:5176/?expedition=3` exposes Travel, Inspect,
+Memory and Evidence. `&perception=expert` opens an isolated expert-profile fixture.
+The streamed executor is a tested host API (`DirectedStreamExecutor`), not yet a
+new control in the expedition-2 UI or an Agentica network capability. Its room
+knowledge adapter and the fixture's scoped presentation are separately qualified;
+combined service presentation belongs to NS-6. Ordinary checkout and saves were
+not migrated. The original port 5174 had no listener during this continuation;
+5176 is the maintained test preview, not a claim that the original server is live.
+
+Historical cohorts below remain as evidence of earlier slices, not current counts.
 
 ## First-Tranche Goal and Boundaries
 
@@ -162,11 +186,11 @@ not Agentica service, live-provider or ordinary-save migration qualification.
 
 ### Deferred Roadmap
 
-Next bounded order: NS-3 graduated perception/inspection; NS-4a scoped memory;
-NS-4b bounded historical reads/checkpoints; adoption of the destination executor across
-previously discovered streamed rooms; then the NS-6 destination-level service proof.
-Keep remote mechanisms and anchored generation as separate NS-5 slices before the
-combined NS-7 scenario. Ordinary RPG integration stays a separate migration gate.
+The completed continuation above covers NS-3, NS-4a, NS-4b and streamed destination
+execution. The next bounded work is the NS-6
+destination-level service proof. Keep remote mechanisms and anchored generation
+as separate NS-5 slices before the combined NS-7 scenario. Ordinary RPG integration
+stays a separate migration gate. These are not additional requirements of this goal.
 
 This preview is a bounded host-execution proof, not ordinary RPG or new Agentica-tool
 integration. Provider calls are zero by construction, not a measured model-efficiency
@@ -175,14 +199,17 @@ intentions through those integration contracts in NS-6 after the intervening sli
 
 The 53-cell fixture starts with 41 legitimately remembered cells; it does not expand
 or generate the reserved altar. Room bounds are public fixture spatial references;
-unseen cells/features are not granted by those bounds. Visibility remains the declared
-radius-two connected-cell fixture policy, not the proposed perception-stat evaluator.
+unseen cells/features are not granted by those bounds. Visibility retains radius-two
+connected cells, with the optional NS-3 versioned profile evaluator and deliberate
+adjacent inspection. Profile values are fixture thresholds, not RPG stat balancing.
 The lever changes only its own local state; distant door/audio effects remain NS-5.
 
 Intentions expire after 120 seconds of wall time (including pauses). Maps cap at 512
-cells, context at 64 KiB and journals at 4096 entries; full journals fail before effects.
-Loads currently validate bounded historical sources rather than cache trust across
-transactions. Paging, compaction and performance qualification at large history sizes
-are later work. No claim of protection against a script able to replace every source
-and checkpoint in the same origin is made. Service-process restart, live cognition,
-full perception/inspection, anchor admission and the combined NS-7 proof remain deferred.
+cells, context at 64 KiB and journals at 4096 entries; full journals refuse gameplay
+effects. New checkpoint-mode saves reserve one terminal cancellation receipt and
+validate current checkpoints plus historical entries on access. Old saves retain
+full-audit loads. Full audit reconstructs retained history; normal loads do not
+certify unread history. See `ns4b-history-notes.md` for measured bounds and storage
+growth. No compaction or protection against same-origin replacement of every source
+and witness is claimed. Service-process restart, live cognition, perception stat
+progression, anchor admission and the combined NS-7 proof remain deferred.

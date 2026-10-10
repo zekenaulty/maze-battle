@@ -1,6 +1,6 @@
 # NS-4a Bounded Actor Memory
 
-Scope: pure projections only, based on prepared `049e9bd` in
+Initial worker scope: pure projections only, based on prepared `049e9bd` in
 `codex/directed-memory`. No existing modules, context journal, persistence schemas,
 repository code, UI, providers, or ordinary saves are changed.
 
@@ -147,3 +147,35 @@ these pure domain tests. Parent integration and combined qualification remain
 separate gates. Initial development checks caught a TypeScript line-break parse
 error and a test using the wrong inspection-attempt argument; both were repaired
 before the final verification cohort.
+
+## Integrated Presentation and Retrieval
+
+The parent integrates the pure projection into `captureDirectedMemoryContext`
+and the preview's Memory tab. Overview and exact destination recall have separate
+versioned selections; a presentation ID cannot be reused with changed selection,
+bounds or purpose. Exact JSON, byte count, source IDs and selection are archived.
+Reload validates historical knowledge and returns the original bytes, not a fresh
+projection. Both checkpoint and legacy save formats remain supported.
+
+`captureDirectedSourceContext` accepts at most eight exact observation IDs and
+returns at most 64 KiB. Its public whitelist removes audit-only world revision
+metadata. Missing sources stay missing in the archived context even if that ID
+is observed later. No query observes the world or changes the actor's knowledge.
+Checkpoint retrieval point-reads indexed sources and validates write witnesses;
+legacy retrieval retains the old full-history integrity path. Host history pages
+and full audit are not actor APIs.
+
+Six native IndexedDB memory/source cases and two desktop/mobile UI cases pass.
+The tests cover stale distant recall, subsequent interaction, exact old responses,
+human/decision-fixture parity, hidden-target non-disclosure, future missing sources,
+selection collisions and input bounds. Source records are available in the Memory
+tab. Screenshots and overflow/canvas checks cover 1280x800 and 390x844.
+Evidence: `test-results/ns4a-sources` and `test-results/ns4a-sources-ui`.
+This is not Agentica network/service integration; that remains NS-6.
+
+Independent integration review added 16 regression cases. It found a presentation
+bug: budget-omitted examination detail was labeled Uninspected. The view now uses
+Detail omitted when the recall payload reports a facts/bytes omission. Archive
+dispatch, exact future-missing IDs, scope validation and privilege filtering passed
+the review. The regression is retained in `sourceArchive.review.test.tsx`; it uses
+real validators with mocked transport, not a substitute for the native-IDB cohort.

@@ -221,3 +221,10 @@ suites used actual Chromium IndexedDB on the isolated port 5193 server.
 Evidence level: provider-free domain/service plus actual browser IndexedDB
 qualification. Parent combined-tree regression, installed UI, NS4 memory
 integration, and production behavior are not claimed by these tests.
+
+Parent integration subsequently passed the same 14 native destination and 11
+compatibility cases on `codex/actor-navigation-v1`, along with the 1,545-test full
+unit regression and production build. Artifacts: `test-results/directed-stream-final`
+and `test-results/directed-stream-compat-final`. A final memory-only presentation
+repair has its own focused regression. The streamed API still has no new UI or
+Agentica service binding; those are separate adoption work, not this proof.

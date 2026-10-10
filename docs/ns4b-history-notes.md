@@ -53,7 +53,16 @@ Evidence: `test-results/directed-storage-checkpoint-qualified`, including
 `history-growth.json`. Retained size includes canonical witnesses and all derived
 snapshots; it grows linearly. This slice bounds access cost, not disk usage or
 unlimited play. Sparse snapshot retention/compression is deliberately not claimed.
-Later identity-index witnesses add a small amount to these retained-byte numbers.
+Final combined-source cohort: 73 native-IDB tests passed, with the new
+identity-index witnesses included. `test-results/directed-storage-final` records:
+
+| Observations | Normal-load reads | Milliseconds | Retained JSON bytes | Page bytes |
+| --- | --- | --- | --- | --- |
+| 32 | 9 | 6.0 | 1,698,176 | 14,087 |
+| 128 | 9 | 5.4 | 6,917,758 | 14,087 |
+| 512 | 9 | 6.7 | 27,816,190 | 14,087 |
+
+These are local measurements, not an SLA or a compaction claim.
 
 Initial integrated cohort: 62 passed, four failed. Three fixture mutations bypassed
 the new witness writer; the fixture now uses the production append/witness path.
