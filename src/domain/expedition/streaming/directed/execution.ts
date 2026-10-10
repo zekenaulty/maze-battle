@@ -4,7 +4,7 @@ import type { NavigationPlan } from '../../../directed/navigation';
 import { sameAddress } from '../../address';
 import { copyAddress, isAddress } from '../../explorationGraph';
 import { validateInput } from '../plannerPage';
-import type { StreamActionResult } from '../types';
+import type { StreamActionResult, StreamCheckpoint } from '../types';
 import type { DirectedStreamKnowledge } from './knowledge';
 import type { DirectedStreamFrame, DirectedStreamStep, DirectedStreamTravel, StreamDestination } from './types';
 
@@ -78,7 +78,7 @@ export function pauseDirectedStreamTravel(state: DirectedStreamTravel, reason = 
 
 /** Host collision is evidence about this immediate edge only, never a remote route query. */
 export function settleDirectedStreamMove(previous: DirectedStreamTravel, result: StreamActionResult,
-  immediateCollision = false): DirectedStreamTravel {
+  immediateCollision = false, confirmedCheckpoint?: StreamCheckpoint): DirectedStreamTravel {
   const pending = previous.pending;
   if (!pending || pending.request.actionId !== result.actionId) throw new Error('No matching pending travel attempt.');
   if (result.disposition === 'unavailable') return pauseDirectedStreamTravel(previous, 'Move acknowledgement is unknown; reconcile the original attempt.');
@@ -87,7 +87,9 @@ export function settleDirectedStreamMove(previous: DirectedStreamTravel, result:
     delete paused.pending;
     return paused;
   }
-  const observation = result.observation;
+  // Durable v2 receipts are compact. A checkpoint read in the effect transaction
+  // supplies position/revision evidence without manufacturing an observation.
+  const observation = confirmedCheckpoint ?? result.observation;
   const checkpoint = previous.frame.checkpoint;
   const moved = result.disposition === 'applied';
   const revision = pending.request.expectedRevision + (moved ? 1 : 0);
