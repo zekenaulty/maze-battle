@@ -1,11 +1,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { normalizeGameState, summarizeGame } from '../domain/gameFactory';
 import type { GameState, SaveKind, SaveSlot, SaveSummary } from '../domain/types';
+import type { PlayTelemetry } from '../domain/telemetry/types';
+import { AUTO_CONTROL_KEY, SaveOwnershipError } from './saveControl';
 
 const DB_NAME = 'maze-battle';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-interface MazeBattleDb extends DBSchema {
+export interface MazeBattleDb extends DBSchema {
+  telemetry: { key: string; value: PlayTelemetry; indexes: { byUpdatedAt: string } };
   saves: {
     key: string;
     value: SaveSlot;
@@ -37,7 +40,11 @@ export function getDatabase() {
       if (!db.objectStoreNames.contains('meta')) {
         db.createObjectStore('meta', { keyPath: 'key' });
       }
+      if (!db.objectStoreNames.contains('telemetry')) {
+        db.createObjectStore('telemetry', { keyPath: 'gameId' }).createIndex('byUpdatedAt', 'updatedAt');
+      }
     },
+    blocking() { void dbPromise?.then(db => db.close()); dbPromise = undefined; },
   });
 
   return dbPromise;
@@ -45,7 +52,11 @@ export function getDatabase() {
 
 export async function saveGame(slotId: string, label: string, kind: SaveKind, game: GameState) {
   const db = await getDatabase();
-  const existing = await db.get('saves', slotId);
+  const tx = db.transaction(['saves', 'meta'], 'readwrite');
+  const done = tx.done;
+  void done.catch(() => {});
+  if (await tx.objectStore('meta').get(AUTO_CONTROL_KEY)) { tx.abort(); throw new SaveOwnershipError(); }
+  const existing = await tx.objectStore('saves').get(slotId);
   const normalizedGame = normalizeGameState(game);
   const slot: SaveSlot = {
     slotId,
@@ -56,7 +67,8 @@ export async function saveGame(slotId: string, label: string, kind: SaveKind, ga
     game: normalizedGame,
   };
 
-  await db.put('saves', slot);
+  await tx.objectStore('saves').put(slot);
+  await done;
   return slot;
 }
 
@@ -88,7 +100,11 @@ export async function listSaves(): Promise<SaveSummary[]> {
 
 export async function deleteSave(slotId: string) {
   const db = await getDatabase();
-  await db.delete('saves', slotId);
+  const tx = db.transaction(['saves', 'meta'], 'readwrite');
+  void tx.done.catch(() => {});
+  if (await tx.objectStore('meta').get(AUTO_CONTROL_KEY)) { tx.abort(); throw new SaveOwnershipError(); }
+  await tx.objectStore('saves').delete(slotId);
+  await tx.done;
 }
 
 export async function getMeta(key: string) {

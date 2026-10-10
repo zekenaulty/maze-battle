@@ -20,7 +20,7 @@ export function App() {
   const session = useGameSession();
   const { game, telemetry } = session;
   const [dialog, setDialog] = useState<DialogName>();
-  const clock = useGameLoop(game, Boolean(dialog), session.transition);
+  const clock = useGameLoop(game, Boolean(dialog) || !session.controlled, session.transition);
   const commands = useGameCommands(session.transition);
   const openSaves = () => {
     setDialog('saves');
@@ -44,6 +44,11 @@ export function App() {
   };
 
   return <>
+    {!session.controlled && <aside className="session-custody" role="status">
+      <span>{session.status.startsWith('Save failed') ? session.status : 'Read only. Another tab controls this game.'}</span>
+      <button onClick={() => { void session.takeControl().catch(() => {}); }}>Take control</button>
+    </aside>}
+    {session.warning && <aside className="session-warning" role="alert">{session.warning}</aside>}
     {game.battle && game.battle.status !== 'won' ? <BattleScreen
       {...shared} {...automation} battle={game.battle} autopilot={game.autopilot}
       party={game.party.map(actor => getEffectiveActor(actor, game.inventory))} now={clock}
@@ -62,6 +67,7 @@ export function App() {
       onRandomBattlesChange={commands.encounters}
     />}
     {dialog === 'saves' && <SavesDialog
+      readOnly={!session.controlled}
       saves={session.saves} onClose={() => setDialog(undefined)} onCreateSave={session.createManualSave}
       onLoadSave={async id => { await session.loadSave(id); setDialog(undefined); }}
       onDeleteSave={session.removeSave} onNewGame={newGame}

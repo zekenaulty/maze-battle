@@ -12,9 +12,10 @@ interface SavesDialogProps {
   onLoadSave: (slotId: string) => void | Promise<void>;
   onDeleteSave: (slotId: string) => void | Promise<void>;
   onNewGame?: () => void | Promise<void>;
+  readOnly?: boolean;
 }
 
-export function SavesDialog({ saves, onClose, onCreateSave, onLoadSave, onDeleteSave, onNewGame }: SavesDialogProps) {
+export function SavesDialog({ saves, onClose, onCreateSave, onLoadSave, onDeleteSave, onNewGame, readOnly = false }: SavesDialogProps) {
   const [confirmation, setConfirmation] = useState<{ action: 'load' | 'delete'; save: SaveSummary } | { action: 'new' }>();
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
@@ -35,10 +36,10 @@ export function SavesDialog({ saves, onClose, onCreateSave, onLoadSave, onDelete
     <Dialog title="Saves" onClose={onClose} closeDisabled={busy}>
       <div className="screen-saves" aria-busy={busy}>
       <div className="dialog-actions">
-        <button type="button" disabled={busy} onClick={() => void createSave()}>
+        <button type="button" disabled={busy || readOnly} onClick={() => void createSave()}>
           <Save size={16} aria-hidden="true" /> {busy ? 'Saving...' : 'New save'}
         </button>
-        {onNewGame && <button type="button" disabled={busy} onClick={() => setConfirmation({ action: 'new' })}>New game</button>}
+        {onNewGame && <button type="button" disabled={busy || readOnly} onClick={() => setConfirmation({ action: 'new' })}>New game</button>}
         {message && <p role="status">{message}</p>}
         {error && <p role="alert">{error}</p>}
       </div>
@@ -54,10 +55,10 @@ export function SavesDialog({ saves, onClose, onCreateSave, onLoadSave, onDelete
               <small>Warrior {save.partyLevels.warrior} - Mage {save.partyLevels.mage} - Healer {save.partyLevels.healer}</small>
             </div>
             <div className="save-row-actions">
-              <button type="button" disabled={busy} onClick={() => setConfirmation({ action: 'load', save })}>
+              <button type="button" disabled={busy || readOnly} onClick={() => setConfirmation({ action: 'load', save })}>
                 <Download size={16} aria-hidden="true" /> Load
               </button>
-              <button type="button" disabled={busy} onClick={() => setConfirmation({ action: 'delete', save })}>
+              <button type="button" disabled={busy || readOnly || save.kind === 'auto'} title={save.kind === 'auto' ? 'Start a new game to replace the active autosave' : undefined} onClick={() => setConfirmation({ action: 'delete', save })}>
                 <Trash2 size={16} aria-hidden="true" /> Delete
               </button>
             </div>

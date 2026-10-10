@@ -21,8 +21,10 @@ test('renders explore and battle as separate full screens', async ({ page }) => 
 
   await page.getByRole('button', { name: 'Expedition settings' }).click();
   const settings = page.getByRole('dialog', { name: 'Expedition settings' });
-  await settings.getByRole('checkbox', { name: 'Encounters' }).uncheck();
+  // State is published only after the ownership-fenced save commits.
+  await settings.getByRole('checkbox', { name: 'Encounters' }).click();
   await expect(settings.getByRole('checkbox', { name: 'Encounters' })).not.toBeChecked();
+  expect((await readSaveSlots(page)).find(slot => slot.slotId === 'auto')!.game.randomBattles).toBe(false);
   await settings.getByRole('button', { name: 'Close dialog' }).click();
 
   const positionText = async () => (await page.locator('.screen-status').textContent())?.match(/(\d+), (\d+)$/)?.[0];
@@ -574,7 +576,7 @@ test('confirms save loading, deletion and new game without changing state on can
 });
 
 async function clearDatabase(page: Page) {
-  // Seed outside the mounted app: its debounced autosave must not race fixture writes.
+  // Seed outside the mounted app so gameplay writes cannot race the fixture.
   await page.goto('/tests/e2e/refinement-fixture.html');
   await page.evaluate(async () => {
     const repositoryPath = '/src/persistence/saveRepository.ts';
