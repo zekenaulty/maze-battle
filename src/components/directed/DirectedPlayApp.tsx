@@ -5,6 +5,7 @@ import { directedViewModel } from '../../viewModels/directedViewModel';
 import { DirectedCanvas } from './DirectedCanvas';
 import { DirectedInspection } from './DirectedInspection';
 import { DirectedMemory } from './DirectedMemory';
+import { DEFAULT_DESTINATION_LIMITS } from '../../domain/directed/destinationLimits';
 import './directed.css';
 
 export default function DirectedPlayApp() {
@@ -13,6 +14,7 @@ export default function DirectedPlayApp() {
   const [selected, setSelected] = useState('V');
   const view = useMemo(() => game.context && directedViewModel(game.context), [game.context]);
   const operation = game.session?.operation;
+  const limits = operation?.limits ?? DEFAULT_DESTINATION_LIMITS;
   const running = operation?.status === 'running';
   if (!view) return <main className="loading-screen"><p role="status">{game.error ?? 'Loading directed play'}</p></main>;
   const feature = view.features.find(f => f.value.id === selected);
@@ -58,7 +60,8 @@ export default function DirectedPlayApp() {
         : tab === 'memory' ? <DirectedMemory context={game.memoryContext} busy={game.busy} recall={game.loadMemory}
           sourceContext={game.sourceContext} loadSource={game.loadSource} />
         : <div role="tabpanel" aria-label="Evidence" className="directed-evidence">
-        <dl><div><dt>Steps / bound</dt><dd>{operation?.steps ?? 0} / 64</dd></div><div><dt>Replans / bound</dt><dd>{operation?.replans ?? 0} / 4</dd></div>
+        <dl><div><dt>Steps / bound</dt><dd>{operation ? `${operation.steps} / ${limits.steps ?? 'unlimited'}` : '-'}</dd></div>
+          <div><dt>Replans / bound</dt><dd>{operation ? `${operation.replans} / ${limits.replans ?? 'unlimited'}` : '-'}</dd></div>
           <div><dt>Knowledge revision</dt><dd>{view.knowledgeRevision}</dd></div><div><dt>Context bytes</dt><dd>{view.bytes}</dd></div><div><dt>Provider calls</dt><dd>0 (host-only)</dd></div></dl>
         <details><summary>Presented context</summary><pre>{game.context!.json}</pre></details>
       </div>}

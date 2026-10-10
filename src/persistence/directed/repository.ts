@@ -11,6 +11,8 @@ import { saveHeadWitness } from './witnesses';
 import { request as validateRequest } from './requestValidation';
 import { session as validateSession } from './stateValidation';
 import { check, id, integer, same } from './values';
+import { configuredDestinationLimits } from '../../config/directedTravel';
+import { destinationExpired, snapshotDestinationLimits, type DestinationLimits } from '../../domain/directed/destinationLimits';
 export { captureDirectedContext, captureDirectedMemoryContext } from './contexts';
 
 async function checkpoint(tx: DirectedTransaction, slot: string, record: SaveRecord) {
@@ -61,9 +63,11 @@ export async function claimDirectedSave(slot: string, owner: string): Promise<Di
   });
 }
 /** Replay is checked before fencing. Stale requests return an unjournaled refusal. */
-export async function executeDirectedRequest(slot: string, input: DirectedRequest, now: () => number = Date.now): Promise<DirectedReceipt> {
+export async function executeDirectedRequest(slot: string, input: DirectedRequest, now: () => number = Date.now,
+  limits?: DestinationLimits): Promise<DirectedReceipt> {
   id(slot);
   const request = snapshotRequest(input);
+  const policy = limits === undefined ? undefined : snapshotDestinationLimits(limits);
   return transaction(async tx => {
     const record = await requireSave(tx, slot);
     const replay = await originalReceipt(tx, slot, request, record);
@@ -83,7 +87,8 @@ export async function executeDirectedRequest(slot: string, input: DirectedReques
     }
     // Read wall time only after transaction admission, original-attempt reconciliation and fences.
     const admittedAt = now(); integer(admittedAt);
-    const transition: DirectedTransition = applyDirectedCommand(structuredClone(current), structuredClone(request.command), admittedAt, request.attemptId);
+    const transition: DirectedTransition = applyDirectedCommand(structuredClone(current), structuredClone(request.command), admittedAt, request.attemptId,
+      request.command.type === 'navigate' ? policy ?? configuredDestinationLimits() : undefined);
     validateSession(transition.session);
     const next = transition.session;
     check(next.world.id === current.world.id && next.world.floorId === current.world.floorId && next.actor.id === current.actor.id,
@@ -106,7 +111,7 @@ export async function executeDirectedRequest(slot: string, input: DirectedReques
     // An already-expired step's effect-free interruption must still be allowed to commit.
     if (request.command.type === 'step' && current.operation && (transition.observations.length || transition.events.length)) {
       const commitAt = now(); integer(commitAt);
-      check(commitAt < current.operation.deadline, 'directed deadline expired before commit');
+      check(!destinationExpired(current.operation, commitAt), 'directed deadline expired before commit');
     }
     return result;
   });

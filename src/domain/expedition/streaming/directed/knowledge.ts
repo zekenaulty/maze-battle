@@ -34,7 +34,7 @@ export class DirectedStreamKnowledge {
 
   constructor(checkpoint: StreamCheckpoint, blocks: readonly ObservedBlock[] = []) {
     this.checkpoint = structuredClone(checkpoint);
-    if (blocks.length > DIRECTED_LIMITS.replans + 1) throw new DirectedKnowledgeLimit();
+    if (blocks.length > DIRECTED_LIMITS.cells * 4) throw new DirectedKnowledgeLimit();
     this.knowledge = { worldId: checkpoint.worldId, observerId: checkpoint.scopeId, revision: checkpoint.revision,
       cells: Object.create(null), spaces: {}, features: {}, absent: {}, blockedEdges: Object.create(null) };
     for (const block of blocks) {

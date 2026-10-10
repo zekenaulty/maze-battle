@@ -7,6 +7,7 @@ import { retryDirectedCrossing } from './retryCrossing';
 import type { DirectedCommand, DirectedSession, DirectedTransition, NavigationTarget } from './operationTypes';
 import { type ObservationReceipt, type WorldEvent } from './types';
 import { canTraverseDirected, interactDirectedWorld, moveDirectedWorld } from './world';
+import type { DestinationLimits } from './destinationLimits';
 
 const validId = (value: unknown): value is string => typeof value === 'string' && /^[\w:-]{1,128}$/.test(value);
 function validTarget(target: NavigationTarget): boolean {
@@ -15,7 +16,8 @@ function validTarget(target: NavigationTarget): boolean {
 }
 
 /** One bounded transaction's decision. This is not the automatic objective-selection policy. */
-export function applyDirectedCommand(previous: DirectedSession, command: DirectedCommand, now: number, attemptId?: string): DirectedTransition {
+export function applyDirectedCommand(previous: DirectedSession, command: DirectedCommand, now: number, attemptId?: string,
+  limits?: DestinationLimits): DirectedTransition {
   const session = structuredClone(previous);
   const observations: ObservationReceipt[] = [];
   const events: WorldEvent[] = [];
@@ -32,14 +34,14 @@ export function applyDirectedCommand(previous: DirectedSession, command: Directe
     return { session, observations, events, outcome: { status: 'applied', reason,
       position: { ...session.actor.position }, operation: structuredClone(session.operation) } };
   };
-  if (!Number.isSafeInteger(now) || now < 0 || now > Number.MAX_SAFE_INTEGER - 120_000 || !command) return refuse('Invalid request.');
+  if (!Number.isSafeInteger(now) || now < 0 || !command) return refuse('Invalid request.');
   if (command.type === 'retry-crossing') return retryDirectedCrossing(previous, command.to);
   if (command.type === 'navigate') {
     if (!validId(command.operationId) || !validTarget(command.target)) return refuse('Invalid destination request.');
     if (session.operation?.status === 'running') return refuse('An intention is already running.');
     observe('look');
     const plan = planKnownDestination(session.knowledge, session.actor.position, command.target);
-    session.operation = createDestinationOperation({ id: command.operationId, target: command.target, epoch: session.epoch, now, plan });
+    session.operation = createDestinationOperation({ id: command.operationId, target: command.target, epoch: session.epoch, now, plan, limits });
     return applied(session.operation.reason);
   }
   if (command.type === 'cancel') {

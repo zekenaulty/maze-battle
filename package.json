@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ns6-host": "playwright test --config tests/e2e/ns6-host.config.ts",
+    "ns6:readiness": "node scripts/ns6-readiness.mjs",
     "e2e": "playwright test",
     "self-play": "node scripts/self-play.mjs"
   },

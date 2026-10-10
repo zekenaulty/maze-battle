@@ -204,7 +204,12 @@ connected cells, with the optional NS-3 versioned profile evaluator and delibera
 adjacent inspection. Profile values are fixture thresholds, not RPG stat balancing.
 The lever changes only its own local state; distant door/audio effects remain NS-5.
 
-Intentions expire after 120 seconds of wall time (including pauses). Maps cap at 512
+Intentions default to 120 seconds of wall time (including pauses). NS-6 preparation
+adds snapshotted, non-UI configuration for travel steps/replans/duration, including
+explicit unlimited policy values; legacy records retain their original bounds.
+See [host preparation](ns6-host-preparation.md) and [service readiness](ns6-service-readiness.md).
+This is not automatic continuation across technical windows or a completed NS-6 proof.
+Maps cap at 512
 cells, context at 64 KiB and journals at 4096 entries; full journals refuse gameplay
 effects. New checkpoint-mode saves reserve one terminal cancellation receipt and
 validate current checkpoints plus historical entries on access. Old saves retain

@@ -6,6 +6,7 @@ import type { StreamCheckpoint } from '../domain/expedition/streaming/types';
 import type { StoredDirectedStreamOperation } from './directedStreamTypes';
 import { natural, object, only, streamActionSignature, streamCheck, validAddress, validateStreamReceipt } from './streamValidation';
 import { validId } from './topology/validation';
+import { validateDestinationBudget } from '../domain/directed/destinationBudgetValidation';
 
 export function validateDirectedStreamRecord(record: StoredDirectedStreamOperation, id: string, checkpoint: StreamCheckpoint) {
   streamCheck(object(record) && only(record, 'version,revision,state,lastAttempt') && record.version === 1 && natural(record.revision), 'invalid directed record');
@@ -17,16 +18,13 @@ export function validateDirectedStreamRecord(record: StoredDirectedStreamOperati
   streamCheck(prior.worldId === checkpoint.worldId && prior.floorId === checkpoint.floorId && prior.scopeId === checkpoint.scopeId
     && prior.revision <= checkpoint.revision && prior.topologyRevision <= checkpoint.topologyRevision, 'directed state is outside this slot');
   const operation = state.operation;
-  streamCheck(object(operation) && only(operation, 'id,target,status,epoch,steps,replans,nextStep,route,reason,startedAt,deadline')
+  streamCheck(object(operation) && only(operation, 'id,target,status,epoch,steps,replans,nextStep,route,reason,startedAt,deadline,limits')
     && operation.id === id && validDestination(operation.target)
     && ['running', 'arrived', 'cancelled', 'interrupted'].includes(operation.status)
-    && operation.epoch === state.frame.control.epoch && natural(operation.steps) && operation.steps <= DIRECTED_LIMITS.steps
-    && natural(operation.replans) && operation.replans <= DIRECTED_LIMITS.replans
-    && natural(operation.nextStep) && operation.nextStep <= 128
-    && Array.isArray(operation.route) && operation.route.length <= DIRECTED_LIMITS.steps - operation.steps
+    && operation.epoch === state.frame.control.epoch
     && typeof operation.reason === 'string' && operation.reason.length <= 2048
-    && natural(operation.startedAt)
-    && operation.deadline === operation.startedAt + 120_000, 'invalid bounded directed operation');
+    && natural(operation.startedAt), 'invalid bounded directed operation');
+  validateDestinationBudget(operation);
   validId(id); validAddress(operation.target.address);
   if (operation.target.kind === 'chest') validId(operation.target.chestId);
   if (operation.target.kind === 'doorway') {
@@ -34,7 +32,7 @@ export function validateDirectedStreamRecord(record: StoredDirectedStreamOperati
     if (operation.target.arrival === 'cross') validAddress(operation.target.destination);
   }
   for (const address of operation.route) validAddress(address);
-  streamCheck(Array.isArray(state.blocked) && state.blocked.length <= DIRECTED_LIMITS.replans + 1, 'invalid directed collision history');
+  streamCheck(Array.isArray(state.blocked) && state.blocked.length <= DIRECTED_LIMITS.cells * 4, 'invalid directed collision history');
   for (const block of state.blocked) {
     streamCheck(object(block) && only(block, 'from,to,revision') && natural(block.revision) && block.revision <= checkpoint.revision, 'invalid directed collision');
     validAddress(block.from); validAddress(block.to);

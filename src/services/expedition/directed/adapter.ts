@@ -4,6 +4,7 @@ import { beginDirectedStreamStep, createDirectedStreamTravel, resolveDirectedStr
 import type { DirectedStreamFrame, DirectedStreamStep, DirectedStreamTravel, ReadDirectedKnowledge,
   StreamDestination } from '../../../domain/expedition/streaming/directed/types';
 import { loadDirectedStreamKnowledge } from './knowledge';
+import { destinationExpired, type DestinationLimits } from '../../../domain/directed/destinationLimits';
 
 export { cancelDirectedStreamTravel, pauseDirectedStreamTravel, settleDirectedStreamMove }
   from '../../../domain/expedition/streaming/directed/execution';
@@ -12,14 +13,14 @@ export type { DirectedStreamFrame, DirectedStreamStep, DirectedStreamTravel, Rea
 
 /** No operation is started implicitly; the caller supplies a concrete remembered target. */
 export async function startDirectedStreamTravel(frame: DirectedStreamFrame,
-  input: { id: string; target: StreamDestination }, read: ReadDirectedKnowledge, now: () => number = Date.now) {
+  input: { id: string; target: StreamDestination; limits?: DestinationLimits }, read: ReadDirectedKnowledge, now: () => number = Date.now) {
   const startedAt = now();
   if (!input.id || !Number.isFinite(startedAt) || startedAt < 0) throw new Error('Invalid travel intention.');
   const snapshot = structuredClone(frame);
   const intention = structuredClone(input);
   const loaded = await loadDirectedStreamKnowledge(snapshot, intention.target, read);
   const state = createDirectedStreamTravel(snapshot, { ...intention, now: startedAt, plan: loaded.plan });
-  if (state.operation.status === 'running' && now() >= state.operation.deadline) {
+  if (state.operation.status === 'running' && destinationExpired(state.operation, now())) {
     state.operation = stopDestinationOperation(state.operation, 'interrupted', 'Travel time budget exhausted.');
   }
   return { state, diagnostics: loaded.diagnostics };
@@ -36,8 +37,8 @@ export async function prepareDirectedStreamStep(previous: DirectedStreamTravel, 
   const actionId = step.actionId;
   try {
     const loaded = await loadDirectedStreamKnowledge(state.frame, state.operation.target, read, state.blocked,
-      () => current() && now() < state.operation.deadline);
-    if (!current() || now() >= state.operation.deadline) throw new Error('Travel planning was cancelled or expired.');
+      () => current() && !destinationExpired(state.operation, now()));
+    if (!current() || destinationExpired(state.operation, now())) throw new Error('Travel planning was cancelled or expired.');
     if (loaded.plan.status === 'unavailable' && loaded.plan.reason === 'Known-map budget exceeded.') {
       state.operation = stopDestinationOperation(state.operation, 'interrupted', loaded.plan.reason);
       return { kind: 'stopped', state };

@@ -7,6 +7,7 @@ import { validateInput } from '../plannerPage';
 import type { StreamActionResult, StreamCheckpoint } from '../types';
 import type { DirectedStreamKnowledge } from './knowledge';
 import type { DirectedStreamFrame, DirectedStreamStep, DirectedStreamTravel, StreamDestination } from './types';
+import type { DestinationLimits } from '../../../directed/destinationLimits';
 
 export function sameDirectedFrame(a: DirectedStreamFrame, b: DirectedStreamFrame): boolean {
   return a.control.sessionId === b.control.sessionId && a.control.epoch === b.control.epoch
@@ -17,7 +18,7 @@ export function sameDirectedFrame(a: DirectedStreamFrame, b: DirectedStreamFrame
 }
 
 export function createDirectedStreamTravel(frame: DirectedStreamFrame,
-  input: { id: string; target: StreamDestination; now: number; plan: NavigationPlan }): DirectedStreamTravel {
+  input: { id: string; target: StreamDestination; now: number; plan: NavigationPlan; limits?: DestinationLimits }): DirectedStreamTravel {
   validateInput(frame.checkpoint, frame.control);
   const operation = createDestinationOperation({ ...input, epoch: frame.control.epoch });
   return { operation: frame.checkpoint.phase === 'complete'
