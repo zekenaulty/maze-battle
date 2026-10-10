@@ -25,13 +25,13 @@ export async function setupRecovery(slot = 'fixture', owner = 'owner-a') {
   await setRecoveryGate(slot, 'closed');
   let session = (await db.readDirectedSave(slot))!;
   await db.executeDirectedRequest(slot, { attemptId: 'blocked-trip', owner, epoch: session.epoch, expectedRevision: session.revision,
-    command: { type: 'navigate', operationId: 'blocked-trip', target: { kind: 'feature', featureId: 'V', arrival: 'adjacent' } } }, 100);
+    command: { type: 'navigate', operationId: 'blocked-trip', target: { kind: 'feature', featureId: 'V', arrival: 'adjacent' } } }, () => 100);
   for (let index = 0; index < 64; index++) {
     session = (await db.readDirectedSave(slot))!;
     if (session.operation?.status !== 'running') break;
     await db.executeDirectedRequest(slot, { attemptId: `blocked-step-${index}`, owner, epoch: session.epoch,
       expectedRevision: session.revision,
-      command: { type: 'step', operationId: 'blocked-trip', sequence: session.operation.nextStep } }, 101 + index);
+      command: { type: 'step', operationId: 'blocked-trip', sequence: session.operation.nextStep } }, () => 101 + index);
   }
   if (session.operation?.status !== 'interrupted' || Object.keys(session.knowledge.blockedEdges ?? {}).length !== 1) {
     throw new Error('Recovery fixture did not reach its collision boundary');

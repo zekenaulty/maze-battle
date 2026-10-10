@@ -49,7 +49,7 @@ export function useDirectedPlay() {
     const request: DirectedRequest = JSON.parse(stored);
     const original = await reconcileDirectedRequest(slot, request);
     // Atomic IDB transactions make absence after this serialized read a no-effect result.
-    if (!original) await executeDirectedRequest(slot, request, Date.now());
+    if (!original) await executeDirectedRequest(slot, request);
     sessionStorage.removeItem(pendingKey);
   };
   const enqueue = (work: () => Promise<void>) => {
@@ -72,7 +72,7 @@ export function useDirectedPlay() {
     const request: DirectedRequest = { attemptId: crypto.randomUUID(), owner: owner.current,
       epoch: current.epoch, expectedRevision: current.revision, command };
     sessionStorage.setItem(pendingKey, JSON.stringify(request));
-    const receipt = await executeDirectedRequest(slot, request, Date.now());
+    const receipt = await executeDirectedRequest(slot, request);
     sessionStorage.removeItem(pendingKey);
     await refresh();
     if (alive.current) setMessage(receipt.result.reason);

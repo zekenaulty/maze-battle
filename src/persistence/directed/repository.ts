@@ -61,8 +61,8 @@ export async function claimDirectedSave(slot: string, owner: string): Promise<Di
   });
 }
 /** Replay is checked before fencing. Stale requests return an unjournaled refusal. */
-export async function executeDirectedRequest(slot: string, input: DirectedRequest, now: number): Promise<DirectedReceipt> {
-  id(slot); integer(now);
+export async function executeDirectedRequest(slot: string, input: DirectedRequest, now: () => number = Date.now): Promise<DirectedReceipt> {
+  id(slot);
   const request = snapshotRequest(input);
   return transaction(async tx => {
     const record = await requireSave(tx, slot);
@@ -81,7 +81,9 @@ export async function executeDirectedRequest(slot: string, input: DirectedReques
     for (const name of ['receipts', 'observations', 'projections', 'events'] as const) {
       if (!cancelling) check(record.counts[name] < DIRECTED_LIMITS.history, `${name} journal full`);
     }
-    const transition: DirectedTransition = applyDirectedCommand(structuredClone(current), structuredClone(request.command), now, request.attemptId);
+    // Read wall time only after transaction admission, original-attempt reconciliation and fences.
+    const admittedAt = now(); integer(admittedAt);
+    const transition: DirectedTransition = applyDirectedCommand(structuredClone(current), structuredClone(request.command), admittedAt, request.attemptId);
     validateSession(transition.session);
     const next = transition.session;
     check(next.world.id === current.world.id && next.world.floorId === current.world.floorId && next.actor.id === current.actor.id,
@@ -100,6 +102,12 @@ export async function executeDirectedRequest(slot: string, input: DirectedReques
     await storeReceipt(tx, slot, record, result, terminal);
     record.session = next;
     await checkpoint(tx, slot, record);
+    // All movement, evidence and witnesses are still staged. Throwing aborts them together.
+    // An already-expired step's effect-free interruption must still be allowed to commit.
+    if (request.command.type === 'step' && current.operation && (transition.observations.length || transition.events.length)) {
+      const commitAt = now(); integer(commitAt);
+      check(commitAt < current.operation.deadline, 'directed deadline expired before commit');
+    }
     return result;
   });
 }
