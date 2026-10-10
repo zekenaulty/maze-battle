@@ -184,3 +184,43 @@ test('normalizes an old checkpoint durably before reducers or manual snapshots r
   expect(result.copy?.game).toEqual(result.acquired.game);
   expect(result.next.game.inventory.gold).toBe(result.acquired.game.inventory.gold + 1);
 });
+
+for (const observing of [true, false]) test(`rejected old input cannot release a new takeover lock, dispatched while observing ${observing}`, async ({ page, context }) => {
+  await fixture(page);
+  await page.evaluate(() => window.ordinaryCustody.start());
+  const other = await context.newPage(); await fixture(other);
+  expect((await other.evaluate(() => window.ordinaryCustody.start())).controlled).toBe(false);
+  if (!observing) await other.evaluate(() => window.ordinaryCustody.controller!.takeControl());
+  const result = await other.evaluate(async () => {
+    const h = window.ordinaryCustody, controller = h.controller!;
+    const takeover = controller.takeControl();
+    let invoked = false;
+    controller.transition(game => { invoked = true; return game; }, { source: 'manual', action: 'stale-click' });
+    await takeover; await controller.flush();
+    return { invoked, controlled: controller.view.controlled, owner: controller.owner, saved: await h.custody.readGameControl() };
+  });
+  expect(result.invoked).toBe(false);
+  expect(result.controlled).toBe(true);
+  expect(result.saved.control?.owner).toBe(result.owner);
+  const third = await context.newPage(); await fixture(third);
+  expect((await third.evaluate(() => window.ordinaryCustody.start())).controlled).toBe(false);
+});
+
+test('an orphaned control record fails closed without creating a replacement expedition', async ({ page }) => {
+  await fixture(page);
+  const result = await page.evaluate(async () => {
+    const h = window.ordinaryCustody, acquired = await h.custody.claimGame('a');
+    const db = await h.repository.getDatabase();
+    await db.delete('saves', 'auto');
+    const errors: string[] = [];
+    for (const takeover of [false, true]) {
+      try { await h.custody.claimGame('b', takeover); } catch (error) { errors.push(String(error)); }
+    }
+    return { acquired, errors, saved: await h.custody.readGameControl(), slots: await db.getAll('saves') };
+  });
+  expect(result.errors).toHaveLength(2);
+  expect(result.errors.every(error => error.includes('controlled autosave is missing'))).toBe(true);
+  expect(result.saved.control).toEqual(result.acquired.control);
+  expect(result.saved.game).toBeUndefined();
+  expect(result.slots).toEqual([]);
+});

@@ -19,6 +19,7 @@ export async function claimGame(owner: string, takeover = false): Promise<OwnedG
   try {
     let control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY));
     const previous = await tx.objectStore('saves').get('auto');
+    if (control && !previous) throw new Error('The controlled autosave is missing. Existing saves were left unchanged.');
     if (!control || !control.owner || takeover) {
       control = { owner, epoch: (control?.epoch ?? 0) + 1, revision: (control?.revision ?? 0) + 1 };
       await putControl(tx, control);

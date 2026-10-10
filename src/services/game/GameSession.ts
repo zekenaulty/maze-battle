@@ -13,6 +13,8 @@ export interface GameSessionView {
   status: string; controlled: boolean; warning?: string;
 }
 
+class ObsoleteGameAction extends Error {}
+
 export class GameSession {
   readonly owner = crypto.randomUUID();
   view: GameSessionView = { saves: [], status: 'Loading', controlled: false };
@@ -32,6 +34,7 @@ export class GameSession {
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
     const result = this.queue.catch(() => {}).then(work);
     this.queue = result.catch(async error => {
+      if (error instanceof ObsoleteGameAction) return;
       if (error instanceof SaveOwnershipError) {
         this.lock.release();
         this.publish({ controlled: false, status: error.message });
@@ -45,16 +48,19 @@ export class GameSession {
     const generation = ++this.generation;
     return this.enqueue(async () => {
       let warning: string | undefined;
+      let imported = 0;
       try {
-        const result: unknown = await importLegacyLocalStorageSaves();
-        if (result && typeof result === 'object' && 'warnings' in result) warning = (result as { warnings: string[] }).warnings.join(' ');
+        const result = await importLegacyLocalStorageSaves();
+        warning = result.warnings.join(' ');
+        imported = result.imported;
       } catch (error) { warning = `Original save import needs attention: ${String(error)}`; }
       if (generation !== this.generation) return;
       const acquired = await this.lock.acquire();
       if (generation !== this.generation) { this.lock.release(); return; }
       await this.adopt(await claimGame(this.owner, acquired));
       await this.refreshSaves();
-      this.publish({ warning, status: this.view.controlled ? this.diagnosticsWritable ? 'Ready' : 'Diagnostics storage unavailable; existing history protected' : 'Read only: another tab controls this game.' });
+      const ready = imported ? `Imported ${imported} original saves` : 'Ready';
+      this.publish({ warning, status: this.view.controlled ? this.diagnosticsWritable ? ready : 'Diagnostics storage unavailable; existing history protected' : 'Read only: another tab controls this game.' });
     }).catch(error => { this.publish({ status: `Load failed: ${String(error)}` }); throw error; });
   }
 
@@ -75,12 +81,12 @@ export class GameSession {
     if (this.refreshPending) return Promise.resolve();
     this.refreshPending = true;
     return this.enqueue(async () => {
-    if (!this.active) return;
-    const latest = await readGameControl();
-    if (latest.control && latest.game && (!sameOwner(latest.control, this.control) || latest.control.revision !== this.control?.revision)) {
-      await this.adopt({ control: latest.control, game: latest.game });
-      if (!this.view.controlled) this.publish({ status: 'Read only: another tab controls this game.' });
-    }
+      if (!this.active) return;
+      const latest = await readGameControl();
+      if (latest.control && latest.game && (!sameOwner(latest.control, this.control) || latest.control.revision !== this.control?.revision)) {
+        await this.adopt({ control: latest.control, game: latest.game });
+        if (!this.view.controlled) this.publish({ status: 'Read only: another tab controls this game.' });
+      }
     }).finally(() => { this.refreshPending = false; });
   };
 
@@ -93,9 +99,10 @@ export class GameSession {
 
   private owned<T>(work: (control: SaveControl) => Promise<T>): Promise<T> {
     const dispatched = this.control;
-    const allowed = this.view.controlled;
+    if (!this.view.controlled) return Promise.reject(new SaveOwnershipError());
     return this.enqueue(async () => {
-      if (!allowed || !this.view.controlled || !sameOwner(dispatched, this.control)) throw new SaveOwnershipError();
+      // A discarded old intent must not revoke a newer successful takeover.
+      if (!this.view.controlled || !sameOwner(dispatched, this.control)) throw new ObsoleteGameAction('The action belongs to an inactive control grant.');
       return work(this.control!);
     });
   }
