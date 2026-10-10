@@ -5,6 +5,7 @@ import { context, contextFromSource } from './journalValidation';
 import { observation, projection } from './stateValidation';
 import { check, same } from './values';
 import { verifyWitness } from './witnesses';
+import { readObservationSourcesAt } from './observationSources';
 
 function sameProjection(left: KnowledgeProjection, right: KnowledgeProjection) {
   const withEdges = (value: KnowledgeProjection & { blockedEdges?: unknown }) => ({ ...value, blockedEdges: value.blockedEdges ?? {} });
@@ -51,7 +52,9 @@ export async function validateLineage(tx: DirectedTransaction, slot: string, rec
     for (const contextId of contextsByRevision.get(sequence) ?? []) {
       const archived = await tx.objectStore('contexts').get([slot, contextId]);
       context(archived, current);
-      contextFromSource(archived, knowledge, source, current.world.floorId);
+      const sources = archived.selection?.kind === 'sources'
+        ? await readObservationSourcesAt(tx, slot, record, archived.selection.sourceIds) : [];
+      contextFromSource(archived, knowledge, source, current.world.floorId, sources);
     }
     if (sequence === record.counts.observations) {
       check(same(current.actor.position, source.scene.position), 'actor position differs from observation source');

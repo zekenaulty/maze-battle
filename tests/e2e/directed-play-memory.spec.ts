@@ -16,5 +16,12 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     await expect(panel.getByText('stale', { exact: true })).toBeVisible();
     await expect(panel.getByText('Uninspected', { exact: true })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`memory-${viewport.width}-recall.png`) });
+    await panel.getByText(/^Observation records \(/).click();
+    await panel.getByRole('button', { name: 'Retrieve observation', exact: true }).click();
+    const source = panel.getByLabel('Observation record');
+    await expect(source).toContainText('directed-sources-v1');
+    await expect(source).not.toContainText('sourceWorldRevision');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`memory-${viewport.width}-source.png`) });
   });
 }

@@ -3,3 +3,5 @@ export { createDirectedSave, readDirectedSave, claimDirectedSave, executeDirecte
   reconcileDirectedRequest, captureDirectedContext, captureDirectedMemoryContext } from './repository';
 export { auditDirectedSave } from './audit';
 export { readDirectedHistoryPage } from './historyPages';
+export { captureDirectedSourceContext } from './contexts';
+export { readDirectedObservationSources } from './observationSources';

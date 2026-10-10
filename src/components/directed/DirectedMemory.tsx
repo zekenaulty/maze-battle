@@ -3,12 +3,14 @@ import { Eye, Map, Search } from 'lucide-react';
 import type { MemoryContextSelection } from '../../domain/directed/contextSelection';
 import type { DirectedDestinationMemory, DirectedMemoryOverview, MemoryRoute, RoomMemorySummary } from '../../domain/directed/memory';
 import type { PresentedContext } from '../../domain/directed/types';
+import { DirectedSources } from './DirectedSources';
 
 const routeLabel = (route: MemoryRoute) => route.status === 'known-route'
   ? `${route.firstRouteDirection ?? 'here'}, ${route.distance} steps` : route.status === 'inaccessible' ? 'No known route' : 'Unknown';
 
-export function DirectedMemory({ context, busy, recall }: {
+export function DirectedMemory({ context, busy, recall, sourceContext, loadSource }: {
   context?: PresentedContext; busy: boolean; recall: (selection: MemoryContextSelection) => unknown;
+  sourceContext?: PresentedContext; loadSource: (id: string) => unknown;
 }) {
   const [kind, setKind] = useState<'room' | 'feature'>('feature');
   const [id, setId] = useState('V');
@@ -47,6 +49,7 @@ export function DirectedMemory({ context, busy, recall }: {
         {data.feature && <div><dt>Examination</dt><dd>{data.examination?.value.detail ?? 'Uninspected'}</dd></div>}
       </dl>}
       <div className="directed-memory-meta">Omitted detail: {data.omissions.cells} cells, {data.omissions.features} features, {data.omissions.rooms} rooms</div>
+      <DirectedSources ids={context!.observationIds} context={sourceContext} busy={busy} load={loadSource} />
       <details><summary>Source context</summary><pre>{context!.json}</pre></details>
     </div>}
   </div>;

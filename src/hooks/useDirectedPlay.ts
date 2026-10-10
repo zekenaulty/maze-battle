@@ -4,7 +4,7 @@ import type { PresentedContext } from '../domain/directed/types';
 import { isPerceptionProfile } from '../domain/directed/perceptionTypes';
 import type { MemoryContextSelection } from '../domain/directed/contextSelection';
 import { captureDirectedContext, claimDirectedSave, createDirectedSave, executeDirectedRequest,
-  readDirectedSave, reconcileDirectedRequest, captureDirectedMemoryContext } from '../persistence/directed';
+  readDirectedSave, reconcileDirectedRequest, captureDirectedMemoryContext, captureDirectedSourceContext } from '../persistence/directed';
 
 export const DIRECTED_SLOT = 'known-destination-proof-v1';
 const OWNER_KEY = 'maze-directed-controller-v1';
@@ -25,6 +25,7 @@ export function useDirectedPlay() {
   const [session, setSession] = useState<DirectedSession>();
   const [context, setContext] = useState<PresentedContext>();
   const [memoryContext, setMemoryContext] = useState<PresentedContext>();
+  const [sourceContext, setSourceContext] = useState<PresentedContext>();
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [playing, setPlaying] = useState(false);
@@ -110,13 +111,17 @@ export function useDirectedPlay() {
   const reconcile = () => enqueue(async () => { await recover(); await refresh(); });
   const loadMemory = (selection: MemoryContextSelection) => enqueue(async () => {
     const captured = await captureDirectedMemoryContext(slot, crypto.randomUUID(), 'human-view', selection);
-    if (alive.current) setMemoryContext(captured);
+    if (alive.current) { setMemoryContext(captured); setSourceContext(undefined); }
+  });
+  const loadSource = (sourceId: string) => enqueue(async () => {
+    const captured = await captureDirectedSourceContext(slot, crypto.randomUUID(), 'human-view', [sourceId]);
+    if (alive.current) setSourceContext(captured);
   });
   const pause = () => {
     runAllowed.current = false; setPlaying(false); setPausing(true);
     void enqueue(async () => { await refresh(); }).finally(() => { if (alive.current) setPausing(false); });
   };
-  return { session, context, memoryContext, loadMemory, error, message, playing, pausing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
+  return { session, context, memoryContext, loadMemory, sourceContext, loadSource, error, message, playing, pausing, busy, delay, setDelay, navigate, cancel, dispatch, takeControl, reconcile,
     pause, resume: () => { runAllowed.current = true; setPlaying(true); },
     controlled: session?.owner === owner.current };
 }

@@ -55,7 +55,8 @@ export default function DirectedPlayApp() {
           <label>Pace<input type="range" aria-label="Travel pace" min={120} max={900} step={20} value={game.delay} onChange={event => game.setDelay(Number(event.target.value))} /><output>{game.delay}ms</output></label>
         </div>
       </div> : tab === 'inspect' ? <DirectedInspection view={view} disabled={game.busy || Boolean(running) || !game.controlled} dispatch={game.dispatch} />
-        : tab === 'memory' ? <DirectedMemory context={game.memoryContext} busy={game.busy} recall={game.loadMemory} />
+        : tab === 'memory' ? <DirectedMemory context={game.memoryContext} busy={game.busy} recall={game.loadMemory}
+          sourceContext={game.sourceContext} loadSource={game.loadSource} />
         : <div role="tabpanel" aria-label="Evidence" className="directed-evidence">
         <dl><div><dt>Steps / bound</dt><dd>{operation?.steps ?? 0} / 64</dd></div><div><dt>Replans / bound</dt><dd>{operation?.replans ?? 0} / 4</dd></div>
           <div><dt>Knowledge revision</dt><dd>{view.knowledgeRevision}</dd></div><div><dt>Context bytes</dt><dd>{view.bytes}</dd></div><div><dt>Provider calls</dt><dd>0 (host-only)</dd></div></dl>

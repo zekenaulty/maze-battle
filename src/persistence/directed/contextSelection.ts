@@ -1,7 +1,14 @@
-import type { MemoryContextSelection } from '../../domain/directed/contextSelection';
+import type { DirectedContextSelection, MemoryContextSelection } from '../../domain/directed/contextSelection';
+import { assertObservationSourceIds } from '../../domain/directed/sourceContext';
 import { memoryBounds } from '../../domain/directed/memory/bounds';
 import { address } from './requestValidation';
 import { check, id, keys, object } from './values';
+
+export function contextSelection(value: unknown): asserts value is DirectedContextSelection {
+  object(value);
+  if (value.kind === 'sources') { keys(value, ['kind', 'sourceIds']); assertObservationSourceIds(value.sourceIds); }
+  else memorySelection(value);
+}
 
 export function memorySelection(value: unknown): asserts value is MemoryContextSelection {
   object(value);
