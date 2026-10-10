@@ -4,6 +4,7 @@ import { AUTO_THROTTLE_MAX_MS, AUTO_THROTTLE_MIN_MS, DEFAULT_AUTO_THROTTLE_MS } 
 import { DEFAULT_MAZE_TEXTURE } from './maze/textureOptions';
 import type { MazeState } from './types';
 import { chestAt, lineMaze, questFor, roomAt } from './automation/autopilotTestFixtures';
+import originalSave from '../../tests/fixtures/original-saves/advanced.json';
 
 describe('gameFactory', () => {
   it('creates a versioned game state', () => {
@@ -167,30 +168,11 @@ describe('gameFactory', () => {
   });
 
   it('maps legacy saves into the new schema', () => {
-    const game = fromLegacyState('auto', {
-      level: 7,
-      randomBattles: false,
-      warrior: {
-        level: 3,
-        hp: 44,
-        mp: 0,
-        gold: 12,
-        points: 2,
-        strength: 55,
-      },
-    });
+    const game = fromLegacyState('auto', originalSave.state);
 
     expect(game.dungeonLevel).toBe(7);
     expect(game.randomBattles).toBe(false);
-    expect(game.party.find((actor) => actor.role === 'warrior')).toMatchObject({
-      level: 3,
-      hp: 44,
-      gold: 12,
-      attributes: {
-        available: 2,
-        strength: 55,
-      },
-    });
+    expect(game.party.find((actor) => actor.role === 'warrior')).toMatchObject(originalSave.expected[0]);
     expect(game.source?.type).toBe('legacy-local-storage');
   });
 

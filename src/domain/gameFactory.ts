@@ -13,6 +13,7 @@ import { monsterTagsForFloor, normalizeMonsterTags } from './combat/monsters';
 import { defaultRng, type Rng } from './combat/rng';
 import { roomAtPosition } from './quests/questTargets';
 import { duplicateItemIds } from './items/itemOwnership';
+import { convertOriginalSave } from '../persistence/originalSave';
 
 const HERO_ORDER: HeroRole[] = ['warrior', 'mage', 'healer'];
 
@@ -356,86 +357,7 @@ export function summarizeGame(game: GameState) {
 }
 
 export function fromLegacyState(slotId: string, legacy: unknown): GameState {
-  interface LegacyActorState {
-    level?: number;
-    xp?: number;
-    hp?: number;
-    mp?: number;
-    gold?: number;
-    autoBattle?: boolean;
-    points?: number;
-    strength?: number;
-    vitality?: number;
-    intellect?: number;
-    baseDamage?: number;
-  }
-
-  const source = legacy as {
-    level?: number;
-    mazeMaxRooms?: number;
-    randomBattles?: boolean;
-    maze?: {
-      rows?: number;
-      columns?: number;
-      start?: GridPosition;
-      end?: GridPosition;
-      active?: GridPosition;
-      visited?: GridPosition[];
-    };
-    warrior?: LegacyActorState;
-    mage?: LegacyActorState;
-    healer?: LegacyActorState;
-  };
-
-  const base = createNewGameState({
-    dungeonLevel: source.level ?? 1,
-    mazeMaxRooms: source.mazeMaxRooms ?? 32,
-    randomBattles: source.randomBattles ?? true,
-    maze: normalizeMaze(source.maze, source.maze?.rows ?? 9, source.maze?.columns ?? 13),
-    activityLog: [`Imported legacy save ${slotId}.`],
-    source: {
-      type: 'legacy-local-storage',
-      importedSlot: slotId,
-      importedAt: nowIso(),
-    },
-  });
-
-  const legacyActors = {
-    warrior: source.warrior,
-    mage: source.mage,
-    healer: source.healer,
-  };
-
-  return {
-    ...base,
-    party: base.party.map((actor) => {
-      const legacyActor = legacyActors[actor.role];
-      if (!legacyActor) {
-        return actor;
-      }
-
-      return {
-        ...actor,
-        level: legacyActor.level ?? actor.level,
-        xp: legacyActor.xp ?? actor.xp,
-        hp: legacyActor.hp ?? actor.hp,
-        mp: legacyActor.mp ?? actor.mp,
-        gold: legacyActor.gold ?? actor.gold,
-        autoBattle: legacyActor.autoBattle ?? actor.autoBattle,
-        gcdUntil: undefined,
-        attributes: {
-          strength: legacyActor.strength ?? actor.attributes.strength,
-          vitality: legacyActor.vitality ?? actor.attributes.vitality,
-          intellect: legacyActor.intellect ?? actor.attributes.intellect,
-          available: legacyActor.points ?? actor.attributes.available,
-        },
-        combat: {
-          ...actor.combat,
-          baseDamage: legacyActor.baseDamage ?? actor.combat.baseDamage,
-        },
-      };
-    }),
-  };
+  return convertOriginalSave(slotId, legacy, createNewGameState);
 }
 
 function makeSkills(ids: SkillState['id'][]): SkillState[] {
