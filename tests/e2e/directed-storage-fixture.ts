@@ -1,5 +1,6 @@
 import * as repository from '../../src/persistence/directed';
 import type { DirectedCommand, DirectedRequest } from '../../src/domain/directed/operationTypes';
+import type { DestinationLimits } from '../../src/domain/directed/destinationLimits';
 import { transaction } from '../../src/persistence/directed/database';
 import { setRecoveryGate, setupRecovery } from './directed-crossing-fixture';
 import { fillDirectedReceiptCapacity } from './directed-history-fixture';
@@ -8,8 +9,8 @@ import { executeBehindDirectedLock, rawDirectedDatabase } from './directed-deadl
 const harness = {
   ...repository,
   // Existing static-time corpus shorthand stays test-only; production accepts clocks, never timestamps.
-  executeDirectedRequest: (slot: string, request: DirectedRequest, clock?: number | (() => number)) =>
-    repository.executeDirectedRequest(slot, request, typeof clock === 'number' ? () => clock : clock),
+  executeDirectedRequest: (slot: string, request: DirectedRequest, clock?: number | (() => number), limits?: DestinationLimits) =>
+    repository.executeDirectedRequest(slot, request, typeof clock === 'number' ? () => clock : clock, limits),
   // The pre-checkpoint corruption corpus deliberately qualifies legacy all-history reads.
   createDirectedSave: (slot: string, options: Parameters<typeof repository.createDirectedSave>[1] = {}) =>
     repository.createDirectedSave(slot, { historyMode: 'legacy-full-audit', ...options }),
