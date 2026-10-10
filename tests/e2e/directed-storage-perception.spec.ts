@@ -7,7 +7,7 @@ for (const profile of ['untrained', 'alert', 'keen', 'expert'] as const) {
   test(`${profile}: inspection disclosure, exact receipts and historical context survive reload`, async ({ page }) => {
     const before = await page.evaluate(async perceptionProfile => {
       const db = window.directedStorage;
-      await db.createDirectedSave('perception', { perceptionProfile });
+      await db.createDirectedSave('perception', { perceptionProfile, historyMode: 'checkpoint-v1' });
       await db.claimDirectedSave('perception', 'owner');
       const send = async (id: string, command: Parameters<typeof db.request>[2]) => db.executeDirectedRequest('perception',
         await db.request('perception', id, command), 100);
@@ -63,4 +63,28 @@ test('inspection request cannot supply perception power or a remote viewpoint', 
   });
   expect(errors).toHaveLength(3);
   expect(errors.every(error => error.includes('unexpected fields'))).toBe(true);
+});
+
+test('audit and reconciliation bind a stored inspection request to its original source direction', async ({ page }) => {
+  const errors = await page.evaluate(async () => {
+    const db = window.directedStorage;
+    await db.createDirectedSave('inspection-lineage', { perceptionProfile: 'expert', historyMode: 'legacy-full-audit' });
+    await db.claimDirectedSave('inspection-lineage', 'owner');
+    const request = await db.request('inspection-lineage', 'inspect', { type: 'inspect', direction: 'here' });
+    await db.executeDirectedRequest('inspection-lineage', request, 100);
+    request.command = { type: 'inspect', direction: 'north' };
+    await db.transaction(async tx => {
+      const receipt = (await tx.objectStore('receipts').get(['inspection-lineage', 'inspect']))!;
+      receipt.request = request;
+      await tx.objectStore('receipts').put(receipt, ['inspection-lineage', 'inspect']);
+    });
+    const errors: string[] = [];
+    for (const action of [() => db.auditDirectedSave('inspection-lineage'),
+      () => db.reconcileDirectedRequest('inspection-lineage', request)]) {
+      try { await action(); errors.push('unexpected success'); } catch (error) { errors.push(String(error)); }
+    }
+    return errors;
+  });
+  expect(errors).toHaveLength(2);
+  expect(errors.every(error => error.includes('inspection receipt differs from source attempt'))).toBe(true);
 });

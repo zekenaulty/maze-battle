@@ -29,7 +29,7 @@ export function rememberDirected(knowledge: KnowledgeProjection, observation: Ob
   const observedCells = new Set(observation.scene.cells.map(cell => addressKey(cell.address)));
   for (const id of observation.scene.absentFeatureIds) {
     const previous = knowledge.features[id];
-    if (!previous || !observedCells.has(addressKey(previous.value.position))
+    if (!previous || previous.value.disclosure || !observedCells.has(addressKey(previous.value.position))
       || observation.scene.features.some(feature => feature.id === id)) {
       throw new Error('Absent feature requires observed coverage of its remembered cell.');
     }

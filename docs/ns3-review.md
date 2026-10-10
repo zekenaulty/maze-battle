@@ -4,6 +4,15 @@ Reviewed snapshot: `049e9bd`, branch `codex/directed-history`, 2026-10-10.
 Scope: perception/inspection, source-local persistence validation and the generic
 destination executor. Existing implementation files were not changed.
 
+## Integration Resolution
+
+All seven reproductions pass after parent fixes: inspection receipt/source linkage
+is checked during audit and exact replay; concealed-feature tombstones unsupported
+by the policy are rejected; legacy policy cannot claim inspection; completed routes
+are deep independent copies. The integrated directed suite passes 108 tests / 11
+files. An additional real IndexedDB test proves receipt-direction tampering fails
+both audit and reconciliation. The findings below remain as the original review.
+
 ## Findings
 
 1. **[P2] Inspection receipts are not bound to their source attempt/command.**

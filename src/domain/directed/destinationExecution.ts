@@ -64,6 +64,8 @@ export function blockDestinationStep<T>(operation: DestinationOperation<T>) {
   return { ...structuredClone(operation), route: [], reason: 'The next step is obstructed.' };
 }
 export function completeDestinationStep<T>(operation: DestinationOperation<T>, arrived: boolean) {
-  const next = { ...structuredClone(operation), steps: operation.steps + 1, route: operation.route.slice(1) };
+  const next = structuredClone(operation);
+  next.steps++;
+  next.route.shift();
   return arrived ? arrive(next) : next;
 }

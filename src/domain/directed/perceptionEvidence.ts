@@ -7,7 +7,7 @@ export function assertPerceptionEvidence(observation: ObservationReceipt) {
   const { scene, perception } = observation;
   const fail = () => { throw new Error('Inconsistent perception evidence.'); };
   if (observation.policyVersion !== PERCEPTION_POLICY) {
-    if (perception || scene.cues || scene.examinations || scene.inspection
+    if (observation.reason === 'inspection' || perception || scene.cues || scene.examinations || scene.inspection
       || scene.features.some(feature => feature.disclosure)) fail();
     return;
   }
