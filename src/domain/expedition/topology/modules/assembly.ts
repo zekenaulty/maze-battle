@@ -82,7 +82,12 @@ export class ModuleAssembly {
   }
 
   finish(): ModuleAssemblyState {
-    while (!this.complete) this.commit(this.propose(this.state.revision, `expand-${this.state.revision}`)!);
+    let sequence = this.state.revision;
+    while (!this.complete) {
+      let requestId: string;
+      do { requestId = `expand-${sequence++}`; } while (this.receipts.has(requestId));
+      this.commit(this.propose(this.state.revision, requestId)!);
+    }
     return this.snapshot();
   }
 }

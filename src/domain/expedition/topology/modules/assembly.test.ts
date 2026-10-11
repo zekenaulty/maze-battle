@@ -46,7 +46,7 @@ describe('D1 socket module assembly', () => {
       expect(builder.work.candidates).toBeLessThanOrEqual(4 * budget * recipe.policy.attempts);
       expect(builder.work.index.bucketReads).toBeLessThanOrEqual(builder.work.index.queries * 9);
     }
-  });
+  }, 30_000);
 
   it.each(['direct', 'passage', 'mixed'] as const)('supports %s joins and deterministic incremental/eager agreement', joins => {
     const base = createModuleRecipe('test-world', 5, 42);

@@ -1,3 +1,5 @@
+import type { ModuleRecipe } from './expedition/topology/modules/policy';
+
 export type Direction = 'north' | 'east' | 'south' | 'west';
 
 export type GameMode = 'manual' | 'auto-play' | 'waves' | 'battle' | 'town';
@@ -40,7 +42,7 @@ export interface GridPosition {
   column: number;
 }
 
-export type MazeLayoutVersion = 'structured-v1' | 'structured-v2';
+export type MazeLayoutVersion = 'structured-v1' | 'structured-v2' | 'structured-v3';
 
 export type MazeRoomKind = 'start' | 'hub' | 'treasure' | 'safe' | 'boss' | 'exit' | 'ordinary';
 
@@ -52,6 +54,7 @@ export interface MazeLayoutState {
   mainPath: GridPosition[];
   zones: MazeZoneState[];
   connections?: MazeRoomConnection[];
+  assembly?: { recipe: ModuleRecipe; origin: GridPosition; schematic: 'stone-room-v1' };
 }
 
 export interface MazeRoomConnection {

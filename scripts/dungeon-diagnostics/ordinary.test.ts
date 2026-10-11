@@ -36,13 +36,17 @@ describe('D0 audit measurements (not generator repair)', () => {
     expect(inspectOrdinary(maze).metrics.connectorViolations).toBeGreaterThan(0);
   });
 
-  it('checks the mirrored dimension helper against actual game descent', () => {
+  it('preserves the legacy progression scalar while new floor geometry uses modules', () => {
     const rng = seededRng(42);
     let game = createNewGameState();
     for (let level = 1; level <= 12; level++) {
       const expected = floorDimensions(level);
       expect(game.mazeMaxRooms).toBe(expected.mazeMaxRooms);
-      expect([game.maze.rows, game.maze.columns]).toEqual([expected.rows, expected.columns]);
+      // D0's dimension helper describes the retained v2 generator, not the v3 default.
+      const legacy = generateStructuredMaze(expected.rows, expected.columns, seededRng(42));
+      expect([legacy.rows, legacy.columns]).toEqual([expected.rows, expected.columns]);
+      expect(game.maze.layout?.version).toBe('structured-v3');
+      expect(game.maze.layout?.rooms).toHaveLength(6 + 2 * level);
       game = descendFloor({ ...game, maze: { ...game.maze, active: game.maze.end },
         quests: game.quests.map(quest => ({ ...quest, status: 'claimed' })),
         chests: game.chests.map(chest => ({ ...chest, opened: true })) }, rng);

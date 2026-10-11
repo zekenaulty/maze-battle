@@ -9,6 +9,13 @@ projection/default/types, providers, browser, or user state was touched.
 
 ## Findings
 
+Integration follow-up on `codex/dungeon-d1`: all three retained reproductions now
+pass. Automatic finish identities skip committed requests; role centers are
+copied; exit/hub ties use stable identities. The projector also rejects the
+133,176-cell fixture below before allocating its dense RPG cell array. Combined
+audit/projection run: 34 passed; TypeScript check passed. Original findings and
+initial failed-run evidence are retained below, not rewritten as historical passes.
+
 1. **P2: `finish()` collides with valid public request identities.**
    `modules/assembly.ts:85` generates `expand-${revision}` without checking its
    receipt map. With `recipeFor(2, 13)` (world `d1-audit`, level 1, default policy),

@@ -29,10 +29,10 @@ Review attachment SHA-256:
 | Ticket | Owner / isolation | Status |
 | --- | --- | --- |
 | D1.1 policy, ordinary roles, acceptance | Integrator, `codex/dungeon-d1` | Policy/roles checked; geometry proof in D1.2 |
-| D1.2 module assembly and joins | Integrator, same branch after D1.1 | Initial 48-case structural corpus passed; RPG integration next |
-| D1.3 RPG projection and version preservation | Integrator after assembly proof | Pending |
+| D1.2 module assembly and joins | Integrator, same branch after D1.1 | 48-case corpus and independent 560-floor audit passed; three defensive API repairs qualified |
+| D1.3 RPG projection and version preservation | Integrator after assembly proof | Shared RPG default integrated; focused projection/legacy/portal/capacity tests passed; browser qualification in D1.4 |
 | D1.S safe-room wandering encounters | Isolated `codex/d1-safe-rooms`; narrow encounter services/tests | Integrated `34a12b2`; combined/new-version proof pending |
-| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | In progress |
+| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | Integrated `3bf4292`; isolated lane passed, combined rerun pending |
 | D1.4 integrated measurements and compatibility | Integrator; all lanes must pass together | Pending |
 
 The live preview/save at port 5190 is not the implementation workspace. Checked

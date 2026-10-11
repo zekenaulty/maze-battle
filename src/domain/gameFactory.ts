@@ -1,5 +1,8 @@
 import type { ActorState, BattleState, Direction, EnemyState, GameMode, GameState, GridPosition, HeroRole, InventoryPolicy, MazeFloorState, MazeLayoutState, MazeTextureId, MonsterCategory, QuestState, SkillState } from './types';
 import { generateStructuredMaze, roomTagsForKind } from './maze/structuredGenerate';
+import { generateModuleMaze } from './maze/moduleGenerate';
+import { normalizeModuleMetadata } from './maze/moduleLayout';
+import { createModuleRecipe } from './expedition/topology/modules/policy';
 import { samePosition } from './maze/key';
 import { canMove, movePosition } from './maze/movement';
 import { generateChestsForMaze, normalizeChests } from './items/chests';
@@ -119,7 +122,7 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
   const id = overrides.id ?? crypto.randomUUID();
   const dungeonLevel = overrides.dungeonLevel ?? 1;
   const mazeMaxRooms = overrides.mazeMaxRooms ?? 32;
-  const maze = normalizeMaze(overrides.maze, 9, 13);
+  const maze = overrides.maze ? normalizeMaze(overrides.maze, 9, 13) : nextLevelMaze(id, dungeonLevel, defaultRng);
   const monsterTags = normalizeMonsterTags(overrides.monsterTags, dungeonLevel);
   const floors = normalizeFloors(overrides.floors, dungeonLevel, mazeMaxRooms, maze, monsterTags);
   const protectedIds = duplicateItemIds([...(overrides.inventory?.items ?? []), ...(overrides.stash?.items ?? [])]);
@@ -522,7 +525,7 @@ function enterFloor(game: GameState, currentMaze: GameState['maze'], targetLevel
   const storedCurrentFloors = replaceFloor(game.floors, game.dungeonLevel, game.mazeMaxRooms, currentMaze, game.monsterTags);
   const existingTarget = storedCurrentFloors.find((floor) => floor.level === targetLevel);
   const targetMazeMaxRooms = existingTarget?.mazeMaxRooms ?? nextMazeMaxRooms(game.mazeMaxRooms, direction);
-  const targetMaze = enterMaze(existingTarget?.maze ?? nextLevelMaze(targetMazeMaxRooms, rng), direction === 'down' ? 'start' : 'end');
+  const targetMaze = enterMaze(existingTarget?.maze ?? nextLevelMaze(game.id, targetLevel, rng), direction === 'down' ? 'start' : 'end');
   const targetMonsterTags = normalizeMonsterTags(existingTarget?.monsterTags, targetLevel);
   const verb = direction === 'down' ? 'Descended' : 'Returned';
   const chests = game.chests.some((chest) => chest.level === targetLevel) ? game.chests : [...game.chests, ...generateChestsForMaze(targetLevel, targetMaze)];
@@ -585,6 +588,7 @@ function normalizeFloors(floors: Partial<MazeFloorState>[] | undefined, activeLe
 }
 
 function normalizeMaze(maze: Partial<GameState['maze']> | undefined, fallbackRows: number, fallbackColumns: number): GameState['maze'] {
+  if (maze?.layout && (!maze.cells || maze.cells.length === 0)) throw new Error('Stored versioned floor is missing its cells');
   if (!maze?.cells || maze.cells.length === 0) {
     const generated = generateStructuredMaze(fallbackRows, fallbackColumns);
     return revealMazeVisibility({
@@ -614,8 +618,14 @@ function normalizeMazeLayout(layout: MazeLayoutState | undefined): MazeLayoutSta
     return undefined;
   }
 
+  if (layout.version && !['structured-v1', 'structured-v2', 'structured-v3'].includes(layout.version)) {
+    throw new Error('Unsupported maze layout version');
+  }
+  const assembly = normalizeModuleMetadata(layout);
+
   return {
     version: layout.version ?? 'structured-v1',
+    ...(assembly ? { assembly } : {}),
     rooms: (layout.rooms ?? []).map((room) => ({
       ...room,
       tags: room.tags ?? roomTagsForKind(room.kind),
@@ -639,9 +649,9 @@ function nextMazeMaxRooms(currentMazeMaxRooms: number, direction: 'down' | 'up')
   return Math.ceil(currentMazeMaxRooms * 1.3);
 }
 
-function nextLevelMaze(mazeMaxRooms: number, rng: Rng) {
-  const rows = floorRows(mazeMaxRooms);
-  return generateStructuredMaze(rows, rows + 4, rng);
+function nextLevelMaze(worldId: string, level: number, rng: Rng) {
+  const seed = Math.min(0xffffffff, Math.floor(rng() * 0x100000000));
+  return generateModuleMaze(createModuleRecipe(worldId, level, seed));
 }
 
 function floorRows(mazeMaxRooms: number) {

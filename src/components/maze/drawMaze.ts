@@ -4,7 +4,7 @@ import { cellKey } from '../../domain/maze/key';
 import { isCellExplored, type MazeVisibilitySnapshot } from '../../domain/maze/visibility';
 import chestClosedUrl from '../../assets/sprites/chest-closed.png';
 import { cameraCellSize, createMazeCamera, DEFAULT_MAZE_CAMERA, isInViewport, type MazeCameraState, type MazeViewport } from './mazeCamera';
-import { isMazeFloorCell } from './mazeFloor';
+import { hasMazeVoids, isMazeFloorCell } from './mazeFloor';
 
 interface CanvasSize {
   width: number;
@@ -285,7 +285,7 @@ function drawLayoutOverlays(context: CanvasRenderingContext2D, maze: MazeState, 
 }
 
 function clipToMazeFloor(context: CanvasRenderingContext2D, maze: MazeState, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport) {
-  if (maze.layout?.version !== 'structured-v2') return;
+  if (!hasMazeVoids(maze)) return;
   const bounds = renderBounds(maze, viewport);
   context.beginPath();
   for (const cell of maze.cells) {

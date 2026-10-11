@@ -31,15 +31,17 @@ export function assignModuleRoles(footprints: (RoomFootprint & { id: string })[]
     }
   }
   if (distances.size !== footprints.length) throw new Error('Disconnected room graph');
-  const exit = queue.reduce((best, id) => distances.get(id)! > distances.get(best)! ? id : best, entry);
+  const exit = queue.reduce((best, id) => distances.get(id)! > distances.get(best)!
+    || (distances.get(id) === distances.get(best) && id < best) ? id : best, entry);
   const candidates = footprints.filter(room => room.id !== entry && room.id !== exit);
-  const hub = candidates.reduce((best, room) => graph.get(room.id)!.length > graph.get(best.id)!.length ? room : best).id;
+  const hub = candidates.reduce((best, room) => graph.get(room.id)!.length > graph.get(best.id)!.length
+    || (graph.get(room.id)!.length === graph.get(best.id)!.length && room.id < best.id) ? room : best).id;
   const roles = new Map<string, MazeRoomKind>([[entry, 'start'], [exit, 'exit'], [hub, 'hub']]);
   candidates.filter(room => room.id !== hub)
     .sort((a, b) => keyedSeed(seed, `${a.id}:role`) - keyedSeed(seed, `${b.id}:role`) || a.id.localeCompare(b.id))
     .slice(0, SPECIALTIES.length).forEach((room, index) => roles.set(room.id, SPECIALTIES[index]));
   return footprints.map(room => {
     const kind = roles.get(room.id) ?? 'ordinary';
-    return { ...room, kind, name: NAMES[kind], tags: roomTagsForKind(kind) };
+    return { ...room, center: { ...room.center }, kind, name: NAMES[kind], tags: roomTagsForKind(kind) };
   });
 }
