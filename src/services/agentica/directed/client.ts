@@ -14,17 +14,23 @@ import type { DirectedHostEvent } from '../../../persistence/directedAgentica/ty
 import { addressKey, sameAddress } from '../../../domain/expedition/address';
 import type { AgenticaMessage } from '../sdk/agentica-host.mjs';
 import { equivalentHostWire } from './wire';
+import type { AgenticaStart } from '../contracts';
+import type { DirectedAgenticaStatus } from './lifecycle';
 
 export interface DirectedAgenticaOptions {
   slot: string; url: string; destination: CellAddress; objective?: string;
   inspectOnArrival?: boolean;
+  provider?: AgenticaStart['provider'];
+  limits?: AgenticaStart['limits'];
   onMessage?(message: AgenticaMessage): void;
+  onStatus?(status: DirectedAgenticaStatus): void;
 }
 
 /** Agent chooses a destination; the browser executes travel without per-cell cognition. */
 export class DirectedAgenticaClient {
   private readonly transport: DirectedAgenticaTransport;
   private owner?: StreamControl;
+  private claiming?: Promise<StreamControl>;
   private operationId?: string;
   private active?: Promise<unknown>;
   private enabled = false;
@@ -36,11 +42,14 @@ export class DirectedAgenticaClient {
   private parked = false;
   private readonly options: DirectedAgenticaOptions;
   constructor(options: DirectedAgenticaOptions) {
-    this.options = structuredClone({ ...options, onMessage: undefined });
-    this.transport = new DirectedAgenticaTransport(options.slot, options.url, message => {
-      if (message.type === 'operation.parked') this.state = 'parked';
+    this.options = structuredClone({ ...options, onMessage: undefined, onStatus: undefined });
+    this.transport = new DirectedAgenticaTransport(options.slot, options.url, (message, state) => {
+      if (state && !this.cancelled && !this.closed && !['completed', 'blocked', 'cancelled', 'failed'].includes(this.state)) {
+        this.state = state;
+        if (this.transport.lifecycle.terminalStatus) this.enabled = false;
+      }
       try { options.onMessage?.(message); } catch { /* Observers have no authority. */ }
-    });
+    }, status => { try { options.onStatus?.(status); } catch { /* Connectivity does not own execution. */ } });
   }
   get currentRun() { return structuredClone(this.transport.binding); }
   get status() { return this.state; }
@@ -52,7 +61,12 @@ export class DirectedAgenticaClient {
     void promise.finally(() => { if (this.active === promise) this.active = undefined; }).catch(() => undefined);
     return promise;
   }
-  start() { return this.exclusive(async () => {
+  start() { return this.exclusive(() => this.begin().catch(error => {
+    this.enabled = false;
+    if (!this.cancelled && !this.closed) this.state = this.transport.lifecycle.terminalStatus ?? 'failed';
+    throw error;
+  })); }
+  private async begin() {
     const currentStart = () => { if (this.cancelled || this.closed) throw new Error('Directed start was cancelled.'); };
     currentStart();
     if (this.transport.binding) return this.currentRun!;
@@ -70,8 +84,8 @@ export class DirectedAgenticaClient {
     }
     const scopeId = await ensureStreamPublicScope(this.options.slot);
     currentStart();
-    const session = await openDirectedStreamSession(this.options.slot, crypto.randomUUID());
-    this.owner = session.control;
+    this.claiming = openDirectedStreamSession(this.options.slot, crypto.randomUUID()).then(session => session.control);
+    this.owner = await this.claiming;
     currentStart();
     const snapshot = await loadStreamSnapshot(this.options.slot);
     currentStart();
@@ -87,12 +101,12 @@ export class DirectedAgenticaClient {
     const binding = await this.transport.start(draft, { protocolVersion: 1,
       hostId: draft.hostId, sessionId: draft.sessionId, sessionEpoch: draft.sessionEpoch, scopeId, perspectiveId: 'party',
       objectiveId: draft.objectiveId, objective: draft.objective, observation: directedObservation(snapshot, draft),
-      capabilities: directedCapabilities(), provider: { provider: 'fixture', model: 'fixture-model', contextWindowTokens: 131072, maxOutputTokens: 4096 },
-      limits: { maxSteps: 16, maxRefinements: 8, maxPlanContinuations: 8, timeoutSeconds: 300, actionTimeoutSeconds: 45 } });
+      capabilities: directedCapabilities(), provider: this.options.provider ?? { provider: 'fixture', model: 'fixture-model', contextWindowTokens: 131072, maxOutputTokens: 4096 },
+      limits: this.options.limits ?? { maxSteps: 16, maxRefinements: 8, maxPlanContinuations: 8, timeoutSeconds: 300, actionTimeoutSeconds: 45 } });
     currentStart();
-    this.enabled = true;
+    this.enabled = !this.transport.lifecycle.terminalStatus;
     return binding;
-  }); }
+  }
   private async retained() {
     const session = await loadDirectedStreamSession(this.options.slot, this.operationId);
     if (!session.record) return undefined;
@@ -115,9 +129,13 @@ export class DirectedAgenticaClient {
   private async deliver(event: DirectedHostEvent) {
     if (event.kind === 'decision') {
       this.enabled = false;
-      await this.transport.wake(event);
+      try { await this.transport.wake(event); }
+      catch (error) {
+        if (!this.cancelled && !this.closed) this.state = this.transport.lifecycle.terminalStatus ?? 'unresolved';
+        throw error;
+      }
       await acknowledgeDirectedHostEvent(this.options.slot, event);
-      this.state = 'awaiting-inspection';
+      if (!this.cancelled && !this.closed) this.state = this.transport.lifecycle.terminalStatus ?? 'awaiting-inspection';
       return;
     }
     const receipt = await this.transport.sdk.signalOperation(event, { fetchImpl: (input, init) =>
@@ -201,15 +219,17 @@ export class DirectedAgenticaClient {
   }); }
   async cancel() {
     this.enabled = false; this.cancelled = true;
+    this.transport.preventDispatch();
     return this.cancelling ??= (async () => {
       const retained = await this.retained();
       if (!retained) {
+        const owner = this.owner ?? await this.claiming;
         const current = await loadStreamControl(this.options.slot);
-        if (this.owner && current?.sessionId === this.owner.sessionId && current.epoch === this.owner.epoch) {
-          await claimStreamControl(this.options.slot, this.owner.sessionId, this.owner.epoch);
+        if (owner && current?.sessionId === owner.sessionId && current.epoch === owner.epoch) {
+          await claimStreamControl(this.options.slot, owner.sessionId, owner.epoch);
         }
         this.state = 'cancelled';
-        if (this.transport.binding) await this.transport.sdk.stop(this.transport.binding.runId);
+        await this.transport.cancel();
         return undefined;
       }
       if (!this.owner) {
@@ -220,7 +240,7 @@ export class DirectedAgenticaClient {
       this.state = 'cancelled';
       if (event) await this.deliver(event);
       else if (retained.event?.kind === 'decision' && this.transport.binding) {
-        await this.transport.sdk.stop(this.transport.binding.runId);
+        await this.transport.cancel();
       }
       // No network success is needed to fence local movement. A pending original
       // progress event remains available for exact reconciliation on recovery.
