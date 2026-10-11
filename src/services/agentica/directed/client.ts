@@ -29,6 +29,7 @@ export class DirectedAgenticaClient {
   private active?: Promise<unknown>;
   private enabled = false;
   private closed = false;
+  private cancelled = false;
   private closing?: Promise<void>;
   private cancelling?: Promise<StoredDirectedStreamOperation | undefined>;
   private state = 'idle';
@@ -52,10 +53,14 @@ export class DirectedAgenticaClient {
     return promise;
   }
   start() { return this.exclusive(async () => {
+    const currentStart = () => { if (this.cancelled || this.closed) throw new Error('Directed start was cancelled.'); };
+    currentStart();
     if (this.transport.binding) return this.currentRun!;
     const known = await readStreamKnowledge(this.options.slot, this.options.destination.spaceId);
+    currentStart();
     if (!known?.cells[addressKey(this.options.destination)]) throw new Error('Destination has not been observed.');
     const current = await loadDirectedStreamSession(this.options.slot);
+    currentStart();
     if (current.record && ['running', 'interrupted'].includes(current.record.state.operation.status)) {
       const prior = await readDirectedHostOperation(this.options.slot, current.record.state.operation.id);
       if (current.record.state.operation.status === 'running' || prior.link.sequence !== prior.link.acknowledged
@@ -64,9 +69,12 @@ export class DirectedAgenticaClient {
       }
     }
     const scopeId = await ensureStreamPublicScope(this.options.slot);
+    currentStart();
     const session = await openDirectedStreamSession(this.options.slot, crypto.randomUUID());
     this.owner = session.control;
+    currentStart();
     const snapshot = await loadStreamSnapshot(this.options.slot);
+    currentStart();
     const draft: DirectedAgenticaBinding = { protocolVersion: 1, hostId: 'maze-battle', sessionId: scopeId,
       scopeId, sessionEpoch: String(this.owner.epoch), perspectiveId: 'party', worldId: snapshot.checkpoint.worldId,
       floorId: snapshot.checkpoint.floorId, objectiveId: crypto.randomUUID(),
@@ -81,7 +89,8 @@ export class DirectedAgenticaClient {
       objectiveId: draft.objectiveId, objective: draft.objective, observation: directedObservation(snapshot, draft),
       capabilities: directedCapabilities(), provider: { provider: 'fixture', model: 'fixture-model', contextWindowTokens: 131072, maxOutputTokens: 4096 },
       limits: { maxSteps: 16, maxRefinements: 8, maxPlanContinuations: 8, timeoutSeconds: 300, actionTimeoutSeconds: 45 } });
-    this.enabled = !this.closed;
+    currentStart();
+    this.enabled = true;
     return binding;
   }); }
   private async retained() {
@@ -123,11 +132,21 @@ export class DirectedAgenticaClient {
     if (!retained) return undefined;
     const { link, event } = retained;
     let record = retained.session.record!;
+    if (event?.kind === 'decision' && link.sequence === link.acknowledged && !this.cancelled) {
+      const binding = this.transport.binding!;
+      const entries = await this.transport.sdk.listOperations({ hostId: binding.hostId, sessionId: binding.sessionId });
+      const entry = entries.find(value => value.admission?.operation?.operationId === link.operationId);
+      if (entry?.wakeRunId === binding.runId && ['completed', 'blocked', 'cancelled'].includes(entry.state)) this.state = entry.state;
+      return record;
+    }
     if (event && link.sequence === link.acknowledged && ['completed', 'blocked', 'cancelled', 'decision'].includes(event.kind)) return record;
     await this.confirmAdmission();
     if (event && link.sequence !== link.acknowledged) { await this.deliver(event); return record; }
     if (event && ['completed', 'blocked', 'cancelled', 'decision'].includes(event.kind)) return record;
     if (record.state.operation.status === 'cancelled') {
+      await this.deliver(await stageDirectedHostEvent(this.options.slot, link.operationId)); return record;
+    }
+    if (record.state.operation.status === 'arrived') {
       await this.deliver(await stageDirectedHostEvent(this.options.slot, link.operationId)); return record;
     }
     if (!this.enabled || !this.owner) { this.state = 'awaiting-adoption'; return record; }
@@ -156,18 +175,20 @@ export class DirectedAgenticaClient {
       await this.deliver(await stageDirectedHostEvent(this.options.slot, retained.link.operationId));
       return this.currentRun;
     }
-    this.state = retained.event && ['completed', 'blocked', 'cancelled'].includes(retained.event.kind)
+    this.state = entry && ['completed', 'blocked', 'cancelled'].includes(entry.state) ? entry.state
+      : retained.event && ['completed', 'blocked', 'cancelled'].includes(retained.event.kind)
       ? retained.event.kind : 'awaiting-adoption';
     return this.currentRun;
   }); }
   adopt() { return this.exclusive(async () => {
+    if (this.cancelled) throw new Error('Cancelled host cannot adopt a journey.');
     const retained = await this.retained();
     if (!retained) throw new Error('No retained journey to adopt.');
     await this.confirmAdmission();
     if (retained.event && retained.link.sequence !== retained.link.acknowledged) {
       await this.deliver(retained.event);
       if (retained.event.kind === 'transfer' && this.owner?.epoch === Number(retained.event.nextSessionEpoch)) {
-        this.enabled = !this.closed; return retained.session.record;
+        this.enabled = !this.closed && !this.cancelled; return retained.session.record;
       }
     }
     this.enabled = false;
@@ -175,11 +196,11 @@ export class DirectedAgenticaClient {
     this.owner = session.control;
     const event = await adoptDirectedAgenticaOperation(this.options.slot, retained.link.operationId, this.owner);
     await this.deliver(event);
-    this.enabled = !this.closed;
+    this.enabled = !this.closed && !this.cancelled;
     return (await loadDirectedStreamSession(this.options.slot)).record;
   }); }
   async cancel() {
-    this.enabled = false;
+    this.enabled = false; this.cancelled = true;
     return this.cancelling ??= (async () => {
       const retained = await this.retained();
       if (!retained) {

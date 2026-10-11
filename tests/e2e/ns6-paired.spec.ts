@@ -169,3 +169,86 @@ test('cancellation commits its local fence while progress delivery is hung', asy
   })).toBe('cancelled');
   expect((await page.evaluate(() => window.directedStream.durable.loadDirectedStreamSession('directed'))).checkpoint).toEqual(stopped.checkpoint);
 });
+
+test('inspection wake after explicit adoption uses current custody and retains the original objective', async ({ page, request }) => {
+  await open(page);
+  const { binding } = await page.evaluate(socket => window.directedHost.start(socket, true, true), socket);
+  await parked(request, binding.sessionId);
+  await page.evaluate(() => window.directedHost.client!.tick());
+  await page.reload(); await page.waitForFunction(() => !!window.directedHost);
+  await page.evaluate(({ socket, binding }) => window.directedHost.recover(socket, binding), { socket, binding });
+  await page.evaluate(() => window.directedHost.client!.adopt());
+  await page.evaluate(async () => {
+    for (let i = 0; i < 256 && window.directedHost.client!.status !== 'awaiting-inspection'; i++) await window.directedHost.client!.tick();
+  });
+  await expect.poll(async () => (await inventory(request, binding.sessionId))[0].state, { timeout: 30000 }).toBe('completed');
+  const successor = await page.evaluate(() => window.directedHost.client!.currentRun);
+  expect(successor!.objectiveId).toBe(binding.objectiveId);
+  expect(Number(successor!.sessionEpoch)).toBeGreaterThan(Number(binding.sessionEpoch));
+  expect(successor!.control.epoch).toBe(Number(successor!.sessionEpoch));
+  await page.evaluate(() => window.directedHost.client!.tick());
+  expect(await page.evaluate(() => window.directedHost.client!.status)).toBe('completed');
+  await page.reload(); await page.waitForFunction(() => !!window.directedHost);
+  await page.evaluate(({ socket, binding }) => window.directedHost.recover(socket, binding), { socket, binding });
+  expect(await page.evaluate(() => window.directedHost.client!.currentRun!.runId)).toBe(successor!.runId);
+  expect(await page.evaluate(() => window.directedHost.client!.status)).toBe('completed');
+});
+
+test('crash between final move and event publication recovers completion without moving again', async ({ page, request }) => {
+  await open(page);
+  const { binding } = await page.evaluate(socket => window.directedHost.start(socket), socket);
+  await parked(request, binding.sessionId);
+  const beforeCalls = await calls(request, binding.scopeId);
+  const arrived = await page.evaluate(async () => {
+    const h = window.directedStream;
+    let session = await h.durable.loadDirectedStreamSession('directed'), record = session.record!;
+    while (record.state.operation.status === 'running') {
+      record = await h.durable.prepareDurableDirectedStreamMove('directed', session.control,
+        { operationId: record.state.operation.id, revision: record.revision, actionId: crypto.randomUUID() });
+      if (record.state.pending) record = await h.durable.executeDurableDirectedStreamMove('directed', session.control,
+        { operationId: record.state.operation.id, actionId: record.state.pending.request.actionId });
+    }
+    return h.durable.loadDirectedStreamSession('directed');
+  });
+  await page.reload(); await page.waitForFunction(() => !!window.directedHost);
+  await page.evaluate(({ socket, binding }) => window.directedHost.recover(socket, binding), { socket, binding });
+  await page.evaluate(() => window.directedHost.client!.tick());
+  expect((await inventory(request, binding.sessionId))[0].state).toBe('completed');
+  expect(await page.evaluate(() => window.directedStream.durable.loadDirectedStreamSession('directed'))).toEqual(arrived);
+  expect(await calls(request, binding.scopeId)).toEqual(beforeCalls);
+});
+
+test('cancelling during early startup cannot later admit or enable travel', async ({ page, request }) => {
+  await open(page);
+  const beforeCalls = await (await request.get(`${provider}/evidence`)).json();
+  const proof = await page.evaluate(async socket => {
+    const h = window.directedHost, s = window.directedStream, scenario = await s.setup();
+    const client = new h.DirectedAgenticaClient({ slot: 'directed', url: socket, destination: scenario.target.address });
+    const starting = client.start().then(() => 'started', error => String(error));
+    await client.cancel();
+    const start = await starting;
+    const session = await s.durable.loadDirectedStreamSession('directed');
+    return { start, status: client.status, session };
+  }, socket);
+  expect(proof.start).toContain('cancelled'); expect(proof.status).toBe('cancelled');
+  expect(proof.session.record).toBeUndefined(); expect(proof.session.checkpoint.moves).toBe(0);
+  expect(await (await request.get(`${provider}/evidence`)).json()).toEqual(beforeCalls);
+});
+
+test('planner requests map and room scopes explicitly before one destination admission', async ({ page, request }, info) => {
+  await open(page);
+  const { binding } = await page.evaluate(socket => window.directedHost.start(socket, true, false,
+    'Read the bounded map and room before travel.'), socket);
+  await parked(request, binding.sessionId);
+  const before = await calls(request, binding.scopeId);
+  expect(before.map((call: any) => call.tool)).toEqual(['maze.map', 'maze.room', 'maze.navigate']);
+  const result = await finish(page);
+  expect(result.status).toBe('completed');
+  expect(await calls(request, binding.scopeId)).toEqual(before);
+  const entry = (await inventory(request, binding.sessionId))[0];
+  expect(entry.latestEvent.observation.data.view).toEqual({ kind: 'operation' });
+  expect(entry.latestEvent.observation.data).not.toHaveProperty('knowledge');
+  expect(entry.latestEvent.observation.data).not.toHaveProperty('context');
+  await info.attach('scoped-query-proof', { body: JSON.stringify({ calls: before,
+    localSteps: result.session.record!.state.operation.steps, progressView: entry.latestEvent.observation.data.view }), contentType: 'application/json' });
+});

@@ -8,6 +8,7 @@ import type { AgenticaAction } from '../../services/agentica/contracts';
 import { validId } from '../topology/validation';
 import { streamRecord } from '../streamRecords';
 import { validateDirectedObservation } from './evidence';
+import { sameAddress } from '../../domain/expedition/address';
 
 export async function directedActionAt(tx: TopologyTransaction, slot: string, key: string) {
   const parts = validateActionKey(key);
@@ -22,7 +23,7 @@ export async function directedActionAt(tx: TopologyTransaction, slot: string, ke
   check(object(record) && only(record, 'fingerprint,status,result') && typeof record.fingerprint === 'string'
     && ['pending', 'completed'].includes(record.status), 'invalid directed SDK record');
   const action = JSON.parse(record.fingerprint) as AgenticaAction;
-  boundedJson(action, 8192); parseDirectedAgenticaCommand(action, binding);
+  boundedJson(action, 8192); const command = parseDirectedAgenticaCommand(action, binding);
   check(actionKey(action) === key && actionFingerprint(action) === record.fingerprint, 'directed fingerprint mismatch');
   if (record.status === 'pending') check(!Object.hasOwn(record, 'result'), 'pending result present');
   else {
@@ -41,6 +42,16 @@ export async function directedActionAt(tx: TopologyTransaction, slot: string, ke
     check(result.observation && result.observation.revision === result.afterRevision, 'receipt observation revision mismatch');
     const { root, checkpoint } = await streamRecord(tx, slot);
     validateDirectedObservation(result.observation, binding, root, checkpoint.revision);
+    const { context, inspection } = result.observation.data;
+    if (result.disposition === 'applied' && (command.type === 'room' || command.type === 'map')) {
+      check(object(context) && context.kind === command.type, 'query result scope changed');
+      if (command.type === 'room') check(context.spaceId === command.spaceId && (context.status === 'unknown'
+        || context.offset === command.offset && context.limit === command.limit), 'room query selection changed');
+      else check(context.centerRoomId === command.spaceId && context.depth === command.depth
+        && context.limit === command.limit, 'map query selection changed');
+    } else check(context === undefined, 'unsolicited query context in receipt');
+    if (inspection !== undefined) check(result.disposition === 'applied' && command.type === 'inspect'
+      && object(inspection) && sameAddress(inspection.cell as never, command.address), 'inspection target changed');
   }
   return { binding, stored, action };
 }

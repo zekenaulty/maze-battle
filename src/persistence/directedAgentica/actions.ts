@@ -10,6 +10,8 @@ import { directedActionAt, directedHostOperationAt } from './records';
 import { sameStreamControl, directedRecordAt } from '../directedStreamRecords';
 import { startDurableDirectedStreamTravelInTransaction, DirectedAdmissionRefused } from '../directedStreamRepository';
 import { sameAddress, addressKey } from '../../domain/expedition/address';
+import { roomView } from '../../services/agentica/directed/roomView';
+import { mapView } from '../../services/agentica/directed/mapView';
 
 export function loadDirectedAgenticaAction(slot: string, key: string) {
   return topologyTransaction(async tx => (await directedActionAt(tx, slot, key)).stored?.record ?? null);
@@ -52,6 +54,7 @@ export function executeDirectedAgenticaAction(slot: string, action: AgenticaActi
     let summary = 'Current actor-visible evidence.';
     let travel = (await directedRecordAt(tx, slot, checkpoint)).record;
     let inspection: unknown;
+    let context: unknown;
     let admission = false;
     let completedInspection = false;
     if (settleOnly) { disposition = 'unavailable'; summary = 'Original reservation did not commit an effect; it is now settled without execution.'; }
@@ -77,6 +80,15 @@ export function executeDirectedAgenticaAction(slot: string, action: AgenticaActi
           disposition = 'refused'; summary = error.message;
         }
       }
+    } else if (command.type === 'room') {
+      const page = await savedStreamKnowledge(tx, slot, command.spaceId, checkpoint.revision);
+      context = page ? roomView(page, command.offset, command.limit)
+        : { kind: 'room', status: 'unknown', spaceId: command.spaceId };
+      summary = 'Requested room detail from retained observations only.';
+    } else if (command.type === 'map') {
+      context = await mapView(command.spaceId, command.depth, command.limit,
+        id => savedStreamKnowledge(tx, slot, id, checkpoint.revision));
+      summary = 'Requested room-level map. Internal cells are omitted; boundaries remain available for deliberate queries.';
     } else if (command.type === 'inspect') {
       const page = await savedStreamKnowledge(tx, slot, command.address.spaceId, checkpoint.revision);
       const cell = page?.cells[addressKey(command.address)];
@@ -99,8 +111,10 @@ export function executeDirectedAgenticaAction(slot: string, action: AgenticaActi
       disposition = 'refused'; summary = 'Use the explicit host adoption or cancellation boundary on the retained journey.';
     }
     const after = await streamRecord(tx, slot);
-    const observation = directedObservation(await snapshotAt(tx, slot, after.root, after.checkpoint), binding, travel);
+    const observation = directedObservation(await snapshotAt(tx, slot, after.root, after.checkpoint), binding, travel,
+      command.type === 'observe' && disposition === 'applied' ? 'room' : 'operation');
     if (inspection) observation.data.inspection = inspection;
+    if (context) observation.data.context = context;
     const result: AgenticaResult = { actionId: input.actionId, sessionId: input.sessionId, sessionEpoch: input.sessionEpoch,
       disposition, beforeRevision: checkpoint.revision, afterRevision: after.checkpoint.revision,
       evidenceId: crypto.randomUUID(), summary, observation,

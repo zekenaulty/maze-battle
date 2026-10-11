@@ -10,10 +10,10 @@ import type { AgenticaAction } from '../../src/services/agentica/contracts';
 
 const harness = { actions, events, control, runs, sdk, DirectedAgenticaClient,
   client: undefined as DirectedAgenticaClient | undefined,
-  async start(url: string, threeRooms = false, inspectOnArrival = false) {
+  async start(url: string, threeRooms = false, inspectOnArrival = false, objective?: string) {
     const scenario = threeRooms ? await window.directedStream.setupThree() : await window.directedStream.setup();
     const destination = scenario.target.address;
-    harness.client = new DirectedAgenticaClient({ slot: 'directed', url, destination, inspectOnArrival });
+    harness.client = new DirectedAgenticaClient({ slot: 'directed', url, destination, inspectOnArrival, objective });
     return { binding: await harness.client.start(), scenario };
   },
   async recover(url: string, binding: DirectedAgenticaBinding) {

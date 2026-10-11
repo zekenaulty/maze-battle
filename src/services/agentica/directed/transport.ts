@@ -5,6 +5,7 @@ import { parseDirectedAgenticaCommand, validateDirectedAgenticaBinding } from '.
 import { deferred, fixtureUrl } from '../clientPolicy';
 import { equivalentHostWire } from './wire';
 import type { DirectedHostEvent } from '../../../persistence/directedAgentica/types';
+import { loadDirectedStreamSession } from '../../../persistence/directedStreamRepository';
 import { bindDirectedAgenticaRun, loadDirectedAgenticaRun } from '../../../persistence/directedAgentica/runs';
 import { loadDirectedAgenticaAction, saveDirectedAgenticaAction, executeDirectedAgenticaAction,
   settleDirectedAgenticaAction } from '../../../persistence/directedAgentica/actions';
@@ -53,7 +54,10 @@ export class DirectedAgenticaTransport {
   }
   async wake(event: DirectedHostEvent) {
     if (!this.binding || event.kind !== 'decision') throw new Error('A retained semantic decision is required.');
-    const draft = { ...this.binding, parentOperationId: event.operationId };
+    const session = await loadDirectedStreamSession(this.slot, event.operationId);
+    if (String(session.control.epoch) !== event.sessionEpoch) throw new Error('Semantic wake ownership changed.');
+    const draft = { ...this.binding, parentOperationId: event.operationId,
+      sessionEpoch: event.sessionEpoch, control: session.control };
     this.ready = deferred<void>();
     try {
       const started = await this.sdk.wakeOperation(event);

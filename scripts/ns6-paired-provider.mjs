@@ -19,13 +19,22 @@ export async function startDirectedFixture(port, restart) {
       if (body.model !== 'fixture-model' || !body.stream || body.store) throw new Error('Not a provider-free streaming request');
       const { frame, reference, scope, epoch, refinement } = promptFrame(body);
       const inspect = frame?.arrivalPolicy === 'inspect' && frame?.travel?.status === 'arrived';
-      const tool = frame ? inspect ? 'maze.inspect' : 'maze.navigate' : 'lab.evidence.read';
-      const input = frame ? { topologyRevision: frame.checkpoint.topologyRevision, ...frame.destination }
+      let tool = frame ? inspect ? 'maze.inspect' : 'maze.navigate' : 'lab.evidence.read';
+      let input = frame ? { topologyRevision: frame.checkpoint.topologyRevision, ...frame.destination }
         : { observationId: reference.ObservationId, contentHash: reference.ContentHash };
+      if (frame && !frame.travel && JSON.stringify(body).includes('Read the bounded map and room before travel.')) {
+        if (!frame.context) {
+          tool = 'maze.map'; input = { topologyRevision: frame.checkpoint.topologyRevision,
+            spaceId: frame.checkpoint.position.spaceId, depth: 2, limit: 4 };
+        } else if (frame.context.kind === 'map') {
+          tool = 'maze.room'; input = { topologyRevision: frame.checkpoint.topologyRevision,
+            spaceId: frame.checkpoint.position.spaceId, offset: 0, limit: 16 };
+        }
+      }
       if (evidence.length >= 128) throw new Error('Fixture call bound exceeded');
       const ordinal = evidence.length + 1;
       const plan = { planId: `directed-plan-${ordinal}`, description: 'Provider-free destination handoff proof.', steps: [{
-        stepId: `directed-step-${ordinal}`, toolId: tool, kind: frame && !inspect ? 'action' : 'query', effect: frame && !inspect ? 'writesLocalState' : 'readOnly',
+        stepId: `directed-step-${ordinal}`, toolId: tool, kind: tool === 'maze.navigate' ? 'action' : 'query', effect: tool === 'maze.navigate' ? 'writesLocalState' : 'readOnly',
         input, reason: 'Delegate the designated destination to the browser without selecting route steps.' }] };
       const text = JSON.stringify(refinement ? { reason: 'observation', refinedPlan: plan } : plan);
       const record = { scope, epoch, ordinal, tool, promptBytes: bytes, beganAt: Date.now(), completedAt: 0 };

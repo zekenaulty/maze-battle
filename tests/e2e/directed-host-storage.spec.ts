@@ -15,6 +15,9 @@ test('admission and exact replay never count arrival or repeat effects', async (
   expect(initial.result.disposition).toBe('applied');
   expect(initial.result.operation).toBeDefined();
   expect(initial.result.completion).toBeUndefined();
+  expect(initial.result.observation!.data.view).toEqual({ kind: 'operation' });
+  expect(initial.result.observation!.data).not.toHaveProperty('knowledge');
+  expect(initial.result.observation!.data).not.toHaveProperty('observation');
   expect(initial.raw.records.find(row => row.store === 'streamCheckpoints')!.value.moves).toBe(0);
   await page.reload(); await page.waitForFunction(() => !!window.directedHost);
   const replay = await page.evaluate(async action => {
@@ -23,6 +26,51 @@ test('admission and exact replay never count arrival or repeat effects', async (
     return { result, raw: await window.directedStream.raw() };
   }, initial.action);
   expect(replay).toEqual({ result: initial.result, raw: initial.raw });
+});
+
+test('context views are explicit, paginated, historical and do not move or generate the world', async ({ page }) => {
+  const proof = await page.evaluate(async () => {
+    const h = window.directedHost, s = window.directedStream, binding = await h.setup();
+    const before = await s.api.loadStreamSnapshot('directed');
+    const query = async (tool: string, args: Record<string, unknown>) => {
+      const action = await h.action(binding, tool, args);
+      return { action, result: await h.actions.executeDirectedAgenticaAction('directed', action) };
+    };
+    const map = await query('maze.map', { spaceId: 'entry', depth: 2, limit: 4 });
+    const room = await query('maze.room', { spaceId: 'entry', offset: 0, limit: 16 });
+    const next = await query('maze.room', { spaceId: 'entry', offset: 16, limit: 16 });
+    const unknown = await query('maze.room', { spaceId: 'unseen', offset: 0, limit: 16 });
+    const after = await s.api.loadStreamSnapshot('directed');
+    await s.act({ type: 'move', direction: 'west' });
+    const replay = await h.actions.executeDirectedAgenticaAction('directed', room.action);
+    return { before, after, map: map.result, room: room.result, next: next.result, unknown: unknown.result, replay };
+  });
+  expect(proof.after).toEqual(proof.before);
+  const map = proof.map.observation!.data.context as any;
+  expect(map.rooms).toHaveLength(1);
+  expect(JSON.stringify(map)).not.toMatch(/"(?:cells|row|column|recipe|seed)"/);
+  expect(proof.room.observation!.data.context).toMatchObject({ kind: 'room', offset: 0, nextOffset: 16 });
+  expect(proof.next.observation!.data.context).toMatchObject({ kind: 'room', offset: 16 });
+  expect(proof.unknown.observation!.data.context).toEqual({ kind: 'room', status: 'unknown', spaceId: 'unseen' });
+  expect(proof.replay).toEqual(proof.room);
+});
+
+test('archived query scope cannot be substituted with another valid view', async ({ page }) => {
+  const proof = await page.evaluate(async () => {
+    const h = window.directedHost, s = window.directedStream, binding = await h.setup();
+    const first = await h.action(binding, 'maze.room', { spaceId: 'entry', offset: 0, limit: 16 });
+    const next = await h.action(binding, 'maze.room', { spaceId: 'entry', offset: 16, limit: 16 });
+    await h.actions.executeDirectedAgenticaAction('directed', first);
+    const different = await h.actions.executeDirectedAgenticaAction('directed', next);
+    const key = ['directed', h.sdk.actionKey(first)], db = await s.openDB(s.TOPOLOGY_DATABASE);
+    const stored = await db.get('directedAgenticaActions', key);
+    stored.record.result.observation.data.context = different.observation!.data.context;
+    await db.put('directedAgenticaActions', stored, key); db.close();
+    let error = '';
+    try { await h.actions.settleDirectedAgenticaAction('directed', first); } catch (cause) { error = String(cause); }
+    return error;
+  });
+  expect(proof).toContain('room query selection changed');
 });
 
 test('pending reconciliation settles without ever admitting a journey', async ({ page }) => {
