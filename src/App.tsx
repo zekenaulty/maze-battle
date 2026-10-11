@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { CharactersDialog } from './components/CharactersDialog';
 import { BattleScreen } from './components/BattleScreen';
 import { ExploreScreen } from './components/ExploreScreen';
@@ -13,6 +13,8 @@ import { canUseTownPortal, portalScrollCount } from './domain/town/town';
 import { useGameSession } from './hooks/useGameSession';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useGameCommands } from './hooks/useGameCommands';
+import { useClickNavigation } from './hooks/useClickNavigation';
+import type { GameTransition } from './hooks/useGameLoop';
 
 type DialogName = 'characters' | 'saves' | 'diagnostics' | undefined;
 
@@ -20,8 +22,14 @@ export function App() {
   const session = useGameSession();
   const { game, telemetry } = session;
   const [dialog, setDialog] = useState<DialogName>();
-  const clock = useGameLoop(game, Boolean(dialog) || !session.controlled, session.transition);
-  const commands = useGameCommands(session.transition);
+  const blocked = Boolean(dialog) || !session.controlled;
+  const navigation = useClickNavigation(game, blocked, session.transition);
+  const clock = useGameLoop(game, blocked, session.transition, navigation.cancel);
+  const manualTransition = useCallback<GameTransition>((update, context) => {
+    navigation.cancel();
+    session.transition(update, context);
+  }, [navigation.cancel, session.transition]);
+  const commands = useGameCommands(manualTransition);
   const openSaves = () => {
     setDialog('saves');
     void session.flush().then(session.refreshSaves, session.refreshSaves).catch(() => undefined);
@@ -65,6 +73,8 @@ export function App() {
       chests={activeUnopenedChests(game).map(chest => chest.position)}
       onTown={commands.portal} portalScrollCount={portalScrollCount(game)} onNewGame={newGame}
       onRandomBattlesChange={commands.encounters}
+      onTileClick={navigation.navigate} onStopWalking={navigation.cancel} navigationMessage={navigation.message}
+      onOpenChest={commands.openChest} controlsDisabled={blocked}
     />}
     {dialog === 'saves' && <SavesDialog
       readOnly={!session.controlled}

@@ -55,7 +55,7 @@ for (const control of ['manual', 'auto']) {
     expect(outside.battle?.origin).toMatchObject({ floor: 1, position: edge.outside });
     expect(outside.battle?.origin?.roomId).toBeUndefined();
     expect(outside.randomBattles).toBe(true);
-    expect(outside.chests.find(c => c.id === 'd1-boundary-target')?.opened).toBe(true);
+    expect(outside.chests.find(c => c.id === 'd1-boundary-target')?.opened).toBe(control === 'auto');
     await page.screenshot({ path: info.outputPath(`safe-${control}-outside-battle.png`) });
     const trace = (await snapshot(page)).telemetry.find(t => t.gameId === initial.id)!;
     expect(trace.events.some(e => e.source === control && (e.changes.moves ?? 0) > 0)).toBe(true);

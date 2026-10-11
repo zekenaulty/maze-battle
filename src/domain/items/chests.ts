@@ -61,8 +61,20 @@ export function activeUnopenedChests(game: GameState) {
   return game.chests.filter((chest) => chest.level === game.dungeonLevel && !chest.opened);
 }
 
+export function chestAtActivePosition(game: GameState) {
+  if (game.battle || game.mode === 'town' || game.party.every(actor => actor.hp <= 0)) return undefined;
+  return game.chests.find(candidate => candidate.level === game.dungeonLevel && !candidate.opened && samePosition(candidate.position, game.maze.active));
+}
+
+/** Shared voluntary command: an exact, eligible target, then the ordinary loot service. */
+export function openChest(game: GameState, chestId: string, rng: Rng): GameState {
+  const chest = chestAtActivePosition(game);
+  if (chest?.id !== chestId) return game;
+  return openChestAtActivePosition(game, rng);
+}
+
 export function openChestAtActivePosition(game: GameState, rng: Rng): GameState {
-  const chest = game.chests.find((candidate) => candidate.level === game.dungeonLevel && !candidate.opened && samePosition(candidate.position, game.maze.active));
+  const chest = chestAtActivePosition(game);
   if (!chest) {
     return game;
   }
@@ -70,7 +82,7 @@ export function openChestAtActivePosition(game: GameState, rng: Rng): GameState 
   const loot = rollLoot({ source: 'chest', level: game.dungeonLevel }, rng);
   const opened = {
     ...game,
-    chests: game.chests.map((candidate) => (candidate.id === chest.id ? { ...candidate, opened: true, loot } : candidate)),
+    chests: game.chests.map((candidate) => (candidate === chest ? { ...candidate, opened: true, loot } : candidate)),
   };
 
   return recordFetchQuestProgress(addItemsToInventory(opened, loot, 'Chest opened'), chest.position);

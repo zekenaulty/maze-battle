@@ -3,6 +3,7 @@ import type { Direction, GridPosition, MazeState } from '../domain/types';
 import type { MazeVisibilitySnapshot } from '../domain/maze/visibility';
 import { drawMaze, type MazeRenderMode, onMazeSpritesReady } from './maze/drawMaze';
 import { cameraCellSize, createMazeCamera, panMazeCamera, zoomMazeCamera, type MazeCameraState } from './maze/mazeCamera';
+import { mazeTileAt } from './maze/mazeHitTest';
 
 interface MazeCanvasProps {
   maze: MazeState;
@@ -12,14 +13,15 @@ interface MazeCanvasProps {
   camera: MazeCameraState;
   mode: MazeRenderMode;
   onCameraChange: Dispatch<SetStateAction<MazeCameraState>>;
+  onTileClick?: (position: GridPosition) => void;
 }
 
 const PLAYER_ANIMATION_MS = 180;
 const WHEEL_ZOOM_STEP = 0.12;
 
-export function MazeCanvas({ maze, chests, facing, visibility, camera, mode, onCameraChange }: MazeCanvasProps) {
+export function MazeCanvas({ maze, chests, facing, visibility, camera, mode, onCameraChange, onTileClick }: MazeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const dragRef = useRef<{ camera: MazeCameraState; pointerId: number; startX: number; startY: number } | undefined>(undefined);
+  const dragRef = useRef<{ camera: MazeCameraState; mode: MazeRenderMode; pointerId: number; startX: number; startY: number; moved: boolean } | undefined>(undefined);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -81,25 +83,30 @@ export function MazeCanvas({ maze, chests, facing, visibility, camera, mode, onC
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (mode !== 'camera') {
+    if (event.button !== 0 || !event.isPrimary || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || document.querySelector('dialog[open]')) {
+      if (!event.isPrimary && dragRef.current) dragRef.current.moved = true;
       return;
     }
 
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
       camera,
+      mode,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      moved: false,
     };
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current;
     const canvas = canvasRef.current;
-    if (!drag || !canvas || drag.pointerId !== event.pointerId || mode !== 'camera') {
+    if (!drag || !canvas || drag.pointerId !== event.pointerId) {
       return;
     }
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6) drag.moved = true;
+    if (mode !== 'camera') return;
 
     const bounds = canvas.getBoundingClientRect();
     const size = { width: Math.max(1, Math.floor(bounds.width)), height: Math.max(1, Math.floor(bounds.height)) };
@@ -119,15 +126,26 @@ export function MazeCanvas({ maze, chests, facing, visibility, camera, mode, onC
     }
   };
 
+  const finishPointer = (event: PointerEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    clearDrag(event);
+    if (!drag || drag.pointerId !== event.pointerId || drag.moved || drag.mode !== mode ||
+      Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6 || document.querySelector('dialog[open]')) return;
+    const tile = mazeTileAt(maze, event.currentTarget.getBoundingClientRect(), drag.camera, mode, event.clientX, event.clientY);
+    if (tile && visibility.explored.has(`${tile.row}:${tile.column}`)) onTileClick?.(tile);
+  };
+
   return (
     <canvas
       ref={canvasRef}
       className="maze-canvas"
       aria-label="Dungeon map"
+      title="Click a visible tile to walk; drag to pan"
       onPointerCancel={clearDrag}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={clearDrag}
+      onPointerUp={finishPointer}
+      onLostPointerCapture={clearDrag}
       onWheel={handleWheel}
     />
   );

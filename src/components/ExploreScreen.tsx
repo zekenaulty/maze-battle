@@ -11,6 +11,8 @@ import { Dialog } from './Dialog';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
 import { AutoStatus } from './screens/AutoStatus';
 import './screens/screens.css';
+import { chestAtActivePosition } from '../domain/items/chests';
+import { useExploreKeys } from '../hooks/useExploreKeys';
 
 interface ExploreScreenProps {
   game: GameState;
@@ -30,6 +32,11 @@ interface ExploreScreenProps {
   onRandomBattlesChange: (enabled: boolean) => void;
   portalScrollCount?: number;
   onDiagnostics?: () => void;
+  onTileClick?: (position: GridPosition) => void;
+  onStopWalking?: () => void;
+  onOpenChest?: (id: string) => void;
+  navigationMessage?: string;
+  controlsDisabled?: boolean;
 }
 
 export function ExploreScreen({
@@ -50,6 +57,7 @@ export function ExploreScreen({
   onRandomBattlesChange,
   portalScrollCount,
   onDiagnostics,
+  onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false,
 }: ExploreScreenProps) {
   const [mazeMode, setMazeMode] = useState<MazeRenderMode>('camera');
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
@@ -60,6 +68,12 @@ export function ExploreScreen({
   const isOverview = mazeMode === 'overview';
   const mazeView = createMazeViewModel(game, chests);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
+  const chest = chestAtActivePosition(game);
+  const blocked = controlsDisabled || settingsOpen || confirmNew;
+  const toggleMap = () => { onStopWalking?.(); setMazeMode(isOverview ? 'camera' : 'overview'); };
+  const interact = () => { onStopWalking?.(); if (!blocked && chest) onOpenChest?.(chest.id); };
+  useExploreKeys(blocked, { interact, map: toggleMap, inventory: onCharacters,
+    portal: () => { if (portalCount > 0) onTown(); }, stop: () => onStopWalking?.() });
 
   useEffect(() => {
     setCamera((current) => ({ ...current, mode: 'follow', origin: undefined }));
@@ -74,20 +88,20 @@ export function ExploreScreen({
             Dungeon {game.dungeonLevel} - {status} - {game.maze.active.row + 1}, {game.maze.active.column + 1}
           </span>
         </div>
-        <nav aria-label="Explore actions">
+        <nav aria-label="Explore actions" onClickCapture={() => onStopWalking?.()}>
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
           <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle}>
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
-          <button type="button" onClick={onTown} disabled={portalCount < 1} title={portalCount > 0 ? 'Use one town portal scroll' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
+          <button type="button" onClick={onTown} disabled={portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
             Portal ({portalCount})
           </button>
-          <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview" aria-label="Map" aria-pressed={isOverview} onClick={() => setMazeMode(isOverview ? 'camera' : 'overview')}>
+          <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview (M)" aria-label="Map" aria-keyshortcuts="M" aria-pressed={isOverview} onClick={toggleMap}>
             <Map size={18} aria-hidden="true" />
           </button>
-          <button className="screen-icon" type="button" title="Party" aria-label="Party" onClick={onCharacters}>
+          <button className="screen-icon" type="button" title="Party and inventory (I)" aria-label="Party" aria-keyshortcuts="I" onClick={onCharacters}>
             <Users size={18} aria-hidden="true" />
           </button>
           <button className="screen-icon" type="button" title="Saves" aria-label="Saves" onClick={onSaves}>
@@ -109,6 +123,7 @@ export function ExploreScreen({
           camera={camera}
           mode={mazeMode}
           onCameraChange={setCamera}
+          onTileClick={blocked ? undefined : onTileClick}
         />
         {mazeMode === 'camera' && (
           <div className="camera-controls" aria-label="Camera controls">
@@ -125,7 +140,11 @@ export function ExploreScreen({
           </div>
         )}
       </section>
-      <Controls onMove={onMove} />
+      <div className="explore-interaction">
+        <button type="button" onClick={interact} disabled={blocked || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
+        <span aria-live="polite">{navigationMessage}</span>
+      </div>
+      <Controls onMove={onMove} disabled={blocked} />
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
         <div className="screen-settings">
           <label className="compact-toggle">

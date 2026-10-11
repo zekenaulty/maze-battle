@@ -9,12 +9,17 @@ import { buyFromVendor, leaveTown, useInn, useTownPortal } from '../domain/town/
 import { stopAllAutomation, toggleAutoplay, toggleWaves } from '../domain/automation/autoPlay';
 import { castExplorationSkill, setAutoSpendPoints, spendAttribute, type SpendableAttribute } from '../domain/party/partyActions';
 import { moveManually, type GameTransition } from './useGameLoop';
+import { openChest } from '../domain/items/chests';
 
 export function useGameCommands(transition: GameTransition) {
   return useMemo(() => {
     const run = (action: string, update: (game: GameState) => GameState) => transition(update, { action, source: 'manual' });
     return {
       move: (direction: Direction) => run('move', g => moveManually(g, direction)),
+      openChest: (id: string) => run('open-chest', g => {
+        const opened = openChest(g, id, defaultRng);
+        return opened === g ? g : stopAllAutomation(opened);
+      }),
       toggleAuto: () => run('toggle-auto', toggleAutoplay),
       toggleWaves: () => run('toggle-waves', g => toggleWaves(g)),
       stopAuto: () => run('stop-auto', stopAllAutomation),

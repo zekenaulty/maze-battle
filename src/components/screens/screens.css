@@ -9,12 +9,13 @@
 .screen-auto-status { display: block; padding: 5px 10px; border-bottom: 1px solid var(--color-border); font-size: 12px; overflow-wrap: anywhere; min-width: 0; }
 .screen-auto-status strong { margin-right: 8px; }
 .screen-auto-status span { color: var(--color-muted); }
-.explore-screen.refined-screen { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.explore-screen.refined-screen { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .explore-screen.refined-screen > .screen-bar { grid-row: 1; }
 .explore-screen.refined-screen > .screen-auto-status { grid-row: 2; }
 .explore-screen.refined-screen .maze-stage { grid-row: 3; position: relative; inset: auto; min-height: 0; min-width: 0; padding: 4px; }
 .explore-screen.refined-screen .camera-controls { right: 8px; bottom: 8px; }
-.explore-screen.refined-screen .controls { grid-row: 4; position: relative; padding: 0; background: var(--color-surface); }
+.explore-screen.refined-screen .controls { grid-row: 5; position: relative; padding: 0; background: var(--color-surface); }
+.explore-screen.refined-screen .explore-interaction { grid-row: 4; }
 .screen-settings { display: grid; gap: 14px; padding: 16px; }
 .screen-settings .screen-icon { width: 40px; height: 40px; }
 .screen-settings .compact-toggle { justify-self: start; }
@@ -34,3 +35,4 @@
   .explore-screen.refined-screen .dpad { display: grid; grid-template-rows: repeat(2, 44px); }
   .explore-screen.refined-screen .dpad-down { grid-row: 2; grid-column: 2; }
 }
+.explore-interaction { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; padding: 4px 12px; font-size: .8rem; }

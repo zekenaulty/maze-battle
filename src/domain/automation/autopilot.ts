@@ -3,7 +3,7 @@ import { descendFloor, moveActive } from '../gameFactory';
 import { startBattle } from '../combat/battleEngine';
 import { defaultRng, type Rng } from '../combat/rng';
 import { shouldStartEncounter } from '../combat/encounters';
-import { openChestAtActivePosition } from '../items/chests';
+import { chestAtActivePosition, openChest } from '../items/chests';
 import { samePosition } from '../maze/key';
 import { syncGuildQuests } from '../quests/quests';
 import { nextAutoIntent, type PlannedAutoTarget } from './autopilotPlanning';
@@ -25,7 +25,7 @@ export function advanceAutopilot(game: GameState, rng: Rng = defaultRng, now = D
     next = { ...next, autopilot: planningState(next) };
   }
 
-  const opened = openChestAtActivePosition(next, rng);
+  const opened = collectChest(next, rng);
   if (opened !== next) return stamp({ ...opened, autopilot: { ...next.autopilot!, phase: 'interact', stalledTicks: 0, reason: 'Opened chest on route.' } }, now);
 
   const intent = nextAutoIntent(next);
@@ -53,7 +53,7 @@ export function advanceAutopilot(game: GameState, rng: Rng = defaultRng, now = D
         ...moved,
         autopilot: { ...moving.autopilot!, phase: route.length ? 'travel' : 'interact', route, lastPosition: { ...moved.maze.active }, stalledTicks: 0 },
       };
-      const withChest = openChestAtActivePosition(progressed, rng);
+      const withChest = collectChest(progressed, rng);
       if (shouldStartEncounter(withChest, rng)) {
         const encountered = startBattle(withChest, rng);
         return stamp({ ...encountered, autopilot: { ...withChest.autopilot!, phase: 'combat', reason: 'Random encounter on route.' } }, now);
@@ -61,7 +61,7 @@ export function advanceAutopilot(game: GameState, rng: Rng = defaultRng, now = D
       return stamp(withChest, now);
     }
     case 'interact': {
-      const ready = syncGuildQuests(openChestAtActivePosition(withPlan(next, intent.plan), rng));
+      const ready = syncGuildQuests(collectChest(withPlan(next, intent.plan), rng));
       const completed = intent.plan.target.questId
         ? ready.quests.find((quest) => quest.id === intent.plan.target.questId)?.status !== 'active'
         : ready.chests.find((chest) => chest.id === intent.plan.target.chestId)?.opened;
@@ -75,6 +75,12 @@ export function advanceAutopilot(game: GameState, rng: Rng = defaultRng, now = D
         : blockAutopilot(descended, 'Descent blocked by unfinished floor work.'), now);
     }
   }
+}
+
+// Auto deliberately elects to collect; movement itself never opens a chest.
+function collectChest(game: GameState, rng: Rng) {
+  const chest = chestAtActivePosition(game);
+  return chest ? openChest(game, chest.id, rng) : game;
 }
 
 function withPlan(game: GameState, plan: PlannedAutoTarget): GameState {

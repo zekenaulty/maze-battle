@@ -4,24 +4,24 @@ import type { TransitionContext } from '../domain/telemetry/types';
 import { advanceAutomaticPlay, autoControlActive, stopAllAutomation, wavesControlActive } from '../domain/automation/autoPlay';
 import { automaticStepDelay } from '../domain/automation/schedule';
 import { moveActive } from '../domain/gameFactory';
-import { openChestAtActivePosition } from '../domain/items/chests';
+import { ignoresGameKey } from './gameKeys';
 import { defaultRng } from '../domain/combat/rng';
 import { shouldStartEncounter } from '../domain/combat/encounters';
 import { startBattle } from '../domain/combat/battleEngine';
 
 export type GameTransition = (update: (game: GameState) => GameState, context: TransitionContext) => void;
 
-export function moveManually(game: GameState, direction: Direction): GameState {
+export function moveManually(game: GameState, direction: Direction, options: { triggerStairs?: boolean } = {}): GameState {
   if (game.battle || game.mode === 'town') return game;
   const base = autoControlActive(game) || wavesControlActive(game) ? stopAllAutomation(game) : game;
-  const moved = moveActive(base, direction);
+  const moved = moveActive(base, direction, options);
   const changedPosition = moved.maze.active.row !== base.maze.active.row || moved.maze.active.column !== base.maze.active.column;
-  const next = changedPosition ? openChestAtActivePosition(moved, defaultRng) : moved;
+  const next = moved;
   return changedPosition && next.dungeonLevel === base.dungeonLevel && next.mode === base.mode
     && shouldStartEncounter(next, defaultRng) ? startBattle(next) : next;
 }
 
-export function useGameLoop(game: GameState | undefined, paused: boolean, transition: GameTransition) {
+export function useGameLoop(game: GameState | undefined, paused: boolean, transition: GameTransition, onManualMove?: () => void) {
   const [clock, setClock] = useState(Date.now);
   useEffect(() => {
     const id = window.setInterval(() => setClock(Date.now()), 100);
@@ -43,17 +43,16 @@ export function useGameLoop(game: GameState | undefined, paused: boolean, transi
 
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
-      if (paused || event.defaultPrevented || document.querySelector('dialog[open]')) return;
-      const target = event.target;
-      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName))) return;
+      if (paused || ignoresGameKey(event) || document.querySelector('dialog[open]')) return;
       const direction = directions[event.key.toLowerCase()];
       if (!direction) return;
       event.preventDefault();
+      onManualMove?.();
       transition(state => moveManually(state, direction), { action: 'move', source: 'manual' });
     };
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
-  }, [paused, transition]);
+  }, [paused, transition, onManualMove]);
   return clock;
 }
 
