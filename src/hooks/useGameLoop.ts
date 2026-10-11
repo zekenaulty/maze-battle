@@ -3,22 +3,15 @@ import type { Direction, GameState } from '../domain/types';
 import type { TransitionContext } from '../domain/telemetry/types';
 import { advanceAutomaticPlay, autoControlActive, stopAllAutomation, wavesControlActive } from '../domain/automation/autoPlay';
 import { automaticStepDelay } from '../domain/automation/schedule';
-import { moveActive } from '../domain/gameFactory';
+import { applyGameCommand } from '../domain/gameCommands';
 import { ignoresGameKey } from './gameKeys';
-import { defaultRng } from '../domain/combat/rng';
-import { shouldStartEncounter } from '../domain/combat/encounters';
-import { startBattle } from '../domain/combat/battleEngine';
 
 export type GameTransition = (update: (game: GameState) => GameState, context: TransitionContext) => void;
 
 export function moveManually(game: GameState, direction: Direction, options: { triggerStairs?: boolean } = {}): GameState {
   if (game.battle || game.mode === 'town') return game;
   const base = autoControlActive(game) || wavesControlActive(game) ? stopAllAutomation(game) : game;
-  const moved = moveActive(base, direction, options);
-  const changedPosition = moved.maze.active.row !== base.maze.active.row || moved.maze.active.column !== base.maze.active.column;
-  const next = moved;
-  return changedPosition && next.dungeonLevel === base.dungeonLevel && next.mode === base.mode
-    && shouldStartEncounter(next, defaultRng) ? startBattle(next) : next;
+  return applyGameCommand(base, { type: 'move', direction, triggerStairs: options.triggerStairs !== false }).game;
 }
 
 export function useGameLoop(game: GameState | undefined, paused: boolean, transition: GameTransition, onManualMove?: () => void) {

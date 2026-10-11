@@ -9,6 +9,9 @@ import { loadTelemetry, saveTelemetry } from '../../persistence/telemetryReposit
 import { sameOwner, SaveOwnershipError, type SaveControl } from '../../persistence/saveControl';
 import { importLegacyLocalStorageSaves } from '../../persistence/legacyLocalStorage';
 import { BrowserSaveLock } from './BrowserSaveLock';
+import type { GameCommand } from '../../domain/gameCommands';
+import type { GameCommandRequest } from '../../persistence/gameCommandTypes';
+import { executeOwnedGameCommand, settleGameCommand } from '../../persistence/gameCommands';
 
 export interface GameSessionView {
   game?: GameState; telemetry?: PlayTelemetry; saves: SaveSummary[];
@@ -129,12 +132,7 @@ export class GameSession {
       });
       this.control = next.control;
       this.publish({ game: next.game, telemetry: trace, status: 'Saved' });
-      if (!this.diagnosticsWritable || !trace) { this.publish({ status: 'Saved; diagnostics storage unavailable' }); return; }
-      try { await saveTelemetry(trace, next.control); }
-      catch (error) {
-        if (error instanceof SaveOwnershipError) throw error;
-        this.publish({ status: 'Saved; diagnostics storage unavailable' });
-      }
+      await this.persistTrace(trace, next.control);
     }).catch(() => {}).finally(() => { if (automatic) this.autoPending = false; });
   };
 
@@ -143,6 +141,42 @@ export class GameSession {
     await this.adopt(next);
     this.publish({ status: 'Saved' });
   });
+
+  commandRequest = (command: GameCommand, attemptId = crypto.randomUUID(), deadlineAt = Date.now() + 120_000): GameCommandRequest => {
+    if (!this.view.controlled || !this.control || !this.view.game) throw new SaveOwnershipError();
+    return structuredClone({ attemptId, command, deadlineAt, control: this.control,
+      gameId: this.view.game.id, floor: this.view.game.dungeonLevel, position: this.view.game.maze.active });
+  };
+
+  /** Awaitable internal command boundary. Never replace an original's fence with fresh authority. */
+  executeCommand = (request: GameCommandRequest, context: TransitionContext = { source: 'system', action: `command:${request.command.type}` }) => {
+    const original = structuredClone(request);
+    return this.owned(async () => {
+      const before = this.view.game, trace = this.view.telemetry, revision = this.control!.revision;
+      const result = await executeOwnedGameCommand(original);
+      if (result.current) await this.adopt(result.current);
+      this.publish({ status: result.receipt.outcome.status === 'not-applied' ? 'Command not applied' : 'Saved' });
+      if (!result.replayed && result.current && before && revision === result.receipt.beforeRevision
+        && result.receipt.outcome.status !== 'not-applied') {
+        const nextTrace = recordTransition(trace ?? createPlayTelemetry(before.id), before, result.current.game, context);
+        this.publish({ telemetry: nextTrace });
+        await this.persistTrace(nextTrace, result.current.control);
+      }
+      return result.receipt;
+    });
+  };
+
+  // Recovery is read/settlement only; it is valid after the old owner has lost control.
+  reconcileCommand = async (request: GameCommandRequest) => (await settleGameCommand(structuredClone(request))).receipt;
+
+  private async persistTrace(trace: PlayTelemetry | undefined, control: SaveControl) {
+    if (!this.diagnosticsWritable || !trace) { this.publish({ status: 'Saved; diagnostics storage unavailable' }); return; }
+    try { await saveTelemetry(trace, control); }
+    catch (error) {
+      if (error instanceof SaveOwnershipError) throw error;
+      this.publish({ status: 'Saved; diagnostics storage unavailable' });
+    }
+  }
 
   createManualSave = () => this.owned(async control => {
     this.control = await changeOwnedSave(control, { type: 'create', label: new Date().toLocaleString() });
