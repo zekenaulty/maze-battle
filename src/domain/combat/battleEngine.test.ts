@@ -7,6 +7,7 @@ import { advanceBattleRound, setBattleReturnMode, startBattle, useBattleSkill } 
 import { lineMaze, questFor, roomAt } from '../automation/autopilotTestFixtures';
 import { MAX_STALLED_COMBAT_TICKS } from '../automation/autopilotCombat';
 import { stopAutopilot } from '../automation/autopilot';
+import { claimGuildQuestReward } from '../quests/quests';
 
 const highRoll = () => 0.99;
 const lowRoll = () => 0.1;
@@ -298,9 +299,11 @@ describe('battleEngine', () => {
       }
     }
     expect(game.battle).toBeUndefined();
-    expect(game.quests[0].status).toBe('claimed');
+    expect(game.quests[0].status).toBe('complete');
     expect(game.quests[1].status).toBe('active');
     expect(game.party[0].xp - initialXp).toBe(6);
+    expect(game.inventory.gold).toBe(gold);
+    game = claimGuildQuestReward(game, game.quests[0].id);
     expect(game.inventory.gold).toBe(gold + rewards);
     expect(useBattleSkill(game, game.party[0].id, 'slash', lowRoll)).toBe(game);
     expect(normalizeGameState(game).inventory.gold).toBe(game.inventory.gold);

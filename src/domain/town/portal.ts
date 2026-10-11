@@ -1,6 +1,5 @@
 import type { GameState, ItemInstance } from '../types';
 import { consumeStackItem, itemQuantity } from '../items/itemStacks';
-import { syncGuildQuests } from '../quests/quests';
 import { ambiguousItemIds } from '../items/itemOwnership';
 
 function availableScroll(item: ItemInstance): boolean {
@@ -28,7 +27,7 @@ export function useTownPortal(game: GameState, itemId?: string): GameState {
   const scroll = game.inventory.items.find((item) => !ambiguous.has(item.id) && availableScroll(item) && (itemId === undefined || item.id === itemId));
   if (!scroll) return game;
   const townReturnMode = game.mode === 'auto-play' || game.mode === 'waves' ? game.mode : 'manual';
-  return syncGuildQuests({
+  return {
     ...game,
     mode: 'town',
     townReturnMode,
@@ -36,5 +35,5 @@ export function useTownPortal(game: GameState, itemId?: string): GameState {
     inventory: { ...game.inventory, items: consumeStackItem(game.inventory.items, scroll.id) },
     activityLog: ['Town portal opened.', ...game.activityLog].slice(0, 12),
     updatedAt: new Date().toISOString(),
-  });
+  };
 }

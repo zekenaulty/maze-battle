@@ -6,6 +6,8 @@ import { movePosition, opposite } from '../../src/domain/maze/movement';
 import type { GameState, GridPosition, MazeRoomState } from '../../src/domain/types';
 import original from '../fixtures/original-saves/advanced.json' with { type: 'json' };
 import { supply } from '../../src/domain/items/__tests__/fixtures';
+import { guildContractsForFloor } from '../../src/domain/guild/contracts';
+import { acceptGuildContract, syncGuildQuests } from '../../src/domain/quests/quests';
 
 export const inside = (p: GridPosition, r: MazeRoomState) => p.row >= r.row && p.row < r.row + r.rows
   && p.column >= r.column && p.column < r.column + r.columns;
@@ -44,12 +46,18 @@ export function fixtureGame(scenario: string): GameState {
       party: game.party.map(actor => ({ ...actor, autoBattle: false })),
     };
     if (scenario === 'original') game.inventory.items.push(supply('town-portal', 2));
+    if (scenario === 'v1' || scenario === 'v2') {
+      // An explicitly accepted old-save objective, not automatic policy during load.
+      const contract = guildContractsForFloor(game).find(c => c.task.objective === 'fetch');
+      if (!contract) throw new Error('Legacy fixture needs a fetch contract');
+      game = acceptGuildContract(game, contract.id);
+    }
     if (scenario.startsWith('safe-')) {
       const edge = boundary(game);
       game.maze = { ...game.maze, active: scenario === 'safe-manual' ? edge.outside : edge.inner };
       // Bounded objective setup only: generated geometry/tags and all game owners stay intact.
       game.chests = [{ id: 'd1-boundary-target', level: 1, position: edge.outside, opened: false }];
-      game.quests = game.quests.map(q => ({ ...q, status: 'claimed', task: { ...q.task, progress: q.task.required },
+      game.quests = syncGuildQuests(game).quests.map(q => ({ ...q, status: 'claimed', task: { ...q.task, progress: q.task.required },
         completedAt: game.createdAt, claimedAt: game.createdAt }));
     }
     return game;

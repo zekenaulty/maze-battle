@@ -25,6 +25,7 @@ export function acceptGuildContract(game: GameState, contractId: string): GameSt
   return updateQuestProgress(withQuest);
 }
 
+/** Auto's deliberate guild policy. Do not call from movement, loading or effect recording. */
 export function syncGuildQuests(game: GameState): GameState {
   return claimCompletedGuildQuests(updateQuestProgress(autoAcceptGuildContracts(game)));
 }
@@ -88,7 +89,7 @@ export function recordFetchQuestProgress(game: GameState, position: GridPosition
     return room && isInRoom(position, room) ? quest.task.required : quest.task.progress;
   });
 
-  return claimCompletedGuildQuests(next);
+  return next;
 }
 
 export function recordKillQuestProgress(game: GameState, defeated: EnemyState[], origin?: BattleState['origin']): GameState {
@@ -109,7 +110,7 @@ export function recordKillQuestProgress(game: GameState, defeated: EnemyState[],
     return quest.task.progress + matching.size;
   });
 
-  return claimCompletedGuildQuests(next);
+  return next;
 }
 
 export function claimGuildQuestReward(game: GameState, questId: string): GameState {

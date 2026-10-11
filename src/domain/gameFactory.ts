@@ -11,7 +11,7 @@ import { normalizeAutoThrottleMs } from './automation/throttle';
 import { normalizeAutopilot } from './automation/autopilotState';
 import { normalizeMazeTexture } from './maze/textureOptions';
 import { revealMazeVisibility } from './maze/visibility';
-import { syncGuildQuests } from './quests/quests';
+import { updateQuestProgress } from './quests/quests';
 import { monsterTagsForFloor, normalizeMonsterTags } from './combat/monsters';
 import { defaultRng, type Rng } from './combat/rng';
 import { roomAtPosition } from './quests/questTargets';
@@ -130,7 +130,7 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
   const stash = normalizeStash(overrides.stash ?? createInitialStash(), protectedIds);
   const chests = normalizeChests(overrides.chests, dungeonLevel, maze);
 
-  return syncGuildQuests({
+  return {
     schemaVersion: 1,
     id,
     createdAt: overrides.createdAt ?? now,
@@ -163,7 +163,7 @@ export function createNewGameState(overrides: GameStateOverrides = {}): GameStat
     battle: overrides.battle ? { ...overrides.battle, ...rewardGoldField(overrides.battle) } : undefined,
     activityLog: overrides.activityLog ?? ['New expedition started.'],
     source: overrides.source ?? { type: 'new-game' },
-  });
+  };
 }
 
 export function normalizeGameState(state: StoredGameState): GameState {
@@ -239,7 +239,7 @@ export function moveActive(game: GameState, direction: Direction, options: { tri
     || !mazeCellAt(game.maze, nextActive)) return facingGame;
   const visited = hasVisited(game.maze.visited, nextActive) ? game.maze.visited : [...game.maze.visited, nextActive];
   const currentMaze = revealMazeVisibility({ ...game.maze, active: nextActive, visited });
-  const movedGame = syncGuildQuests({
+  const movedGame = updateQuestProgress({
     ...facingGame,
     updatedAt,
     maze: currentMaze,
@@ -267,7 +267,7 @@ export function moveActive(game: GameState, direction: Direction, options: { tri
 export function descendFloor(game: GameState, rng: Rng = defaultRng): GameState {
   if (game.mode === 'town' || game.battle || game.party.every((actor) => actor.hp <= 0)
     || !samePosition(game.maze.active, game.maze.end)) return game;
-  const ready = syncGuildQuests(game);
+  const ready = updateQuestProgress(game);
   if (ready.quests.some((quest) => quest.floor === ready.dungeonLevel && quest.status !== 'claimed')
     || ready.chests.some((chest) => chest.level === ready.dungeonLevel && !chest.opened)) return ready;
   return enterFloor(ready, ready.maze, ready.dungeonLevel + 1, 'down', rng);
@@ -530,7 +530,7 @@ function enterFloor(game: GameState, currentMaze: GameState['maze'], targetLevel
   const verb = direction === 'down' ? 'Descended' : 'Returned';
   const chests = game.chests.some((chest) => chest.level === targetLevel) ? game.chests : [...game.chests, ...generateChestsForMaze(targetLevel, targetMaze)];
 
-  return syncGuildQuests({
+  return updateQuestProgress({
     ...game,
     updatedAt: nowIso(),
     dungeonLevel: targetLevel,

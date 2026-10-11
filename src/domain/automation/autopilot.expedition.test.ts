@@ -18,6 +18,8 @@ describe('persistent expedition runner', () => {
     });
     const flags = [true, false, true];
     game = { ...game, party: game.party.map((actor, index) => ({ ...actor, autoBattle: flags[index] })) };
+    expect(game.quests).toEqual([]);
+    game = advanceAutopilot(game, () => 0.1, 0);
     const ids = game.quests.map((quest) => quest.id);
     expect(new Set(game.quests.map((quest) => quest.task.objective)).size).toBe(4);
     let sawIncidentalExit = false;
@@ -55,6 +57,8 @@ describe('persistent expedition runner', () => {
     });
     // Qualify navigation/progress independently from encounter balance and inventory care.
     game = { ...game, party: game.party.map((actor) => ({ ...actor, hp: 2000, maxHp: 2000, combat: { ...actor.combat, baseDamage: 100 } })) };
+    expect(game.quests).toEqual([]);
+    game = advanceAutopilot(game, rng, 0);
     const ids = game.quests.map((quest) => quest.id);
     expect(new Set(game.quests.map((quest) => quest.task.objective)).size).toBe(4);
     for (let tick = 0; tick < 2000 && game.dungeonLevel === 1 && game.autopilot?.phase !== 'blocked'; tick++) {

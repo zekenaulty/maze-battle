@@ -6,14 +6,18 @@ for (const source of ['manual', 'auto'] as const) test(`${source} capacity failu
   const result = await page.evaluate(async source => {
     const h = window.ordinaryCustody;
     const paths = { factory: '/src/domain/gameFactory.ts', legacy: '/src/domain/maze/structuredGenerate.ts',
-      solver: '/src/domain/maze/solver.ts', movement: '/src/hooks/useGameLoop.ts', auto: '/src/domain/automation/autopilot.ts' };
+      solver: '/src/domain/maze/solver.ts', movement: '/src/hooks/useGameLoop.ts', auto: '/src/domain/automation/autopilot.ts',
+      quests: '/src/domain/quests/quests.ts' };
     const factory = await import(/* @vite-ignore */ paths.factory) as typeof import('../../src/domain/gameFactory');
     const legacy = await import(/* @vite-ignore */ paths.legacy) as typeof import('../../src/domain/maze/structuredGenerate');
     const solver = await import(/* @vite-ignore */ paths.solver) as typeof import('../../src/domain/maze/solver');
     const movement = await import(/* @vite-ignore */ paths.movement) as typeof import('../../src/hooks/useGameLoop');
     const auto = await import(/* @vite-ignore */ paths.auto) as typeof import('../../src/domain/automation/autopilot');
+    const quests = await import(/* @vite-ignore */ paths.quests) as typeof import('../../src/domain/quests/quests');
     const maze = legacy.generateStructuredMaze(9, 13, () => 0.42);
     let game = factory.createNewGameState({ id: 'capacity-test', dungeonLevel: 125, maze, randomBattles: false });
+    // Seed an already-cleared floor explicitly; normal creation no longer accepts contracts.
+    game = quests.syncGuildQuests(game);
     const route = solver.findPath(game.maze, game.maze.end)!.directions;
     for (const direction of route.slice(0, -1)) game = factory.moveActive(game, direction, { triggerStairs: false });
     game = { ...game, chests: game.chests.map(chest => ({ ...chest, opened: true })),

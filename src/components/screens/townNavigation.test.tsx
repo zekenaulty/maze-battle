@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNewGameState } from '../../domain/gameFactory';
 import { TownScreen } from '../TownScreen';
+import { questFor, roomAt } from '../../domain/automation/autopilotTestFixtures';
 
 afterEach(cleanup);
 const noop = () => {};
@@ -63,8 +64,8 @@ describe('focused town navigation', () => {
 
   it('keeps completed history out of current contracts and retains its filter across services', () => {
     const game = createNewGameState({ mode: 'town' });
-    const quest = { ...game.quests[0], title: 'Archived commission', status: 'claimed' as const };
-    game.quests = [quest, ...game.quests.slice(1)];
+    const quest = { ...questFor(roomAt('archive', 'safe', 0), 'scout'), title: 'Archived commission', status: 'claimed' as const };
+    game.quests = [quest];
     render(<TownScreen {...props} game={game} />);
     expect(screen.queryByText('Archived commission')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'History (1)' }));

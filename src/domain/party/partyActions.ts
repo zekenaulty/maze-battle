@@ -4,11 +4,10 @@ import { createCombatContext } from '../combat/battleContext';
 import { canUseSkill } from '../combat/combatant';
 import { defaultRng, type Rng } from '../combat/rng';
 import { getEffectiveActor } from '../items/inventory';
-import { openChestAtActivePosition } from '../items/chests';
 import { createMazePathSearch } from '../maze/solver';
 import { samePosition } from '../maze/key';
 import { revealMazeVisibility } from '../maze/visibility';
-import { syncGuildQuests } from '../quests/quests';
+import { updateQuestProgress } from '../quests/quests';
 
 export type SpendableAttribute = 'strength' | 'vitality' | 'intellect';
 const CAMP_SKILLS: SkillId[] = ['heal', 'groupHeal', 'resurrect', 'teleport'];
@@ -52,7 +51,7 @@ export function castExplorationSkill(game: GameState, actorId: string, skillId: 
       floors: next.floors.map(f => f.level === next.dungeonLevel ? { ...f, maze } : f),
       activityLog: [`${actor.displayName} teleported.`, ...next.activityLog].slice(0, 20),
     };
-    next = openChestAtActivePosition(syncGuildQuests(next), rng);
+    next = updateQuestProgress(next);
   }
   return next;
 }
