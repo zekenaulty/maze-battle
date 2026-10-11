@@ -1,0 +1,47 @@
+{
+  "schema": "maze-ns6-proof/1",
+  "qualification": "provider-free cross-runtime",
+  "mazeCommit": "3e6e7e25cfc702ae212b19d6a2db2b298fdba341",
+  "agenticaSourceCommit": "1e1a2df3c489d633b62b739b7bd61eba2cfa3c5d",
+  "agenticaLabAssemblySha256": "5F75937E3B5A4053FFB2E4FB3016B3E4F3DA13284DAA9867AC6800DC03720D6A",
+  "browserSdkGitBlob": "64665c24e9a73ebd7dcd97a91fefcd9f0d944a2b",
+  "unit": { "passed": 1640, "files": 114, "workers": 1, "durationSeconds": 304.35, "exitCode": 0 },
+  "nativeBrowser": { "passed": 153, "exitCode": 0 },
+  "paired": {
+    "startedAt": "2026-10-11T05:46:39.847Z",
+    "durationMs": 95932.857,
+    "passed": 12,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "report": "test-results/ns6-paired-report.json"
+  },
+  "productionBuild": { "exitCode": 0, "tools": ["TypeScript", "Vite"] },
+  "travelOnly": {
+    "runId": "labrun_8ee8bc12d4a3424cacdad1c3bdb642d2",
+    "localSteps": 38,
+    "fixtureProviderCalls": 1,
+    "serviceState": "completed",
+    "admissionUnchanged": true,
+    "noArrivalInteraction": true
+  },
+  "onDemandContexts": {
+    "tools": ["maze.map", "maze.room", "maze.navigate"],
+    "fixtureHttpRequestBytes": [26168, 57428, 96665],
+    "localSteps": 38,
+    "additionalCallsDuringTravel": 0,
+    "routineProgressView": "operation"
+  },
+  "earlierFailures": [
+    "Combined startup/inspection/adoption review exposed fixed cancellation, stale epoch, and missing arrival-publication cases.",
+    "Large repeated room context exhausted the planner budget; explicit scoped queries and compact operation events replaced it.",
+    "Concurrent regression runs hit an existing stress-test timeout and mobile startup assertion; final separate cohorts passed without changing test deadlines."
+  ],
+  "limits": [
+    "Deterministic fixture provider only; no paid model calls or live-model competence claim.",
+    "Host capabilities are implemented and qualified; the ordinary RPG UI is not replaced with an agent-control UI.",
+    "Room/map queries use retained actor observations, not authoritative topology or refreshed unseen facts.",
+    "Fixture HTTP byte counts are not token counts or financial estimates."
+  ]
+}
