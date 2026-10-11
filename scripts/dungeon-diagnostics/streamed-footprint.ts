@@ -33,3 +33,17 @@ export function footprint(rectangles: Bounds[]) {
   return { bounds, summedArea: rectangles.reduce((sum, value) => sum + value.rows * value.columns, 0),
     unionArea: area, boundingArea, coverage: boundingArea ? area / boundingArea : null };
 }
+
+export function roomSizes(rooms: (Bounds & { id: string })[], entryId: string) {
+  const sides = rooms.flatMap(room => [room.rows, room.columns]);
+  const sideHistogram: Record<string, number> = {};
+  for (const side of sides) sideHistogram[side] = (sideHistogram[side] ?? 0) + 1;
+  const nonEntry = rooms.filter(room => room.id !== entryId);
+  const nonEntry5x5Rooms = nonEntry.filter(room => room.rows === 5 && room.columns === 5).length;
+  return {
+    minSide: sides.length ? Math.min(...sides) : null,
+    maxSide: sides.length ? Math.max(...sides) : null,
+    sideHistogram, nonEntryRooms: nonEntry.length, nonEntry5x5Rooms,
+    nonEntry5x5Fraction: nonEntry.length ? nonEntry5x5Rooms / nonEntry.length : null,
+  };
+}

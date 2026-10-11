@@ -46,6 +46,7 @@ export type StreamedMeasurement = {
     revision: number | null;
     sockets: { total: number; linked: number; pending: number; utilization: number | null } | null;
     roomGraph: Inspection['roomGraph'];
+    roomSizes: Inspection['roomSizes'] | null;
     roomFootprint: Inspection['roomFootprint'] | null;
     passageFootprint: Inspection['passageFootprint'] | null;
     spaceBounds: Bounds | null;

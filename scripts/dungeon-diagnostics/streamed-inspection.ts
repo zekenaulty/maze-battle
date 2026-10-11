@@ -5,7 +5,7 @@ import type { CellAddress, SpaceSpec } from '../../src/domain/expedition/types';
 import { overlaps, spaceBounds, world } from '../../src/domain/expedition/topology/geometry';
 import { resolvedSpaceSpec } from '../../src/domain/expedition/topology/projection';
 import type { TopologyConnection, TopologySpace } from '../../src/domain/expedition/topology/types';
-import { enclosingBounds, footprint } from './streamed-footprint';
+import { enclosingBounds, footprint, roomSizes } from './streamed-footprint';
 import { roomGraph } from './streamed-graph';
 import { STREAMED_LIMITS } from './streamed-types';
 import type { StreamedGeometry } from './streamed-types';
@@ -138,6 +138,7 @@ export function inspectStreamedSnapshot(spaces: TopologySpace[], links: Topology
   return {
     geometry,
     roomGraph: roomGraph(spaces, links, start),
+    roomSizes: roomSizes(geometry.rooms, start.spaceId),
     roomFootprint: footprint(geometry.rooms),
     passageFootprint: { ...footprint(geometry.passages),
       lengthCells: straightPassages ? geometry.passages.reduce((sum, value) => sum + Math.max(value.rows, value.columns), 0) : null,
