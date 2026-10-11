@@ -1,10 +1,42 @@
 # D1 Repair Plan: Shared Socket-Connected Room Assembly
 
-Status: **PROPOSED FOR OWNER REVIEW; NOT IMPLEMENTED**. 2026-10-11.
+Status: **IMPLEMENTATION AUTHORIZED; QUALIFICATION PENDING**. 2026-10-11.
 Input: [D0 findings](dungeon-d0-findings.md), [compatibility audit](reviews/d0-compatibility.md),
 [issue #3](https://github.com/zekenaulty/maze-battle/issues/3).
-The encompassing goal pauses at this boundary. Approval of earlier direction
-is not approval of the numeric proposals below or permission to implement now.
+The owner explicitly resumed implementation after the second review. The numeric
+policies below remain versioned provisional defaults, not accepted balance laws.
+Review attachment SHA-256:
+`d8fe6f7597d0e8fbac47d592eac60e3db917ec84494785554d2bd5d291ddb572`.
+
+## Accepted Review Amendments
+
+- Add ordinary structural rooms; retain a bounded special-role allocation. More
+  modules must not multiply chest, boss or contract budgets.
+- Require per-floor anti-chain checks as well as corpus medians, and report chain
+  lengths, branch depths, path distances and actual maps.
+- Measure eager projection cells, full RPG save bytes, drawing and traversal;
+  capacity failure must occur before any partial floor reaches game state.
+- Fix ordinary safe-room wandering encounters independently from global no-combat
+  test policy. Use authoritative room membership, preserve explicit battles and
+  legacy hostile-overlap priority, and qualify manual/Auto/reload/boundary cases.
+- Extend the separately repaired canvas regression (`b91ac26`, integrated here as
+  `dc44c77`) to same-session follow/manual camera, pointer mapping, dialogs and
+  unchanged game state. This remains a D1.4 player-view gate.
+- Defer rich room authoring, LLM room proposals, combat ownership and paid trials.
+
+## Implementation Ownership
+
+| Ticket | Owner / isolation | Status |
+| --- | --- | --- |
+| D1.1 policy, ordinary roles, acceptance | Integrator, `codex/dungeon-d1` | Policy/roles checked; geometry proof in D1.2 |
+| D1.2 module assembly and joins | Integrator, same branch after D1.1 | Pending |
+| D1.3 RPG projection and version preservation | Integrator after assembly proof | Pending |
+| D1.S safe-room wandering encounters | Isolated `codex/d1-safe-rooms`; narrow encounter services/tests | In progress |
+| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | Pending |
+| D1.4 integrated measurements and compatibility | Integrator; all lanes must pass together | Pending |
+
+The live preview/save at port 5190 is not the implementation workspace. Checked
+verticals are pushed promptly; no merge or paid-provider authorization is implied.
 
 ## Recommended Shape
 
@@ -60,8 +92,12 @@ These are candidate policies to review, not preexisting owner instructions.
    permanent eight-room-style world ceiling.
 
 The old unchecked exponential grid allocation is not retained for new-policy
-floors. Final growth/capacity policy is the key owner decision before D1. It can
-be configured/versioned without a new game settings screen.
+floors. Growth/capacity remains provisional and can be configured/versioned
+without a new game settings screen. It is not silently clamped on capacity failure.
+
+D1.1 evidence: 83 focused tests passed (new module policy/role allocation plus
+unchanged v2 ordinary and streamed generation), and `tsc --noEmit` passed. This
+does not yet qualify new geometry or make it the ordinary game's default.
 
 ## Bounded Implementation Verticals
 
@@ -80,8 +116,9 @@ must continue under their original interpretation regardless.
 
 ## Acceptance Matrix for Review
 
-All results below are **NOT RUN**. Numeric thresholds need owner review before
-implementation; D0 measured baselines are in a separate file.
+All D1 results below are **NOT RUN** until linked evidence replaces that status.
+Numeric thresholds are provisional qualification policies under the approved
+direction; D0 measured baselines are in a separate file.
 
 | Category | Proposed acceptance |
 | --- | --- |

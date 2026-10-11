@@ -42,7 +42,7 @@ export interface GridPosition {
 
 export type MazeLayoutVersion = 'structured-v1' | 'structured-v2';
 
-export type MazeRoomKind = 'start' | 'hub' | 'treasure' | 'safe' | 'boss' | 'exit';
+export type MazeRoomKind = 'start' | 'hub' | 'treasure' | 'safe' | 'boss' | 'exit' | 'ordinary';
 
 export type MazeRoomTag = 'safe' | 'hostile' | 'rare' | 'questRelevant';
 

@@ -59,7 +59,7 @@ export function nameRooms(footprints: RoomFootprint[], hubIndex: number): MazeRo
   const specialties: MazeRoomKind[] = ['treasure', 'boss', 'safe', 'treasure', 'safe'];
   const names: Record<MazeRoomKind, string> = {
     start: 'Entry Hall', hub: 'Central Hub', exit: 'Descent Gate',
-    treasure: 'Vault', boss: 'Guard Post', safe: 'Sanctuary',
+    treasure: 'Vault', boss: 'Guard Post', safe: 'Sanctuary', ordinary: 'Chamber',
   };
   let specialty = 0;
   return footprints.map((footprint, index) => {
@@ -71,6 +71,7 @@ export function nameRooms(footprints: RoomFootprint[], hubIndex: number): MazeRo
 
 export function roomTagsForKind(kind: MazeRoomKind): MazeRoomTag[] {
   switch (kind) {
+    case 'ordinary': return [];
     case 'start':
     case 'hub': return ['safe', 'questRelevant'];
     case 'safe': return ['safe', 'rare', 'questRelevant'];
