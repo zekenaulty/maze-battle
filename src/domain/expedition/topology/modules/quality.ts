@@ -1,0 +1,54 @@
+import type { ModuleAssemblyState } from './types';
+import { ModuleCapacityError } from './types';
+
+export function moduleQuality(state: ModuleAssemblyState) {
+  const rooms = state.spaces.filter(space => space.kind === 'room');
+  const graph = new Map(rooms.map(room => [room.id, [] as string[]]));
+  for (const join of state.joins) {
+    graph.get(join.fromRoomId)!.push(join.toRoomId);
+    graph.get(join.toRoomId)!.push(join.fromRoomId);
+  }
+  const distances = (start: string) => {
+    const found = new Map([[start, 0]]);
+    const queue = [start];
+    for (let i = 0; i < queue.length; i++) for (const next of graph.get(queue[i])!) {
+      if (found.has(next)) continue;
+      found.set(next, found.get(queue[i])! + 1);
+      queue.push(next);
+    }
+    return { count: found.size, farthest: queue[queue.length - 1], depth: Math.max(...found.values()) };
+  };
+  const entry = distances('entry');
+  let longestChain = 0;
+  for (const [id, neighbors] of graph) {
+    if (neighbors.length === 2) continue;
+    for (const neighbor of neighbors) {
+      let previous = id, current = neighbor, length = 1;
+      while (graph.get(current)!.length === 2 && length < rooms.length) {
+        const next = graph.get(current)!.find(value => value !== previous)!;
+        previous = current; current = next; length++;
+      }
+      longestChain = Math.max(longestChain, length);
+    }
+  }
+  const row = Math.min(...state.spaces.map(space => space.origin.row));
+  const column = Math.min(...state.spaces.map(space => space.origin.column));
+  const rows = Math.max(...state.spaces.map(space => space.origin.row + space.rows)) - row;
+  const columns = Math.max(...state.spaces.map(space => space.origin.column + space.columns)) - column;
+  const roomArea = rooms.reduce((sum, room) => sum + room.rows * room.columns, 0);
+  return { rooms: rooms.length, forks: [...graph.values()].filter(neighbors => neighbors.length >= 3).length,
+    leaves: [...graph.values()].filter(neighbors => neighbors.length === 1).length,
+    longestChain, depth: entry.depth, diameter: distances(entry.farthest).depth, reachable: entry.count,
+    directJoins: state.joins.filter(join => !join.passageId).length, passages: state.joins.filter(join => join.passageId).length,
+    origin: { row, column }, rows, columns, projectionCells: rows * columns, roomArea, coverage: roomArea / (rows * columns) };
+}
+
+export function assertModuleQuality(state: ModuleAssemblyState) {
+  const quality = moduleQuality(state);
+  const minimumForks = quality.rooms >= 12 ? 2 : quality.rooms >= 7 ? 1 : 0;
+  if (quality.rooms !== state.recipe.roomBudget || quality.reachable !== quality.rooms || state.joins.length !== quality.rooms - 1
+    || quality.forks < minimumForks || quality.longestChain > Math.ceil(quality.rooms * 0.6)) {
+    throw new ModuleCapacityError('quality', `Module floor failed structural qualification: ${JSON.stringify(quality)}`);
+  }
+  return quality;
+}

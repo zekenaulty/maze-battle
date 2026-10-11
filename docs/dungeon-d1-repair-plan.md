@@ -29,10 +29,10 @@ Review attachment SHA-256:
 | Ticket | Owner / isolation | Status |
 | --- | --- | --- |
 | D1.1 policy, ordinary roles, acceptance | Integrator, `codex/dungeon-d1` | Policy/roles checked; geometry proof in D1.2 |
-| D1.2 module assembly and joins | Integrator, same branch after D1.1 | Pending |
+| D1.2 module assembly and joins | Integrator, same branch after D1.1 | Initial 48-case structural corpus passed; RPG integration next |
 | D1.3 RPG projection and version preservation | Integrator after assembly proof | Pending |
-| D1.S safe-room wandering encounters | Isolated `codex/d1-safe-rooms`; narrow encounter services/tests | In progress |
-| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | Pending |
+| D1.S safe-room wandering encounters | Isolated `codex/d1-safe-rooms`; narrow encounter services/tests | Integrated `34a12b2`; combined/new-version proof pending |
+| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | In progress |
 | D1.4 integrated measurements and compatibility | Integrator; all lanes must pass together | Pending |
 
 The live preview/save at port 5190 is not the implementation workspace. Checked
@@ -98,6 +98,15 @@ without a new game settings screen. It is not silently clamped on capacity failu
 D1.1 evidence: 83 focused tests passed (new module policy/role allocation plus
 unchanged v2 ordinary and streamed generation), and `tsc --noEmit` passed. This
 does not yet qualify new geometry or make it the ordinary game's default.
+
+D1.2 initial evidence: 13 assembly tests passed, including six seeds at each of
+7/11/13/16/32/64/128/256 modules (48 generated floors), explicit direct-only and
+passage-only policies, incremental/eager equivalence and socket replay/fencing.
+Every sampled floor met the per-floor fork and maximum unbranched-run checks,
+25% room/envelope coverage and 65,536 projection-cell guardrail. These are test
+results, not yet a measured performance report or native persistence proof.
+New finite assembly uses `modules-v3` / `branching-v1`; `spaces-v2` generation and
+its durable readers remain untouched. The compiler is transient, not a world store.
 
 ## Bounded Implementation Verticals
 
