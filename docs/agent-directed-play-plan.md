@@ -1,8 +1,9 @@
 # Agent-Directed Play: Implementation and Qualification
 
-Current proposed continuation: [Dungeon foundation and Agentic Play next slices](agentic-play-next-slices.md)
-(2026-10-11). Generator repair comes first; combat is deferred. That goal is not
-activated. The completed goals and evidence below remain historical records.
+Current continuation: [Dungeon foundation and Agentic Play next slices](agentic-play-next-slices.md)
+(2026-10-11). D0 diagnostics are complete; the owner requires a pause before D1
+for review of [findings](dungeon-d0-findings.md) and the [repair plan](dungeon-d1-repair-plan.md).
+Combat is deferred. The completed goals and evidence below remain historical records.
 
 Acceptance revision: NS-0 corpus v1 / reviewed architecture v0.2 (2026-10-09).
 Base: `cdcc4d8`. Branch: `codex/actor-navigation-v1`, isolated from the running game.

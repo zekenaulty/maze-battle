@@ -1,11 +1,14 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
-Status: integrated proposal for review, not activated. Revision 2, 2026-10-11.
+Status: goal activated for D0 on 2026-10-11; D0 complete, mandatory owner-review
+pause before D1. Revision 3. [Findings](dungeon-d0-findings.md) and
+[D1 repair proposal](dungeon-d1-repair-plan.md) are the current review package.
 Reviewed Maze source: `codex/maze-live-launch` at `1f266a2`; remote `main` at
 `b12a8c37df17612d249a48bf9f2d419c20363c4c`.
 Agentica remote main verified at `977d0cab5421fd4e09fd33f1224f241b7e425abe`;
 paired service source and SDK pin remain in [NS-6 integration](ns6-paired-integration.md).
-Planning only: no generator, gameplay, save, provider or goal changes in this revision.
+D0 adds offline diagnostics and review evidence only. No generator, gameplay,
+save or provider behavior changes; D1 and later slices remain unimplemented.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -16,8 +19,9 @@ The consolidated paired-test specification is [here](two-dungeon-qualification.m
 Changes from Lumina's draft: D0/D1 precede new integration; already implemented
 durable handoff is reused rather than rebuilt; current journey ceilings are
 documented as hard grants, not renewable windows; broad inventory/town parity
-follows the first paired proof rather than blocking it. No approval to execute
-this goal or conduct a new paid trial is inferred from approval of the input.
+follows the first paired proof rather than blocking it. The owner's subsequent
+activation authorizes D0 with a mandatory pre-D1 review pause; new paid trials
+still require separate authorization.
 
 ## Direction That Must Survive Every Slice
 
@@ -57,8 +61,9 @@ remembered evidence; it was not a complete environmental examination system.
 
 ## Sequence and Completion Gates
 
-All slices below are proposed / NOT RUN. Each produces its own reviewable commit
-and evidence; none is permission to declare later slices complete.
+D0 is complete at the bounded offline diagnostic/review level. D1 and later
+slices are NOT RUN. Each produces its own reviewable commit and evidence;
+none is permission to declare later slices complete.
 
 | Slice | Deliverable | Gate before proceeding |
 | --- | --- | --- |
@@ -83,11 +88,11 @@ stack/capacity behavior and portal accounting. These remain required direction,
 not implied coverage of the first goal. Combat and full causal mechanisms remain
 separate later work.
 
-## Immediate Next Slice: D0, Then the D1 Repair
+## D0 Scope and the Pending D1 Repair
 
 [Issue #3](https://github.com/zekenaulty/maze-battle/issues/3) is the generator
 anchor. Its earlier deferral protected NS-6; the owner now prioritizes this repair
-before new agent-play integration. This planning turn does not authorize its execution.
+before new agent-play integration. D0 has now run; D1 is held for owner review.
 
 Confirmed ordinary-game defects: `structuredRooms.ts` caps the target at eight;
 `nameRooms()` has only five specialty entries. Removing the cap alone breaks role
@@ -114,9 +119,10 @@ measurement; neither implementation is assumed to be the final solution.
    deterministic replay/expansion-order checks, saved-world compatibility and
    manual desktop/mobile traversal of representative new layouts.
 
-The goal must not stop at a diagnostics report: D0 establishes evidence for D1;
-D1 is the actual repair. Selecting a generation strategy is a review checkpoint,
-not authority to change unrelated combat balance or reinterpret persisted worlds.
+The goal is not complete at a diagnostics report: D0 establishes evidence for
+D1, the actual repair. The owner explicitly requires pausing here for review.
+After resumption, continue the remaining slices. Selecting a generation strategy
+never authorizes unrelated combat balance changes or reinterpreting saved worlds.
 
 ## Adopted Two-Dungeon Design
 
@@ -135,7 +141,7 @@ scope them explicitly in shared domain code. [Issue #2](https://github.com/zeken
 still distinguishes independent lever/door fixtures from a functioning causal
 puzzle. Do not silently turn those historical fixtures into different worlds.
 
-## Proposed Goal: G-NS6-INTENTIONAL-PLAY -- Do Not Set Yet
+## Goal: G-NS6-INTENTIONAL-PLAY -- D0 Review Stop
 
 > Repair and qualify scalable, branching, socket-connected dungeon construction,
 > then deliver the first noncombat Agentic Play vertical in the actual Maze Battle
@@ -151,7 +157,9 @@ puzzle. Do not silently turn those historical fixtures into different worlds.
 > destination regression, disable combat, push each checked vertical promptly,
 > and do not build a parallel game. Full RPG parity and combat are later goals.
 
-Activation remains the owner's decision. The goal's provider-free completion gate
+The owner activated this goal with an explicit instruction to pause before D1.
+D0 is complete; implementation may resume only after the owner's review/resumption.
+The goal's provider-free completion gate
 does not include an unapproved paid run; lack of such approval is not failure of
 offline wiring, nor may an offline pass be reported as live paired qualification.
 
