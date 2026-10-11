@@ -20,6 +20,7 @@
 .directed-details label { display: flex; gap: 8px; align-items: center; }
 .directed-details input { width: 100px; accent-color: #8ccaac; }
 .directed-details output { min-width: 44px; font-variant-numeric: tabular-nums; }
+.directed-fixture-detail { display: block; margin-top: 3px; font-size: 11px; }
 .directed-evidence { max-height: 180px; overflow: auto; font-size: 12px; }
 .directed-evidence dl { display: flex; flex-wrap: wrap; gap: 10px 25px; margin: 0 0 10px; }
 .directed-evidence dt { color: #a8b4bd; }.directed-evidence dd { margin: 3px 0 0; font-variant-numeric: tabular-nums; }
