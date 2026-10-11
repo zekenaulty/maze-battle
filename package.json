@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:d1-measurements": "node --test scripts/d1-measurements/worker-output.test.mjs",
     "test:ns6-host": "playwright test --config tests/e2e/ns6-host.config.ts",
     "ns6:readiness": "node scripts/ns6-readiness.mjs",
     "e2e": "playwright test",

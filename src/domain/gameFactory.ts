@@ -4,7 +4,7 @@ import { generateModuleMaze } from './maze/moduleGenerate';
 import { normalizeModuleMetadata } from './maze/moduleLayout';
 import { createModuleRecipe } from './expedition/topology/modules/policy';
 import { samePosition } from './maze/key';
-import { canMove, movePosition } from './maze/movement';
+import { canMove, mazeCellAt, movePosition } from './maze/movement';
 import { generateChestsForMaze, normalizeChests } from './items/chests';
 import { createInitialInventory, createInitialStash, normalizeInventory, normalizeInventoryPolicy, normalizeStash } from './items/inventory';
 import { normalizeAutoThrottleMs } from './automation/throttle';
@@ -236,7 +236,7 @@ export function moveActive(game: GameState, direction: Direction, options: { tri
 
   const nextActive = movePosition(game.maze.active, direction);
   if (nextActive.row < 0 || nextActive.column < 0 || nextActive.row >= game.maze.rows || nextActive.column >= game.maze.columns
-    || !game.maze.cells.some((cell) => samePosition(cell, nextActive))) return facingGame;
+    || !mazeCellAt(game.maze, nextActive)) return facingGame;
   const visited = hasVisited(game.maze.visited, nextActive) ? game.maze.visited : [...game.maze.visited, nextActive];
   const currentMaze = revealMazeVisibility({ ...game.maze, active: nextActive, visited });
   const movedGame = syncGuildQuests({

@@ -133,7 +133,7 @@ export function claimGuildQuestReward(game: GameState, questId: string): GameSta
 
 function autoAcceptGuildContracts(game: GameState): GameState {
   const acceptedIds = new Set(game.quests.map((quest) => quest.id));
-  const contracts = guildContractsForFloor(game).filter((contract) => !acceptedIds.has(contract.id));
+  const contracts = guildContractsForFloor(game, acceptedIds);
   if (contracts.length === 0) {
     return game;
   }

@@ -82,18 +82,20 @@ const CONTRACT_TEMPLATES: Partial<Record<MazeRoomKind, GuildContractTemplate>> =
   },
 };
 
-export function guildContractsForFloor(game: GameState): GuildContract[] {
+export function guildContractsForFloor(game: GameState, acceptedIds?: ReadonlySet<string>): GuildContract[] {
   const rooms = game.maze.layout?.rooms ?? [];
   if (rooms.length === 0) {
     return [];
   }
 
   const origin = rooms.find((room) => room.kind === 'hub') ?? rooms.find((room) => room.kind === 'start') ?? rooms[0];
+  const candidates = rooms.filter(room => isContractRoom(room, origin)
+    && !acceptedIds?.has(contractId(game.dungeonLevel, origin, room)));
+  if (!candidates.length) return [];
   const visibility = createMazeVisibilitySnapshot(game.maze);
   const paths = createMazePathSearch(game.maze, game.maze.start);
 
-  return rooms
-    .filter((room) => isContractRoom(room, origin))
+  return candidates
     .filter((room) => room.kind !== 'treasure' || game.chests.some((chest) =>
       chest.level === game.dungeonLevel && isInRoom(chest.position, room) && Number.isFinite(paths.distanceTo(chest.position))))
     .map((room) => createContract(game.dungeonLevel, origin, room, roomStatus(room, visibility)))
@@ -105,7 +107,7 @@ function createContract(floor: number, origin: MazeRoomState, target: MazeRoomSt
   const task = { ...template.task };
 
   return {
-    id: `floor-${floor}:${origin.id}:${target.id}:${task.objective}`,
+    id: contractId(floor, origin, target),
     floor,
     originRoomId: origin.id,
     targetRoomId: target.id,
@@ -118,6 +120,10 @@ function createContract(floor: number, origin: MazeRoomState, target: MazeRoomSt
     rewardGold: rewardForRoom(floor, template),
     status,
   };
+}
+
+function contractId(floor: number, origin: MazeRoomState, target: MazeRoomState) {
+  return `floor-${floor}:${origin.id}:${target.id}:${templateForRoom(target.kind).task.objective}`;
 }
 
 function isContractRoom(room: MazeRoomState, origin: MazeRoomState) {

@@ -2,8 +2,15 @@ import type { Direction, GridPosition, MazeState } from '../types';
 import { cellKey, samePosition } from './key';
 
 export function canMove(maze: MazeState, direction: Direction) {
-  const active = maze.cells.find((cell) => samePosition(cell, maze.active));
+  const active = mazeCellAt(maze, maze.active);
   return Boolean(active?.links.includes(direction));
+}
+
+/** Dense generated floors have stable row-major coordinates; old sparse saves need a lookup. */
+export function mazeCellAt(maze: MazeState, position: GridPosition) {
+  const indexed = maze.cells[position.row * maze.columns + position.column];
+  if (indexed && samePosition(indexed, position)) return indexed;
+  return maze.cells.find(cell => samePosition(cell, position));
 }
 
 export function movePosition(position: GridPosition, direction: Direction): GridPosition {
