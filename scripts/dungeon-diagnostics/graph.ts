@@ -2,6 +2,8 @@ export interface Edge { from: string; to: string }
 
 /** Audit-only graph statistics. No result is passed to actor navigation. */
 export function graphMetrics(ids: string[], edges: Edge[], root = ids[0]) {
+  const duplicateNodes = ids.length - new Set(ids).size;
+  ids = [...new Set(ids)];
   const adjacency = new Map(ids.map(id => [id, new Set<string>()]));
   let invalidEdges = 0;
   const unique = new Set<string>();
@@ -16,6 +18,7 @@ export function graphMetrics(ids: string[], edges: Edge[], root = ids[0]) {
     adjacency.get(to)!.add(from);
   }
   const distances = (start: string) => {
+    if (!adjacency.has(start)) return new Map<string, number>();
     const result = new Map([[start, 0]]);
     const queue = [start];
     for (const id of queue) for (const next of adjacency.get(id) ?? []) {
@@ -56,7 +59,7 @@ export function graphMetrics(ids: string[], edges: Edge[], root = ids[0]) {
     }
     return length;
   });
-  return { nodes: ids.length, edges: unique.size, invalidEdges, components,
+  return { nodes: ids.length, duplicateNodes, edges: unique.size, invalidEdges, components,
     degrees: histogram, forks: ids.filter(id => adjacency.get(id)!.size >= 3).length,
     endpoints: endpoints.length, loops: unique.size - ids.length + components,
     diameterHops: diameter, meanPairHops: reachablePairs ? pairHops / reachablePairs : 0,

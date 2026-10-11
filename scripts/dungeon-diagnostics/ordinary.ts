@@ -1,6 +1,6 @@
 import { generateStructuredMaze } from '../../src/domain/maze/structuredGenerate';
 import { nameRooms } from '../../src/domain/maze/structuredRooms';
-import { movePosition } from '../../src/domain/maze/movement';
+import { movePosition, opposite } from '../../src/domain/maze/movement';
 import type { GridPosition, MazeState } from '../../src/domain/types';
 import { graphMetrics } from './graph';
 
@@ -17,7 +17,10 @@ export function seededRng(seed: number) {
 export function floorDimensions(level: number) {
   if (!Number.isSafeInteger(level) || level < 1 || level > 128) throw new RangeError('Diagnostic floor bound is 1..128');
   let mazeMaxRooms = 32;
-  for (let floor = 1; floor < level; floor++) mazeMaxRooms = Math.ceil(mazeMaxRooms * 1.3);
+  for (let floor = 1; floor < level; floor++) {
+    mazeMaxRooms = Math.ceil(mazeMaxRooms * 1.3);
+    if (!Number.isSafeInteger(mazeMaxRooms)) throw new RangeError('Diagnostic progression exceeds exact integer range');
+  }
   const rows = Math.max(9, Math.ceil(Math.sqrt(mazeMaxRooms)));
   return { mazeMaxRooms, rows, columns: rows + 4 };
 }
@@ -34,6 +37,11 @@ export function measureOrdinarySize(rows: number, columns: number, seed: number)
   let rngCalls = 0;
   const rng = seededRng(seed);
   const maze = generateStructuredMaze(rows, columns, () => { rngCalls++; return rng(); });
+  return inspectOrdinary(maze, rngCalls);
+}
+
+export function inspectOrdinary(maze: MazeState, rngCalls: number | null = null) {
+  const { rows, columns } = maze;
   const rooms = maze.layout!.rooms;
   const links = maze.layout!.connections!;
   const graph = graphMetrics(rooms.map(room => room.id), links.map(link => ({ from: link.fromRoomId, to: link.toRoomId })));
@@ -61,8 +69,15 @@ export function measureOrdinarySize(rows: number, columns: number, seed: number)
   const roomCells = new Set(rooms.flatMap(room => Array.from({ length: room.rows * room.columns }, (_, i) =>
     key({ row: room.row + Math.floor(i / room.columns), column: room.column + i % room.columns }))));
   const cellsByKey = new Map(maze.cells.map(cell => [key(cell), cell]));
+  const legal = (position: GridPosition) => Number.isInteger(position.row) && Number.isInteger(position.column)
+    && position.row >= 0 && position.row < rows && position.column >= 0 && position.column < columns;
+  const invalidLocalLinks = maze.cells.reduce((count, cell) => count + cell.links.filter(direction => {
+    const target = movePosition(cell, direction);
+    return !legal(cell) || !legal(target) || !cellsByKey.get(key(target))?.links.includes(opposite(direction));
+  }).length + cell.links.length - new Set(cell.links).size, 0);
   const connectorViolations = links.reduce((count, link) => count + link.path.slice(1).filter((cell, i) =>
-    !cellsByKey.get(key(link.path[i]))?.links.some(direction => key(movePosition(link.path[i], direction)) === key(cell))).length, 0);
+    !legal(cell) || !legal(link.path[i]) || !cellsByKey.get(key(link.path[i]))?.links.some(direction =>
+      key(movePosition(link.path[i], direction)) === key(cell) && cellsByKey.get(key(cell))?.links.includes(opposite(direction)))).length, 0);
   const corridorSteps = links.map(link => link.path.length - 1);
   const invalidRoles = rooms.filter(room => !room.kind || !room.name || !Array.isArray(room.tags)).length;
   return { version: 'structured-v2', status: 'complete', metrics: {
@@ -74,7 +89,8 @@ export function measureOrdinarySize(rows: number, columns: number, seed: number)
     minRoomSide: Math.min(...rooms.flatMap(room => [room.rows, room.columns])),
     meanCorridorSteps: links.length ? corridorSteps.reduce((a, b) => a + b, 0) / links.length : 0,
     maxCorridorSteps: Math.max(0, ...corridorSteps), exitSteps: fromStart.get(key(maze.end)) ?? null,
-    meanRoomPairSteps: pairs ? distanceTotal / pairs : 0, invalidRoles, overlapPairs, connectorViolations,
+    meanRoomPairSteps: pairs ? distanceTotal / pairs : 0, invalidRoles, overlapPairs, connectorViolations, invalidLocalLinks,
+    duplicateCells: maze.cells.length - cellsByKey.size,
     corridorRoomIntrusions: [...passages].filter(cell => roomCells.has(cell)).length,
     sockets: null, socketUtilization: null, rngCalls,
   }, geometry: { rooms, paths: links.map(link => link.path), start: maze.start, end: maze.end, bounds: { row: 0, column: 0, rows, columns } } };
@@ -89,6 +105,8 @@ function cellSearch(maze: MazeState) {
     const queue = [start];
     for (const cell of queue) for (const direction of cells.get(key(cell))?.links ?? []) {
       const next = movePosition(cell, direction);
+      if (next.row < 0 || next.column < 0 || next.row >= maze.rows || next.column >= maze.columns
+        || !cells.get(key(next))?.links.includes(opposite(direction))) continue;
       if (distances.has(key(next))) continue;
       distances.set(key(next), distances.get(key(cell))! + 1);
       queue.push(next);

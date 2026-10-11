@@ -5,19 +5,24 @@ const generator = process.argv[2];
 if (!['ordinary', 'streamed'].includes(generator)) throw new Error('Unknown diagnostic generator');
 const levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 60];
 const seeds = [0, 1, 7, 42, 55, 20261008];
-const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
+const emit = record => console.log(JSON.stringify(record));
+emit({ type: 'start', generator, levels, seeds });
+const server = await createServer({ server: { middlewareMode: true, ws: false }, appType: 'custom', logLevel: 'error' });
 try {
   const module = await server.ssrLoadModule(`/scripts/dungeon-diagnostics/${generator}.ts`);
   const measure = generator === 'ordinary' ? module.measureOrdinary : module.measureStreamed;
-  const rows = [];
-  const examples = [];
   for (const level of levels) for (const seed of seeds) {
     const heapBefore = process.memoryUsage().heapUsed;
     const started = performance.now();
-    const { geometry, ...result } = measure(seed, level);
-    rows.push({ ...result, auditElapsedMs: performance.now() - started,
-      heapUsedBeforeBytes: heapBefore, heapUsedAfterBytes: process.memoryUsage().heapUsed });
-    if (geometry && seed === 42 && [1, 20, 30, 60].includes(level)) examples.push({ seed, level, geometry });
+    try {
+      const { geometry, ...result } = measure(seed, level);
+      const illustrated = generator === 'ordinary' ? [1, 15, 20, 30] : [1, 20, 30, 60];
+      emit({ type: 'sample', row: { ...result, auditElapsedMs: performance.now() - started,
+        heapUsedBeforeBytes: heapBefore, heapUsedAfterBytes: process.memoryUsage().heapUsed },
+        example: geometry && seed === 42 && illustrated.includes(level) ? { seed, level, geometry } : null });
+    } catch (error) {
+      emit({ type: 'sample', row: { seed, level, status: 'error', error: String(error), metrics: null } });
+    }
   }
   const probes = generator === 'ordinary' ? {
     roles: [8, 9, 12, 32].map(count => module.roleBoundaryProbe(count)),
@@ -29,5 +34,5 @@ try {
     const { geometry, ...result } = measure(42, 300, 16);
     return result;
   })() };
-  console.log(JSON.stringify({ generator, levels, seeds, rows, examples, probes }));
+  emit({ type: 'complete', probes });
 } finally { await server.close(); }

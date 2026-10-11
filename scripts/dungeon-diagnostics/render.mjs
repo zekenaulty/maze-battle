@@ -28,7 +28,9 @@ function schematic(example) {
 }
 
 export function renderReport(evidence) {
-  const sections = evidence.cohorts.map(cohort => `<section><h2>${escape(cohort.generator)}</h2><div class="samples">`
+  const sections = evidence.cohorts.map(cohort => `<section><h2>${escape(cohort.generator)}</h2>`
+    + (cohort.status === 'failed' ? `<p>FAILED: ${escape(cohort.errors.join('; '))}. Any maps below show only the completed prefix.</p>` : '')
+    + '<div class="samples">'
     + cohort.examples.map(example => {
       const row = cohort.rows.find(row => row.seed === example.seed && row.level === example.level);
       return `<article><h3>Floor ${example.level}, seed ${example.seed}</h3>${metrics(cohort, row)}${schematic(example)}</article>`;

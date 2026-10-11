@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGameState, descendFloor } from '../../src/domain/gameFactory';
+import { generateStructuredMaze } from '../../src/domain/maze/structuredGenerate';
+import { movePosition } from '../../src/domain/maze/movement';
 import { graphMetrics } from './graph';
-import { floorDimensions, measureOrdinary, measureOrdinarySize, roleBoundaryProbe, seededRng } from './ordinary';
+import { floorDimensions, inspectOrdinary, measureOrdinary, measureOrdinarySize, roleBoundaryProbe, seededRng } from './ordinary';
 
 describe('D0 audit measurements (not generator repair)', () => {
   it('distinguishes branches, chains, loops and disconnected nodes', () => {
@@ -11,6 +13,27 @@ describe('D0 audit measurements (not generator repair)', () => {
       .toMatchObject({ forks: 0, endpoints: 2, diameterHops: 3, terminalBranchMaxHops: 3 });
     expect(graphMetrics(['a', 'b', 'c', 'd'], [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }, { from: 'c', to: 'a' }]))
       .toMatchObject({ loops: 1, components: 2, diameterHops: 1 });
+  });
+
+  it('reports duplicate identities without negative loop counts', () => {
+    expect(graphMetrics(['a', 'a', 'b'], [{ from: 'a', to: 'b' }]))
+      .toMatchObject({ nodes: 2, duplicateNodes: 1, loops: 0, endpoints: 2 });
+  });
+
+  it('rejects phantom traversal and nonreciprocal connections in audit metrics', () => {
+    const maze = generateStructuredMaze(9, 13, seededRng(42));
+    const before = inspectOrdinary(maze).metrics;
+    maze.cells.find(cell => cell.row === 0 && cell.column === 0)!.links.push('north');
+    const phantom = inspectOrdinary(maze).metrics;
+    expect(phantom.invalidLocalLinks).toBeGreaterThan(0);
+    expect(phantom.reachableCells).toBe(before.reachableCells);
+    const [from, to] = maze.layout!.connections![0].path;
+    const target = maze.cells.find(cell => cell.row === to.row && cell.column === to.column)!;
+    target.links = target.links.filter(direction => {
+      const next = movePosition(to, direction);
+      return next.row !== from.row || next.column !== from.column;
+    });
+    expect(inspectOrdinary(maze).metrics.connectorViolations).toBeGreaterThan(0);
   });
 
   it('checks the mirrored dimension helper against actual game descent', () => {
