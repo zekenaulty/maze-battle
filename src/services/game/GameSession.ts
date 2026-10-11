@@ -1,4 +1,6 @@
 import type { GameState, SaveSummary } from '../../domain/types';
+import { ModuleCapacityError } from '../../domain/expedition/topology/modules/types';
+import { blockAutopilot } from '../../domain/automation/autopilotState';
 import { createPlayTelemetry, recordTransition } from '../../domain/telemetry/transitions';
 import type { PlayTelemetry, TransitionContext } from '../../domain/telemetry/types';
 import { claimGame, readGameControl, updateOwnedGame, changeOwnedSave, type OwnedGame } from '../../persistence/gameCustody';
@@ -114,7 +116,14 @@ export class GameSession {
     void this.owned(async control => {
       let trace = this.view.telemetry;
       const next = await updateOwnedGame(control, before => {
-        const started = performance.now(), after = update(before);
+        const started = performance.now();
+        let after: GameState;
+        try { after = update(before); }
+        catch (error) {
+          if (!(error instanceof ModuleCapacityError)) throw error;
+          // Generation failed before publication. Keep the entire previous floor and control grant.
+          after = blockAutopilot(before, `Dungeon expansion unavailable: ${error.message}`);
+        }
         trace = recordTransition(trace ?? createPlayTelemetry(before.id), before, after, { ...context, elapsedMs: performance.now() - started });
         return after;
       });
