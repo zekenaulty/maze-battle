@@ -18,7 +18,7 @@ export default function DirectedPlayApp() {
   const feature = view.features.find(f => f.value.id === selected);
   return <main className="directed-screen" data-operation={operation?.status ?? 'idle'} data-steps={operation?.steps ?? 0}>
     <header className="directed-header">
-      <div><h1>Directed Expedition</h1><span>{view.spaces.find(s => s.value.id === view.position.spaceId)?.value.name} / F1</span></div>
+      <div><h1>Directed Expedition</h1><span>{view.spaces.find(s => s.value.id === view.position.spaceId)?.value.name} / F1 / Independent fixtures</span></div>
       <a href="/?expedition=2" title="Streamed expedition" aria-label="Streamed expedition"><ArrowLeft size={20} /></a>
     </header>
     <section className="directed-scene"><DirectedCanvas view={view} /></section>
@@ -51,7 +51,11 @@ export default function DirectedPlayApp() {
             disabled={game.busy || running || !game.controlled}
             onClick={() => void game.dispatch({ type: 'retry-crossing', to })}><RotateCcw size={18} />{direction}</button>)}
         </div>
-        <div className="directed-details"><span>{feature ? `${feature.value.name}: ${feature.value.state} (${feature.status})` : 'Hall center'}</span>
+        <div className="directed-details"><div>
+          <span>{feature ? `${feature.value.name}: ${feature.value.state} (${feature.status})` : 'Hall center'}</span>
+          {feature?.value.kind === 'lever' && <small className="directed-fixture-detail">Standalone lever / no linked mechanism</small>}
+          {feature?.value.kind === 'door' && <small className="directed-fixture-detail">Blockage fixture / no unlocking mechanism</small>}
+        </div>
           <label>Pace<input type="range" aria-label="Travel pace" min={120} max={900} step={20} value={game.delay} onChange={event => game.setDelay(Number(event.target.value))} /><output>{game.delay}ms</output></label>
         </div>
       </div> : tab === 'inspect' ? <DirectedInspection view={view} disabled={game.busy || Boolean(running) || !game.controlled} dispatch={game.dispatch} />

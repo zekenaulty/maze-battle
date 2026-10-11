@@ -5,23 +5,17 @@ import { isPerceptionProfile } from '../domain/directed/perceptionTypes';
 import type { MemoryContextSelection } from '../domain/directed/contextSelection';
 import { captureDirectedContext, claimDirectedSave, createDirectedSave, executeDirectedRequest,
   readDirectedSave, reconcileDirectedRequest, captureDirectedMemoryContext, captureDirectedSourceContext } from '../persistence/directed';
+import { directedDocumentController } from '../services/directed/documentController';
 
 export const DIRECTED_SLOT = 'known-destination-proof-v1';
-const OWNER_KEY = 'maze-directed-controller-v1';
 const PENDING_KEY = 'maze-directed-pending-v1';
-function controller() {
-  const existing = sessionStorage.getItem(OWNER_KEY);
-  const id = existing ?? crypto.randomUUID();
-  sessionStorage.setItem(OWNER_KEY, id);
-  return id;
-}
 
 export function useDirectedPlay() {
   const requestedProfile = new URLSearchParams(window.location.search).get('perception');
   const perceptionProfile = isPerceptionProfile(requestedProfile) ? requestedProfile : undefined;
   const slot = perceptionProfile ? `${DIRECTED_SLOT}-${perceptionProfile}` : DIRECTED_SLOT;
   const pendingKey = perceptionProfile ? `${PENDING_KEY}:${slot}` : PENDING_KEY;
-  const owner = useRef<string>(controller());
+  const owner = useRef('');
   const [session, setSession] = useState<DirectedSession>();
   const [context, setContext] = useState<PresentedContext>();
   const [memoryContext, setMemoryContext] = useState<PresentedContext>();
@@ -48,8 +42,9 @@ export function useDirectedPlay() {
     if (!stored) return;
     const request: DirectedRequest = JSON.parse(stored);
     const original = await reconcileDirectedRequest(slot, request);
+    // Reconcile copied attempts, but only the document holding their owner may retry.
     // Atomic IDB transactions make absence after this serialized read a no-effect result.
-    if (!original) await executeDirectedRequest(slot, request);
+    if (!original && request.owner === owner.current) await executeDirectedRequest(slot, request);
     sessionStorage.removeItem(pendingKey);
   };
   const enqueue = (work: () => Promise<void>) => {
@@ -81,6 +76,7 @@ export function useDirectedPlay() {
   useEffect(() => {
     alive.current = true;
     void enqueue(async () => {
+      owner.current = await directedDocumentController();
       const initial = await createDirectedSave(slot, { perceptionProfile });
       if (!initial.owner) await claimDirectedSave(slot, owner.current);
       await recover(); await refresh();
