@@ -1,7 +1,7 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
-Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 next.
-2026-10-11. Revision 5. [D1 evidence](reviews/d1-qualification.md),
+Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 partial.
+2026-10-11. Revision 6. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -11,7 +11,9 @@ Agentica remote main verified at `977d0cab5421fd4e09fd33f1224f241b7e425abe`;
 paired service source and SDK pin remain in [NS-6 integration](ns6-paired-integration.md).
 D0 added offline diagnostics and review evidence only. D1's actual RPG repair is
 qualified at `b237160`; the linked ledger records scale limits rather than
-claiming infinite-world performance. A1-A3/Q runtime work remains outstanding.
+claiming infinite-world performance. A1's [explicit interaction / click travel
+sub-slice](reviews/a1-interaction-controls.md) is checked at `e0be2f1`; its durable
+host binding and A2-A3/Q runtime work remain outstanding.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -65,8 +67,9 @@ remembered evidence; it was not a complete environmental examination system.
 ## Sequence and Completion Gates
 
 D0 is complete at the bounded offline diagnostic/review level; D1's finite RPG
-repair has integrated qualification; A0 source mapping is reviewed. A1-A3/Q are
-NOT RUN. Each produces its own reviewable commit and evidence; none is permission
+repair has integrated qualification; A0 source mapping is reviewed. A1's shared
+interaction/quest-policy cleanup is checked, but its durable host gate and A2-A3/Q
+are NOT RUN. Each produces its own reviewable commit and evidence; none is permission
 to declare later slices complete.
 
 | Slice | Deliverable | Gate before proceeding |
