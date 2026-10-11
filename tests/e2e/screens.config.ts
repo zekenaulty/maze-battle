@@ -5,7 +5,7 @@ const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const port = Number(process.env.SCREENS_TEST_PORT ?? 5187);
 export default defineConfig({
   testDir: '.',
-  testMatch: 'screens.spec.ts',
+  testMatch: 'screens*.spec.ts',
   workers: 1,
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${port} --strictPort`,
