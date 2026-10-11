@@ -52,6 +52,9 @@ export class DirectedAgenticaClient {
     }, status => { try { options.onStatus?.(status); } catch { /* Connectivity does not own execution. */ } });
   }
   get currentRun() { return structuredClone(this.transport.binding); }
+  get recoverableRunId() { return this.transport.lifecycle.announced?.runId ?? this.transport.binding?.runId; }
+  get unresolvedStart() { return this.transport.unresolvedStart; }
+  get unresolvedCancellation() { return this.cancelled && !this.operationId && this.transport.unresolvedCancellation; }
   get status() { return this.state; }
   get connected() { return this.transport.sdk.connected; }
   private exclusive<T>(work: () => Promise<T>): Promise<T> {

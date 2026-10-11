@@ -4,7 +4,8 @@ import { App } from './App';
 import './styles.css';
 
 const expedition = new URLSearchParams(location.search).get('expedition');
-const Screen = expedition === '3' ? lazy(() => import('./components/directed/DirectedPlayApp'))
+const Screen = new URLSearchParams(location.search).get('agentica') === '1' ? lazy(() => import('./components/agentica/AgenticaLaunchApp'))
+  : expedition === '3' ? lazy(() => import('./components/directed/DirectedPlayApp'))
   : expedition === '2' ? lazy(() => import('./components/expedition/StreamExpeditionApp'))
   : expedition === '1' ? lazy(() => import('./components/expedition/ExpeditionApp')) : App;
 

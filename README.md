@@ -41,6 +41,10 @@ model qualification. See [qualification](docs/agentica-qualification.md),
 [streaming design](docs/streaming-exploration-plan.md) for implemented boundaries
 and remaining work.
 
+The explicit Lab test launcher is available at `/?agentica=1`. It uses a separate
+test save and never starts a model on page load. See [live test launch](docs/agentica-live-launch.md)
+for preparation, recovery, bounds and provider-free verification.
+
 ## Preserved Original
 
 The annotated `legacy-final` tag identifies the original vanilla JavaScript

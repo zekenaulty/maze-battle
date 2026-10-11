@@ -20,6 +20,15 @@ export class DirectedAgenticaTransport {
   private cancelled = false;
   private startAttempted = false;
   private readonly stops = new Map<string, Promise<void>>();
+  private readonly settledStops = new Set<string>();
+  get unresolvedStart() {
+    return this.startAttempted && !this.lifecycle.announced
+      && !['failed', 'blocked'].includes(this.lifecycle.terminalStatus ?? '');
+  }
+  get unresolvedCancellation() {
+    if (!this.cancelled || !this.startAttempted) return false;
+    return this.lifecycle.announced ? !this.settledStops.has(this.lifecycle.announced.runId) : this.unresolvedStart;
+  }
   readonly slot: string;
   constructor(slot: string, url: string, onMessage?: (message: AgenticaMessage, state?: string) => void,
     onStatus?: (status: DirectedAgenticaStatus) => void) {
@@ -136,6 +145,7 @@ export class DirectedAgenticaTransport {
       this.stops.set(runId, Promise.resolve().then(async () => {
         if (!this.sdk.connected) throw new Error('Original directed cancellation requires reconciliation.');
         await this.sdk.stop(runId);
+        this.settledStops.add(runId);
       }));
     }
     return this.stops.get(runId)!;

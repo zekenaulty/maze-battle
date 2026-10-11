@@ -38,6 +38,7 @@ export interface AgenticaStart {
   protocolVersion: 1; hostId: 'maze-battle'; sessionId: string; sessionEpoch: string;
   scopeId: string; perspectiveId: 'party'; objectiveId: string; objective: string;
   observation: AgenticaObservation; capabilities: AgenticaCapability[];
-  provider: { provider: 'fixture'; model?: string; contextWindowTokens: number; maxOutputTokens: number };
+  provider: { provider: 'fixture' | 'openai'; model?: string; thinkingEffort?: string;
+    includeThoughtSummaries?: boolean; contextWindowTokens: number; maxOutputTokens: number };
   limits: { maxSteps: number; maxRefinements: number; maxPlanContinuations: number; timeoutSeconds: number; actionTimeoutSeconds: number };
 }

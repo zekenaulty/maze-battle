@@ -151,6 +151,7 @@ describe('directed launch lifecycle through the real SDK', () => {
   it('treats lost start acknowledgement as unresolved without reconnect or retry', async () => {
     LifecycleSocket.onSend = (_request, socket) => socket.close();
     const host = f.client(); await expect(host.start()).rejects.toThrow('unresolved'); expect(host.status).toBe('unresolved');
+    expect(host.unresolvedStart).toBe(true);
     expect(LifecycleSocket.instances).toHaveLength(1); expect(f.socket().sent).toHaveLength(1);
   });
 
@@ -173,6 +174,7 @@ describe('directed launch lifecycle through the real SDK', () => {
     expect(f.socket().sent.filter(item => item.type === 'cancel')).toHaveLength(1);
     expect(runs.bindDirectedAgenticaRun).not.toHaveBeenCalled(); expect(actions.executeDirectedAgenticaAction).not.toHaveBeenCalled();
     expect(host.status).toBe('cancelled'); expect(f.state.control.epoch).toBe(12);
+    expect(host.unresolvedCancellation).toBe(false);
   });
 
   it('fences queued actions when cancellation races a persisted binding acknowledgement', async () => {
@@ -200,6 +202,7 @@ describe('directed launch lifecycle through the real SDK', () => {
     const host = f.client(); await host.start();
     LifecycleSocket.onSend = (request, socket) => socket.reply(request, 'error', { code: 'storage.unavailable', message: 'Unresolved' });
     await expect(host.cancel()).rejects.toThrow('Unresolved'); await expect(host.cancel()).rejects.toThrow('Unresolved');
+    expect(host.unresolvedCancellation).toBe(true);
     expect(host.status).toBe('cancelled'); expect(f.socket().sent.filter(item => item.type === 'cancel')).toHaveLength(1);
   });
 });
