@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["screens-resize.spec.ts", "resize-session-fixture.tsx", "resize-playwright.config.ts", "resize-session.vite.config.ts"]
+}
