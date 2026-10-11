@@ -54,7 +54,7 @@ export function advanceAutopilot(game: GameState, rng: Rng = defaultRng, now = D
         autopilot: { ...moving.autopilot!, phase: route.length ? 'travel' : 'interact', route, lastPosition: { ...moved.maze.active }, stalledTicks: 0 },
       };
       const withChest = openChestAtActivePosition(progressed, rng);
-      if (withChest.randomBattles && shouldStartEncounter(rng)) {
+      if (shouldStartEncounter(withChest, rng)) {
         const encountered = startBattle(withChest, rng);
         return stamp({ ...encountered, autopilot: { ...withChest.autopilot!, phase: 'combat', reason: 'Random encounter on route.' } }, now);
       }

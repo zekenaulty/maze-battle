@@ -18,7 +18,7 @@ export function moveManually(game: GameState, direction: Direction): GameState {
   const changedPosition = moved.maze.active.row !== base.maze.active.row || moved.maze.active.column !== base.maze.active.column;
   const next = changedPosition ? openChestAtActivePosition(moved, defaultRng) : moved;
   return changedPosition && next.dungeonLevel === base.dungeonLevel && next.mode === base.mode
-    && next.randomBattles && shouldStartEncounter(defaultRng) ? startBattle(next) : next;
+    && shouldStartEncounter(next, defaultRng) ? startBattle(next) : next;
 }
 
 export function useGameLoop(game: GameState | undefined, paused: boolean, transition: GameTransition) {
