@@ -1,6 +1,8 @@
 # D1 Repair Plan: Shared Socket-Connected Room Assembly
 
-Status: **IMPLEMENTATION AUTHORIZED; QUALIFICATION PENDING**. 2026-10-11.
+Status: **BOUNDED D1 QUALIFIED; A0/A1 NEXT**. 2026-10-11.
+The [integrated qualification ledger](reviews/d1-qualification.md) records exact
+source identity, combined test results and remaining eager-save latency limits.
 Input: [D0 findings](dungeon-d0-findings.md), [compatibility audit](reviews/d0-compatibility.md),
 [issue #3](https://github.com/zekenaulty/maze-battle/issues/3).
 The owner explicitly resumed implementation after the second review. The numeric
@@ -31,9 +33,9 @@ Review attachment SHA-256:
 | D1.1 policy, ordinary roles, acceptance | Integrator, `codex/dungeon-d1` | Policy/roles checked; geometry proof in D1.2 |
 | D1.2 module assembly and joins | Integrator, same branch after D1.1 | 48-case corpus and independent 560-floor audit passed; three defensive API repairs qualified |
 | D1.3 RPG projection and version preservation | Integrator after assembly proof | Shared RPG default integrated; focused projection/legacy/portal/capacity tests passed; browser qualification in D1.4 |
-| D1.S safe-room wandering encounters | Isolated `codex/d1-safe-rooms`; narrow encounter services/tests | Integrated `34a12b2`; combined/new-version proof pending |
-| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | Integrated `3bf4292`; isolated lane passed, combined rerun pending |
-| D1.4 integrated measurements and compatibility | Integrator; all lanes must pass together | Pending |
+| D1.S safe-room wandering encounters | Isolated `codex/d1-safe-rooms`; narrow encounter services/tests | Integrated `34a12b2`; combined manual/Auto/new-version/native-reload proof passed |
+| D1.V same-session resize qualification | Isolated UI test lane; no generator/state changes | Integrated `3bf4292`; combined DPR 1/2 rerun passed, uniform-unknown oracle corrected after issue #5 |
+| D1.4 integrated measurements and compatibility | Integrator; all lanes must pass together | Bounded PASS; see qualification ledger, including residual archive write latency |
 
 The live preview/save at port 5190 is not the implementation workspace. Checked
 verticals are pushed promptly; no merge or paid-provider authorization is implied.
@@ -125,7 +127,8 @@ must continue under their original interpretation regardless.
 
 ## Acceptance Matrix for Review
 
-All D1 results below are **NOT RUN** until linked evidence replaces that status.
+The table below preserves the proposed acceptance; actual PASS/limits and exact
+evidence are in the [integrated ledger](reviews/d1-qualification.md).
 Numeric thresholds are provisional qualification policies under the approved
 direction; D0 measured baselines are in a separate file.
 

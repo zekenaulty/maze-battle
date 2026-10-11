@@ -1,12 +1,41 @@
 # D1.4 Bounded RPG Measurements
 
-2026-10-11. **PARTIAL measurement gate; not overall D1 completion.** Product
+2026-10-11. **Initial lane: PARTIAL; integrated follow-up: PASS below.** Product
 revision `5c12b496c7cc3761ca66deccc2c80ee2024f7d3d`, isolated branch
 `codex/d1-measurements`. No product files, existing documents, providers, player
 saves or user IndexedDB were changed. No push. Parent owns native persistence,
 resize, capacity UI and integrated acceptance.
 
-## Results and Limits
+## Integrated Follow-up
+
+The tables and initial failures below remain the original `5c12b49` evidence.
+They now refer to [the preserved pre-optimization record](../evidence/d1/measurements-before-local-lookups.json),
+not the current [integrated record](../evidence/d1/measurements.json).
+The latter was generated against `b237160d8810374c781c40bbc61d8d1f61ca12e1`,
+source SHA-256 `2cd8dd51857459fbe00f3d5eafa4ef7f1f270396690e7aea112dde1dd6272971`.
+
+The parent fixed repeated dense-cell lookup and already-accepted contract path
+searches, retaining sparse/legacy lookup behavior and observation semantics.
+Issue #5's renderer fix was also integrated. The same unextended 10s/1024-step
+tour limits now complete **16/16**, including both 256-room fixtures:
+
+| Seed | Moves / targets reached | Tour ms | Move p50 / p95 ms |
+| --- | --- | ---: | --- |
+| 2 | 1004 / 6 of 6 | 1018.0 | .786 / 1.432 |
+| 42 | 898 / 6 of 6 | 877.5 | .759 / 1.515 |
+
+All 26 domain and eight render records completed without errors; cohort times
+were 15.13s and 10.55s. Geometry hashes match the initial run. Verifier PASS:
+16 projection/reload fixtures, 10 archive fixtures and 32 render modes.
+The 256-room seed-42 fog camera/overview median synchronous draw is 9.1/21.1ms;
+draw plus readback is 21.5/28.9ms. These remain single-machine submission/readback
+measurements, not FPS promises or coupled end-to-end gameplay measurements.
+
+Native real-GameSession measurements and the remaining expensive whole-save
+archive writes are recorded separately in [integrated D1 qualification](d1-qualification.md).
+No claim of arbitrary-size or constant-cost persistence follows from this repair.
+
+## Original Results and Limits
 
 - **PASS, offline domain:** 16 actual `generateModuleMaze` projections, full
   `createNewGameState` construction and JSON/`normalizeGameState` round trips;
@@ -226,7 +255,7 @@ node scripts/d1-measurements/verify.mjs
 - Evidence verifier: **PASS** on source/harness hashes, all 16 projection/reload
   invariants, 10 archives, 32 render modes and repeat geometry identities. It
   explicitly retains 13/16 complete traversal coverage, not overall acceptance.
-- [Final compact JSON](../evidence/d1/measurements.json) includes raw timings,
+- [Original final compact JSON](../evidence/d1/measurements-before-local-lookups.json) includes raw timings,
   fixture recipes, hashes, counters, byte counts and memory snapshots.
 - [Initial compact JSON](../evidence/d1/measurements-initial.json) retains the
   first domain result and renderer failure. Initial Vite `appType: custom`

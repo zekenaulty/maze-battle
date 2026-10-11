@@ -1,14 +1,17 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
-Status: D0 complete; owner resumed after D1 review on 2026-10-11. Revision 4.
+Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 next.
+2026-10-11. Revision 5. [D1 evidence](reviews/d1-qualification.md),
+[A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
 Reviewed Maze source: `codex/maze-live-launch` at `1f266a2`; remote `main` at
 `b12a8c37df17612d249a48bf9f2d419c20363c4c`.
 Agentica remote main verified at `977d0cab5421fd4e09fd33f1224f241b7e425abe`;
 paired service source and SDK pin remain in [NS-6 integration](ns6-paired-integration.md).
-D0 added offline diagnostics and review evidence only. D1 implementation is now
-authorized; later slices remain gated on its integrated qualification.
+D0 added offline diagnostics and review evidence only. D1's actual RPG repair is
+qualified at `b237160`; the linked ledger records scale limits rather than
+claiming infinite-world performance. A1-A3/Q runtime work remains outstanding.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -61,9 +64,10 @@ remembered evidence; it was not a complete environmental examination system.
 
 ## Sequence and Completion Gates
 
-D0 is complete at the bounded offline diagnostic/review level. D1 and later
-slices are NOT RUN. Each produces its own reviewable commit and evidence;
-none is permission to declare later slices complete.
+D0 is complete at the bounded offline diagnostic/review level; D1's finite RPG
+repair has integrated qualification; A0 source mapping is reviewed. A1-A3/Q are
+NOT RUN. Each produces its own reviewable commit and evidence; none is permission
+to declare later slices complete.
 
 | Slice | Deliverable | Gate before proceeding |
 | --- | --- | --- |
@@ -165,6 +169,16 @@ does not include an unapproved paid run; lack of such approval is not failure of
 offline wiring, nor may an offline pass be reported as live paired qualification.
 
 ## Temporal and Policy Decisions to Preserve
+
+- Owner clarification after A0: Auto chooses voluntary interactions because it
+  is Auto. Manual and Agentic Play must not inherit chest opening, quest handling
+  or town errands from a shared movement routine or normalization. A1 must split
+  game-owned movement consequences from validated voluntary commands, and offer
+  a discoverable manual chest action. Auto may explicitly select the same command
+  under its own policy. Preserve real mandatory movement consequences (eligible
+  encounters and, when implemented, traps/plates/thresholds). Actor navigation
+  alone cannot grant loot or optional interaction authority. This supersedes
+  A0's earlier suggestion to preserve manual chest-on-arrival convenience.
 
 - Simulation time, objective lifetime, attempt/custody deadlines and observation/
   provider windows are separate. Retain the qualified admission/park/progress/

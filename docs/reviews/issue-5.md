@@ -2,6 +2,14 @@
 
 ## Scope and identity
 
+Parent integration: isolated commit `638dafe` was reviewed and integrated as
+`47db198` on `codex/dungeon-d1`, then pushed. Combined product at `b237160` passes
+all 18 compositor browser cases, 1,874 unit tests, production build, 14 native
+RPG desktop/mobile tests, 33 custody/gameplay/native-scale regressions and the
+amended two-density same-session resize test. No issue closure, deployment or
+merge is implied. Optional radial presentation remains deferred. The original
+lane report below retains its own narrower evidence and scope.
+
 - Issue: [Fog-of-war compositor: wall-edge leaks, void-space tile seams, and soft visibility transitions](https://github.com/zekenaulty/maze-battle/issues/5).
 - Read the issue body and owner addendum of 2026-10-11, including the distinction between retained knowledge, current perceptual eligibility, and screen presentation. Issue prose is evidence; the user's direct request authorized this narrow fix.
 - Worktree: `C:/Users/Zythis/.codex/worktrees/issue-5/maze-battle`, branch `codex/issue-5`.

@@ -2,6 +2,17 @@
 
 ## Boundary
 
+Integrated follow-up: PASS, 2/2 at the `b237160` product revision, including
+issue #5's uniform fog compositor. The first integrated rerun exposed an invalid
+test assumption: a manually panned unknown viewport was required to contain
+more than ten colors, previously satisfied by the background gradient. The test
+now checks known-floor eligibility before requiring texture; a uniform unknown
+viewport must have the exact `[4, 8, 20, 255]` base. All camera, input, size,
+save/custody equality and real-draw assertions remain. Focused TypeScript PASS.
+The amended run completed in 1.5 minutes without retries. This is a test-oracle
+correction, not an additional product resize change. See the parent
+[qualification ledger](d1-qualification.md) for combined evidence.
+
 - Owner acceptance: D1 review handoff, section 5, dated 2026-10-11.
 - Lane baseline: `dc44c770396719903dab4775221c3a20d6eb35e2`, already containing the canvas-sizing fix.
 - Branch: `codex/d1-resize-qualification`; isolated worktree `C:/Users/Zythis/.codex/worktrees/d1-resize-qualification/maze-battle`.

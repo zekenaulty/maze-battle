@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { cameraCellSize, createMazeCamera, panMazeCamera, type MazeCameraState } from '../../src/components/maze/mazeCamera';
 import type { GameState } from '../../src/domain/types';
+import { createMazeVisibilitySnapshot, isCellExplored } from '../../src/domain/maze/visibility';
+import { isMazeFloorCell } from '../../src/components/maze/mazeFloor';
 import type {} from './resize-session-fixture';
 
 const sizes = [
@@ -46,7 +48,7 @@ for (const deviceScaleFactor of [1, 2]) {
         await test.step(`manual camera: ${size.name}`, async () => {
           const before = await snapshot(page);
           await page.setViewportSize(size);
-          await expectCanvasFits(page, deviceScaleFactor);
+          await expectCanvasFits(page, deviceScaleFactor, camera);
           await expectControls(page);
           await expectCamera(page, camera);
           expect(await snapshot(page)).toEqual(before);
@@ -66,7 +68,7 @@ for (const deviceScaleFactor of [1, 2]) {
       await page.getByRole('button', { name: 'Map', exact: true }).click();
       for (const size of sizes) {
         await page.setViewportSize(size);
-        await expectCanvasFits(page, deviceScaleFactor);
+        await expectCanvasFits(page, deviceScaleFactor, 'overview');
         await expectOverview(page);
         await expect(page.getByRole('button', { name: 'Map', exact: true })).toHaveAttribute('aria-pressed', 'true');
         await expect(page.getByLabel('Camera controls', { exact: true })).toHaveCount(0);
@@ -85,7 +87,7 @@ for (const deviceScaleFactor of [1, 2]) {
         const dialog = page.getByRole('dialog', { name: title, exact: true });
         for (const size of sizes) {
           await page.setViewportSize(size);
-          await expectCanvasFits(page, deviceScaleFactor);
+          await expectCanvasFits(page, deviceScaleFactor, camera);
           await expectOnScreen(dialog);
           await expectOnScreen(dialog.getByRole('button', { name: 'Close dialog' }));
           const actions = title === 'Saves'
@@ -119,7 +121,7 @@ for (const deviceScaleFactor of [1, 2]) {
       for (const size of sizes) {
         const before = await snapshot(page);
         await page.setViewportSize(size);
-        await expectCanvasFits(page, deviceScaleFactor);
+        await expectCanvasFits(page, deviceScaleFactor, camera);
         await expectControls(page);
         await expectCamera(page, camera, true);
         expect(await snapshot(page)).toEqual(before);
@@ -131,7 +133,7 @@ for (const deviceScaleFactor of [1, 2]) {
       await expect.poll(async () => (await gameState(page)).maze.active).toEqual({ ...start, column: start.column + 1 });
       const whileHeld = await snapshot(page);
       await page.setViewportSize(sizes[0]);
-      await expectCanvasFits(page, deviceScaleFactor);
+      await expectCanvasFits(page, deviceScaleFactor, camera);
       await expectCamera(page, camera, true);
       expect(await snapshot(page)).toEqual(whileHeld);
       await page.keyboard.up('ArrowRight');
@@ -251,7 +253,7 @@ async function expectControls(page: Page) {
   }
 }
 
-async function expectCanvasFits(page: Page, density: number) {
+async function expectCanvasFits(page: Page, density: number, camera: MazeCameraState | 'overview') {
   const canvas = page.getByLabel('Dungeon map');
   const measure = () => canvas.evaluate((element: HTMLCanvasElement) => {
     const rect = element.getBoundingClientRect();
@@ -282,5 +284,15 @@ async function expectCanvasFits(page: Page, density: number) {
     return { colors: colors.size, opaque };
   });
   expect(pixels.opaque).toBe(true);
-  expect(pixels.colors).toBeGreaterThan(10);
+  const { maze } = await gameState(page), size = await canvasSize(page);
+  const viewport = camera === 'overview' ? undefined : createMazeCamera(maze, size, camera);
+  const visibility = createMazeVisibilitySnapshot(maze);
+  const knownFloorInView = maze.cells.some(cell => isMazeFloorCell(maze, cell) && isCellExplored(visibility, cell)
+    && (!viewport || cell.row >= viewport.rowStart && cell.row < viewport.rowEnd
+      && cell.column >= viewport.columnStart && cell.column < viewport.columnEnd));
+  // Panning entirely into unknown space is legitimately uniform, not a failed draw.
+  // Still require actual texture whenever a known floor is inside the viewport.
+  if (knownFloorInView) expect(pixels.colors).toBeGreaterThan(10);
+  else if (pixels.colors === 1) expect(await canvas.evaluate((element: HTMLCanvasElement) =>
+    Array.from(element.getContext('2d')!.getImageData(0, 0, 1, 1).data))).toEqual([4, 8, 20, 255]);
 }

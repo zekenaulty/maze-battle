@@ -34,6 +34,16 @@ generation, and persistence.
 
 ## 2. Findings That Block Direct Rebinding
 
+Owner amendment after this source review (2026-10-11): the Manual chest-on-step
+behavior is a gameplay defect, not a convenience to preserve. Auto's deliberate
+chest/quest/town automation must not bleed into Manual or Agentic Play. At A1,
+split shared mandatory movement consequences from voluntary interaction commands;
+provide an explicit manual chest affordance; route Auto's independently chosen
+interaction through the same target/eligibility/effect path. Preserve old save
+contents, not the erroneous automatic Manual interaction. The original source
+findings below remain accurate for the pinned baseline. Shared durable receipt
+and replay work belongs to A1; this note does not claim it exists already.
+
 1. **Navigation wrappers bundle unrelated effects.** `moveManually` opens the
    arrival chest and may start combat (`M:src/hooks/useGameLoop.ts:14`). Even
    `moveActive` calls `syncGuildQuests`, potentially accepts/completes/pays quests,
@@ -181,8 +191,10 @@ model; a persisted consequential decision may deliberately wake it once.
 2. Factor the existing movement calculation into a shared travel-only domain
    operation: preserve collision, facing, active position, visited/visibility
    and floor snapshot updates; explicitly control guild synchronization, stairs,
-   encounters and collection outside that primitive. Preserve legacy Manual/Auto
-   convenience behavior through their wrappers. The agent must not call
+   encounters and collection outside that primitive. Preserve mandatory movement
+   consequences and Auto's deliberate policy, but correct Manual chest-on-step
+   and prevent Auto quest/town decisions from leaking into Manual/Agentic Play.
+   The agent must not call
    `moveManually`, `advanceAutopilot`, or unqualified `moveActive`. Admission also
    validates game/floor, mode, party viability, actor knowledge and effect scope.
 3. Adapt actual RPG observation receipts into the existing actor navigation graph
