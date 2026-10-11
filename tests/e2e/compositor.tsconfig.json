@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["compositor-fixture.ts", "compositor.spec.ts", "compositor.config.ts", "compositor.vite.config.ts"]
+}
