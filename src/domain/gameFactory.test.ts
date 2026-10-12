@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGameState, descendFloor, fromLegacyState, moveActive, normalizeGameState, setActorAutoBattle, setAutoThrottle, setMazeTexture, setPartyAutoBattle, summarizeGame } from './gameFactory';
+import { createNewGameState, descendFloor, moveActive, normalizeGameState, setActorAutoBattle, setAutoThrottle, setMazeTexture, setPartyAutoBattle, summarizeGame } from './gameFactory';
 import { AUTO_THROTTLE_MAX_MS, AUTO_THROTTLE_MIN_MS, DEFAULT_AUTO_THROTTLE_MS } from './automation/throttle';
 import { DEFAULT_MAZE_TEXTURE } from './maze/textureOptions';
 import type { MazeState } from './types';
 import { chestAt, lineMaze, questFor, roomAt } from './automation/autopilotTestFixtures';
-import originalSave from '../../tests/fixtures/original-saves/advanced.json';
 
 describe('gameFactory', () => {
   it('creates a versioned game state', () => {
@@ -165,15 +164,6 @@ describe('gameFactory', () => {
     const next = setMazeTexture(game, 'brick-worn');
 
     expect(next.mazeTexture).toBe('brick-worn');
-  });
-
-  it('maps legacy saves into the new schema', () => {
-    const game = fromLegacyState('auto', originalSave.state);
-
-    expect(game.dungeonLevel).toBe(7);
-    expect(game.randomBattles).toBe(false);
-    expect(game.party.find((actor) => actor.role === 'warrior')).toMatchObject(originalSave.expected[0]);
-    expect(game.source?.type).toBe('legacy-local-storage');
   });
 
   it('normalizes older indexeddb saves without combat fields', () => {

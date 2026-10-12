@@ -4,7 +4,7 @@ import { samePosition } from '../../src/domain/maze/key';
 import { findPath } from '../../src/domain/maze/solver';
 import { inside } from './d1-rpg-fixtures';
 
-for (const scenario of ['original', 'classic', 'v1', 'v2']) {
+for (const scenario of ['classic', 'v1', 'v2']) {
   test(`${scenario} archived floor retains chest and quest progress through stairs, portal and native reload`, async ({ page }, info) => {
     await open(page, scenario);
     const initial = await state(page), level = initial.dungeonLevel, topology = geometry(initial.maze);

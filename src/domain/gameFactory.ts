@@ -16,7 +16,6 @@ import { monsterTagsForFloor, normalizeMonsterTags } from './combat/monsters';
 import { defaultRng, type Rng } from './combat/rng';
 import { roomAtPosition } from './quests/questTargets';
 import { duplicateItemIds } from './items/itemOwnership';
-import { convertOriginalSave } from '../persistence/originalSave';
 
 const HERO_ORDER: HeroRole[] = ['warrior', 'mage', 'healer'];
 
@@ -357,10 +356,6 @@ export function summarizeGame(game: GameState) {
     dungeonLevel: game.dungeonLevel,
     partyLevels: Object.fromEntries(game.party.map((actor) => [actor.role, actor.level])) as Record<HeroRole, number>,
   };
-}
-
-export function fromLegacyState(slotId: string, legacy: unknown): GameState {
-  return convertOriginalSave(slotId, legacy, createNewGameState);
 }
 
 function makeSkills(ids: SkillState['id'][]): SkillState[] {

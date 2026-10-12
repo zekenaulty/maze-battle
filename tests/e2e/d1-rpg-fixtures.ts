@@ -1,11 +1,9 @@
-import { createNewGameState, fromLegacyState } from '../../src/domain/gameFactory';
+import { createNewGameState } from '../../src/domain/gameFactory';
 import { seededRng } from '../../src/domain/automation/autopilotTestFixtures';
 import { generateMaze } from '../../src/domain/maze/generate';
 import { generateStructuredMaze } from '../../src/domain/maze/structuredGenerate';
 import { movePosition, opposite } from '../../src/domain/maze/movement';
 import type { GameState, GridPosition, MazeRoomState } from '../../src/domain/types';
-import original from '../fixtures/original-saves/advanced.json' with { type: 'json' };
-import { supply } from '../../src/domain/items/__tests__/fixtures';
 import { guildContractsForFloor } from '../../src/domain/guild/contracts';
 import { acceptGuildContract, syncGuildQuests } from '../../src/domain/quests/quests';
 
@@ -33,11 +31,10 @@ export function fixtureGame(scenario: string): GameState {
   const random = Math.random;
   Math.random = seededRng(20261011);
   try {
-    let game = scenario === 'original' ? fromLegacyState('d1-original', original.state)
-      : createNewGameState({ id: 'd1-rpg-browser', randomBattles: false, autoThrottleMs: 2000,
-        ...(scenario === 'classic' ? { maze: generateMaze(9, 13, seededRng(42)) } : {}),
-        ...(['v1', 'v2'].includes(scenario) ? { maze: generateStructuredMaze(15, 19, seededRng(42)) } : {}),
-      });
+    let game = createNewGameState({ id: 'd1-rpg-browser', randomBattles: false, autoThrottleMs: 2000,
+      ...(scenario === 'classic' ? { maze: generateMaze(9, 13, seededRng(42)) } : {}),
+      ...(['v1', 'v2'].includes(scenario) ? { maze: generateStructuredMaze(15, 19, seededRng(42)) } : {}),
+    });
     if (scenario === 'v1') {
       // Synthetic retained-v1 envelope, not a historical v1 generator claim.
       game.maze.layout = { ...game.maze.layout!, version: 'structured-v1', connections: undefined };
@@ -45,7 +42,6 @@ export function fixtureGame(scenario: string): GameState {
     game = { ...game, mode: 'manual', randomBattles: scenario.startsWith('safe-'), autoThrottleMs: 2000,
       party: game.party.map(actor => ({ ...actor, autoBattle: false })),
     };
-    if (scenario === 'original') game.inventory.items.push(supply('town-portal', 2));
     if (scenario === 'v1' || scenario === 'v2') {
       // An explicitly accepted old-save objective, not automatic policy during load.
       const contract = guildContractsForFloor(game).find(c => c.task.objective === 'fetch');

@@ -1,23 +1,9 @@
-import { openDB, type DBSchema } from 'idb';
 import type { PlayTelemetry } from '../domain/telemetry/types';
 import { getDatabase } from './saveRepository';
 import { requireControl, type SaveControl } from './saveControl';
 
-interface TelemetryDb extends DBSchema {
-  runs: { key: string; value: PlayTelemetry; indexes: { byUpdatedAt: string } };
-}
-
-const database = () => openDB<TelemetryDb>('maze-battle-telemetry', 1, {
-  upgrade(db) {
-    db.createObjectStore('runs', { keyPath: 'gameId' }).createIndex('byUpdatedAt', 'updatedAt');
-  },
-});
-
 export async function loadTelemetry(gameId: string) {
-  const current = await (await getDatabase()).get('telemetry', gameId);
-  if (current) return current;
-  const db = await database();
-  try { return await db.get('runs', gameId); } finally { db.close(); }
+  return (await getDatabase()).get('telemetry', gameId);
 }
 
 export async function saveTelemetry(log: PlayTelemetry, control: SaveControl) {

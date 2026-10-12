@@ -31,8 +31,7 @@ only after its fenced save commits; stale tabs cannot overwrite game progress or
 current diagnostics. Manual snapshots remain separate from the active autosave.
 Diagnostics storage failure does not undo an accepted gameplay transaction.
 
-The original JavaScript localStorage saves are a one-way import source, not a
-second runtime state format. Back up browser data before clearing site storage.
+Back up browser data before clearing site storage.
 
 The experimental streamed and agent-directed views remain distinct from ordinary
 RPG play. Host-side fixtures do not establish live-provider integration or paid
