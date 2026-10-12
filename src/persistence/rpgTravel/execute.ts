@@ -11,6 +11,7 @@ import { stepTravel } from './step';
 import { frontierAvailable } from './frontier';
 import { requireTravel, sameTravelPosition, sealTravel, travelFingerprint, validateTravel, validateTravelReceipt } from './validation';
 import type { RpgTravelRecord, RpgTravelRequest, RpgTravelReceipt } from './types';
+import { EXPLORATION_TRAIL_LIMIT } from '../../domain/agentic/explorationPolicy';
 
 export const ACTIVE_TRAVEL = 'travel:auto';
 export const RPG_TRAVEL_STORES = ['meta', 'saves', 'gameCommands', 'observations', 'rpgMemoryNodes', 'rpgMemoryHeads', 'rpgTravels', 'rpgTravelActions'] as const;
@@ -110,7 +111,9 @@ async function applyTravel(tx: GameWrite, input: RpgTravelRequest, rejectUnavail
       if (rejectUnavailableStart && operation.status === 'interrupted') return refused(operation.reason);
       travel = sealTravel({ version: 1, id: input.operationId, gameId: input.gameId, position,
         control: { ...control, revision: control.revision + 1 }, sourceHead: memory.head.id, operation,
-        ...(frontier ? { frontier: structuredClone(frontier) } : {}) });
+        ...(frontier ? { frontier: structuredClone(frontier) } : {}),
+        ...(input.action.type === 'explore' && input.action.continuation
+          ? { exploration: { policy: input.action.continuation, phase: 'approach' as const, trail: [position] } } : {}) });
     } else {
       if (!record || record.gameId !== input.gameId || record.operation.status !== 'running') return refused('No matching active journey.');
       if (record.operation.target.floor !== position.floor) return refused('The journey belongs to a different floor.');
@@ -118,8 +121,12 @@ async function applyTravel(tx: GameWrite, input: RpgTravelRequest, rejectUnavail
         if (destinationExpired(record.operation, Date.now())) return refused('Original travel time grant is exhausted.');
         const plan = destinationPlan(await routeRpgMemory(memory, position, record.operation.target, { maxVisits: 512, maxSteps: 256 }));
         if (plan.status !== 'ready') return refused(plan.reason);
+        const trail = record.exploration && (record.exploration.trail.some(p => sameTravelPosition(p, position))
+          ? record.exploration.trail : [...record.exploration.trail, position]);
+        if (trail && trail.length >= EXPLORATION_TRAIL_LIMIT) return refused('Exploration trail checkpoint requires a new intention.');
         // The next executor step accounts for this replan. Original target/time/usage survive adoption.
         travel = sealTravel({ ...withoutWitness(record), position, sourceHead: memory.head.id,
+          ...(record.exploration ? { exploration: { ...record.exploration, trail: trail! } } : {}),
           control: { ...control, revision: control.revision + 1 },
           operation: { ...record.operation, epoch: control.epoch, route: [], reason: 'Explicitly adopted retained journey.' } });
       } else throw new Error('Unsupported travel action.');

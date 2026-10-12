@@ -17,4 +17,4 @@ export type RpgContextCommand = { type: 'inspect'; target: RpgAddress }
   | { type: 'map'; limit: number; snapshotId?: string; after?: string }
   | { type: 'frontiers'; limit: number; snapshotId?: string; after?: string };
 export type RpgCommand = { type: 'observe' } | { type: 'navigate'; target: RpgAddress }
-  | { type: 'explore'; frontier: RpgFrontierTarget } | RpgContextCommand;
+  | { type: 'explore'; frontier: RpgFrontierTarget; continuation?: 'corridor-v1' } | RpgContextCommand;

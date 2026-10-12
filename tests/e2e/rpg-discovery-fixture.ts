@@ -1,4 +1,4 @@
-import { discoveryDungeon } from './rpg-discovery-layout';
+import { corridorDungeon, discoveryDungeon } from './rpg-discovery-layout';
 import { prepareRpgLaunch } from '../../src/persistence/rpgAgentica/launch';
 import { announceRpgLaunch } from '../../src/persistence/rpgAgentica/launchRecords';
 import { prepareRpgWake, acknowledgeRpgWake, finishRpgWake } from '../../src/persistence/rpgAgentica/launchWake';
@@ -10,12 +10,13 @@ import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { rpgCapabilities } from '../../src/services/agentica/rpg/capabilities';
 import type {} from './rpg-command-fixture';
 
-export async function setupDiscovery(variant: 'A' | 'B') {
+export async function setupDiscovery(variant: 'A' | 'B', corridor = false, chest?: { row: number; column: number }) {
   if (location.origin !== 'http://127.0.0.1:5204') throw new Error('Isolated discovery test only');
   const h = window.rpgCommandTest, game = h.game();
-  game.maze = discoveryDungeon(variant); game.floors = []; game.quests = [];
+  game.maze = corridor ? corridorDungeon(variant) : discoveryDungeon(variant); game.floors = []; game.quests = [];
   game.chests = [{ id: 'survey-chest', level: 1, opened: false,
-    position: variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 } }];
+    position: chest ?? (corridor ? variant === 'A' ? { row: 6, column: 11 } : { row: 3, column: 8 }
+      : variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 }) }];
   await h.repository.saveGame('auto', 'Cold discovery', 'auto', game);
   const session = new h.GameSession(() => {}); await session.start(); await session.prepareTravelMemory();
   const launch = await prepareRpgLaunch(session.ownedControl(), { url: 'ws://127.0.0.1:5092/api/host',

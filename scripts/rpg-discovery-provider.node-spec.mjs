@@ -65,3 +65,21 @@ test('known-destination parser still refuses exploration/context and preserves o
     'Reach the known destination at floor 1, row 6, column 5. Do not interact or collect.');
   assert.throws(() => rpgPlan(withContext, 1));
 });
+
+test('explicit corridor continuation requires fresh source-bound decision evidence, not reaching the old anchor', () => {
+  const query = discoveryPlan(request(), 1, true), action = discoveryPlan(request(page()), 2, true);
+  assert.equal(action.input.continuation, 'corridor-v1');
+  const successor = discoveryPlan(request(undefined, { actor: { floor: 1, row: 6, column: 6 },
+    notice: { kind: 'junction', at: { floor: 1, row: 6, column: 8 }, sourceId: 'receipt' } }), 3, true);
+  successor.observationRevision = 8;
+  validateDiscoverySequence([query, action], successor);
+  for (const change of [
+    r => { r.continuation = false; }, r => { r.observationRevision = action.observationRevision; },
+    r => { delete r.publicContext.currentObservation.Data.notice; },
+    r => { r.publicContext.currentObservation.Data.notice.sourceId = 'stale'; },
+    r => { r.publicContext.currentObservation.Data.notice.kind = 'ordinary-move'; },
+  ]) {
+    const invalid = structuredClone(successor); change(invalid);
+    assert.throws(() => validateDiscoverySequence([query, action], invalid));
+  }
+});

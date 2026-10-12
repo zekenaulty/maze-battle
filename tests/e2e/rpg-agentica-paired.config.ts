@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 export default defineConfig({
-  testDir: '.', testMatch: ['rpg-agentica-paired.spec.ts', 'rpg-agentica-discovery.spec.ts'], outputDir: '../../test-results/rpg-paired',
+  testDir: '.', testMatch: ['rpg-agentica-paired.spec.ts', 'rpg-agentica-discovery.spec.ts', 'rpg-agentica-corridor.spec.ts'], outputDir: '../../test-results/rpg-paired',
   timeout: 60000, expect: { timeout: 15000 }, workers: 1, retries: 0,
   reporter: [['list'], ['json', { outputFile: resolve('test-results/rpg-paired-report.json') }]],
   webServer: [

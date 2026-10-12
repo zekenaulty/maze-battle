@@ -46,7 +46,8 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false, sig
             const travel = await commitRpgTravelInTransaction(tx, { attemptId: original.operationId, operationId: original.operationId,
               gameId: binding.gameId, control: current.control, deadlineAt: Date.parse(input.deadlineAt),
               action: command.type === 'navigate' ? { type: 'start', target: command.target, limits: binding.travelLimits }
-                : { type: 'explore', frontier: command.frontier, limits: binding.travelLimits } }, false, true);
+                : { type: 'explore', frontier: command.frontier, limits: binding.travelLimits,
+                  ...(command.continuation ? { continuation: command.continuation } : {}) } }, false, true);
             result.afterRevision = travel.current?.control.revision ?? revision;
             result.observation.revision = result.afterRevision;
             const op = travel.receipt.travel?.operation;

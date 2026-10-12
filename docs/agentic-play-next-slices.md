@@ -2,9 +2,9 @@
 
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and
-real-service query/choice/decision proof;
+real-service query/choice/decision proof and explicit earned-corridor continuation;
 whole-A2, A3/Q runtime qualification remains outstanding.
-2026-10-12. Revision 16. [D1 evidence](reviews/d1-qualification.md),
+2026-10-12. Revision 17. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -43,8 +43,11 @@ and carry it into a second selected intention without collecting. The subsequent
 [real-service discovery handoff](reviews/a2-service-discovery.md) proves public
 frontier query/refinement, opposite evidence-driven selections and explicit
 restart/adoption through Agentica; it also repairs transferred-epoch successors.
-The full discovery/collection corpus, broader continuation and
-meaningful-observation policy remain outstanding.
+[Explicit corridor continuation](reviews/a2-corridor-continuation.md) now follows
+reciprocal observed passages under the original intention/grant and yields on
+new junction/object/changed evidence, including before the selected anchor.
+The full discovery/collection corpus, room-level exploration choices, human/tool
+parity and scale qualification remain outstanding.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional

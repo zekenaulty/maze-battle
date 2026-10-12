@@ -7,6 +7,7 @@ import type { GameWrite } from '../gameTransaction';
 import { checkHost, rpgAgenticaWrite, sealHost } from './transaction';
 import { rpgRunAt } from './runs';
 import type { RpgHostAction } from './types';
+import { sameTravelPosition, validateTravel } from '../rpgTravel/validation';
 
 export async function rpgActionAt(tx: GameWrite, key: string) {
   const parts = validateActionKey(key), binding = await rpgRunAt(tx, parts[2]);
@@ -73,5 +74,12 @@ export async function rpgOperationAt(tx: GameWrite, id: string) {
   requireRpg(original.stored?.record.result?.operation?.operationId === id
     && actionFingerprint(link.action) === original.stored.record.fingerprint
     && boundedJson(original.binding) === boundedJson(link.binding), 'operation admission lineage changed');
+  const stored = await tx.objectStore('rpgTravels').get(id);
+  requireRpg(stored, 'missing admitted journey');
+  const travel = validateTravel(stored, id), command = parseRpgAction(link.action, link.binding);
+  requireRpg(travel.gameId === link.binding.gameId && (command.type === 'explore'
+    ? boundedJson(travel.frontier) === boundedJson(command.frontier) && travel.exploration?.policy === command.continuation
+    : command.type === 'navigate' && !travel.frontier && !travel.exploration
+      && sameTravelPosition(travel.operation.target, command.target)), 'journey continuation authority changed');
   return link;
 }

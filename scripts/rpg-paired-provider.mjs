@@ -28,7 +28,7 @@ export function rpgPlan(body, ordinal, intermediate = false) {
 
 export async function startRpgFixture(port, restart) {
   const calls = [], errors = [];
-  let nextIntermediate = false;
+  let nextIntermediate = false, nextCorridor = false;
   const server = createServer(async (request, response) => {
     try {
       if (request.method === 'GET' && request.url === '/evidence') {
@@ -40,17 +40,21 @@ export async function startRpgFixture(port, restart) {
       if (request.method === 'POST' && request.url === '/next-intermediate') {
         nextIntermediate = true; response.end(JSON.stringify({ intermediate: true })); return;
       }
+      if (request.method === 'POST' && request.url === '/next-corridor') {
+        nextCorridor = true; response.end(JSON.stringify({ continuation: 'corridor-v1' })); return;
+      }
       if (request.method !== 'POST' || request.url !== '/v1/responses') { response.writeHead(404).end(); return; }
       const chunks = []; let bytes = 0;
       for await (const chunk of request) {
         bytes += chunk.length; if (bytes > 2_097_152) throw new Error('Fixture input bound exceeded.'); chunks.push(chunk);
       }
-      if (calls.length >= 32) throw new Error('Fixture planner call bound exceeded.');
+      if (calls.length >= 48) throw new Error('Fixture planner call bound exceeded.');
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      const discovery = readRpgPrompt(body, true).objective.startsWith('Explore from earned observations.');
-      const { text, ...record } = discovery ? discoveryPlan(body, calls.length + 1)
+      const parsed = readRpgPrompt(body, true), discovery = parsed.objective.startsWith('Explore from earned observations.');
+      const continuation = calls.find(call => call.scope === parsed.identity.ScopeId)?.continuation ?? nextCorridor;
+      const { text, ...record } = discovery ? discoveryPlan(body, calls.length + 1, continuation)
         : rpgPlan(body, calls.length + 1, nextIntermediate);
-      nextIntermediate = false;
+      nextIntermediate = false; nextCorridor = false;
       const prior = calls.filter(call => call.scope === record.scope);
       const checkpoint = record.observationKind === 'operation' || record.observationKind === 'local'
         && record.epoch !== prior[0]?.epoch && record.observationRevision > prior[0]?.observationRevision;

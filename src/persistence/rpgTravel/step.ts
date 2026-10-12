@@ -10,6 +10,8 @@ import type { MemoryQuery } from '../rpgMemory/query';
 import { destinationPlan, rememberedCell, rememberedStep } from './navigation';
 import { requireTravel, sameTravelPosition, sealTravel } from './validation';
 import type { RpgTravelRecord, RpgTravelRequest } from './types';
+import { observationReader } from '../observationNodes';
+import { continueExploration } from './exploration';
 
 export async function stepTravel(tx: GameWrite, input: RpgTravelRequest, record: RpgTravelRecord,
   slot: SaveSlot, control: SaveControl, readMemory: () => Promise<MemoryQuery | undefined>) {
@@ -50,7 +52,16 @@ export async function stepTravel(tx: GameWrite, input: RpgTravelRequest, record:
   if (current.game.battle) operation = stopDestinationOperation(operation, 'interrupted', 'An encounter interrupted travel.');
   const saved = await tx.objectStore('saves').get('auto');
   requireTravel(saved?.observationHead);
+  let exploration = record.exploration;
+  if (exploration && !exploration.trail.some(p => sameTravelPosition(p, position)))
+    exploration = { ...exploration, trail: [...exploration.trail, position] };
+  if (exploration && !current.game.battle) {
+    const node = await observationReader({ get: id => tx.objectStore('observations').get(id) }, record.gameId).read(saved.observationHead);
+    const continued = await continueExploration(record, memory, node.observation, operation);
+    operation = continued.operation; exploration = continued.exploration;
+  }
   const travel = sealTravel({ version: 1 as const, id: record.id, gameId: record.gameId, control: current.control,
-    position, sourceHead: saved.observationHead, operation, ...(record.frontier ? { frontier: record.frontier } : {}) });
+    position, sourceHead: saved.observationHead, operation, ...(record.frontier ? { frontier: record.frontier } : {}),
+    ...(exploration ? { exploration } : {}) });
   return { disposition: 'applied' as const, reason: operation.reason, travel, command: command.receipt };
 }

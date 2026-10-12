@@ -87,7 +87,10 @@ credentials, user saves or user preview were used. Evidence is in ignored
 `discovery-restart-proof` and environment attachments, plus native test results.
 Raw public planner contexts, selected inputs and service events are retained.
 
-Remaining A2 runtime work: continue an unambiguous earned corridor within the
+Follow-through: [explicit corridor continuation](a2-corridor-continuation.md)
+addresses the local-continuation gap below. This original receipt is preserved.
+
+Remaining A2 runtime work at this receipt: continue an unambiguous earned corridor within the
 original intention/grant, and yield on consequential observations before any
 further movement. The current primitive still stops at its selected anchor.
 Generated-layout scale, human/tool parity and the complete Q noninterference

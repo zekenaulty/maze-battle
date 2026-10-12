@@ -22,7 +22,9 @@ export function noticeForCell(current: RpgObservedCell, previous: RpgRememberedC
   if (current.chests.some(chest => {
     const known = retained?.chests.find(candidate => candidate.id === chest.id);
     return !known || known.opened !== chest.opened || !sameAddress(known.position, chest.position);
-  }) || current.stairs.some(stair => !retained?.stairs.includes(stair))) {
+  }) || current.stairs.some(stair => !retained?.stairs.includes(stair))
+    || retained?.chests.some(chest => !current.chests.some(candidate => candidate.id === chest.id))
+    || retained?.stairs.some(stair => !current.stairs.includes(stair))) {
     return notice('object', current.address, sourceId);
   }
   if (current.links.some(direction => retained?.edges[direction]?.state === 'blocked')
@@ -31,8 +33,11 @@ export function noticeForCell(current: RpgObservedCell, previous: RpgRememberedC
   }
   // Walls are complete even when open endpoints are cropped from links.
   const junction = directions.filter(direction => !current.blocked.includes(direction)).length >= 3;
-  const knownJunction = retained
-    && directions.filter(direction => retained.edges[direction]?.state !== 'blocked').length >= 3;
+  const knownJunction = retained && directions.filter(direction => {
+    const edge = retained.edges[direction];
+    // A cropped exit can retain an older collision fact; only latest-receipt walls describe this sighting.
+    return edge?.state !== 'blocked' || edge.source.id !== retained.source.id;
+  }).length >= 3;
   if (junction && !knownJunction) return notice('junction', current.address, sourceId);
   return undefined;
 }
@@ -64,7 +69,7 @@ export function corridorExit(observation: RpgObservation, previous: RpgAddress,
 export function explorationNoticeText(value: ExplorationNotice): string {
   switch (value.kind) {
     case 'junction': return 'A junction needs a direction choice.';
-    case 'object': return 'A new or changed object is visible.';
+    case 'object': return 'Observed objects changed.';
     case 'changed': return 'An observed passage differs from memory.';
     case 'visibility': return 'Current sight does not confirm the next step.';
     case 'loop': return 'The next step revisits this exploration trail.';

@@ -73,11 +73,12 @@ export function parseRpgAction(action: AgenticaAction, binding: RpgAgenticaBindi
     return { type: 'observe' };
   }
   if (action.capabilityId === 'maze.explore') {
-    requireRpg(binding.mode === 'exploration' && rpgShape(args, 'row,column,direction,sourceId'), 'unbound exploration or arguments');
+    requireRpg(binding.mode === 'exploration' && rpgShape(args, 'row,column,direction,sourceId', 'continuation')
+      && (!Object.hasOwn(args, 'continuation') || args.continuation === 'corridor-v1'), 'unbound exploration or arguments');
     const frontier = { anchor: { floor: binding.floor, row: args.row, column: args.column }, direction: args.direction,
       sourceId: args.sourceId } as import('../../../persistence/rpgTravel/types').RpgFrontierTarget;
     requireRpg(validFrontier(frontier), 'invalid frontier');
-    return { type: 'explore', frontier };
+    return { type: 'explore', frontier, ...(args.continuation ? { continuation: args.continuation as 'corridor-v1' } : {}) };
   }
   if (action.capabilityId === 'maze.navigate' || action.capabilityId === 'maze.inspect') {
     requireRpg(rpgShape(args, 'row,column'), 'invalid target arguments');

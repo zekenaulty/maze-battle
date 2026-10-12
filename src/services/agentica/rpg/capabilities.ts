@@ -28,9 +28,11 @@ export function rpgCapabilities(exploration = false): AgenticaCapability[] {
       capability('maze.frontiers', 'Read observed exploration boundaries',
         'Read a page of current observed boundaries adjoining unknown cells. No hidden routes, contents or rankings. Use anchor, direction and source.id to choose an exploration intention.', page(12)),
       capability('maze.explore', 'Approach a chosen frontier',
-        'Walk a known route to the selected observed boundary, earning new observations along the way. Return a decision at the boundary; do not cross unseen edges, choose another frontier or interact. Requires a nonzero known approach.',
+        'Approach the selected observed boundary. Omit continuation to stop there. Explicit corridor-v1 continues only a forced, newly observed corridor under the same grant, yielding for new junctions, objects or changed evidence. Never cross an unobserved edge or interact. Requires a nonzero known approach.',
         [...address.map(field => ({ ...field })), { name: 'direction', type: 'string', required: true, allowedValues: ['north', 'east', 'south', 'west'] },
-          { name: 'sourceId', type: 'string', required: true, description: 'Exact source.id from a current frontier.' }], true),
+          { name: 'sourceId', type: 'string', required: true, description: 'Exact source.id from a current frontier.' },
+          { name: 'continuation', type: 'string', required: false, allowedValues: ['corridor-v1'],
+            description: 'Explicitly allow bounded forced-corridor continuation; omit for approach only.' }], true),
     ] : []),
   ];
 }

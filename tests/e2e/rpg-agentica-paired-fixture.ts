@@ -7,7 +7,7 @@ import { claimGame, updateOwnedGame } from '../../src/persistence/gameCustody';
 import { readRpgRun } from '../../src/persistence/rpgAgentica/runs';
 import { readRpgHostOperation } from '../../src/persistence/rpgAgentica/events';
 import { readRpgLaunch } from '../../src/persistence/rpgAgentica/launchRecords';
-import { discoveryDungeon } from './rpg-discovery-layout';
+import { corridorDungeon, discoveryDungeon } from './rpg-discovery-layout';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5212') throw new Error('Isolated paired RPG origin only.');
 const target = { floor: 1, row: 0, column: 5 }, socket = 'ws://127.0.0.1:5092/api/host';
@@ -48,11 +48,12 @@ async function snapshot() {
     owner: session.owner, travel: await session.readTravel(), binding: client.view.runId ? await readRpgRun(client.view.runId) : undefined,
     operation: client.view.operationId ? await readRpgHostOperation(client.view.operationId) : undefined };
 }
-async function seedDiscovery(variant: 'A' | 'B') {
-  const maze = discoveryDungeon(variant);
+async function seedDiscovery(variant: 'A' | 'B', corridor = false) {
+  const maze = corridor ? corridorDungeon(variant) : discoveryDungeon(variant);
   await saveGame('auto', 'Cold paired RPG discovery', 'auto', createNewGameState({ id: crypto.randomUUID(), maze,
     floors: [], quests: [], chests: [{ id: 'survey-chest', level: 1, opened: false,
-      position: variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 } }], randomBattles: false, mode: 'manual' }));
+      position: corridor ? variant === 'A' ? { row: 6, column: 11 } : { row: 3, column: 8 }
+        : variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 } }], randomBattles: false, mode: 'manual' }));
   return connect(false, true);
 }
 const harness = { seed, seedDiscovery, snapshot, recover: () => connect(true),

@@ -63,7 +63,10 @@ describe('RPG SDK envelope and capability surface', () => {
     expect(parseRpgAction({ ...action, capabilityId: 'maze.explore', arguments: args }, bound)).toEqual({ type: 'explore',
       frontier: { anchor: { floor: 2, row: 2, column: 3 }, direction: 'east', sourceId: 'earned-source' } });
     expect(parseRpgAction({ ...action, capabilityId: 'maze.frontiers', arguments: { limit: 12 } }, bound)).toEqual({ type: 'frontiers', limit: 12 });
-    for (const change of [{ direction: 'up' }, { row: -1 }, { sourceId: '' }, { autoLoot: true }, { floor: 1 }])
+    expect(parseRpgAction({ ...action, capabilityId: 'maze.explore', arguments: { ...args, continuation: 'corridor-v1' } }, bound))
+      .toMatchObject({ type: 'explore', continuation: 'corridor-v1' });
+    for (const change of [{ direction: 'up' }, { row: -1 }, { sourceId: '' }, { autoLoot: true }, { floor: 1 },
+      { continuation: undefined }, { continuation: 'auto' }, { continuation: null }])
       expect(() => parseRpgAction({ ...action, capabilityId: 'maze.explore', arguments: { ...args, ...change } }, bound)).toThrow();
     const caps = rpgCapabilities(true);
     expect(caps.slice(0, 5)).toEqual(rpgCapabilities());

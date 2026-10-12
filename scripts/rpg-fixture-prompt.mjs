@@ -22,7 +22,7 @@ export function readRpgPrompt(body, allowContext = false) {
     || frame.sourceHead?.gameId !== frame.gameId || frame.actor?.floor !== frame.floor
     || !Number.isSafeInteger(reference.Revision)) throw new Error('Invalid real RPG observation identity.');
   const allowed = ['kind', 'scopeId', 'perspectiveId', 'gameId', 'floor', 'actor', 'sourceHead', 'cells', 'observedCellCount', 'truncated'];
-  if (allowContext) allowed.push('context');
+  if (allowContext) allowed.push('context', 'notice');
   if (Object.keys(frame).some(key => !allowed.includes(key)) || (frame.cells?.length ?? 0) > 32
     || /"(?:seed|recipe|layout|floors|maze|checkpoint|knowledge)"/.test(JSON.stringify(frame)))
     throw new Error('Unexpected world data in bounded RPG observation.');

@@ -53,11 +53,13 @@ describe('earned cell notices', () => {
       remembered(cell(actor, ['east', 'west'], { chests: [chest] })), sourceId)).toEqual(notice('object'));
   });
 
-  it('notices a newly added stair but does not wake for retained-only objects', () => {
+  it('notices both newly added and directly observed missing objects', () => {
     const prior = remembered(cell(actor, ['east', 'west'], { chests: [chest], stairs: ['up'] }));
     expect(noticeForCell(cell(actor, ['east', 'west'], { stairs: ['up', 'down'] }), prior, sourceId))
       .toEqual(notice('object'));
-    expect(noticeForCell(cell(), prior, sourceId)).toBeUndefined();
+    expect(noticeForCell(cell(), prior, sourceId)).toEqual(notice('object'));
+    expect(noticeForCell(cell(actor, ['east', 'west'], { stairs: ['up'] }), prior, sourceId)).toEqual(notice('object'));
+    expect(noticeForCell(cell(actor, ['east', 'west'], { chests: [chest] }), prior, sourceId)).toEqual(notice('object'));
   });
 
   it.each([
@@ -87,6 +89,17 @@ describe('earned cell notices', () => {
     const fork = cell(actor, ['north', 'east', 'west']);
     expect(noticeForCell(fork, remembered(cell()), sourceId)).toEqual(notice('changed'));
     expect(noticeForCell(cell(), remembered(cell(actor, ['east', 'west'], { links: [] })), sourceId)).toBeUndefined();
+  });
+
+  it('does not rediscover the same cropped junction because older blocked edges remain in memory', () => {
+    const cropped = cell(actor, ['north', 'east', 'west'], { links: ['west'] });
+    const first = remembered(cell(actor, ['west']));
+    expect(noticeForCell(cropped, first, sourceId)).toEqual(notice('junction'));
+    const updated = mergeRpgCell(first, cropped, { ...source, id: 'receipt-cropped',
+      revision: { ...source.revision, revision: 2 } });
+    expect(updated.edges.east!.state).toBe('blocked');
+    expect(updated.edges.east!.source.id).toBe(source.id);
+    expect(noticeForCell(cropped, updated, sourceId)).toBeUndefined();
   });
 
   it('does not reuse previous facts belonging to another floor', () => {
@@ -209,7 +222,7 @@ describe('pure notices and honest text', () => {
 
   it.each([
     ['junction', 'A junction needs a direction choice.'],
-    ['object', 'A new or changed object is visible.'],
+    ['object', 'Observed objects changed.'],
     ['changed', 'An observed passage differs from memory.'],
     ['visibility', 'Current sight does not confirm the next step.'],
     ['loop', 'The next step revisits this exploration trail.'],
