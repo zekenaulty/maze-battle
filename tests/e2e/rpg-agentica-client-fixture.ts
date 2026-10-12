@@ -5,7 +5,7 @@ import type { AgenticaAction, AgenticaStart } from '../../src/services/agentica/
 import type {} from './rpg-command-fixture';
 
 export const messages: AgenticaMessage[] = [], entries: AgenticaOperationEntry[] = [], events: any[] = [];
-export let deferStart = false, failEvents = false, holdEvent: (() => void) | undefined;
+export let deferStart = false, failEvents = false, dropWake = false, dropWakeReply = false, holdEvent: (() => void) | undefined;
 let pendingStart: (() => void) | undefined;
 const requests = new Map<string, AgenticaStart>();
 let action: AgenticaAction;
@@ -30,10 +30,16 @@ class Socket extends EventTarget {
       for (const entry of entries) if (entry.wakeRunId === message.runId && entry.state === 'waking') entry.state = 'cancelled';
       reply('cancelled', { stopRequested: true });
     }
-    if (message.type === 'operation.wake') {
-      const entry = entries.find(e => e.admission?.operation?.operationId === message.payload.operationId)!;
-      entry.latestEvent = message.payload; entry.state = 'waking'; entry.wakeRunId = 'run-2';
-      const request = { ...entry.request, observation: message.payload.observation }; requests.set('run-2', request);
+    if (message.type === 'operation.wake' || message.type === 'operation.adopt') {
+      if (dropWake) { dropWake = false; this.close(); return; }
+      const event = message.type === 'operation.adopt' ? message.payload.decision : message.payload;
+      const adoption = message.type === 'operation.adopt' ? message.payload.adoption : undefined;
+      const entry = entries.find(e => e.admission?.operation?.operationId === event.operationId)!;
+      entry.latestEvent = event; entry.state = 'waking'; entry.wakeRunId = 'run-2'; entry.wakeAdoption = adoption;
+      entry.activeEpoch = adoption?.nextSessionEpoch ?? event.sessionEpoch;
+      const request = { ...entry.request, sessionEpoch: entry.activeEpoch, observation: adoption?.observation ?? event.observation };
+      requests.set('run-2', request);
+      if (dropWakeReply) { dropWakeReply = false; this.close(); return; }
       reply('started', { ...request, runId: 'run-2', manifestHash: hash }, 'run-2');
     }
     if (message.type === 'action.result' && message.payload.operation) {
@@ -92,9 +98,11 @@ export async function admit(column = 5) {
 export async function reopen() { client.close(); session.stop(); session = new h.GameSession(() => {}); await session.start(); makeClient(); }
 export async function snapshot() { return { view: client.view, game: session.view.game, travel: await session.readTravel(),
   launch: await readRpgLaunch(session.view.game!.id), messages, events }; }
-export function settings(value: { deferStart?: boolean; failEvents?: boolean; holdEvent?: boolean }) {
+export function settings(value: { deferStart?: boolean; failEvents?: boolean; holdEvent?: boolean; dropWake?: boolean; dropWakeReply?: boolean }) {
   if (value.deferStart !== undefined) deferStart = value.deferStart;
   if (value.failEvents !== undefined) failEvents = value.failEvents;
+  if (value.dropWake !== undefined) dropWake = value.dropWake;
+  if (value.dropWakeReply !== undefined) dropWakeReply = value.dropWakeReply;
   if (value.holdEvent) holdEvent = () => {};
 }
 export function announce() { pendingStart?.(); }

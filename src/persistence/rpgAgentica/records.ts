@@ -64,10 +64,12 @@ export function saveRpgAction(key: string, record: AgenticaActionRecord) {
 export async function rpgOperationAt(tx: GameWrite, id: string) {
   const link = await tx.objectStore('rpgAgenticaOperations').get(id);
   requireRpg(link, 'missing operation'); checkHost(link);
-  requireRpg(rpgShape(link, 'operationId,version,action,binding,activeEpoch,sequence,acknowledged,witness')
+  requireRpg(rpgShape(link, 'operationId,version,action,binding,activeEpoch,sequence,acknowledged,witness', 'adoption')
     && link.version === 1 && link.operationId === id && validId(id) && /^[1-9]\d*$/.test(link.activeEpoch)
     && integer(link.sequence, 0) && integer(link.acknowledged, 0, link.sequence) && link.sequence - link.acknowledged <= 1, 'invalid operation');
   const original = await rpgActionAt(tx, actionKey(link.action));
+  if (link.adoption) requireRpg(link.adoption.source.nextSessionEpoch === link.activeEpoch
+    && String(link.adoption.control.epoch) === link.activeEpoch && validId(link.adoption.runId), 'invalid adopted custody');
   requireRpg(original.stored?.record.result?.operation?.operationId === id
     && actionFingerprint(link.action) === original.stored.record.fingerprint
     && boundedJson(original.binding) === boundedJson(link.binding), 'operation admission lineage changed');

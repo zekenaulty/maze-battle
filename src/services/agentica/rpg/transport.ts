@@ -8,8 +8,7 @@ import { announceRpgLaunch, markRpgLaunch, stopRpgRun, type RpgLaunch } from '..
 import { rpgStartedBinding } from './lifecycle';
 import { parseRpgAction, requireRpg } from './validation';
 import type { RpgAgenticaBinding } from './contracts';
-import { prepareRpgWake, finishRpgWake } from '../../../persistence/rpgAgentica/launchWake';
-import { acknowledgeRpgHostEvent } from '../../../persistence/rpgAgentica/events';
+import { prepareRpgWake, acknowledgeRpgWake, finishRpgWake } from '../../../persistence/rpgAgentica/launchWake';
 import { rpgFetch } from './network';
 
 export class RpgAgenticaTransport {
@@ -39,7 +38,7 @@ export class RpgAgenticaTransport {
       onMessage: message => {
         if (message.type === 'started' && this.launch && this.announcing) {
           try {
-            const binding = rpgStartedBinding(this.launch.wake?.draft ?? this.launch.draft, message.payload);
+            const binding = rpgStartedBinding(this.launch.wake?.adoptedDraft ?? this.launch.wake?.draft ?? this.launch.draft, message.payload);
             requireRpg(binding.runId === message.runId && message.requestId, 'invalid start announcement');
             this.binding = binding;
             this.announcement = announceRpgLaunch(this.launch.id, binding);
@@ -68,18 +67,19 @@ export class RpgAgenticaTransport {
       return binding;
     } catch (error) { this.ready.reject(error instanceof Error ? error : new Error(String(error))); throw error; }
   }
-  async wake(event: HostOperationEvent) {
+  async wake(event: HostOperationEvent, adopt = false) {
     requireRpg(this.launch && !this.closed && !this.signal().aborted, 'wake requires active explicit authority');
-    this.launch = await prepareRpgWake(this.launch.id, event, this.session.ownedControl());
+    this.launch = await prepareRpgWake(this.launch.id, event, this.session.ownedControl(), adopt);
     requireRpg(!this.closed && !this.signal().aborted, 'wake paused before dispatch');
     this.ready = deferred<void>(); this.announcing = true;
     try {
-      const started = await this.sdk.wakeOperation(event);
-      const binding = rpgStartedBinding(this.launch.wake!.draft, started);
+      const wake = this.launch.wake!;
+      const started = wake.adoption ? await this.sdk.adoptDecision(event, wake.adoption) : await this.sdk.wakeOperation(event);
+      const binding = rpgStartedBinding(wake.adoptedDraft ?? wake.draft, started);
       await this.announcement;
       requireRpg(this.binding?.runId === binding.runId && this.binding.manifestHash === binding.manifestHash, 'successor announcement mismatch');
       await announceRpgLaunch(this.launch.id, binding);
-      await acknowledgeRpgHostEvent(event);
+      await acknowledgeRpgWake(this.launch.id, event);
       await bindRpgRun(binding);
       this.launch = await finishRpgWake(this.launch.id);
       this.binding = binding; this.announcing = false; this.ready.resolve();
@@ -89,18 +89,33 @@ export class RpgAgenticaTransport {
   async recover(launch: RpgLaunch, signal?: AbortSignal) {
     requireRpg(launch.binding, 'Original start identity is unresolved. A new start is not a retry.');
     this.launch = structuredClone(launch); this.binding = launch.binding;
-    if (launch.wake?.binding) {
+    if (launch.wake) {
       const entries = await this.sdk.listOperations({ hostId: 'maze-battle', sessionId: launch.binding.sessionId, fetchImpl: rpgFetch(signal) });
       const parent = entries.find(e => e.admission?.operation?.operationId === launch.wake!.event.operationId);
-      requireRpg(parent?.wakeRunId === launch.wake.binding.runId
-        && equivalentHostWire(parent.latestEvent, launch.wake.event, 'event')
-        && equivalentHostWire(parent.admission, await this.session.executeAgenticaAction(parent.action, true), 'result'),
-        'retained successor differs from the original service wake');
-      await acknowledgeRpgHostEvent(launch.wake.event);
-      // Bind only the original grant. A different owner/revision is not substituted here.
-      try { await bindRpgRun(launch.wake.binding); }
-      catch (error) { await this.attachForStop(launch.wake.binding); throw error; }
-      launch = await finishRpgWake(launch.id); this.launch = launch; this.binding = launch.binding;
+      if (parent?.wakeRunId && !launch.wake.binding) {
+        const wake = launch.wake, draft = wake.adoptedDraft ?? wake.draft;
+        requireRpg(parent.activeEpoch === draft.sessionEpoch && equivalentHostWire(parent.latestEvent, wake.event, 'event')
+          && equivalentHostWire(parent.wakeAdoption ?? null, wake.adoption ?? null, 'adoption')
+          && equivalentHostWire(parent.admission, await this.session.executeAgenticaAction(parent.action, true), 'result'),
+          'claimed successor differs from the original decision');
+        // Resume only the service-proven claim. Never redeliver a wake while recovering.
+        const response = await this.sdk.resume({ runId: parent.wakeRunId, sessionId: draft.sessionId, sessionEpoch: draft.sessionEpoch });
+        requireRpg(response.type === 'resumed' && response.payload.runId === parent.wakeRunId, 'claimed successor resume mismatch');
+        const binding = rpgStartedBinding(draft, response.payload);
+        launch = await announceRpgLaunch(launch.id, binding); this.launch = launch; this.binding = binding;
+      }
+      if (launch.wake?.binding) {
+        requireRpg(parent?.wakeRunId === launch.wake.binding.runId
+          && parent.activeEpoch === launch.wake.binding.sessionEpoch
+          && equivalentHostWire(parent.wakeAdoption ?? null, launch.wake.adoption ?? null, 'adoption')
+          && equivalentHostWire(parent.latestEvent, launch.wake.event, 'event')
+          && equivalentHostWire(parent.admission, await this.session.executeAgenticaAction(parent.action, true), 'result'),
+          'retained successor differs from the original service wake');
+        // Bind only the original grant. A different owner/revision is not substituted here.
+        try { await acknowledgeRpgWake(launch.id, launch.wake.event); await bindRpgRun(launch.wake.binding); }
+        catch (error) { await this.attachForStop(launch.wake.binding); throw error; }
+        launch = await finishRpgWake(launch.id); this.launch = launch; this.binding = launch.binding;
+      }
     }
     requireRpg(launch.binding, 'missing retained successor');
     const bound = await readRpgRun(launch.binding.runId);

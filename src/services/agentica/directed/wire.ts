@@ -1,11 +1,11 @@
 import { canonicalJson } from '../sdk/agentica-host.mjs';
 
 /** Normalize typed wire fields only, never arbitrary historical observation.data. */
-export function equivalentHostWire(a: unknown, b: unknown, kind: 'event' | 'result') {
+export function equivalentHostWire(a: unknown, b: unknown, kind: 'event' | 'result' | 'adoption') {
   const normalize = (input: unknown) => {
     const value = structuredClone(input) as Record<string, unknown>;
     if (!value || typeof value !== 'object') return value;
-    for (const name of kind === 'event' ? ['completion', 'nextSessionEpoch', 'usage'] : ['completion', 'operation', 'observation']) {
+    for (const name of kind === 'event' ? ['completion', 'nextSessionEpoch', 'usage'] : kind === 'result' ? ['completion', 'operation', 'observation'] : []) {
       if (value[name] === null) delete value[name];
     }
     const operation = kind === 'result' && value.operation as Record<string, unknown> | undefined;

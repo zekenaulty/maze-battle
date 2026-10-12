@@ -9,6 +9,10 @@ export interface AgenticaOperationEntry {
   request: AgenticaStart; action: AgenticaAction; admission?: AgenticaResult; activeEpoch: string;
   latestEvent?: HostOperationEvent; stopDecision?: HostOperationEvent; state: string; wakeRunId?: string;
   usage: { steps: number; refinements: number; continuations: number; providerCalls: number };
+  wakeAdoption?: HostDecisionAdoption;
+}
+export interface HostDecisionAdoption {
+  adoptionId: string; nextSessionEpoch: string; observation: import('../contracts').AgenticaObservation;
 }
 
 export const PROTOCOL_VERSION: 1;
@@ -41,6 +45,7 @@ export class AgenticaHost {
   signalOperation(event: HostOperationEvent, options?: { fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry>;
   stopDecision(event: HostOperationEvent, options?: { fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry>;
   wakeOperation(event: HostOperationEvent): Promise<AgenticaStarted>;
+  adoptDecision(event: HostOperationEvent, adoption: HostDecisionAdoption): Promise<AgenticaStarted>;
   recover(request: { hostId: string; sessionId: string; fetchImpl?: typeof fetch;
     reconcile?(action: AgenticaAction, record: AgenticaActionRecord | null, entry: unknown): Promise<AgenticaResult | null | undefined>;
   }): Promise<{ actionId: string; runId: string; sessionEpoch: string; status: string; resolved: boolean }[]>;

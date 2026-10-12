@@ -9,7 +9,7 @@ import { startRpgFixture } from './rpg-paired-provider.mjs';
 const source = process.env.AGENTICA_FIXTURE_SOURCE;
 if (!source) throw new Error('Set AGENTICA_FIXTURE_SOURCE to the qualified durable-handoff checkout.');
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: source, encoding: 'utf8', windowsHide: true }).trim();
-if (revision !== '6d8db3b68a3851c9118adb6e05010921b850138b') throw new Error('Expected Agentica decision-stop fixture HEAD 6d8db3b.');
+if (revision !== 'd65fb5b7a5d4895921f8854054215b1d6279852e') throw new Error('Expected Agentica decision-adoption fixture HEAD d65fb5b.');
 const assembly = resolve(source, 'artifacts/durable-handoff-fixture/Agentica.Lab.Web.FixtureHost.dll');
 await access(assembly);
 const storage = await mkdtemp(resolve(tmpdir(), 'maze-rpg-paired-'));

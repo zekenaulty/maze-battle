@@ -89,14 +89,14 @@ export class RpgAgenticaClient {
   }
   close() { this.pause(); this.closed = true; this.transport.close(); }
 
-  private async deliver(event: HostOperationEvent, allowWake: boolean) {
+  private async deliver(event: HostOperationEvent, allowWake: boolean, adoptDecision = false) {
     requireRpg(this.launch, 'launch unavailable');
     if (event.kind === 'decision') {
       if (!allowWake) { this.publish({ state: 'awaiting-adoption', detail: 'A retained decision needs explicit continuation.' }); return; }
       const signal = this.abort.signal, memory = await this.options.session.prepareTravelMemory();
       if (!this.active(signal) || memory.status !== 'ready') return;
       this.publish({ state: 'planning' });
-      await this.transport.wake(event); await this.refresh(); this.confirmed = undefined;
+      await this.transport.wake(event, adoptDecision); await this.refresh(); this.confirmed = undefined;
       return;
     }
     const receipt = await this.transport.sdk.signalOperation(event, { fetchImpl: (input, init) =>
@@ -171,7 +171,7 @@ export class RpgAgenticaClient {
     this.confirmed = launch.operationId;
     this.abort = new AbortController(); const signal = this.abort.signal;
     if (retained.event && (retained.link.sequence !== retained.link.acknowledged || retained.event.kind === 'decision')) {
-      await this.deliver(retained.event, true);
+      await this.deliver(retained.event, true, true);
       if (!this.active(signal) || retained.event.kind === 'decision') return;
     }
     requireRpg(retained.travel.operation.status === 'running', 'The original journey is already terminal.');

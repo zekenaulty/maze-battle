@@ -45,7 +45,7 @@ export function rpgPlan(body, ordinal, intermediate = false) {
   }] };
   return { scope: identity.ScopeId, epoch: identity.SessionEpoch, objective, target: { floor, row, column }, destination, intermediate,
     actor: frame.actor, observedCells: frame.cells?.map(cell => cell.address) ?? [],
-    observationId: reference.ObservationId, observationKind: frame.kind, tool: 'maze.navigate', input,
+    observationId: reference.ObservationId, observationRevision: reference.Revision, observationKind: frame.kind, tool: 'maze.navigate', input,
     text: JSON.stringify(prompt.includes('"refinedPlan"') ? { reason: 'observation', refinedPlan: plan } : plan) };
 }
 
@@ -72,7 +72,9 @@ export async function startRpgFixture(port, restart) {
       const { text, ...record } = rpgPlan(JSON.parse(Buffer.concat(chunks).toString('utf8')), calls.length + 1, nextIntermediate);
       nextIntermediate = false;
       const prior = calls.filter(call => call.scope === record.scope);
-      if (prior.length && !(prior.length === 1 && prior[0].intermediate && record.observationKind === 'operation'
+      const checkpoint = record.observationKind === 'operation' || record.observationKind === 'local'
+        && record.epoch !== prior[0]?.epoch && record.observationRevision > prior[0]?.observationRevision;
+      if (prior.length && !(prior.length === 1 && prior[0].intermediate && checkpoint
         && JSON.stringify(record.actor) === JSON.stringify(prior[0].destination) && record.objective === prior[0].objective))
         throw new Error('Unexpected repeated planning outside the one intermediate-destination wake.');
       calls.push({ ...record, ordinal: calls.length + 1, promptBytes: bytes });

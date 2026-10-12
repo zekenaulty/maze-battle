@@ -61,6 +61,8 @@ export function bindRpgRun(binding: RpgAgenticaBinding) {
         && parent.binding.objectiveId === input.objectiveId && parent.binding.objective === input.objective
         && boundedJson(parent.binding.completionTarget) === boundedJson(input.completionTarget)
         && boundedJson(parent.binding.travelLimits) === boundedJson(input.travelLimits), 'successor changed governing objective');
+      if (parent.adoption) requireRpg(parent.adoption.runId === input.runId
+        && boundedJson(parent.adoption.control) === boundedJson(input.control), 'successor changed explicit adoption');
     }
     await tx.objectStore('rpgAgenticaRuns').add(input);
     return input;

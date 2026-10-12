@@ -1,7 +1,8 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
-Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 partial.
-2026-10-12. Revision 13. [D1 evidence](reviews/d1-qualification.md),
+Status: D0/D1 and the A1 known-destination vertical qualified at their declared
+bounded levels; A0 mapped. A2-A3/Q runtime qualification remains outstanding.
+2026-10-12. Revision 14. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -13,7 +14,7 @@ D0 added offline diagnostics and review evidence only. D1's actual RPG repair is
 qualified at `b237160`; the linked ledger records scale limits rather than
 claiming infinite-world performance. A1's [explicit interaction / click travel
 sub-slice](reviews/a1-interaction-controls.md) is checked at `e0be2f1`; its durable
-controller/service qualification and A2-A3/Q runtime work remain outstanding. A1's next checked
+controller/service qualification is recorded below; A2-A3/Q runtime work remains outstanding. A1's next checked
 sub-slice adds [atomic internal command receipts and earned-knowledge functions](reviews/a1-command-custody.md)
 at `58476db`. [Snapshot-bound source archival](reviews/a1-observation-archive.md)
 is checked through reviewed repair `6bad40e`. [Scoped durable memory](reviews/a1-scoped-memory.md)
@@ -28,9 +29,11 @@ dispatch against the real game, checked through `0716a94`. The subsequent
 adds compact controls, pause/Stop, explicit adoption, and real-service known
 travel/decision/completion proofs. Its formerly failing pending-decision Stop
 after restart is repaired by the [durable decision Stop slice](reviews/a1-decision-stop.md),
-including exact replay after a lost Stop reply. A1 remains partial: new-owner
-decision continuation still fails closed and remains unqualified. That bounded
-custody repair precedes A2-A3 and Q; known-route tests do not replace those proofs.
+including exact replay after a lost Stop reply. [Explicit decision adoption](reviews/a1-decision-adoption.md)
+now qualifies new-owner continuation against the real service, retaining the old
+decision and a separate fresh scoped checkpoint. The linked bounded A1 acceptance
+audit now passes, including actual generated-socket travel. Proceed to A2-A3 and Q;
+these known-route tests do not replace those proofs.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -85,8 +88,8 @@ remembered evidence; it was not a complete environmental examination system.
 
 D0 is complete at the bounded offline diagnostic/review level; D1's finite RPG
 repair has integrated qualification; A0 source mapping is reviewed. A1's shared
-interaction/quest-policy cleanup and local durable SDK boundary are checked, but
-its full controller/service gate is partial and A2-A3/Q are NOT RUN. Each produces
+interaction/quest-policy cleanup, local durable SDK boundary and bounded
+controller/service gate are checked; A2-A3/Q are NOT RUN. Each produces
 its own reviewable commit and evidence; none is permission
 to declare later slices complete.
 

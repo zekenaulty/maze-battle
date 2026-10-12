@@ -4,13 +4,14 @@ import { requireRpg, validateRpgBinding } from '../../services/agentica/rpg/vali
 import { boundedJson } from '../agenticaValidation';
 import type { GameWrite } from '../gameTransaction';
 import { checkHost, rpgAgenticaWrite, sealHost } from './transaction';
-import type { HostOperationEvent } from '../../services/agentica/sdk/agentica-host.mjs';
+import type { HostDecisionAdoption, HostOperationEvent } from '../../services/agentica/sdk/agentica-host.mjs';
 
 export interface RpgLaunch {
   version: 1; id: string; url: string; draft: RpgAgenticaBinding; request: AgenticaStart;
   stopped: boolean; sent: boolean; stopAcknowledged: boolean; binding?: RpgAgenticaBinding;
   operationId?: string; witness: string;
-  wake?: { event: HostOperationEvent; draft: RpgAgenticaBinding; binding?: RpgAgenticaBinding };
+  wake?: { event: HostOperationEvent; draft: RpgAgenticaBinding; binding?: RpgAgenticaBinding;
+    adoption?: HostDecisionAdoption; adoptedDraft?: RpgAgenticaBinding };
 }
 export const launchPointer = (gameId: string) => JSON.stringify(['rpg-agentica-launch', gameId]);
 const key = (id: string) => JSON.stringify(['rpg-agentica-launch-record', id]);
@@ -22,7 +23,11 @@ export async function launchAt(tx: GameWrite, id: string) {
   requireRpg(value.version === 1 && value.id === id && typeof value.stopped === 'boolean'
     && typeof value.sent === 'boolean' && typeof value.stopAcknowledged === 'boolean', 'invalid launch record');
   if (value.binding) validateRpgBinding(value.binding);
-  if (value.wake) { validateRpgBinding(value.wake.draft); if (value.wake.binding) validateRpgBinding(value.wake.binding); }
+  if (value.wake) {
+    validateRpgBinding(value.wake.draft); if (value.wake.binding) validateRpgBinding(value.wake.binding);
+    if (value.wake.adoptedDraft) validateRpgBinding(value.wake.adoptedDraft);
+    requireRpg(!!value.wake.adoption === !!value.wake.adoptedDraft, 'incomplete decision adoption');
+  }
   return value;
 }
 export async function putLaunch(tx: GameWrite, value: Omit<RpgLaunch, 'witness'> | RpgLaunch) {
@@ -52,7 +57,7 @@ export function announceRpgLaunch(id: string, binding: RpgAgenticaBinding) {
   validateRpgBinding(binding); const input = structuredClone(binding);
   return rpgAgenticaWrite(async tx => {
     const launch = await launchAt(tx, id); requireRpg(launch, 'missing launch');
-    const { runId: _runId, manifestHash: _hash, ...expected } = launch.wake?.draft ?? launch.draft;
+    const { runId: _runId, manifestHash: _hash, ...expected } = launch.wake?.adoptedDraft ?? launch.wake?.draft ?? launch.draft;
     const { runId: _newId, manifestHash: _newHash, ...actual } = input;
     requireRpg(boundedJson(actual) === boundedJson(expected), 'service changed launch scope');
     const previous = launch.wake ? launch.wake.binding : launch.binding;

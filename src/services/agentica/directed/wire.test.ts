@@ -26,4 +26,16 @@ describe('directed wire reconciliation', () => {
     expect(equivalentHostWire(result, { ...result, observation: { ...result.observation, data: { usage: null } } }, 'result')).toBe(false);
     expect(equivalentHostWire(result, service, 'event')).toBe(false);
   });
+  it('compares the separate adoption checkpoint without weakening arbitrary evidence', () => {
+    const adoption = { adoptionId: 'adopt', nextSessionEpoch: 'new', observation: original.observation };
+    const service = { ...structuredClone(adoption), observation: { ...structuredClone(adoption.observation),
+      observedAt: '2026-10-10T12:00:00.1+00:00' } };
+    expect(equivalentHostWire(adoption, service, 'adoption')).toBe(true);
+    expect(equivalentHostWire(adoption, { ...service, nextSessionEpoch: 'other' }, 'adoption')).toBe(false);
+    expect(equivalentHostWire(adoption, { ...service, usage: null }, 'adoption')).toBe(false);
+    expect(equivalentHostWire(adoption, { ...service, observation: { ...service.observation,
+      data: { historical: '2026-10-10T12:00:00.1+00:00' } } }, 'adoption')).toBe(false);
+    expect(adoption.observation.observedAt).toBe(original.observation.observedAt);
+    expect(service.observation.observedAt).toBe('2026-10-10T12:00:00.1+00:00');
+  });
 });

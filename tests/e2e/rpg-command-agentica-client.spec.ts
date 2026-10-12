@@ -210,3 +210,67 @@ test('an unbound successor with stale custody is attached only for Stop, never g
   expect(result.messages.filter(m => m.type === 'cancel').map(m => m.runId)).toEqual(['run-2']);
   expect(result.launch!.stopAcknowledged).toBe(true);
 });
+
+test('pending decision adoption retains separate original and current ownership evidence', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(2); f.settings({ dropWake: true });
+    await f.client.tick().catch(() => {}); const before = await f.snapshot();
+    await f.reopen(); await f.client.recover(); await f.client.tick(); const paused = await f.snapshot();
+    await f.client.adopt(); const db = await f.h.repository.getDatabase();
+    return { before, paused, parent: await db.get('rpgAgenticaOperations', before.launch!.operationId!), ...await f.snapshot() };
+  });
+  const wake = result.messages.find(m => m.type === 'operation.wake')!.payload;
+  const adoption = result.messages.find(m => m.type === 'operation.adopt')!.payload;
+  expect(result.paused.view.state).toBe('awaiting-adoption'); expect(result.paused.game).toEqual(result.before.game);
+  expect(adoption.decision).toEqual(wake); expect(adoption.adoption.nextSessionEpoch).not.toBe(wake.sessionEpoch);
+  expect(adoption.adoption.observation.data.actor).toEqual({ floor: 1, row: 0, column: 2 });
+  expect(adoption.adoption.observation.revision).toBeGreaterThan(wake.observation.revision);
+  expect(adoption.adoption.observation.data.cells.length).toBeLessThanOrEqual(32);
+  expect(result.launch!.binding!.sessionEpoch).toBe(adoption.adoption.nextSessionEpoch);
+  expect(result.parent!.adoption!.source).toEqual(adoption.adoption);
+  expect(result.parent!.binding).toEqual(result.before.launch!.binding);
+  expect(result.game).toEqual(result.before.game); expect(result.messages.filter(m => m.type === 'operation.adopt')).toHaveLength(1);
+});
+
+test('manual pause during decision-adoption memory preparation prevents new authority or wake', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(2); f.settings({ dropWake: true });
+    await f.client.tick().catch(() => {}); await f.reopen(); await f.client.recover(); const before = await f.snapshot();
+    const prepare = f.session.prepareTravelMemory;
+    let entered!: () => void, release!: () => void;
+    const ready = new Promise<void>(r => { entered = r; }), gate = new Promise<void>(r => { release = r; });
+    f.session.prepareTravelMemory = async () => { entered(); await gate; return prepare(); };
+    try { const adopting = f.client.adopt(); await ready; f.client.pause(); release(); await adopting; }
+    finally { f.session.prepareTravelMemory = prepare; }
+    await f.client.tick(); return { before, ...await f.snapshot() };
+  });
+  expect(result.view.state).toBe('paused'); expect(result.launch).toEqual(result.before.launch);
+  expect(result.travel).toEqual(result.before.travel); expect(result.game).toEqual(result.before.game);
+  expect(result.messages.filter(m => m.type === 'operation.adopt')).toHaveLength(0);
+});
+
+for (const sameOwner of [true, false]) test(`a lost adoption announcement reconciles only its proven claim (same owner: ${sameOwner})`, async ({ page }) => {
+  const result = await page.evaluate(async sameOwner => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(2); f.settings({ dropWake: true });
+    await f.client.tick().catch(() => {}); await f.reopen(); await f.client.recover();
+    f.settings({ dropWakeReply: true }); await f.client.adopt().catch(() => {}); const before = await f.snapshot();
+    if (sameOwner) { f.client.close(); f.makeClient(); } else await f.reopen();
+    const error = await f.client.recover().then(() => '', e => String(e));
+    if (!sameOwner) await f.client.cancel();
+    const db = await f.h.repository.getDatabase();
+    return { before, error, child: await db.get('rpgAgenticaRuns', 'run-2'), ...await f.snapshot() };
+  }, sameOwner);
+  expect(result.before.launch!.wake!.binding).toBeUndefined();
+  expect(result.messages.filter(m => m.type === 'operation.adopt')).toHaveLength(1);
+  expect(result.messages.filter(m => m.type === 'operation.wake')).toHaveLength(1);
+  expect(result.messages.some(m => m.type === 'resume' && m.runId === 'run-2')).toBe(true);
+  expect(result.game).toEqual(result.before.game);
+  if (sameOwner) {
+    expect(result.error).toBe(''); expect(result.view.state).toBe('awaiting-adoption');
+    expect(result.child!.sessionEpoch).toBe(result.before.launch!.wake!.adoptedDraft!.sessionEpoch);
+    expect(result.launch!.binding!.runId).toBe('run-2'); expect(result.launch!.wake).toBeUndefined();
+  } else {
+    expect(result.error).toContain('custody'); expect(result.child).toBeUndefined();
+    expect(result.view.state).toBe('cancelled'); expect(result.launch!.stopAcknowledged).toBe(true);
+  }
+});

@@ -1,7 +1,9 @@
 # A1: Durable Stop Of A Pending Decision
 
 2026-10-12. Provider-free actual-game integration. A1 remains PARTIAL and the
-goal is active. This closes the restart cancellation failure recorded in the
+goal is active. Subsequent [decision adoption qualification](a1-decision-adoption.md)
+repairs the continuation gate described here; this report preserves its historical
+evidence. This closes the restart cancellation failure recorded in the
 [controller report](a1-rpg-controller.md); it does not qualify new-owner decision
 continuation, frontier exploration, quest collection or the two-dungeon corpus.
 

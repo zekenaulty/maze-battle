@@ -178,7 +178,7 @@ for (const delivered of [false, true]) {
 }
 
 for (const action of ['adopt', 'cancel', 'cancel-ack-lost'] as const) {
-  test(action === 'adopt' ? 'pending decision under a new epoch refuses adoption without inventing authority'
+  test(action === 'adopt' ? 'explicit pending-decision adoption retains original evidence and wakes once in the new epoch'
     : `pending decision restart can be explicitly stopped without movement (${action})`, async ({ page, request }) => {
     let decision: unknown;
     await page.routeWebSocket('ws://127.0.0.1:5092/api/host', ws => {
@@ -242,14 +242,36 @@ for (const action of ['adopt', 'cancel', 'cancel-ack-lost'] as const) {
       if (action === 'cancel-ack-lost') { expect(requests).toHaveLength(2); expect(requests[0]).toEqual(decision); expect(requests[1]).toEqual(decision); }
       expect(await calls(request, binding.scopeId)).toEqual(before);
     } else {
-      const original = await operations(request, binding.sessionId);
-      await expect(page.evaluate(() => window.rpgPaired.adopt())).rejects.toThrow('Decision custody changed');
-      const refused = await snapshot(page);
-      expect(refused.game).toEqual(recovered.game); expect(refused.travel).toEqual(recovered.travel);
-      expect(refused.operation).toEqual(recovered.operation); expect(refused.launch).toEqual(recovered.launch);
-      expect(refused.view.runId).toBe(binding.runId);
-      expect(await operations(request, binding.sessionId)).toEqual(original);
-      expect(await calls(request, binding.scopeId)).toEqual(before);
+      const [original] = await operations(request, binding.sessionId);
+      await page.evaluate(() => window.rpgPaired.adopt());
+      await expect.poll(async () => (await operations(request, binding.sessionId))
+        .find((entry: any) => entry.action.runId !== binding.runId)?.state).toBe('parked');
+      const adopted = await snapshot(page), entries = await operations(request, binding.sessionId);
+      const parent = entries.find((entry: any) => entry.action.runId === binding.runId);
+      expect(adopted.game).toEqual(recovered.game); expect(adopted.binding!.sessionEpoch).not.toBe(binding.sessionEpoch);
+      expect(adopted.binding!.objectiveId).toBe(binding.objectiveId);
+      expect(adopted.binding!.travelLimits).toEqual(binding.travelLimits);
+      expect(parent.request).toEqual(original.request); expect(parent.admission).toEqual(original.admission);
+      expect(parent.latestEvent.eventId).toBe(pending.operation!.event!.eventId);
+      expect(parent.latestEvent.sessionEpoch).toBe(binding.sessionEpoch);
+      expect(parent.latestEvent.observation.observationId).toBe(pending.operation!.event!.observation.observationId);
+      expect(parent.latestEvent.usage.steps).toBe(1);
+      expect(parent.wakeAdoption.nextSessionEpoch).toBe(adopted.binding!.sessionEpoch);
+      expect(parent.wakeAdoption.observation.revision).toBe(adopted.binding!.control.revision);
+      expect(parent.wakeAdoption.observation.revision).toBeGreaterThan(parent.latestEvent.observation.revision);
+      expect(parent.wakeAdoption.observation.data).toMatchObject({ kind: 'local', actor: { floor: 1, row: 0, column: 2 } });
+      expect(parent.wakeAdoption.observation.data.cells.length).toBeLessThanOrEqual(32);
+      expect(parent.wakeAdoption.observation.data.cells.map((cell: any) => cell.address)).not.toContainEqual(binding.completionTarget);
+      const plans = await calls(request, binding.scopeId);
+      expect(plans).toHaveLength(2); expect(plans[1]).toMatchObject({ epoch: adopted.binding!.sessionEpoch,
+        observationId: parent.wakeAdoption.observation.observationId, observationKind: 'local' });
+      const final = await finish(page), child = (await operations(request, binding.sessionId))
+        .find((entry: any) => entry.action.runId === final.view.runId);
+      expect(final.view.state).toBe('completed'); expect(final.game!.maze.active.column).toBe(5);
+      expect(final.game!.chests).toEqual(pending.game!.chests); expect(final.game!.inventory).toEqual(pending.game!.inventory);
+      expect(parent.latestEvent.usage.steps + child.latestEvent.usage.steps).toBe(4);
+      expect(child.latestEvent.completion.objectiveId).toBe(binding.objectiveId);
+      expect(await calls(request, binding.scopeId)).toEqual(plans);
     }
   });
 }

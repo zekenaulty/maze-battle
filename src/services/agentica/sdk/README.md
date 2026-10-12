@@ -1,14 +1,16 @@
 # Agentica browser host SDK
 
 Vendored without edits from `zekenaulty/Agentica` commit
-`6d8db3b68a3851c9118adb6e05010921b850138b` on `codex/maze-operation-stop`:
+`d65fb5b7a5d4895921f8854054215b1d6279852e` on `codex/maze-decision-adoption`:
 `Agentica.Lab.Web/wwwroot/sdk/agentica-host.mjs`.
 
-SDK Git blob: `457f959f396ff8488232070c88a99c71da6815ed`.
-This revision adds explicit `stopDecision` without cognition activation to the
-prior durable admission, operation inventory/events and semantic wake API.
+SDK Git blob: `e192c1130f88cd43dccfe541eab3c8d2f5499ae8`.
+This revision adds explicit `adoptDecision`: a separate new-custody checkpoint
+alongside the immutable old decision, with one atomically claimed successor.
+The prior `6d8db3b` revision adds `stopDecision` without cognition activation to
+the durable admission, operation inventory/events and semantic wake API.
 The prior baseline was `1e1a2df`, contained in Agentica main merge `977d0ca`.
-The decision-stop extension is a separate review branch, not yet a main release.
+These extensions are on separate review branches, not claimed as main releases.
 
 This dependency-free SDK owns transport, original-attempt custody callbacks and
 reconciliation. Maze Battle supplies its own IndexedDB hooks and legal command
