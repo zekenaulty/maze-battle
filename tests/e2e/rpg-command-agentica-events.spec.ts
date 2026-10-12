@@ -54,6 +54,34 @@ test('unreserved original reconciliation settles without execution and produces 
   expect(result.travel).toBeUndefined(); expect(result.first.current!.game.maze.active.column).toBe(1);
 });
 
+test('schema-six upgrade retains the ordinary save and history stores without inventing agent operations', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const h = window.rpgCommandTest, game = h.game(), slot = { slotId: 'auto', label: 'Old save', kind: 'auto',
+      createdAt: game.createdAt, updatedAt: game.updatedAt, game };
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('maze-battle', 6);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        for (const [name, keyPath] of [['meta', 'key'], ['saves', 'slotId'], ['gameCommands', 'attemptId'], ['observations', 'id'],
+          ['rpgMemoryNodes', 'id'], ['rpgMemoryHeads', 'id'], ['rpgTravels', 'id'], ['rpgTravelActions', 'attemptId'], ['telemetry', 'gameId']])
+          db.createObjectStore(name, { keyPath });
+        request.transaction!.objectStore('saves').put(slot);
+        request.transaction!.objectStore('meta').put({ key: 'old-setting', value: 'keep' });
+        request.transaction!.objectStore('rpgTravelActions').put({ attemptId: 'old-original', oldFixture: true });
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => { request.result.close(); resolve(); };
+    });
+    const db = await h.repository.getDatabase();
+    return { version: db.version, slot, after: await db.get('saves', 'auto'), meta: await db.get('meta', 'old-setting'),
+      oldReceipt: await db.get('rpgTravelActions', 'old-original'), runs: await db.count('rpgAgenticaRuns'),
+      events: await db.count('rpgAgenticaEvents'), operations: await db.count('rpgAgenticaOperations') };
+  });
+  expect(result.version).toBe(7); expect(result.after).toEqual(result.slot); expect(result.meta?.value).toBe('keep');
+  expect(result.oldReceipt).toEqual({ attemptId: 'old-original', oldFixture: true });
+  expect([result.runs, result.events, result.operations]).toEqual([0, 0, 0]);
+});
+
 test('real movement and exact progress are atomic; original replay survives acknowledgement and takeover', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const f = window.rpgAgenticaEvents, h = window.rpgCommandTest, { id, admission } = await f.admitted();

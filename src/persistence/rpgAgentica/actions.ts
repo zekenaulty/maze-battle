@@ -39,7 +39,7 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
         const memory = slot && await memoryInGameTransaction(tx, slot, memoryBudget());
         if (!memory) result.summary = 'Earned memory is not prepared for this checkpoint.';
         else {
-          result.observation = await rpgObservation(memory, revision, binding.scopeId);
+          result.observation = await rpgObservation(memory, revision, binding.scopeId, command.type === 'observe' ? 'local' : 'operation');
           if (command.type === 'navigate') {
             const travel = await commitRpgTravelInTransaction(tx, { attemptId: original.operationId, operationId: original.operationId,
               gameId: binding.gameId, control: current.control, deadlineAt: Date.parse(input.deadlineAt),

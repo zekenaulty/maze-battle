@@ -88,7 +88,7 @@ for (const version of [2, 3, 4, 5]) test(`upgrading a v${version} native databas
     return { slot, stored: await db.get('saves', slot.slotId), version: db.version,
       receipts: await db.count('gameCommands'), stores: [...db.objectStoreNames] };
   }, version);
-  expect(result.version).toBe(6);
+  expect(result.version).toBe(7);
   expect(result.stored).toEqual(result.slot);
   expect(result.receipts).toBe(0);
   expect(result.stores).toContain('gameCommands');
@@ -97,4 +97,6 @@ for (const version of [2, 3, 4, 5]) test(`upgrading a v${version} native databas
   expect(result.stores).toContain('rpgMemoryHeads');
   expect(result.stores).toContain('rpgTravels');
   expect(result.stores).toContain('rpgTravelActions');
+  for (const name of ['rpgAgenticaRuns', 'rpgAgenticaActions', 'rpgAgenticaOperations', 'rpgAgenticaEvents', 'rpgAgenticaAdvances'])
+    expect(result.stores).toContain(name);
 });

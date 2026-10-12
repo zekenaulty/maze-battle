@@ -1,6 +1,6 @@
 import { test, expect, fixture } from './rpg-command-browser';
 
-test('v4 source evidence and save heads survive v5 migration and seed the derived cache unchanged', async ({ page }) => {
+test('v4 source evidence and save heads survive v7 migration and seed the derived cache unchanged', async ({ page }) => {
   await fixture(page);
   const result = await page.evaluate(async () => {
     const h = window.rpgCommandTest, game = h.game();
@@ -38,7 +38,7 @@ test('v4 source evidence and save heads survive v5 migration and seed the derive
       source: await db.get('observations', id), revision, control: (await h.custody.readGameControl()).control,
       memory: await h.memory.readRpgCells('auto', [1, 2].map(column => ({ floor: 1, row: 0, column }))) };
   });
-  expect(result.version).toBe(6);
+  expect(result.version).toBe(7);
   expect(result.prepared.status).toBe('ready');
   expect(result.saved).toEqual(result.slot);
   expect(result.source).toEqual(result.node);

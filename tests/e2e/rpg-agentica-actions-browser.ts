@@ -6,7 +6,7 @@ import { rpgCapabilities } from '../../src/services/agentica/rpg/capabilities';
 import type { SaveControl } from '../../src/persistence/saveControl';
 import type {} from './rpg-command-fixture';
 
-// The parent persistence modules are intentionally runtime imports until its checkpoint lands.
+// Runtime imports exercise the same modules served to the ordinary browser game.
 interface RpgApi {
   ensureRpgScope(control: SaveControl): Promise<{ scopeId: string; gameId: string; floor: number; control: SaveControl }>;
   bindRpgRun(binding: RpgAgenticaBinding): Promise<unknown>;
