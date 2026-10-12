@@ -7,11 +7,17 @@ import { requireRpg } from '../../services/agentica/rpg/validation';
 export const RPG_AGENTICA_STORES = [...RPG_TRAVEL_STORES, 'rpgAgenticaRuns', 'rpgAgenticaActions',
   'rpgAgenticaOperations', 'rpgAgenticaEvents', 'rpgAgenticaAdvances'] as const;
 
-export async function rpgAgenticaWrite<T>(work: (tx: GameWrite) => Promise<T>) {
+export class RpgWorkCancelled extends Error { constructor() { super('Local Agentic Play work was paused.'); } }
+export async function rpgAgenticaWrite<T>(work: (tx: GameWrite) => Promise<T>, signal?: AbortSignal) {
+  if (signal?.aborted) throw new RpgWorkCancelled();
   const db = await getDatabase(), tx = db.transaction([...RPG_AGENTICA_STORES], 'readwrite');
   void tx.done.catch(() => {});
+  const abort = () => { try { tx.abort(); } catch { /* Already settled. */ } };
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) abort();
   try { const value = await work(tx); await tx.done; return value; }
-  catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
+  catch (error) { abort(); if (signal?.aborted) throw new RpgWorkCancelled(); throw error; }
+  finally { signal?.removeEventListener('abort', abort); }
 }
 
 // Corruption witness, not an authentication claim against a malicious database editor.

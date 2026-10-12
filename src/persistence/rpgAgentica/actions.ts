@@ -11,9 +11,10 @@ import type { GameWrite } from '../gameTransaction';
 import { rpgActionAt } from './records';
 import { rpgAgenticaWrite, sealHost } from './transaction';
 import type { RpgHostAction } from './types';
+import { launchForRun, putLaunch, stopStatus } from './launchRecords';
 
 /** The SDK result and real travel admission commit together, or neither does. */
-export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
+export function executeRpgAction(action: AgenticaAction, settleOnly = false, signal?: AbortSignal) {
   const input: AgenticaAction = JSON.parse(boundedJson(action, 8192));
   return rpgAgenticaWrite(async tx => {
     const key = actionKey(input), retained = await rpgActionAt(tx, key);
@@ -33,6 +34,7 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
       if (!current || !sameOwner(current.control, binding.control) || current.game.id !== binding.gameId
         || current.game.dungeonLevel !== binding.floor || current.control.revision !== input.expectedRevision)
         result = { ...result, disposition: 'conflict', summary: 'Game custody, floor or checkpoint changed.' };
+      else if (await stopStatus(tx, input.runId) || (await launchForRun(tx, binding))?.stopped) result.summary = 'This launch was explicitly stopped.';
       else if (Date.now() >= Date.parse(input.deadlineAt)) result.summary = 'Technical action deadline expired.';
       else {
         const slot = await tx.objectStore('saves').get('auto');
@@ -54,6 +56,8 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
               result.operation = { operationId: original.operationId, summary: 'Browser-owned travel admitted; completion is not yet proven.' };
               await tx.objectStore('rpgAgenticaOperations').add(sealHost({ operationId: original.operationId, version: 1 as const,
                 action: input, binding, activeEpoch: binding.sessionEpoch, sequence: 0, acknowledged: 0 }));
+              const launch = await launchForRun(tx, binding);
+              if (launch) await putLaunch(tx, { ...launch, operationId: original.operationId });
             }
           } else {
             result.disposition = 'applied'; result.summary = 'Actor-earned context; no world interaction performed.';
@@ -76,7 +80,7 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
     if (result.disposition === 'applied' || result.afterRevision !== result.beforeRevision)
       requireRpg(Date.now() < Date.parse(input.deadlineAt), 'action expired before commit');
     return { result, replayed: false, current: latest };
-  });
+  }, signal);
 }
 
 async function finishAction(tx: GameWrite, original: RpgHostAction, result: AgenticaResult) {

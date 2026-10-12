@@ -19,6 +19,7 @@ import type { RpgTravelAction, RpgTravelRequest } from '../../persistence/rpgTra
 import type { AgenticaAction } from '../agentica/contracts';
 import { executeRpgAction } from '../../persistence/rpgAgentica/actions';
 import { advanceRpgHostOperation } from '../../persistence/rpgAgentica/advance';
+import { RpgWorkCancelled } from '../../persistence/rpgAgentica/transaction';
 
 export interface GameSessionView {
   game?: GameState; telemetry?: PlayTelemetry; saves: SaveSummary[];
@@ -46,7 +47,7 @@ export class GameSession {
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
     const result = this.queue.catch(() => {}).then(work);
     this.queue = result.catch(async error => {
-      if (error instanceof ObsoleteGameAction) return;
+      if (error instanceof ObsoleteGameAction || error instanceof RpgWorkCancelled) return;
       if (error instanceof SaveOwnershipError) {
         this.lock.release();
         this.publish({ controlled: false, status: error.message });
@@ -78,6 +79,10 @@ export class GameSession {
 
   stop() { this.active = false; this.generation++; this.lock.release(); this.publish({ controlled: false }); }
   flush = () => this.queue;
+  ownedControl = (): SaveControl => {
+    if (!this.view.controlled || !this.control) throw new SaveOwnershipError();
+    return { ...this.control };
+  };
 
   private async adopt(state: OwnedGame) {
     this.control = state.control;
@@ -203,21 +208,21 @@ export class GameSession {
   reconcileTravel = async (request: RpgTravelRequest) => (await executeRpgTravel(structuredClone(request), true)).receipt;
 
   /** SDK callbacks use the same serialized owner and published game as manual play. */
-  executeAgenticaAction = (action: AgenticaAction, settleOnly = false) => {
+  executeAgenticaAction = (action: AgenticaAction, settleOnly = false, signal?: AbortSignal) => {
     const original = structuredClone(action);
     const work = async () => {
-      const outcome = await executeRpgAction(original, settleOnly);
+      const outcome = await executeRpgAction(original, settleOnly, signal);
       if (outcome.current) await this.adopt(outcome.current);
       this.publish({ status: outcome.result.summary });
       return outcome.result;
     };
     return settleOnly ? this.enqueue(work) : this.owned(work);
   };
-  advanceAgenticaOperation = (request: RpgTravelRequest) => {
+  advanceAgenticaOperation = (request: RpgTravelRequest, signal?: AbortSignal) => {
     const original = structuredClone(request);
     return this.owned(async () => {
       const before = this.view.game, trace = this.view.telemetry;
-      const outcome = await advanceRpgHostOperation(original);
+      const outcome = await advanceRpgHostOperation(original, signal);
       if (outcome.current) await this.adopt(outcome.current);
       if (outcome.event) this.publish({ status: outcome.event.summary });
       if (outcome.receipt?.command && !outcome.replayed && before && outcome.current

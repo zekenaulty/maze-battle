@@ -9,7 +9,7 @@ import { rpgEventAt, rpgEventKey, stageRpgEventAt } from './events';
 import { checkHost, rpgAgenticaWrite, sealHost } from './transaction';
 
 /** A local step and its outbound evidence are one ordinary game transaction. */
-export function advanceRpgHostOperation(request: RpgTravelRequest) {
+export function advanceRpgHostOperation(request: RpgTravelRequest, signal?: AbortSignal) {
   const fingerprint = travelFingerprint(request), input: RpgTravelRequest = JSON.parse(fingerprint);
   requireRpg(input.action.type !== 'start', 'SDK admission owns journey creation');
   return rpgAgenticaWrite(async tx => {
@@ -52,5 +52,5 @@ export function advanceRpgHostOperation(request: RpgTravelRequest) {
     }
     if (event) boundedJson(event);
     return { ...outcome, event, current, waitingForAck: pending };
-  });
+  }, signal);
 }
