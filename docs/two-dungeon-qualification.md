@@ -1,7 +1,7 @@
 # Two-Dungeon Qualification: Earned Knowledge and Intentional Play
 
 Status: acceptance specification with PARTIAL provider-free implementation.
-Integrated revision 3, 2026-10-12. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
+Integrated revision 4, 2026-10-12. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
 sequenced behind the dungeon repair in [the next-slices plan](agentic-play-next-slices.md).
 This is a game-owned scenario configuration, not a separate game implementation.
 
@@ -16,7 +16,8 @@ cases. It does not qualify the entire matrix below or live model competence.
 | Effect custody and selected recovery | PASS for duplicate native delivery, rollback/deadlines, reload, lost effect reply, explicit adoption, busy refusal and Stop. Broader Q checkpoint matrix remains. |
 | Known-destination regression | PASS, ten paired service cases retained in the 22-case aggregate. |
 | Full counterfactual UI/tool/memory/progress matrix | PARTIAL; earlier A2 learned-route checks remain, full cross-surface comparison not yet qualified. |
-| Room-level exploration and human/tool perception parity | NOT QUALIFIED end to end. [Receipt-scoped query/projection](reviews/a2-perception-regions.md) passes native storage and desktop/mobile pixel checks at `25b410d`; actual App adoption remains. Forced-corridor continuation is not a room policy. |
+| Human/tool perception parity | PARTIAL: [actual App adoption](reviews/a2-perception-ui.md) at `10d9623` passes desktop/mobile hidden-change, fresh-sight and old-save pixel/source checks. Full fixed-action cross-surface A/B equivalence remains. |
+| Room-level exploration and scoped room map | NOT QUALIFIED end to end. Current overview is a bounded cell window; forced-corridor continuation is not a room policy. |
 | Generated retrieval and growing-world read/work | NOT QUALIFIED by the authored small corpus. D1 generator evidence is separate; the verifier-only cost repair now passes the deep-floor unit timing gate, not a new game-performance proof. |
 | Live model competence | NOT RUN; separate owner-approved limits/authorization required. |
 

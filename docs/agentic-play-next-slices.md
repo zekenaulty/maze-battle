@@ -4,7 +4,7 @@ Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and
 real-service query/choice/decision proof and explicit earned-corridor continuation;
 bounded A3 retrieval/effect/recovery is now checked; whole-A2/Q remains outstanding.
-2026-10-12. Revision 19. [D1 evidence](reviews/d1-qualification.md),
+2026-10-12. Revision 20. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -61,10 +61,16 @@ The final aggregate passes all 2,563 tests; this does not claim faster gameplay.
 [Receipt-scoped perception regions](reviews/a2-perception-regions.md), checked
 at `25b410d`, now provide bounded display queries from the same retained facts as
 tool recall and a draw-only projection with native desktop/mobile pixel proofs.
-The live App still uses its previous view model: snapshot-fenced UI adoption and
-room-map integration remain next, not implicitly qualified by renderer fixtures.
-The new query also inherits the existing save-record fetch, so its point-read
-bounds are not a claim of bounded serialized world bytes.
+The subsequent [actual-App perception adoption](reviews/a2-perception-ui.md),
+checked at `10d9623`, now carries exact source heads through GameSession and
+renders from bounded earned facts. Hidden wall/chest/extent mutations leave
+actual desktop/mobile pixels unchanged until new sight; old-save load/reload
+restores remembered state. The 2,667-unit, 196-native and 14-App-case aggregates
+pass. This closes the live canvas integration gate, not the entire Q matrix.
+Scoped room-map operations and room-level exploration remain next. Overview is
+temporarily a bounded cell window, not the intended room graph. The query still
+inherits the existing save-record fetch, so point-read bounds do not establish
+bounded serialized world bytes or qualify large preparation backlogs.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional

@@ -5,6 +5,11 @@ Parent: `80899ad`; isolated projection work integrated as `945b064` and
 `ce9a9c7`. Provider-free only. This is a shared query/projection foundation,
 **not completed human/tool parity in the live App**.
 
+Follow-through: [actual-App adoption](a2-perception-ui.md) is now checked at
+`10d9623`. The findings and results below retain the foundation slice's historical
+scope; the linked report records which integration gates are now closed and which
+room-map, scaling and full-Q requirements remain.
+
 ## Finding and Change
 
 `createMazeViewModel` still passes live maze/chest data to `MazeCanvas`.
