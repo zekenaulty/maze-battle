@@ -42,10 +42,11 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false, sig
         if (!memory) result.summary = 'Earned memory is not prepared for this checkpoint.';
         else {
           result.observation = await rpgObservation(memory, revision, binding.scopeId, command.type === 'observe' ? 'local' : 'operation');
-          if (command.type === 'navigate') {
+          if (command.type === 'navigate' || command.type === 'explore') {
             const travel = await commitRpgTravelInTransaction(tx, { attemptId: original.operationId, operationId: original.operationId,
               gameId: binding.gameId, control: current.control, deadlineAt: Date.parse(input.deadlineAt),
-              action: { type: 'start', target: command.target, limits: binding.travelLimits } }, false, true);
+              action: command.type === 'navigate' ? { type: 'start', target: command.target, limits: binding.travelLimits }
+                : { type: 'explore', frontier: command.frontier, limits: binding.travelLimits } }, false, true);
             result.afterRevision = travel.current?.control.revision ?? revision;
             result.observation.revision = result.afterRevision;
             const op = travel.receipt.travel?.operation;

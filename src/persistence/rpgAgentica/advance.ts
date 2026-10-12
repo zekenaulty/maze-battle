@@ -11,7 +11,7 @@ import { checkHost, rpgAgenticaWrite, sealHost } from './transaction';
 /** A local step and its outbound evidence are one ordinary game transaction. */
 export function advanceRpgHostOperation(request: RpgTravelRequest, signal?: AbortSignal) {
   const fingerprint = travelFingerprint(request), input: RpgTravelRequest = JSON.parse(fingerprint);
-  requireRpg(input.action.type !== 'start', 'SDK admission owns journey creation');
+  requireRpg(input.action.type !== 'start' && input.action.type !== 'explore', 'SDK admission owns journey creation');
   return rpgAgenticaWrite(async tx => {
     const retained = await tx.objectStore('rpgAgenticaAdvances').get(input.attemptId);
     if (retained) {

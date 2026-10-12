@@ -90,7 +90,7 @@ export function App() {
       position={{ floor: game.dungeonLevel, ...game.maze.active }} view={agent.view}
       busy={agent.busy} canStop={agent.canStop} controlled={session.controlled} error={agent.error}
       endpoint={agentEndpoint} onEndpointChange={setAgentEndpoint}
-      onStart={(url, target) => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.start(url, target); }}
+      onStart={(url, target, mode) => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.start(url, target, mode); }}
       onReconnect={(url, target) => { navigation.cancel(); void agent.reconnect(url, target); }}
       onAdopt={() => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.adopt(); }}
       onStop={() => { void agent.stop(); }} onClose={() => setDialog(undefined)}

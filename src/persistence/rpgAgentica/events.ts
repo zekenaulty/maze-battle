@@ -47,14 +47,15 @@ export async function stageRpgEventAt(tx: GameWrite, id: string, expected: SaveC
   if (transfer) requireRpg(String(current.control.epoch) !== link.activeEpoch && op.status === 'running', 'transfer needs explicitly adopted new epoch');
   else if (op.status !== 'cancelled') requireRpg(String(current.control.epoch) === link.activeEpoch, 'new custody requires transfer');
   const kind = transfer ? 'transfer' : op.status === 'arrived'
-    ? sameTravelPosition(position, link.binding.completionTarget) ? 'completed' : 'decision'
+    ? !travel.frontier && link.binding.mode !== 'exploration' && sameTravelPosition(position, link.binding.completionTarget) ? 'completed' : 'decision'
     : op.status === 'interrupted' ? 'blocked' : op.status === 'cancelled' ? 'cancelled' : 'progress';
   const summary = kind === 'completed' ? 'Reached the host-bound known destination. No interaction performed.'
-    : kind === 'decision' ? 'Reached the chosen destination. The governing destination objective is not complete.'
+    : kind === 'decision' ? travel.frontier ? 'Reached the selected frontier. Review newly earned evidence before choosing another intention.'
+      : 'Reached the chosen destination. The governing objective is not complete.'
     : kind === 'transfer' ? 'Explicitly adopted the original journey; target, limits, elapsed time and usage retained.'
     : kind === 'progress' ? 'Routine browser-owned travel progress; no cognition requested.' : op.reason;
   const observation = op.status === 'cancelled' ? await rpgCancelledObservation(tx, travel, link.binding)
-    : await rpgOperationObservation(tx, slot, current.control.revision, link.binding);
+    : await rpgOperationObservation(tx, slot, current.control.revision, link.binding, !!travel.frontier && kind === 'decision');
   const event: HostOperationEvent = { hostId: 'maze-battle', sessionId: link.binding.sessionId, sessionEpoch: link.activeEpoch,
     actionId: link.action.actionId, operationId: id, sequence: link.sequence + 1, eventId: crypto.randomUUID(), kind,
     observation, summary, usage: rpgTravelUsage(travel),

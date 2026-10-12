@@ -55,6 +55,22 @@ describe('RPG binding custody', () => {
 });
 
 describe('RPG SDK envelope and capability surface', () => {
+  it('requires explicit exploration binding and source-scoped frontier arguments', () => {
+    const args = { row: 2, column: 3, direction: 'east', sourceId: 'earned-source' };
+    expect(() => parse('maze.explore', args)).toThrow();
+    expect(() => parse('maze.frontiers', { limit: 12 })).toThrow();
+    const bound = { ...binding, mode: 'exploration' as const };
+    expect(parseRpgAction({ ...action, capabilityId: 'maze.explore', arguments: args }, bound)).toEqual({ type: 'explore',
+      frontier: { anchor: { floor: 2, row: 2, column: 3 }, direction: 'east', sourceId: 'earned-source' } });
+    expect(parseRpgAction({ ...action, capabilityId: 'maze.frontiers', arguments: { limit: 12 } }, bound)).toEqual({ type: 'frontiers', limit: 12 });
+    for (const change of [{ direction: 'up' }, { row: -1 }, { sourceId: '' }, { autoLoot: true }, { floor: 1 }])
+      expect(() => parseRpgAction({ ...action, capabilityId: 'maze.explore', arguments: { ...args, ...change } }, bound)).toThrow();
+    const caps = rpgCapabilities(true);
+    expect(caps.slice(0, 5)).toEqual(rpgCapabilities());
+    expect(caps.at(-1)).toMatchObject({ id: 'maze.explore', kind: 'action', durableHandoff: true });
+    expect(caps.at(-2)).toMatchObject({ id: 'maze.frontiers', kind: 'query' });
+    expect(() => validateRpgBinding({ ...bound, mode: 'auto' })).toThrow();
+  });
   it('maps all five commands, fixing floor to the binding without restricting navigation to completion', () => {
     expect(parse('maze.observe', {})).toEqual({ type: 'observe' });
     for (const type of ['navigate', 'inspect']) expect(parse(`maze.${type}`, { row: 20, column: 30 }))

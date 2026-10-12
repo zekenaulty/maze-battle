@@ -18,9 +18,11 @@ import { launchAt, launchPointer, putLaunch } from './launchRecords';
 
 export interface RpgLaunchOptions {
   url: string; target: RpgAddress; provider?: AgenticaStart['provider']; limits?: AgenticaStart['limits'];
+  mode?: 'exploration';
 }
 export async function prepareRpgLaunch(control: SaveControl, options: RpgLaunchOptions) {
   const owner = structuredClone(control), input = structuredClone(options), url = fixtureUrl(input.url);
+  requireRpg(input.mode === undefined || input.mode === 'exploration', 'invalid launch mode');
   const scope = await ensureRpgScope(owner);
   return rpgAgenticaWrite(async tx => {
     const current = await currentGame(tx);
@@ -39,13 +41,15 @@ export async function prepareRpgLaunch(control: SaveControl, options: RpgLaunchO
       && await query.cell(await query.tree.get(cellMemoryKey(input.target)), input.target), 'Choose a destination the party has already observed.');
     const draft: RpgAgenticaBinding = { protocolVersion: 1, hostId: 'maze-battle', sessionId: scope.scopeId, scopeId: scope.scopeId,
       sessionEpoch: String(owner.epoch), perspectiveId: 'party', gameId: scope.gameId, floor: scope.floor,
-      objectiveId: crypto.randomUUID(), objective: `Reach the known destination at floor ${input.target.floor}, row ${input.target.row}, column ${input.target.column}. Do not interact or collect.`,
+      objectiveId: crypto.randomUUID(), objective: input.mode === 'exploration'
+        ? 'Explore from earned observations. Query current frontiers, choose a bounded frontier approach, review newly revealed evidence and choose the next intention. Do not interact or collect. Arrival does not complete exploration.'
+        : `Reach the known destination at floor ${input.target.floor}, row ${input.target.row}, column ${input.target.column}. Do not interact or collect.`,
       runId: 'pending-start', manifestHash: `sha256:${'0'.repeat(64)}`, control: owner,
-      completionTarget: input.target, travelLimits: configuredDestinationLimits() };
+      completionTarget: input.target, travelLimits: configuredDestinationLimits(), ...(input.mode ? { mode: input.mode } : {}) };
     validateRpgBinding(draft);
     const request: AgenticaStart = { protocolVersion: 1, hostId: draft.hostId, sessionId: draft.sessionId, sessionEpoch: draft.sessionEpoch,
       scopeId: draft.scopeId, perspectiveId: 'party', objectiveId: draft.objectiveId, objective: draft.objective,
-      observation: await rpgObservation(query, owner.revision, scope.scopeId), capabilities: rpgCapabilities(),
+      observation: await rpgObservation(query, owner.revision, scope.scopeId), capabilities: rpgCapabilities(input.mode === 'exploration'),
       provider: input.provider ?? { provider: 'fixture', model: 'fixture-model', contextWindowTokens: 131072, maxOutputTokens: 4096 },
       limits: input.limits ?? { maxSteps: 16, maxRefinements: 8, maxPlanContinuations: 8, timeoutSeconds: 300, actionTimeoutSeconds: 45 } };
     const launch = await putLaunch(tx, { version: 1, id: crypto.randomUUID(), url, draft, request,

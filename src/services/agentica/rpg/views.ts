@@ -6,6 +6,7 @@ import type { MemoryValue } from '../../../persistence/rpgMemory/types';
 import type { AgenticaObservation } from '../contracts';
 import type { RpgContextCommand } from './contracts';
 import { requireRpg, rpgScopeId, rpgShape, validateRpgContext } from './validation';
+import { rpgFrontiers } from '../../../persistence/rpgMemory/frontiers';
 
 const address = ({ floor, row, column }: RpgAddress) => ({ floor, row, column });
 const source = (value: RpgSource) => ({ id: value.id, gameId: value.gameId, observedAt: value.observedAt,
@@ -18,7 +19,7 @@ const remembered = (cell: RpgRememberedCell) => ({ ...details(cell), source: sou
     return edge ? [{ direction, state: edge.state, source: source(edge.source) }] : [];
   }) });
 
-export async function rpgObservation(query: MemoryQuery, revision: number, scopeId: string,
+export async function rpgObservation(query: Pick<MemoryQuery, 'head'>, revision: number, scopeId: string,
   mode: 'local' | 'operation' = 'local'): Promise<AgenticaObservation> {
   requireRpg(integer(revision, 0) && rpgScopeId(scopeId) && (mode === 'local' || mode === 'operation'), 'invalid observation scope');
   const receipt = query.head.observation;
@@ -29,8 +30,15 @@ export async function rpgObservation(query: MemoryQuery, revision: number, scope
   const cells = mode === 'local' ? [...receipt.cells].sort((a, b) => distance(a) - distance(b)
     || a.address.row - b.address.row || a.address.column - b.address.column).slice(0, 32)
     .map(cell => ({ ...details(cell), links: [...cell.links], blocked: [...cell.blocked] })) : undefined;
-  return { observationId: crypto.randomUUID(), revision, observedAt: receipt.observedAt,
+  const observation = { observationId: crypto.randomUUID(), revision, observedAt: receipt.observedAt,
     data: cells ? { ...data, cells, observedCellCount: receipt.cells.length, truncated: receipt.cells.length > cells.length } : data, facts: [] };
+  // Count limits alone do not bound long legal IDs. Preserve the nearest cells, including the actor.
+  while (new TextEncoder().encode(JSON.stringify(observation)).byteLength > 60 * 1024) {
+    requireRpg(cells && cells.length > 1, 'current observation exceeds wire budget');
+    cells.pop();
+    if ('truncated' in observation.data) observation.data.truncated = true;
+  }
+  return observation;
 }
 
 function roomMeta(value: unknown, key: string, floor: number) {
@@ -53,6 +61,10 @@ export async function rpgContext(query: MemoryQuery, command: RpgContextCommand)
   validateRpgContext(command);
   const input = structuredClone(command), { head, tree, cell } = query, floor = head.observation.actor.floor;
   const common = { floor, snapshotId: head.id, sourceHead: source(head.observation) };
+  if (input.type === 'frontiers') {
+    const page = await rpgFrontiers(query, input);
+    return { ...common, ...page, frontiers: page.frontiers.map(value => ({ ...value, source: source(value.source) })) };
+  }
   const read = async (target: RpgAddress) => cell(await tree.get(cellMemoryKey(target)), target);
   if (input.type === 'inspect') {
     requireRpg(input.target.floor === floor, 'cross-floor context');

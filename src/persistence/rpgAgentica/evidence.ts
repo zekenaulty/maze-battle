@@ -5,15 +5,18 @@ import { requireRpg } from '../../services/agentica/rpg/validation';
 import type { GameWrite } from '../gameTransaction';
 import { observationReader } from '../observationNodes';
 import type { RpgTravelRecord } from '../rpgTravel/types';
+import { rpgObservation } from '../../services/agentica/rpg/views';
 
 /** Point-read a lawful source receipt; reporting progress does not require rebuilding the memory index. */
 export async function rpgOperationObservation(tx: GameWrite, slot: SaveSlot, revision: number,
-  binding: RpgAgenticaBinding): Promise<AgenticaObservation> {
+  binding: RpgAgenticaBinding, local = false): Promise<AgenticaObservation> {
   requireRpg(slot.game.id === binding.gameId && slot.observationHead, 'operation source unavailable');
   const node = await observationReader({ get: id => tx.objectStore('observations').get(id) }, binding.gameId).read(slot.observationHead);
   const receipt = node.observation;
   requireRpg(receipt.actor.floor === slot.game.dungeonLevel && receipt.actor.row === slot.game.maze.active.row
     && receipt.actor.column === slot.game.maze.active.column, 'operation observation does not match actor');
+  // Current observation projection does not read the memory index, which may lag this just-committed step.
+  if (local) return rpgObservation({ head: node }, revision, binding.scopeId);
   return operationEvidence(receipt, revision, binding);
 }
 

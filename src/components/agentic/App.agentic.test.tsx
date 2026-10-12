@@ -25,6 +25,14 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('actual game Agentic play wiring', () => {
+  it('passes explicit exploration mode and actor origin through the actual App', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Explore' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(state.agent.start).toHaveBeenCalledWith('ws://127.0.0.1:5085/api/host',
+      { floor: state.session.game!.dungeonLevel, ...state.session.game!.maze.active }, 'exploration');
+  });
   it('opens and starts from the agent dialog without a manual pause and ignores game rerenders', () => {
     const { rerender } = render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));

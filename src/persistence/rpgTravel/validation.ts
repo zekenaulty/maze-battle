@@ -1,17 +1,19 @@
 import { canonicalJson } from '../../services/agentica/sdk/agentica-host.mjs';
-import { integer, validAddress, validId } from '../../domain/agentic/knowledge/shared';
+import { directions, integer, validAddress, validId } from '../../domain/agentic/knowledge/shared';
 import { validateDestinationBudget } from '../../domain/directed/destinationBudgetValidation';
 import { snapshotDestinationLimits } from '../../domain/directed/destinationLimits';
 import type { SaveControl } from '../saveControl';
 import { commandFingerprint, validateCommandReceipt } from '../gameCommandValidation';
 import type { GameCommandRequest } from '../gameCommandTypes';
-import type { RpgTravelReceipt, RpgTravelRecord, RpgTravelRequest } from './types';
+import type { RpgFrontierTarget, RpgTravelReceipt, RpgTravelRecord, RpgTravelRequest } from './types';
 
 const exact = (v: unknown, keys: string): boolean => !!v && typeof v === 'object' && !Array.isArray(v)
   && Object.keys(v).sort().join(',') === keys.split(',').sort().join(',');
 export function requireTravel(ok: unknown): asserts ok { if (!ok) throw new Error('Invalid or unavailable RPG travel record.'); }
 const control = (v: SaveControl) => exact(v, 'owner,epoch,revision') && validId(v.owner) && integer(v.epoch, 1) && integer(v.revision, 0);
 const address = (v: Parameters<typeof validAddress>[0]) => exact(v, 'floor,row,column') && validAddress(v);
+export const validFrontier = (v: RpgFrontierTarget) => exact(v, 'anchor,direction,sourceId') && address(v.anchor)
+  && directions.includes(v.direction) && validId(v.sourceId);
 export const sameTravelPosition = (a: Parameters<typeof validAddress>[0], b: Parameters<typeof validAddress>[0]) =>
   a.floor === b.floor && a.row === b.row && a.column === b.column;
 
@@ -22,6 +24,9 @@ export function travelFingerprint(input: RpgTravelRequest) {
   requireTravel(action && typeof action === 'object');
   if (action.type === 'start') {
     requireTravel(exact(action, 'type,target,limits') && address(action.target));
+    snapshotDestinationLimits(action.limits);
+  } else if (action.type === 'explore') {
+    requireTravel(exact(action, 'type,frontier,limits') && validFrontier(action.frontier));
     snapshotDestinationLimits(action.limits);
   } else if (action.type === 'step') requireTravel(exact(action, 'type,sequence') && integer(action.sequence, 0));
   else requireTravel(exact(action, 'type') && ['cancel', 'adopt'].includes(action.type));
@@ -38,10 +43,11 @@ function witness<T extends { witness: string }>(value: T) {
 }
 export function validateTravel(record: RpgTravelRecord, id: string) {
   witness(record);
-  requireTravel(exact(record, 'version,id,gameId,control,position,sourceHead,operation,witness') && record.version === 1
+  requireTravel(exact(record, `version,id,gameId,control,position,sourceHead,operation,witness${record.frontier ? ',frontier' : ''}`) && record.version === 1
     && record.id === id && validId(id) && validId(record.gameId) && control(record.control)
     && address(record.position) && validId(record.sourceHead));
   const op = record.operation;
+  requireTravel(!record.frontier || validFrontier(record.frontier) && sameTravelPosition(record.frontier.anchor, op.target));
   requireTravel(exact(op, 'id,target,status,epoch,steps,replans,nextStep,route,reason,startedAt,deadline,limits')
     && op.id === id && address(op.target) && op.target.floor === record.position.floor
     && op.epoch === record.control.epoch && typeof op.reason === 'string' && op.reason.length <= 512

@@ -1,8 +1,9 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
-bounded levels; A0 mapped. A2-A3/Q runtime qualification remains outstanding.
-2026-10-12. Revision 14. [D1 evidence](reviews/d1-qualification.md),
+bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive;
+whole-A2, A3/Q runtime qualification remains outstanding.
+2026-10-12. Revision 15. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -34,6 +35,12 @@ now qualifies new-owner continuation against the real service, retaining the old
 decision and a separate fresh scoped checkpoint. The linked bounded A1 acceptance
 audit now passes, including actual generated-socket travel. Proceed to A2-A3 and Q;
 these known-route tests do not replace those proofs.
+
+A2 now adds [scoped frontier queries and explicit frontier approaches](reviews/a2-earned-frontiers.md)
+to the ordinary game. Native cold-start A/B tests earn opposite junction evidence
+and carry it into a second selected intention without collecting. These tests do
+not qualify the real-service exploration planner or the full discovery/collection
+corpus; broader continuation and meaningful-observation policy remain A2 work.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -89,7 +96,8 @@ remembered evidence; it was not a complete environmental examination system.
 D0 is complete at the bounded offline diagnostic/review level; D1's finite RPG
 repair has integrated qualification; A0 source mapping is reviewed. A1's shared
 interaction/quest-policy cleanup, local durable SDK boundary and bounded
-controller/service gate are checked; A2-A3/Q are NOT RUN. Each produces
+controller/service gate are checked; A2's first native frontier slice is checked,
+but its broader/service gate and A3/Q are NOT RUN. Each produces
 its own reviewable commit and evidence; none is permission
 to declare later slices complete.
 

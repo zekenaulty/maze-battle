@@ -4,6 +4,7 @@ import { snapshotDestinationLimits } from '../../../domain/directed/destinationL
 import { validKey } from '../../../persistence/rpgMemory/treeTypes';
 import type { AgenticaAction } from '../contracts';
 import type { RpgAgenticaBinding, RpgCommand, RpgContextCommand } from './contracts';
+import { validFrontier } from '../../../persistence/rpgTravel/validation';
 
 export function requireRpg(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`RPG Agentica: ${message}`);
@@ -27,12 +28,13 @@ const address = (value: unknown): value is RpgAddress => rpgShape(value, 'floor,
   && validAddress(value as unknown as RpgAddress);
 
 export function validateRpgBinding(binding: unknown): asserts binding is RpgAgenticaBinding {
-  requireRpg(rpgShape(binding, 'protocolVersion,hostId,sessionId,sessionEpoch,scopeId,perspectiveId,gameId,floor,objectiveId,objective,runId,manifestHash,control,completionTarget,travelLimits', 'parentOperationId')
+  requireRpg(rpgShape(binding, 'protocolVersion,hostId,sessionId,sessionEpoch,scopeId,perspectiveId,gameId,floor,objectiveId,objective,runId,manifestHash,control,completionTarget,travelLimits', 'parentOperationId,mode')
     && binding.protocolVersion === 1 && binding.hostId === 'maze-battle' && binding.perspectiveId === 'party', 'invalid binding shape');
   requireRpg([binding.sessionId, binding.sessionEpoch, binding.gameId, binding.objectiveId, binding.runId].every(id)
     && rpgScopeId(binding.scopeId) && binding.sessionId === binding.scopeId, 'invalid binding identity');
   requireRpg(typeof binding.objective === 'string' && binding.objective.trim().length > 0 && binding.objective.length <= 4000
     && (!Object.hasOwn(binding, 'parentOperationId') || id(binding.parentOperationId)), 'invalid objective or parent operation');
+  requireRpg(!Object.hasOwn(binding, 'mode') || binding.mode === 'exploration', 'invalid objective mode');
   const control = binding.control;
   requireRpg(rpgShape(control, 'owner,epoch,revision') && id(control.owner) && integer(control.epoch as number, 1)
     && integer(control.revision as number, 0) && binding.sessionEpoch === String(control.epoch), 'invalid ownership fence');
@@ -50,7 +52,7 @@ export function validateRpgContext(command: unknown): asserts command is RpgCont
     return;
   }
   requireRpg((command.type === 'room' && rpgShape(command, 'type,roomId,limit', 'snapshotId,after') && id(command.roomId))
-    || (command.type === 'map' && rpgShape(command, 'type,limit', 'snapshotId,after')), 'invalid context kind');
+    || (['map', 'frontiers'].includes(String(command.type)) && rpgShape(command, 'type,limit', 'snapshotId,after')), 'invalid context kind');
   requireRpg(integer(command.limit as number, 1, command.type === 'room' ? 32 : 12), 'invalid context limit');
   requireRpg((!Object.hasOwn(command, 'snapshotId') || id(command.snapshotId))
     && (!Object.hasOwn(command, 'after') || validKey(command.after) && id(command.snapshotId)), 'invalid context cursor');
@@ -70,6 +72,13 @@ export function parseRpgAction(action: AgenticaAction, binding: RpgAgenticaBindi
     requireRpg(rpgShape(args, ''), 'observe takes no arguments');
     return { type: 'observe' };
   }
+  if (action.capabilityId === 'maze.explore') {
+    requireRpg(binding.mode === 'exploration' && rpgShape(args, 'row,column,direction,sourceId'), 'unbound exploration or arguments');
+    const frontier = { anchor: { floor: binding.floor, row: args.row, column: args.column }, direction: args.direction,
+      sourceId: args.sourceId } as import('../../../persistence/rpgTravel/types').RpgFrontierTarget;
+    requireRpg(validFrontier(frontier), 'invalid frontier');
+    return { type: 'explore', frontier };
+  }
   if (action.capabilityId === 'maze.navigate' || action.capabilityId === 'maze.inspect') {
     requireRpg(rpgShape(args, 'row,column'), 'invalid target arguments');
     const target = { floor: binding.floor, row: args.row, column: args.column } as RpgAddress;
@@ -77,9 +86,10 @@ export function parseRpgAction(action: AgenticaAction, binding: RpgAgenticaBindi
     return { type: action.capabilityId === 'maze.navigate' ? 'navigate' : 'inspect', target };
   }
   const room = action.capabilityId === 'maze.room';
-  requireRpg((room || action.capabilityId === 'maze.map')
+  const frontiers = action.capabilityId === 'maze.frontiers' && binding.mode === 'exploration';
+  requireRpg((room || action.capabilityId === 'maze.map' || frontiers)
     && rpgShape(args, room ? 'roomId,limit' : 'limit', 'snapshotId,after'), 'unbound capability or arguments');
-  const command = { type: room ? 'room' : 'map', ...args };
+  const command = { type: room ? 'room' : frontiers ? 'frontiers' : 'map', ...args };
   validateRpgContext(command);
   return command;
 }

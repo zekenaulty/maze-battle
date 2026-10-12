@@ -62,6 +62,20 @@ function noSecrets(value: unknown) {
 }
 
 describe('current-head RPG observations', () => {
+  it('byte-bounds dense legal cell detail before a durable decision is persisted', async () => {
+    const receipt = grid(), dense = { ...receipt, cells: receipt.cells.map(cell => ({ ...cell,
+      roomIds: Array.from({ length: 8 }, (_, i) => `${i}${'r'.repeat(127)}`),
+      chests: Array.from({ length: 8 }, (_, i) => ({ id: `${i}${'c'.repeat(127)}`, position: cell.address, opened: false })) })) };
+    const head = { ...(await archive()).open().query.head, observation: dense };
+    const view = await rpgObservation({ head }, 3, scopeId);
+    expect(new TextEncoder().encode(JSON.stringify(view)).byteLength).toBeLessThanOrEqual(60 * 1024);
+    expect(view.data.truncated).toBe(true);
+    expect(view.data.observedCellCount).toBe(35);
+    const cells = view.data.cells as { address: unknown }[];
+    expect(cells.length).toBeGreaterThan(0); expect(cells.length).toBeLessThan(32);
+    expect(cells[0].address).toEqual(receipt.actor);
+    expect(dense.cells).toHaveLength(35);
+  });
   it('caps current receipt cells at 32, keeps the actor and reports truncation without memory reads', async () => {
     const memory = (await archive()).open(0), before = structuredClone(memory.query.head);
     const view = await rpgObservation(memory.query, 7, scopeId);

@@ -30,7 +30,7 @@ export async function rpgActionAt(tx: GameWrite, key: string) {
       && ['applied', 'refused', 'conflict', 'unavailable'].includes(result.disposition)
       && integer(result.beforeRevision, 0) && integer(result.afterRevision, result.beforeRevision)
       && validId(result.evidenceId) && typeof result.summary === 'string', 'invalid archived result');
-    if (result.operation) requireRpg(action.capabilityId === 'maze.navigate' && result.disposition === 'applied'
+    if (result.operation) requireRpg(['maze.navigate', 'maze.explore'].includes(action.capabilityId) && result.disposition === 'applied'
       && result.operation.operationId === stored.operationId, 'invalid operation admission');
     if (result.observation) requireRpg(result.observation.revision === result.afterRevision
       && result.observation.data.scopeId === binding.scopeId && result.observation.data.gameId === binding.gameId,

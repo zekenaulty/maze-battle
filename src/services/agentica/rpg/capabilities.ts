@@ -1,6 +1,6 @@
 import type { AgenticaCapability } from '../contracts';
 
-export function rpgCapabilities(): AgenticaCapability[] {
+export function rpgCapabilities(exploration = false): AgenticaCapability[] {
   const address = ['row', 'column'].map(name => ({ name, type: 'integer' as const, required: true,
     minimum: 0, maximum: Number.MAX_SAFE_INTEGER - 1 }));
   const page = (maximum: number): AgenticaCapability['inputSchema']['fields'] => [
@@ -24,5 +24,13 @@ export function rpgCapabilities(): AgenticaCapability[] {
       [{ name: 'roomId', type: 'string', required: true }, ...page(32)]),
     capability('maze.map', 'Read remembered room summaries',
       'Read a page of remembered room IDs and cell counts on the bound floor, without interiors. Continue using next and snapshotId. No unseen facts are refreshed.', page(12)),
+    ...(exploration ? [
+      capability('maze.frontiers', 'Read observed exploration boundaries',
+        'Read a page of current observed boundaries adjoining unknown cells. No hidden routes, contents or rankings. Use anchor, direction and source.id to choose an exploration intention.', page(12)),
+      capability('maze.explore', 'Approach a chosen frontier',
+        'Walk a known route to the selected observed boundary, earning new observations along the way. Return a decision at the boundary; do not cross unseen edges, choose another frontier or interact. Requires a nonzero known approach.',
+        [...address.map(field => ({ ...field })), { name: 'direction', type: 'string', required: true, allowedValues: ['north', 'east', 'south', 'west'] },
+          { name: 'sourceId', type: 'string', required: true, description: 'Exact source.id from a current frontier.' }], true),
+    ] : []),
   ];
 }

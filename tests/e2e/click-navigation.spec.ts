@@ -45,6 +45,21 @@ async function stable(page: Page, column: number) {
   expect((await state(page)).maze.active.column).toBe(column);
 }
 
+test('Agentic exploration selection fits desktop/mobile and does not move or launch on selection', async ({ page }, info) => {
+  await open(page); const before = await state(page);
+  await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
+  await page.getByRole('radio', { name: 'Explore', exact: true }).check();
+  await expect(page.getByLabel('Row (1-based)')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeEnabled();
+  const dialog = page.getByRole('dialog', { name: 'Agentic play' });
+  const bounds = (await dialog.boundingBox())!, viewport = page.viewportSize()!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+  expect(bounds.y).toBeGreaterThanOrEqual(0); expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+  await page.screenshot({ path: info.outputPath('exploration-dialog.png') });
+  expect(await state(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+});
+
 test('real keyboard/D-pad movement is loot-free; E/button opens once and persists', async ({ page }, info) => {
   await open(page);
   const before = await state(page);

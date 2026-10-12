@@ -8,6 +8,7 @@ import { memoryInGameTransaction } from '../rpgMemory/access';
 import { routeRpgMemory } from '../rpgMemory/route';
 import { destinationPlan } from './navigation';
 import { stepTravel } from './step';
+import { frontierAvailable } from './frontier';
 import { requireTravel, sameTravelPosition, sealTravel, travelFingerprint, validateTravel, validateTravelReceipt } from './validation';
 import type { RpgTravelRecord, RpgTravelRequest, RpgTravelReceipt } from './types';
 
@@ -91,21 +92,25 @@ async function applyTravel(tx: GameWrite, input: RpgTravelRequest, rejectUnavail
     const memory = await memoryInGameTransaction(tx, slot, budget);
     if (!memory) return unavailable('Earned memory must be prepared before travel.');
     requireTravel(sameTravelPosition(memory.head.observation.actor, position));
-    if (input.action.type === 'start') {
+    if (input.action.type === 'start' || input.action.type === 'explore') {
       if (record) return refused('Operation identity already exists. Reconcile the original attempt.');
       const activeId = (await tx.objectStore('meta').get(ACTIVE_TRAVEL))?.value;
       const active = activeId ? await tx.objectStore('rpgTravels').get(activeId) : undefined;
       requireTravel(!activeId || active);
       if (active && validateTravel(active, activeId!).gameId === input.gameId && active.operation.status === 'running')
         return refused('An existing journey requires cancellation or adoption.');
-      if (input.action.target.floor !== position.floor) return refused('Known travel cannot activate stairs or cross floors implicitly.');
-      const plan = destinationPlan(await routeRpgMemory(memory, position, input.action.target, { maxVisits: 512, maxSteps: 256 }));
-      const operation = createDestinationOperation({ id: input.operationId, target: input.action.target, epoch: control.epoch,
+      const frontier = input.action.type === 'explore' ? input.action.frontier : undefined;
+      const target = input.action.type === 'start' ? input.action.target : input.action.frontier.anchor;
+      if (frontier && !await frontierAvailable(memory, frontier)) return refused('The selected frontier is not available in the current observation.');
+      if (target.floor !== position.floor) return refused('Known travel cannot activate stairs or cross floors implicitly.');
+      const plan = destinationPlan(await routeRpgMemory(memory, position, target, { maxVisits: 512, maxSteps: 256 }));
+      const operation = createDestinationOperation({ id: input.operationId, target, epoch: control.epoch,
         now: Date.now(), limits: input.action.limits, plan });
       // SDK refusal cannot publish a stopped journey or consume a game revision.
       if (rejectUnavailableStart && operation.status === 'interrupted') return refused(operation.reason);
       travel = sealTravel({ version: 1, id: input.operationId, gameId: input.gameId, position,
-        control: { ...control, revision: control.revision + 1 }, sourceHead: memory.head.id, operation });
+        control: { ...control, revision: control.revision + 1 }, sourceHead: memory.head.id, operation,
+        ...(frontier ? { frontier: structuredClone(frontier) } : {}) });
     } else {
       if (!record || record.gameId !== input.gameId || record.operation.status !== 'running') return refused('No matching active journey.');
       if (record.operation.target.floor !== position.floor) return refused('The journey belongs to a different floor.');

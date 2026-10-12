@@ -59,6 +59,7 @@ export function bindRpgRun(binding: RpgAgenticaBinding) {
       requireRpg(event?.event.kind === 'decision' && parent.binding.gameId === input.gameId
         && parent.activeEpoch === input.sessionEpoch && parent.binding.scopeId === input.scopeId
         && parent.binding.objectiveId === input.objectiveId && parent.binding.objective === input.objective
+        && parent.binding.mode === input.mode
         && boundedJson(parent.binding.completionTarget) === boundedJson(input.completionTarget)
         && boundedJson(parent.binding.travelLimits) === boundedJson(input.travelLimits), 'successor changed governing objective');
       if (parent.adoption) requireRpg(parent.adoption.runId === input.runId

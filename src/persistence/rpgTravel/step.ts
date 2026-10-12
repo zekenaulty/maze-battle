@@ -51,6 +51,6 @@ export async function stepTravel(tx: GameWrite, input: RpgTravelRequest, record:
   const saved = await tx.objectStore('saves').get('auto');
   requireTravel(saved?.observationHead);
   const travel = sealTravel({ version: 1 as const, id: record.id, gameId: record.gameId, control: current.control,
-    position, sourceHead: saved.observationHead, operation });
+    position, sourceHead: saved.observationHead, operation, ...(record.frontier ? { frontier: record.frontier } : {}) });
   return { disposition: 'applied' as const, reason: operation.reason, travel, command: command.receipt };
 }

@@ -1,6 +1,7 @@
 import type { RpgAddress } from '../../../domain/agentic/knowledge/types';
 import type { DestinationLimits } from '../../../domain/directed/destinationLimits';
 import type { SaveControl } from '../../../persistence/saveControl';
+import type { RpgFrontierTarget } from '../../../persistence/rpgTravel/types';
 
 export interface RpgAgenticaBinding {
   protocolVersion: 1; hostId: 'maze-battle'; sessionId: string; sessionEpoch: string;
@@ -8,9 +9,12 @@ export interface RpgAgenticaBinding {
   objectiveId: string; objective: string; runId: string; manifestHash: string;
   control: SaveControl; completionTarget: RpgAddress; travelLimits: DestinationLimits;
   parentOperationId?: string;
+  mode?: 'exploration';
 }
 
 export type RpgContextCommand = { type: 'inspect'; target: RpgAddress }
   | { type: 'room'; roomId: string; limit: number; snapshotId?: string; after?: string }
-  | { type: 'map'; limit: number; snapshotId?: string; after?: string };
-export type RpgCommand = { type: 'observe' } | { type: 'navigate'; target: RpgAddress } | RpgContextCommand;
+  | { type: 'map'; limit: number; snapshotId?: string; after?: string }
+  | { type: 'frontiers'; limit: number; snapshotId?: string; after?: string };
+export type RpgCommand = { type: 'observe' } | { type: 'navigate'; target: RpgAddress }
+  | { type: 'explore'; frontier: RpgFrontierTarget } | RpgContextCommand;

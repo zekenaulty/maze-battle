@@ -10,6 +10,16 @@ const props = () => ({ position: { floor: 2, row: 3, column: 4 },
   onEndpointChange: vi.fn(), onStart: vi.fn(), onReconnect: vi.fn(), onAdopt: vi.fn(), onStop: vi.fn(), onClose: vi.fn() });
 
 describe('Agentic play dialog', () => {
+  it('explicit exploration starts from the actor without a supplied destination', () => {
+    const callbacks = props(); render(<AgenticPlayDialog {...callbacks} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Explore' }));
+    expect(screen.queryByLabelText('Row (1-based)')).not.toBeInTheDocument();
+    expect(callbacks.onStart).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(callbacks.onStart).toHaveBeenCalledWith(callbacks.endpoint, callbacks.position, 'exploration');
+    fireEvent.click(screen.getByRole('radio', { name: 'Known destination' }));
+    expect(screen.getByLabelText('Row (1-based)')).toBeVisible();
+  });
   it('starts only on request with an explicit 1-based target converted to the current floor', () => {
     const callbacks = props();
     render(<AgenticPlayDialog {...callbacks} />);
