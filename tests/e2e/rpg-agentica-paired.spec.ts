@@ -178,7 +178,8 @@ for (const delivered of [false, true]) {
 }
 
 for (const action of ['adopt', 'cancel'] as const) {
-  test(`pending decision restart stays paused until explicit ${action}`, async ({ page, request }) => {
+  test(action === 'adopt' ? 'pending decision under a new epoch refuses adoption without inventing authority'
+    : 'pending decision restart can be explicitly stopped without movement', async ({ page, request }) => {
     let decision: unknown;
     await page.routeWebSocket('ws://127.0.0.1:5092/api/host', ws => {
       const server = ws.connectToServer();
@@ -210,12 +211,14 @@ for (const action of ['adopt', 'cancel'] as const) {
       const final = await snapshot(page); expect(final.view.state).toBe('cancelled'); expect(final.game).toEqual(pending.game);
       expect(await calls(request, binding.scopeId)).toEqual(before);
     } else {
-      await page.evaluate(() => window.rpgPaired.adopt());
-      await expect.poll(async () => (await operations(request, binding.sessionId))
-        .find((entry: any) => entry.action.runId !== binding.runId)?.state).toBe('parked');
-      const final = await finish(page); expect(final.game!.maze.active.column).toBe(5);
-      expect(final.binding!.objectiveId).toBe(binding.objectiveId); expect(final.game!.chests).toEqual(pending.game!.chests);
-      expect(await calls(request, binding.scopeId)).toHaveLength(2);
+      const original = await operations(request, binding.sessionId);
+      await expect(page.evaluate(() => window.rpgPaired.adopt())).rejects.toThrow('Decision custody changed');
+      const refused = await snapshot(page);
+      expect(refused.game).toEqual(recovered.game); expect(refused.travel).toEqual(recovered.travel);
+      expect(refused.operation).toEqual(recovered.operation); expect(refused.launch).toEqual(recovered.launch);
+      expect(refused.view.runId).toBe(binding.runId);
+      expect(await operations(request, binding.sessionId)).toEqual(original);
+      expect(await calls(request, binding.scopeId)).toEqual(before);
     }
   });
 }
