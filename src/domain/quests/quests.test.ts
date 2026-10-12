@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../gameFactory';
 import { guildContractsForFloor } from '../guild/contracts';
+import { openChest } from '../items/chests';
 import { generateStructuredMaze } from '../maze/structuredGenerate';
 import { revealMazeVisibility } from '../maze/visibility';
 import type { EnemyState } from '../types';
@@ -71,8 +72,9 @@ describe('guild quest lifecycle', () => {
     const targetRoom = game.maze.layout!.rooms.find((room) => room.id === contract!.targetRoomId)!;
 
     expect(contract).toBeDefined();
-    const opened = { ...acceptGuildContract(game, contract!.id), chests: game.chests.map((chest) => ({ ...chest, opened: true })) };
-    const completed = recordFetchQuestProgress(opened, targetRoom.center);
+    const accepted = acceptGuildContract(game, contract!.id);
+    const chest = game.chests.find((chest) => chest.position.row === targetRoom.center.row && chest.position.column === targetRoom.center.column)!;
+    const completed = openChest({ ...accepted, maze: { ...accepted.maze, active: chest.position } }, chest.id, constantRng);
     const quest = completed.quests.find((item) => item.id === contract!.id);
 
     expect(quest).toMatchObject({ status: 'complete', task: { objective: 'fetch', progress: 1 } });
@@ -114,15 +116,18 @@ describe('guild quest lifecycle', () => {
     expect(credited.quests.map((item) => item.task.progress)).toEqual([1, 0]);
   });
 
-  it('reconciles already opened fetch caches and repeats acceptance/claim without another reward', () => {
+  it('reconciles legacy opened-room fetch quests without migrating or repeating their reward', () => {
     const hub = roomAt('hub', 'hub', 0);
     const treasure = roomAt('treasure', 'treasure', 2);
-    const game = syncGuildQuests(createNewGameState({ maze: lineMaze(4, [hub, treasure]), chests: [chestAt(2)] }));
+    const initial = createNewGameState({ maze: lineMaze(4, [hub, treasure]), chests: [chestAt(2)] });
+    const legacy = { ...questFor(treasure, 'fetch'), id: guildContractsForFloor(initial)[0].id };
+    const game = syncGuildQuests({ ...initial, quests: [legacy] });
     const id = game.quests.find((item) => item.task.objective === 'fetch')!.id;
     expect(acceptGuildContract(game, id)).toBe(game);
     expect(recordFetchQuestProgress(game, treasure.center)).toBe(game);
     const completed = syncGuildQuests({ ...game, chests: [chestAt(2, true)] });
     expect(completed.quests.find((item) => item.id === id)?.status).toBe('claimed');
+    expect(completed.quests[0].task.item).toBeUndefined();
     expect(syncGuildQuests(completed)).toBe(completed);
     expect(claimGuildQuestReward(completed, id)).toBe(completed);
     expect(acceptGuildContract(completed, id)).toBe(completed);

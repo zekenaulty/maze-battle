@@ -18,6 +18,11 @@ describe('guildContractsForFloor', () => {
     expect(contracts.every((contract) => contract.originRoomId.includes('hub'))).toBe(true);
     expect(contracts.every((contract) => contract.floor === 3)).toBe(true);
     expect(contracts.every((contract) => contract.task.required > 0)).toBe(true);
+    expect(contracts.find((contract) => contract.objective === 'fetch')?.task).toEqual({
+      objective: 'fetch', noun: 'guild cache', required: 1,
+      item: { baseId: 'guild-cache', displayName: 'Guild Cache', token: '\u{1f4e6}' },
+    });
+    expect(contracts.filter((contract) => contract.objective !== 'fetch').every((contract) => !contract.task.item)).toBe(true);
   });
 
   it('marks visible or explored room anchors as located work', () => {
@@ -40,7 +45,7 @@ describe('guildContractsForFloor', () => {
     expect(guildContractsForFloor(game)).toEqual([]);
   });
 
-  it('only posts fetch contracts for a reachable chest in that room on this floor', () => {
+  it('only posts fetch contracts for an unopened reachable chest in that room on this floor', () => {
     const hub = roomAt('hub', 'hub', 0);
     const treasure = roomAt('treasure', 'treasure', 2);
     const base = createNewGameState({ maze: lineMaze(4, [hub, treasure]), chests: [chestAt(2)] });
@@ -50,7 +55,7 @@ describe('guildContractsForFloor', () => {
     expect(fetch({ ...base, chests: [{ ...chestAt(2), level: 2 }] })).toHaveLength(0);
     const isolated = { ...base.maze, cells: base.maze.cells.map((cell) => ({ ...cell, links: [] })) };
     expect(fetch({ ...base, maze: isolated })).toHaveLength(0);
-    expect(fetch({ ...base, chests: [chestAt(2, true)] })).toHaveLength(1);
+    expect(fetch({ ...base, chests: [chestAt(2, true)] })).toHaveLength(0);
   });
 });
 

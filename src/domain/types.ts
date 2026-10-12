@@ -29,7 +29,7 @@ export type EquipmentSlot = 'weapon' | 'offhand' | 'head' | 'body' | 'hands' | '
 
 export type ItemRarity = 'common' | 'magic' | 'rare' | 'legendary';
 
-export type ItemCategory = 'equipment' | 'consumable' | 'currency';
+export type ItemCategory = 'equipment' | 'consumable' | 'currency' | 'quest';
 
 export type ConsumableEffect = 'heal' | 'mana' | 'townPortal';
 
@@ -167,6 +167,7 @@ export interface ItemInstance {
   displayName: string;
   token: string;
   category: ItemCategory;
+  questId?: string;
   rarity: ItemRarity;
   itemLevel: number;
   value: number;
@@ -279,12 +280,19 @@ export type QuestObjective = 'scout' | 'fetch' | 'kill' | 'locate';
 
 export type QuestStatus = 'active' | 'complete' | 'claimed';
 
+export interface QuestItemSpec {
+  baseId: string;
+  displayName: string;
+  token: string;
+}
+
 export interface QuestTaskState {
   objective: QuestObjective;
   noun: string;
   required: number;
   progress: number;
   monsterTags?: MonsterCategory[];
+  item?: QuestItemSpec;
 }
 
 export interface QuestRewardState {

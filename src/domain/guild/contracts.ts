@@ -1,4 +1,4 @@
-import type { GameState, MazeRoomKind, MazeRoomState, QuestObjective } from '../types';
+import type { GameState, MazeRoomKind, MazeRoomState, QuestItemSpec, QuestObjective } from '../types';
 import { cellKey } from '../maze/key';
 import { createMazeVisibilitySnapshot } from '../maze/visibility';
 import { createMazePathSearch } from '../maze/solver';
@@ -12,6 +12,7 @@ export interface GuildContractTask {
   objective: GuildContractObjective;
   noun: string;
   required: number;
+  item?: QuestItemSpec;
 }
 
 export interface GuildContract {
@@ -57,9 +58,10 @@ const CONTRACT_TEMPLATES: Partial<Record<MazeRoomKind, GuildContractTemplate>> =
     priority: 0,
   },
   treasure: {
-    task: { objective: 'fetch', noun: 'guild cache', required: 1 },
+    task: { objective: 'fetch', noun: 'guild cache', required: 1,
+      item: { baseId: 'guild-cache', displayName: 'Guild Cache', token: '\u{1f4e6}' } },
     titlePrefix: 'Recover Cache:',
-    description: 'recover valuables from this anchor',
+    description: 'recover the guild cache from a chest in this room',
     rewardBase: 55,
     rewardPerFloor: 18,
     priority: 1,
@@ -97,14 +99,14 @@ export function guildContractsForFloor(game: GameState, acceptedIds?: ReadonlySe
 
   return candidates
     .filter((room) => room.kind !== 'treasure' || game.chests.some((chest) =>
-      chest.level === game.dungeonLevel && isInRoom(chest.position, room) && Number.isFinite(paths.distanceTo(chest.position))))
+      chest.level === game.dungeonLevel && !chest.opened && isInRoom(chest.position, room) && Number.isFinite(paths.distanceTo(chest.position))))
     .map((room) => createContract(game.dungeonLevel, origin, room, roomStatus(room, visibility)))
     .sort((a, b) => contractPriority(a) - contractPriority(b) || a.targetRoomName.localeCompare(b.targetRoomName));
 }
 
 function createContract(floor: number, origin: MazeRoomState, target: MazeRoomState, status: GuildContractStatus): GuildContract {
   const template = templateForRoom(target.kind);
-  const task = { ...template.task };
+  const task = { ...template.task, ...(template.task.item ? { item: { ...template.task.item } } : {}) };
 
   return {
     id: contractId(floor, origin, target),

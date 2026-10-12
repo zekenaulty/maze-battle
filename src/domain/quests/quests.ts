@@ -3,6 +3,7 @@ import { guildContractsForFloor, type GuildContract } from '../guild/contracts';
 import { cellKey } from '../maze/key';
 import { createMazeVisibilitySnapshot } from '../maze/visibility';
 import { isInRoom } from './questTargets';
+import { ownedQuestItemCount } from './questItems';
 
 export function acceptGuildContract(game: GameState, contractId: string): GameState {
   if (game.quests.some((quest) => quest.id === contractId)) {
@@ -39,7 +40,8 @@ export function updateQuestProgress(game: GameState): GameState {
     }
 
     const progress = progressForQuest(game, quest);
-    if (progress <= quest.task.progress && progress < quest.task.required) {
+    const itemFetch = quest.task.objective === 'fetch' && quest.task.item;
+    if ((itemFetch ? progress === quest.task.progress : progress <= quest.task.progress) && progress < quest.task.required) {
       return quest;
     }
 
@@ -85,6 +87,7 @@ export function recordFetchQuestProgress(game: GameState, position: GridPosition
       return quest.task.progress;
     }
 
+    if (quest.task.item) return ownedQuestItemCount(game, quest);
     const room = game.maze.layout?.rooms.find((item) => item.id === quest.targetRoomId);
     return room && isInRoom(position, room) ? quest.task.required : quest.task.progress;
   });
@@ -194,6 +197,7 @@ function questFromContract(contract: GuildContract): QuestState {
 }
 
 function progressForQuest(game: GameState, quest: QuestState) {
+  if (quest.task.objective === 'fetch' && quest.task.item) return ownedQuestItemCount(game, quest);
   const room = game.maze.layout?.rooms.find((item) => item.id === quest.targetRoomId);
   if (!room) {
     return quest.task.progress;
@@ -221,7 +225,8 @@ function updateMatchingQuestProgress(game: GameState, progressFor: (quest: Quest
     }
 
     const progress = progressFor(quest);
-    if (progress <= quest.task.progress) {
+    const itemFetch = quest.task.objective === 'fetch' && quest.task.item;
+    if (itemFetch ? progress === quest.task.progress : progress <= quest.task.progress) {
       return quest;
     }
 

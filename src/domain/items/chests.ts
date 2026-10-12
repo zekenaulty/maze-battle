@@ -4,6 +4,7 @@ import type { Rng } from '../combat/rng';
 import { rollLoot } from './loot';
 import { addItemsToInventory } from './inventory';
 import { recordFetchQuestProgress } from '../quests/quests';
+import { questItemsForChest } from '../quests/questItems';
 
 export function generateChestsForMaze(level: number, maze: MazeState): ChestState[] {
   const candidates = maze.cells.filter((cell) => !samePosition(cell, maze.start) && !samePosition(cell, maze.end) && cell.links.length > 0);
@@ -79,7 +80,7 @@ export function openChestAtActivePosition(game: GameState, rng: Rng): GameState 
     return game;
   }
 
-  const loot = rollLoot({ source: 'chest', level: game.dungeonLevel }, rng);
+  const loot = [...rollLoot({ source: 'chest', level: game.dungeonLevel }, rng), ...questItemsForChest(game, chest)];
   const opened = {
     ...game,
     chests: game.chests.map((candidate) => (candidate === chest ? { ...candidate, opened: true, loot } : candidate)),
