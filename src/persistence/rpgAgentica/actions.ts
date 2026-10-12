@@ -21,10 +21,12 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
     requireRpg(original && original.record.fingerprint === actionFingerprint(input), 'original must be reserved before execution');
     if (original.record.status === 'completed') return { result: original.record.result!, replayed: true, current: await currentGame(tx) };
     const { binding } = retained, current = await currentGame(tx);
-    const revision = current?.control.revision ?? input.expectedRevision;
+    const revision = current?.game.id === binding.gameId ? current.control.revision : input.expectedRevision;
     let result: AgenticaResult = { actionId: input.actionId, sessionId: input.sessionId, sessionEpoch: input.sessionEpoch,
       disposition: 'unavailable', beforeRevision: revision, afterRevision: revision, evidenceId: crypto.randomUUID(),
-      summary: 'Original attempt settled without execution.' };
+      summary: 'Original attempt settled without execution.', observation: { observationId: crypto.randomUUID(), revision,
+        observedAt: new Date().toISOString(), facts: [], data: { kind: 'unavailable', scopeId: binding.scopeId,
+          gameId: binding.gameId, floor: binding.floor, reason: 'No current actor observation disclosed for this action.' } } };
     if (!settleOnly) {
       if (!current || !sameOwner(current.control, binding.control) || current.game.id !== binding.gameId
         || current.game.dungeonLevel !== binding.floor || current.control.revision !== input.expectedRevision)
@@ -39,7 +41,7 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
           if (command.type === 'navigate') {
             const travel = await commitRpgTravelInTransaction(tx, { attemptId: original.operationId, operationId: original.operationId,
               gameId: binding.gameId, control: current.control, deadlineAt: Date.parse(input.deadlineAt),
-              action: { type: 'start', target: command.target, limits: binding.travelLimits } });
+              action: { type: 'start', target: command.target, limits: binding.travelLimits } }, false, true);
             result.afterRevision = travel.current?.control.revision ?? revision;
             result.observation.revision = result.afterRevision;
             const op = travel.receipt.travel?.operation;
@@ -57,6 +59,13 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
           }
         }
       }
+    }
+    if (result.observation && new TextEncoder().encode(JSON.stringify(result.observation)).byteLength > 65536) {
+      // Context is optional, unlike a committed action. Never retain an SDK-unreadable query reply.
+      requireRpg(result.afterRevision === result.beforeRevision, 'action observation exceeds wire budget');
+      result = { ...result, disposition: 'unavailable', summary: 'Context exceeds wire budget; request a smaller page.', observation: {
+        observationId: crypto.randomUUID(), revision, observedAt: new Date().toISOString(), facts: [],
+        data: { kind: 'unavailable', scopeId: binding.scopeId, gameId: binding.gameId, floor: binding.floor, reason: 'context-size-limit' } } };
     }
     boundedJson(result);
     await finishAction(tx, original, result);

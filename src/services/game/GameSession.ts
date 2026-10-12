@@ -16,6 +16,9 @@ import { executeRpgTravel } from '../../persistence/rpgTravel/execute';
 import { readRpgTravel } from '../../persistence/rpgTravel/read';
 import { prepareRpgMemory } from '../../persistence/rpgMemory/prepare';
 import type { RpgTravelAction, RpgTravelRequest } from '../../persistence/rpgTravel/types';
+import type { AgenticaAction } from '../agentica/contracts';
+import { executeRpgAction } from '../../persistence/rpgAgentica/actions';
+import { advanceRpgHostOperation } from '../../persistence/rpgAgentica/advance';
 
 export interface GameSessionView {
   game?: GameState; telemetry?: PlayTelemetry; saves: SaveSummary[];
@@ -198,6 +201,34 @@ export class GameSession {
     });
   };
   reconcileTravel = async (request: RpgTravelRequest) => (await executeRpgTravel(structuredClone(request), true)).receipt;
+
+  /** SDK callbacks use the same serialized owner and published game as manual play. */
+  executeAgenticaAction = (action: AgenticaAction, settleOnly = false) => {
+    const original = structuredClone(action);
+    const work = async () => {
+      const outcome = await executeRpgAction(original, settleOnly);
+      if (outcome.current) await this.adopt(outcome.current);
+      this.publish({ status: outcome.result.summary });
+      return outcome.result;
+    };
+    return settleOnly ? this.enqueue(work) : this.owned(work);
+  };
+  advanceAgenticaOperation = (request: RpgTravelRequest) => {
+    const original = structuredClone(request);
+    return this.owned(async () => {
+      const before = this.view.game, trace = this.view.telemetry;
+      const outcome = await advanceRpgHostOperation(original);
+      if (outcome.current) await this.adopt(outcome.current);
+      if (outcome.event) this.publish({ status: outcome.event.summary });
+      if (outcome.receipt?.command && !outcome.replayed && before && outcome.current
+        && outcome.receipt.command.afterRevision === outcome.current.control.revision) {
+        const next = recordTransition(trace ?? createPlayTelemetry(before.id), before, outcome.current.game,
+          { source: 'system', action: 'agentica-travel-step' });
+        this.publish({ telemetry: next }); await this.persistTrace(next, outcome.current.control);
+      }
+      return outcome;
+    });
+  };
 
   private async persistTrace(trace: PlayTelemetry | undefined, control: SaveControl) {
     if (!this.diagnosticsWritable || !trace) { this.publish({ status: 'Saved; diagnostics storage unavailable' }); return; }

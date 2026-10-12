@@ -13,7 +13,7 @@ import { GameSession } from '../../src/services/game/GameSession';
 import { createNewGameState } from '../../src/domain/gameFactory';
 import { chestAt, lineMaze, roomAt } from '../../src/domain/automation/autopilotTestFixtures';
 
-if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5204') throw new Error('Isolated test origin only');
+if (!import.meta.env.DEV || !['http://127.0.0.1:5204', 'http://127.0.0.1:5207'].includes(location.origin)) throw new Error('Isolated test origin only');
 const harness = { commands, repository, custody, history, projectRpgKnowledge, GameSession,
   travel: { executeRpgTravel, readRpgTravel, runTravelWindow },
   memory: { prepareRpgMemory, ...memoryReads, readRpgRoute }, lineMaze, roomAt,

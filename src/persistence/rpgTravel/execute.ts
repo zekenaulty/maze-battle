@@ -29,7 +29,8 @@ export async function executeRpgTravel(request: RpgTravelRequest, settleOnly = f
 }
 
 /** The caller must abort on failure and recheck deadlines after any additional writes. */
-export async function commitRpgTravelInTransaction(tx: GameWrite, request: RpgTravelRequest, settleOnly = false) {
+export async function commitRpgTravelInTransaction(tx: GameWrite, request: RpgTravelRequest, settleOnly = false,
+  rejectUnavailableStart = false) {
     const fingerprint = travelFingerprint(request), input: RpgTravelRequest = JSON.parse(fingerprint);
     const previous = await tx.objectStore('rpgTravelActions').get(input.attemptId);
     if (previous) {
@@ -38,7 +39,7 @@ export async function commitRpgTravelInTransaction(tx: GameWrite, request: RpgTr
       return { receipt, replayed: true, current };
     }
     const result = settleOnly ? { disposition: 'settled' as const, reason: 'Original attempt had no committed effect; settled without execution.' }
-      : await applyTravel(tx, input);
+      : await applyTravel(tx, input, rejectUnavailableStart);
     const receipt: RpgTravelReceipt = sealTravel({ version: 1, attemptId: input.attemptId, fingerprint,
       committedAt: Date.now(), ...result });
     validateTravelReceipt(receipt, input, fingerprint);
@@ -57,7 +58,7 @@ export async function currentGame(tx: GameWrite) {
   return control && slot ? { control, game: slot.game } : undefined;
 }
 
-async function applyTravel(tx: GameWrite, input: RpgTravelRequest): Promise<Pick<RpgTravelReceipt, 'disposition' | 'reason' | 'travel' | 'command'>> {
+async function applyTravel(tx: GameWrite, input: RpgTravelRequest, rejectUnavailableStart: boolean): Promise<Pick<RpgTravelReceipt, 'disposition' | 'reason' | 'travel' | 'command'>> {
   const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY)), slot = await tx.objectStore('saves').get('auto');
   if (!control || !slot || !sameOwner(control, input.control) || control.revision !== input.control.revision
     || slot.game.id !== input.gameId) return { disposition: 'conflict', reason: 'Game custody or checkpoint changed.' };
@@ -101,6 +102,8 @@ async function applyTravel(tx: GameWrite, input: RpgTravelRequest): Promise<Pick
       const plan = destinationPlan(await routeRpgMemory(memory, position, input.action.target, { maxVisits: 512, maxSteps: 256 }));
       const operation = createDestinationOperation({ id: input.operationId, target: input.action.target, epoch: control.epoch,
         now: Date.now(), limits: input.action.limits, plan });
+      // SDK refusal cannot publish a stopped journey or consume a game revision.
+      if (rejectUnavailableStart && operation.status === 'interrupted') return refused(operation.reason);
       travel = sealTravel({ version: 1, id: input.operationId, gameId: input.gameId, position,
         control: { ...control, revision: control.revision + 1 }, sourceHead: memory.head.id, operation });
     } else {
