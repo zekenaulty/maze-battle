@@ -6,6 +6,11 @@ Implementation: `58476db`, including earned-knowledge integration `3e49140`
 Status: PASS at the bounded domain/internal-command/native-save levels below.
 The actual Agentica destination binding and its completion gate remain incomplete.
 
+Follow-through: [snapshot-bound observation archival](a1-observation-archive.md)
+implements the source/save lineage work through `6bad40e`. The account below records
+the earlier `58476db` evidence boundary rather than claiming that later work was
+already qualified here.
+
 ## Implemented Boundary
 
 `GameSession.commandRequest` captures the exact game, floor, position, owner,
