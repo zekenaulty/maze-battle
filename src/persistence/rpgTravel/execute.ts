@@ -25,8 +25,9 @@ export async function executeRpgTravel(request: RpgTravelRequest, settleOnly = f
     const previous = await tx.objectStore('rpgTravelActions').get(input.attemptId);
     if (previous) {
       const receipt = validateTravelReceipt(previous, input, fingerprint);
+      const current = await currentGame(tx);
       await tx.done;
-      return { receipt, replayed: true };
+      return { receipt, replayed: true, current };
     }
     const result = settleOnly ? { disposition: 'settled' as const, reason: 'Original attempt had no committed effect; settled without execution.' }
       : await applyTravel(tx, input);
@@ -36,9 +37,18 @@ export async function executeRpgTravel(request: RpgTravelRequest, settleOnly = f
     if (receipt.disposition === 'applied') requireTravel(Date.now() < input.deadlineAt);
     if (receipt.command) requireTravel(!destinationExpired(receipt.travel!.operation, Date.now()));
     await tx.objectStore('rpgTravelActions').add(receipt);
+    const current = await currentGame(tx);
+    if (receipt.disposition === 'applied') requireTravel(Date.now() < input.deadlineAt);
+    if (receipt.command || receipt.travel && input.action.type === 'adopt')
+      requireTravel(!destinationExpired(receipt.travel!.operation, Date.now()));
     await tx.done;
-    return { receipt, replayed: false };
+    return { receipt, replayed: false, current };
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
+}
+
+async function currentGame(tx: GameWrite) {
+  const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY)), slot = await tx.objectStore('saves').get('auto');
+  return control && slot ? { control, game: slot.game } : undefined;
 }
 
 async function applyTravel(tx: GameWrite, input: RpgTravelRequest): Promise<Pick<RpgTravelReceipt, 'disposition' | 'reason' | 'travel' | 'command'>> {

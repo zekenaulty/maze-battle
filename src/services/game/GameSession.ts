@@ -184,10 +184,11 @@ export class GameSession {
     return this.owned(async () => {
       const before = this.view.game, trace = this.view.telemetry;
       const result = await executeRpgTravel(original);
-      const latest = await readGameControl();
-      if (latest.control && latest.game) await this.adopt({ control: latest.control, game: latest.game });
+      const latest = result.current;
+      if (latest) await this.adopt(latest);
       this.publish({ status: result.receipt.reason });
-      if (!result.replayed && result.receipt.command && before && latest.game && latest.control) {
+      if (!result.replayed && result.receipt.command && before && latest
+        && result.receipt.command.afterRevision === latest.control.revision) {
         const nextTrace = recordTransition(trace ?? createPlayTelemetry(before.id), before, latest.game,
           { source: 'system', action: 'agentic-travel-step' });
         this.publish({ telemetry: nextTrace });

@@ -26,11 +26,11 @@ export function settleGameCommand(request: GameCommandRequest): Promise<GameComm
 }
 
 async function commit(request: GameCommandRequest, settleOnly: boolean): Promise<GameCommandCommit> {
-  commandFingerprint(request);
+  const input: GameCommandRequest = JSON.parse(commandFingerprint(request));
   const db = await getDatabase(), tx = db.transaction(['meta', 'saves', 'gameCommands', 'observations'], 'readwrite');
   void tx.done.catch(() => {});
   try {
-    const result = await commitGameCommandInTransaction(tx, request, settleOnly);
+    const result = await commitGameCommandInTransaction(tx, input, settleOnly);
     await tx.done;
     return result;
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
