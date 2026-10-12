@@ -53,9 +53,10 @@ across restart/lost replies and explicit adoption or Stop. This adds physical
 collectibles to ordinary accepted fetch quests, not a harness-only inventory.
 The full fixed-action information matrix, room-level exploration choices,
 human/tool parity and generated/growing-world qualification remain outstanding.
-The full unit run also exposed a repeatable 60-second timeout in the unchanged
-legacy `spaces-v2` level-1000 diagnostic; its correctness checks pass but its
-timing gate does not. A separate performance investigation is in progress.
+The full unit run exposed a repeatable 60-second timeout in the unchanged
+`spaces-v2` level-1000 diagnostic. Test-only repair `f28a157` removes assertion
+bookkeeping overhead without changing seeds, predicates, generation or timeout.
+The final aggregate passes all 2,563 tests; this does not claim faster gameplay.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional

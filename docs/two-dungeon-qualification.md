@@ -17,7 +17,7 @@ cases. It does not qualify the entire matrix below or live model competence.
 | Known-destination regression | PASS, ten paired service cases retained in the 22-case aggregate. |
 | Full counterfactual UI/tool/memory/progress matrix | PARTIAL; earlier A2 learned-route checks remain, full cross-surface comparison not yet qualified. |
 | Room-level exploration and human/tool perception parity | NOT QUALIFIED; forced-corridor continuation is not a room policy. |
-| Generated retrieval and growing-world read/work | NOT QUALIFIED by the authored small corpus. D1 generator evidence is separate; one old deep-floor unit timing gate currently fails. |
+| Generated retrieval and growing-world read/work | NOT QUALIFIED by the authored small corpus. D1 generator evidence is separate; the verifier-only cost repair now passes the deep-floor unit timing gate, not a new game-performance proof. |
 | Live model competence | NOT RUN; separate owner-approved limits/authorization required. |
 
 None of these dispositions changes the acceptance requirements that follow.

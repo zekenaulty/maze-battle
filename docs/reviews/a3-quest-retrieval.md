@@ -1,6 +1,7 @@
 # A3: Shared Quest Retrieval and Durable Interaction
 
-2026-10-12. Checked implementation: `3b54d9b`, on `codex/agentic-game-a1`.
+2026-10-12. Checked runtime implementation: `3b54d9b`, on `codex/agentic-game-a1`.
+Final full-suite qualification includes test-only cost repair `f28a157`.
 Includes shared collectibles `240efce`, normalization preservation `021ce37`,
 quest selection `7c12a07` and selection recovery `1582dfe`.
 Status: bounded A3 retrieval/effect/recovery PASS. Whole A2/Q and the umbrella
@@ -108,8 +109,9 @@ deployment, user saves or port-5190 preview changes.
 | Final dialog styling | 2 additional desktop/mobile viewport checks PASS; both screenshots inspected |
 | Production build / TypeScript | PASS; 2,130 modules. Existing large-main-chunk warning remains. |
 | Independent source review | Initial crash-window defect repaired; follow-up found no additional concrete defect. |
-| Full unit aggregate | **FAIL: 2,561 PASS / 1 timeout**, 160 files. The unchanged `spaces-v2` level-1000 adversarial audit exceeded its 60-second limit. |
-| Isolated audit rerun | **FAIL: 6 PASS / 1 timeout**. All 64 seeds produced 2,006 rooms with no spatial-limit failures, but the level-1000 case took 72.445 seconds. Performance investigation is separate; no threshold was relaxed. |
+| Final full unit aggregate | **PASS: 2,563 tests / 160 files**, 240.79s, including the repaired audit. Level-1000 case: 46.971s. |
+| Initial full unit aggregate | **FAIL: 2,561 PASS / 1 timeout**. The unchanged `spaces-v2` level-1000 adversarial audit exceeded its 60-second limit. |
+| Pre-repair isolated audit | **FAIL: 6 PASS / 1 timeout**. All 64 seeds produced 2,006 rooms with no spatial-limit failures, but the level-1000 case took 72.445s. |
 
 The browser aggregates have no skips or flaky retries. Earlier failures are not
 erased: initial normalization dropped the new item specification; review exposed
@@ -118,6 +120,16 @@ retry; three added assertions initially rejected .NET's optional-null and UTC
 serialization. The final wire assertions use the existing narrow typed-field
 allowlist, preserving observation data, identities, revisions and old evidence.
 
+The audit timeout was traced to assertion-framework bookkeeping, not changed
+generation. The agent's matched profile at level 1000 measured 1,026,560 hot-loop
+predicates over 128,320 expansions: 61.544s before versus 41.606s after using
+native strict assertions in that loop (32.4% lower test duration). The patch
+preserves all 64 seeds, every predicate, final audits and the 60-second ceiling;
+a new boundary test checks numeric typing, equality, overflow and NaN behavior.
+Production `spaces-v2` code is untouched. This is a faster verifier, **not a game
+generation performance improvement**. The final integrated full-suite run above
+confirms the timing gate now passes without deleting the earlier failures.
+
 ```powershell
 node node_modules/vitest/vitest.mjs run --config tests/click-navigation.config.ts --configLoader runner --maxWorkers=1 src/domain/quests src/domain/guild/contracts.test.ts src/domain/gameFactory.questItems.test.ts src/domain/gameFactory.preservation.test.ts src/domain/items/inventoryConservation.test.ts src/services/agentica/rpg src/services/agentica/directed/wire.test.ts src/components/agentic
 node --test scripts/rpg-discovery-provider.node-spec.mjs scripts/rpg-quest-provider.node-spec.mjs
@@ -125,11 +137,13 @@ node node_modules/@playwright/test/cli.js test --config tests/e2e/rpg-command.co
 $env:AGENTICA_FIXTURE_SOURCE='C:\Users\Zythis\.codex\worktrees\maze-operation-stop\Agentica'
 node node_modules/@playwright/test/cli.js test --config tests/e2e/rpg-agentica-paired.config.ts
 npm run build
+node node_modules/vitest/vitest.mjs run --config tests/click-navigation.config.ts --configLoader runner --maxWorkers=2 --reporter=default --reporter=json --outputFile=test-results/a3-unit-final-results.json
 ```
 
 Raw evidence is retained locally in ignored `test-results/rpg-commands/results.json`,
 `test-results/rpg-paired-report.json`, `test-results/a3-ui-final`,
-`test-results/a3-unit-results.json` and `test-results/a3-adversarial-isolated-results.json`.
+`test-results/a3-unit-results.json`, `test-results/a3-adversarial-isolated-results.json`
+and `test-results/a3-unit-final-results.json`.
 Paired attachments preserve contexts, selected arguments, original/recovered
 events, complete checkpoints, service entries and environment/network audits.
 
@@ -139,6 +153,23 @@ Room-level exploration and shared human-fog/tool perception parity remain.
 Q still needs its complete fixed-action, pre-disclosure information matrix across
 UI/tool/memory/progress surfaces, generated-layout retrieval, and growing-world
 read/work measurements. The authored successful corpus does not establish those.
-The old deep-floor diagnostic timeout also remains under investigation.
 Live A/B model competence is NOT RUN and requires separately confirmed limits
 and authorization. Full inventory/town/combat parity remains a later goal.
+
+Next bounded work, based on source inspection rather than a passing-corpus claim:
+
+1. Human/tool perception parity. `createMazeViewModel` still supplies live world
+   geometry and `drawMaze` uses it for explored-but-unseen walls/chests and room
+   overlays. Move the displayed facts onto current observations plus retained
+   evidence. Prove unseen mutations do not update either projection; do not
+   substitute a fog overlay for a knowledge boundary.
+2. Room-scoped exploration. `corridorExit` correctly yields at cell junctions,
+   including ordinary open-room cells. Add a separately admitted room exploration
+   policy using observed membership/frontiers, bounded local work and meaningful
+   room exits. It must not consult authoritative room bounds, unseen targets or
+   ideal routes to choose a destination.
+3. Complete Q's cross-surface counterfactual matrix and generated/growing-world
+   measurements. `observeRpg` currently scans room/chest associations while
+   projecting nearby cells; measure and bound actual work, not just final JSON.
+   Keep the seven-response authored example as regression evidence, not as a
+   required response count or a substitute for the remaining gates.
