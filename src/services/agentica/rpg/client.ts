@@ -68,7 +68,7 @@ export class RpgAgenticaClient {
     requireRpg(launch && (!this.launch || launch.id === this.launch.id), 'original launch changed');
     this.launch = launch;
     this.publish({ runId: launch.binding?.runId, operationId: launch.operationId, target: launch.draft.completionTarget,
-      mode: launch.draft.mode, questId: launch.draft.questId });
+      mode: launch.draft.mode, questId: launch.draft.quest?.id });
     return launch;
   }
   start() { return this.exclusive(async () => {
