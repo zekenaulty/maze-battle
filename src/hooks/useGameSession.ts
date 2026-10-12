@@ -23,5 +23,7 @@ export function useGameSession() {
   }, [session]);
   return { ...view, controller: session, transition: session.transition, replaceGame: session.replaceGame,
     createManualSave: session.createManualSave, loadSave: session.loadSave, removeSave: session.removeSave,
-    refreshSaves: session.refreshSaves, flush: session.flush, takeControl: session.takeControl };
+    refreshSaves: session.refreshSaves, flush: session.flush, takeControl: session.takeControl,
+    // Reload also retries a failed database-open promise without changing repository caching.
+    retry: async () => { window.location.reload(); }, resetGame: session.resetGame };
 }

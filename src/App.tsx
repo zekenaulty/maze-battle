@@ -3,6 +3,7 @@ import { CharactersDialog } from './components/CharactersDialog';
 import { BattleScreen } from './components/BattleScreen';
 import { ExploreScreen } from './components/ExploreScreen';
 import { SavesDialog } from './components/SavesDialog';
+import { GameRecovery } from './components/GameRecovery';
 import { TownScreen } from './components/TownScreen';
 import { DiagnosticsDialog } from './components/diagnostics/DiagnosticsDialog';
 import { AgenticPlayDialog } from './components/agentic/AgenticPlayDialog';
@@ -24,9 +25,10 @@ export function App() {
   const { game, telemetry } = session;
   const [dialog, setDialog] = useState<DialogName>();
   const [agentEndpoint, setAgentEndpoint] = useState('ws://127.0.0.1:5085/api/host');
-  const agent = useAgenticPlay(session.controller, !session.controlled || Boolean(dialog && dialog !== 'agentic')
+  const recovering = Boolean(session.recoveryRequired || session.busy);
+  const agent = useAgenticPlay(session.controller, recovering || !session.controlled || Boolean(dialog && dialog !== 'agentic')
     || game?.mode === 'town' || Boolean(game?.battle && game.battle.status !== 'won'));
-  const blocked = Boolean(dialog) || !session.controlled;
+  const blocked = recovering || Boolean(dialog) || !session.controlled;
   const navigation = useClickNavigation(game, blocked, session.transition);
   const pauseManual = useCallback(() => { agent.pause(); navigation.cancel(); }, [agent.pause, navigation.cancel]);
   const clock = useGameLoop(game, blocked, session.transition, pauseManual);
@@ -47,7 +49,12 @@ export function App() {
     setDialog(undefined);
   };
 
-  if (!game) return <main className="loading-screen"><p>{session.status}</p>{session.status.startsWith('Load failed') && <button onClick={() => location.reload()}>Retry</button>}</main>;
+  if (!game || recovering) return <GameRecovery status={session.status} busy={session.busy}
+    onRetry={session.retry} onReset={async () => {
+      pauseManual();
+      await session.resetGame();
+      setDialog(undefined);
+    }} />;
   const shared = {
     onCharacters: () => openDialog('characters'), onSaves: openSaves,
     onDiagnostics: () => openDialog('diagnostics'), onAutoToggle: commands.toggleAuto,
@@ -60,7 +67,7 @@ export function App() {
 
   return <>
     {!session.controlled && <aside className="session-custody" role="status">
-      <span>{session.status.startsWith('Save failed') ? session.status : 'Read only. Another tab controls this game.'}</span>
+      <span>{session.status}</span>
       <button onClick={() => { pauseManual(); void session.takeControl().catch(() => {}); }}>Take control</button>
     </aside>}
     {session.warning && <aside className="session-warning" role="alert">{session.warning}</aside>}
