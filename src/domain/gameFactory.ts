@@ -403,6 +403,12 @@ function normalizeQuests(quests: Partial<QuestState>[] | undefined): QuestState[
     .map((quest) => {
       const required = Math.max(1, quest.task?.required ?? 1);
       const progress = Math.min(required, Math.max(0, quest.task?.progress ?? 0));
+      const item = quest.task?.item;
+      // Dropping a malformed collectible spec would enable legacy chest-only completion.
+      if (item !== undefined && (!item || typeof item !== 'object' || Array.isArray(item)
+        || [item.baseId, item.displayName, item.token].some((value) => typeof value !== 'string' || !value.trim()))) {
+        throw new Error('Invalid quest item specification');
+      }
 
       return {
         id: quest.id,
@@ -420,6 +426,7 @@ function normalizeQuests(quests: Partial<QuestState>[] | undefined): QuestState[
           required,
           progress,
           monsterTags: quest.task?.monsterTags ? [...quest.task.monsterTags] : undefined,
+          ...(item === undefined ? {} : { item: { baseId: item.baseId, displayName: item.displayName, token: item.token } }),
         },
         reward: {
           gold: Math.max(0, quest.reward?.gold ?? 0),
