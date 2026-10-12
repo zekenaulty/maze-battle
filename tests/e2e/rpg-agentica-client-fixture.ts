@@ -26,10 +26,13 @@ class Socket extends EventTarget {
       if (deferStart) pendingStart = announce; else announce();
     }
     if (message.type === 'resume') reply('resumed', { ...requests.get(message.runId)!, runId: message.runId, manifestHash: hash });
-    if (message.type === 'cancel') reply('cancelled', { stopRequested: true });
+    if (message.type === 'cancel') {
+      for (const entry of entries) if (entry.wakeRunId === message.runId && entry.state === 'waking') entry.state = 'cancelled';
+      reply('cancelled', { stopRequested: true });
+    }
     if (message.type === 'operation.wake') {
       const entry = entries.find(e => e.admission?.operation?.operationId === message.payload.operationId)!;
-      entry.latestEvent = message.payload; entry.state = 'continued'; entry.wakeRunId = 'run-2';
+      entry.latestEvent = message.payload; entry.state = 'waking'; entry.wakeRunId = 'run-2';
       const request = { ...entry.request, observation: message.payload.observation }; requests.set('run-2', request);
       reply('started', { ...request, runId: 'run-2', manifestHash: hash }, 'run-2');
     }
@@ -57,6 +60,14 @@ globalThis.fetch = async (input, init) => {
     return new Response(JSON.stringify(entry));
   }
   if (url.includes('/operations?')) return new Response(JSON.stringify(entries));
+  if (url.includes('/operations/stop-decision')) {
+    const decision = JSON.parse(String(init?.body));
+    const entry = entries.find(e => e.admission?.operation?.operationId === decision.operationId)!;
+    if (entry.state === 'waking') return new Response(JSON.stringify({ code: 'session.busy', message: 'Stop the live successor first.' }), { status: 409 });
+    if (!['parked', 'cancelled'].includes(entry.state)) throw new Error('Cannot replace a terminal/continued operation.');
+    entry.stopDecision = decision; entry.latestEvent = decision; entry.state = 'cancelled';
+    return new Response(JSON.stringify(entry));
+  }
   throw new Error(`Unexpected fixture request ${url}`);
 };
 export const h = window.rpgCommandTest;

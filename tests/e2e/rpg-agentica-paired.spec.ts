@@ -177,9 +177,9 @@ for (const delivered of [false, true]) {
   });
 }
 
-for (const action of ['adopt', 'cancel'] as const) {
+for (const action of ['adopt', 'cancel', 'cancel-ack-lost'] as const) {
   test(action === 'adopt' ? 'pending decision under a new epoch refuses adoption without inventing authority'
-    : 'pending decision restart can be explicitly stopped without movement', async ({ page, request }) => {
+    : `pending decision restart can be explicitly stopped without movement (${action})`, async ({ page, request }) => {
     let decision: unknown;
     await page.routeWebSocket('ws://127.0.0.1:5092/api/host', ws => {
       const server = ws.connectToServer();
@@ -206,9 +206,40 @@ for (const action of ['adopt', 'cancel'] as const) {
     expect(recovered.operation!.event).toEqual(pending.operation!.event);
     await page.evaluate(() => window.rpgPaired.tick());
     expect((await snapshot(page)).game).toEqual(pending.game); expect(await calls(request, binding.scopeId)).toEqual(before);
-    if (action === 'cancel') {
+    if (action !== 'adopt') {
+      const requests: unknown[] = [];
+      if (action === 'cancel-ack-lost') {
+        await page.route('**/api/operations/stop-decision', async route => {
+          requests.push(route.request().postDataJSON());
+          expect((await route.fetch()).ok()).toBe(true); await route.abort();
+        });
+        await expect(page.evaluate(() => window.rpgPaired.cancel())).rejects.toThrow();
+        const uncertain = await snapshot(page), accepted = (await operations(request, binding.sessionId))[0];
+        expect(uncertain.launch).toMatchObject({ stopped: true, stopAcknowledged: false });
+        expect(uncertain.operation!.link.acknowledged).toBe(pending.operation!.link.acknowledged);
+        expect(accepted.state).toBe('cancelled'); expect(accepted.stopDecision).toEqual(accepted.latestEvent);
+        expect(accepted.wakeRunId).toBeNull(); expect(uncertain.game).toEqual(pending.game);
+        await page.unroute('**/api/operations/stop-decision');
+        await page.route('**/api/operations/stop-decision', async route => {
+          requests.push(route.request().postDataJSON()); await route.continue();
+        });
+        await page.evaluate(() => window.rpgPaired.close()); await page.reload(); await page.waitForFunction(() => !!window.rpgPaired);
+        expect((await request.post(`${provider}/restart`)).ok()).toBe(true);
+        await page.evaluate(() => window.rpgPaired.recover());
+        expect((await snapshot(page)).game).toEqual(pending.game);
+      }
       await page.evaluate(() => window.rpgPaired.cancel());
       const final = await snapshot(page); expect(final.view.state).toBe('cancelled'); expect(final.game).toEqual(pending.game);
+      expect(final.launch).toMatchObject({ stopped: true, stopAcknowledged: true });
+      expect(final.operation!.event).toEqual(decision);
+      expect(final.operation!.link.acknowledged).toBe(final.operation!.link.sequence);
+      const stopped = (await operations(request, binding.sessionId))[0];
+      expect(stopped.state).toBe('cancelled'); expect(stopped.stopDecision).toEqual(stopped.latestEvent);
+      expect(stopped.wakeRunId).toBeNull(); expect(stopped.stopDecision.eventId).toBe(final.operation!.event!.eventId);
+      await page.evaluate(() => window.rpgPaired.cancel()); await page.evaluate(() => window.rpgPaired.tick());
+      expect((await snapshot(page)).game).toEqual(pending.game);
+      expect((await operations(request, binding.sessionId))[0]).toEqual(stopped);
+      if (action === 'cancel-ack-lost') { expect(requests).toHaveLength(2); expect(requests[0]).toEqual(decision); expect(requests[1]).toEqual(decision); }
       expect(await calls(request, binding.scopeId)).toEqual(before);
     } else {
       const original = await operations(request, binding.sessionId);

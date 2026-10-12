@@ -3,6 +3,9 @@
 2026-10-12. A1 remains PARTIAL; the goal is active. Checked candidate
 `aa8815e` on `codex/agentic-game-a1`. This continues the
 [SDK boundary report](a1-rpg-agentica-boundary.md), not a replacement game.
+The later [decision Stop repair](a1-decision-stop.md) closes the genuine paired
+cancellation failure recorded below. This report preserves the earlier evidence;
+new-owner decision adoption remains outstanding.
 
 ## Implemented
 

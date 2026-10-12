@@ -7,7 +7,7 @@ export interface HostOperationEvent {
 }
 export interface AgenticaOperationEntry {
   request: AgenticaStart; action: AgenticaAction; admission?: AgenticaResult; activeEpoch: string;
-  latestEvent?: HostOperationEvent; state: string; wakeRunId?: string;
+  latestEvent?: HostOperationEvent; stopDecision?: HostOperationEvent; state: string; wakeRunId?: string;
   usage: { steps: number; refinements: number; continuations: number; providerCalls: number };
 }
 
@@ -39,6 +39,7 @@ export class AgenticaHost {
   stop(runId: string): Promise<AgenticaMessage>;
   listOperations(request: { hostId: string; sessionId: string; fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry[]>;
   signalOperation(event: HostOperationEvent, options?: { fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry>;
+  stopDecision(event: HostOperationEvent, options?: { fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry>;
   wakeOperation(event: HostOperationEvent): Promise<AgenticaStarted>;
   recover(request: { hostId: string; sessionId: string; fetchImpl?: typeof fetch;
     reconcile?(action: AgenticaAction, record: AgenticaActionRecord | null, entry: unknown): Promise<AgenticaResult | null | undefined>;

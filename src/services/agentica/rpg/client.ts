@@ -10,6 +10,7 @@ import { RpgAgenticaTransport } from './transport';
 import { confirmRpgAdmission, retainedRpgJourney } from './journey';
 import { rpgRunStatus } from './lifecycle';
 import { requireRpg } from './validation';
+import { stopRpgDecision } from './decisionStop';
 
 export interface RpgAgenticaView {
   state: string; connected: boolean; steps: number; replans: number;
@@ -202,6 +203,12 @@ export class RpgAgenticaClient {
     }
     if (retained?.travel.operation.status === 'cancelled' && retained.event?.kind !== 'cancelled')
       await this.deliver(await stageRpgHostEvent(retained.travel.id, this.options.session.ownedControl()), false);
+    if (retained?.event?.kind === 'decision' && !this.launch!.stopAcknowledged) {
+      const event = retained.event;
+      await stopRpgDecision(this.transport, launch, event);
+      await acknowledgeRpgHostEvent(event);
+      this.launch = await markRpgLaunch(launch.id, { stopAcknowledged: true });
+    }
     if (!this.launch!.stopAcknowledged) {
       if (!launch.sent) this.launch = await markRpgLaunch(launch.id, { stopAcknowledged: true });
       else { requireRpg(launch.binding, 'Original service start identity is unresolved; local execution is stopped.'); await this.transport.cancel(); }

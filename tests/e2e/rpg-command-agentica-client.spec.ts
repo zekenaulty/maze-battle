@@ -208,4 +208,5 @@ test('an unbound successor with stale custody is attached only for Stop, never g
   expect(result.error).toContain('custody'); expect(result.child).toBeUndefined(); expect(result.game!.maze.active.column).toBe(3);
   expect(result.view.state).toBe('cancelled');
   expect(result.messages.filter(m => m.type === 'cancel').map(m => m.runId)).toEqual(['run-2']);
+  expect(result.launch!.stopAcknowledged).toBe(true);
 });

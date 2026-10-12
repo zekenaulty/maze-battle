@@ -133,12 +133,12 @@ export class RpgAgenticaTransport {
       && response.payload.sessionId === binding.sessionId && response.payload.sessionEpoch === binding.sessionEpoch
       && response.payload.manifestHash === binding.manifestHash, 'unbound original resume mismatch');
   }
-  async cancel() {
+  async cancel(acknowledgeLaunch = true) {
     const binding = this.binding; if (!binding) return;
     await stopRpgRun(binding.runId);
     requireRpg(this.sdk.connected, 'Local work is stopped; service cancellation needs reconnect.');
     await this.sdk.stop(binding.runId);
-    if (this.launch) await markRpgLaunch(this.launch.id, { stopAcknowledged: true });
+    if (this.launch && acknowledgeLaunch) await markRpgLaunch(this.launch.id, { stopAcknowledged: true });
   }
   close() { this.closed = true; this.ready.reject(new Error('Agentic transport closed.')); this.sdk.close(); }
 }
