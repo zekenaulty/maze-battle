@@ -8,6 +8,8 @@ export function equivalentHostWire(a: unknown, b: unknown, kind: 'event' | 'resu
     for (const name of kind === 'event' ? ['completion', 'nextSessionEpoch', 'usage'] : ['completion', 'operation', 'observation']) {
       if (value[name] === null) delete value[name];
     }
+    const operation = kind === 'result' && value.operation as Record<string, unknown> | undefined;
+    if (operation && operation.usage === null) delete operation.usage;
     const observation = value.observation as Record<string, unknown> | undefined;
     if (observation && typeof observation.observedAt === 'string') {
       const date = observation.observedAt, fraction = date.match(/\.(\d+)(?:Z|[+-]\d\d:\d\d)$/)?.[1];

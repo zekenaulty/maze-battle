@@ -17,4 +17,13 @@ describe('directed wire reconciliation', () => {
     expect(equivalentHostWire(original, { ...original, observation: { ...original.observation,
       observedAt: '2026-10-10T12:00:00.1000001+00:00' } }, 'event')).toBe(false);
   });
+  it('normalizes only the typed optional admission usage field', () => {
+    const result = { ...original, operation: { operationId: 'journey', summary: 'Accepted' } };
+    const service = { ...structuredClone(result), operation: { ...result.operation, usage: null } };
+    expect(equivalentHostWire(result, service, 'result')).toBe(true);
+    expect(service.operation).toHaveProperty('usage', null);
+    expect(equivalentHostWire(result, { ...service, operation: { ...service.operation, usage: {} } }, 'result')).toBe(false);
+    expect(equivalentHostWire(result, { ...result, observation: { ...result.observation, data: { usage: null } } }, 'result')).toBe(false);
+    expect(equivalentHostWire(result, service, 'event')).toBe(false);
+  });
 });
