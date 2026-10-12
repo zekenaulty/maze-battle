@@ -11,8 +11,7 @@ export function projectRpgKnowledge(previous: RpgKnowledge | undefined, observat
     const before = previous.source.revision;
     const after = observation.revision;
     if (after.epoch < before.epoch || after.revision < before.revision
-      || (after.epoch === before.epoch && after.owner !== before.owner)
-      || Date.parse(observation.observedAt) < Date.parse(previous.source.observedAt)) return refused('out_of_order');
+      || (after.epoch === before.epoch && after.owner !== before.owner)) return refused('out_of_order');
     if (previous.source.id === observation.id) return refused('duplicate_source');
   }
   const floor = observation.actor.floor;

@@ -27,7 +27,10 @@ function validAsOf(knowledge: RpgKnowledge, asOf: string) {
 
 function contextCells(cells: readonly RpgRememberedCell[], asOf: string): RpgContextCell[] {
   const included = new Set(cells.map(cell => cellKey(cell.address)));
-  const age = (source: RpgSource) => Date.parse(asOf) - Date.parse(source.observedAt);
+  const age = (source: RpgSource) => {
+    const elapsed = Date.parse(asOf) - Date.parse(source.observedAt);
+    return elapsed < 0 ? null : elapsed;
+  };
   return cells.map(cell => ({ address: cell.address, roomIds: cell.roomIds, chests: cell.chests,
     stairs: cell.stairs, source: cell.source, ageMs: age(cell.source), edges: directions.flatMap(direction => {
       const fact = cell.edges[direction];

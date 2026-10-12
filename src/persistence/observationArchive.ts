@@ -7,7 +7,7 @@ import { canonicalJson } from '../services/agentica/sdk/agentica-host.mjs';
 import { getDatabase, type MazeBattleDb } from './saveRepository';
 import type { SaveControl } from './saveControl';
 import type { RpgHistoryPage, RpgHistoryRequest, RpgObservationNode } from './observationTypes';
-import { ancestorAt, ancestorIndex, observationReader, requireHistory, requireSuccessor, validateObservationNode } from './observationNodes';
+import { ancestorAt, ancestorIndex, observationReader, observationLineage, requireHistory, requireSuccessor, validateObservationNode } from './observationNodes';
 
 type Write = IDBPTransaction<MazeBattleDb, ('saves' | 'meta' | 'observations' | 'gameCommands')[], 'readwrite'>;
 const content = ({ actor, policy, cells }: RpgObservation) => canonicalJson({ actor, policy, cells });
@@ -16,13 +16,14 @@ const content = ({ actor, policy, cells }: RpgObservation) => canonicalJson({ ac
 export async function appendRpgObservation(tx: Write, game: GameState, control: SaveControl, head?: string) {
   const store = tx.objectStore('observations'), reader = observationReader(store, game.id);
   const parent = head === undefined ? undefined : await reader.read(head);
+  if (parent && parent.depth > 1) requireSuccessor(await reader.read(parent.ancestors[0], parent.depth - 1), parent);
   if (game.mode === 'town') return head;
   const observation = observeRpg(game, { id: crypto.randomUUID(), revision: control, observedAt: new Date().toISOString() });
   requireHistory(observation.status === 'observed');
   // A timer/save tick is not a fresh observation of unchanged facts.
   if (parent && content(parent.observation) === content(observation)) return head;
-  const node: RpgObservationNode = { version: 1, id: observation.id, gameId: game.id,
-    depth: (parent?.depth ?? 0) + 1, ancestors: await ancestorIndex(reader, parent), observation };
+  const index = { id: observation.id, gameId: game.id, depth: (parent?.depth ?? 0) + 1, ancestors: await ancestorIndex(reader, parent) };
+  const node: RpgObservationNode = { version: 1, ...index, lineage: observationLineage(index), observation };
   if (parent) requireSuccessor(parent, node);
   await store.add(validateObservationNode(node, node.id, game.id));
   return node.id;

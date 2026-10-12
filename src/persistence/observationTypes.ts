@@ -8,6 +8,7 @@ export interface RpgObservationNode {
   depth: number;
   /** ancestors[k] is the source 2**k records before this one. */
   ancestors: string[];
+  lineage: string;
   observation: RpgObservation;
 }
 

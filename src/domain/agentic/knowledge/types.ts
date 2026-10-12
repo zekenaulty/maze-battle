@@ -83,7 +83,8 @@ export interface RpgKnownRoute {
 }
 export interface RpgContextCell extends RpgCellDetails {
   readonly source: RpgSource;
-  readonly ageMs: number;
+  /** Null when clock correction prevents a meaningful wall-clock age. Source order is revision-based. */
+  readonly ageMs: number | null;
   readonly edges: readonly { readonly direction: Direction; readonly state: 'open' | 'blocked';
-    readonly source: RpgSource; readonly ageMs: number }[];
+    readonly source: RpgSource; readonly ageMs: number | null }[];
 }

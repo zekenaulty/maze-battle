@@ -1,19 +1,25 @@
 import { validateRpgObservation } from '../domain/agentic/knowledge/validateObservation';
 import { integer, validId } from '../domain/agentic/knowledge/shared';
 import type { RpgObservationNode } from './observationTypes';
+import { canonicalJson } from '../services/agentica/sdk/agentica-host.mjs';
 
 type Store = { get(id: string): Promise<RpgObservationNode | undefined> };
 export function requireHistory(condition: unknown): asserts condition {
   if (!condition) throw new Error('Invalid or unavailable observation history. Existing evidence was preserved.');
 }
 
+/** Redundant canonical witness detects index corruption; it is not an authentication signature. */
+export const observationLineage = ({ id, gameId, depth, ancestors }: Pick<RpgObservationNode, 'id' | 'gameId' | 'depth' | 'ancestors'>) =>
+  canonicalJson({ id, gameId, depth, ancestors });
+
 export function validateObservationNode(value: unknown, id: string, gameId: string): RpgObservationNode {
   const node = value as RpgObservationNode | undefined;
-  requireHistory(node && Object.keys(node).sort().join(',') === 'ancestors,depth,gameId,id,observation,version');
+  requireHistory(node && Object.keys(node).sort().join(',') === 'ancestors,depth,gameId,id,lineage,observation,version');
   requireHistory(node.version === 1 && node.id === id && validId(id) && node.gameId === gameId && integer(node.depth, 1));
   const count = node.depth === 1 ? 0 : Math.floor(Math.log2(node.depth - 1)) + 1;
   requireHistory(Array.isArray(node.ancestors) && node.ancestors.length === count
     && node.ancestors.every(a => validId(a) && a !== id) && new Set(node.ancestors).size === count);
+  requireHistory(node.lineage === observationLineage(node));
   const observation = validateRpgObservation(node.observation);
   requireHistory(observation.id === id && observation.gameId === gameId);
   return { ...node, ancestors: [...node.ancestors], observation };
@@ -42,8 +48,7 @@ export function requireSuccessor(parent: RpgObservationNode, child: RpgObservati
   const a = parent.observation, b = child.observation;
   requireHistory(parent.gameId === child.gameId && parent.depth + 1 === child.depth && child.ancestors[0] === parent.id
     && b.revision.epoch >= a.revision.epoch && b.revision.revision >= a.revision.revision
-    && (b.revision.epoch !== a.revision.epoch || b.revision.owner === a.revision.owner)
-    && Date.parse(b.observedAt) >= Date.parse(a.observedAt));
+    && (b.revision.epoch !== a.revision.epoch || b.revision.owner === a.revision.owner));
 }
 
 export async function ancestorAt(reader: ObservationReader, head: RpgObservationNode, depth: number) {

@@ -3,6 +3,22 @@ import { roomAt } from '../../automation/autopilotTestFixtures';
 import { rpgLocalContext, rpgRoomContext } from './index';
 import { address, fixture, observed, projected, time } from './fixtures.test-support';
 
+it('represents an indeterminate age as null after a clock correction without refreshing old sources', () => {
+  const game = fixture(20, 4);
+  game.maze.layout = undefined;
+  const first = projected(observed(game));
+  game.maze.visibility!.radius = 0;
+  const newer = projected({ ...observed(game, 2), observedAt: time(0) }, first);
+  const context = rpgLocalContext(newer, address(0), { radius: 1, maxCells: 2, asOf: time(0) });
+  expect(context.status).toBe('ready');
+  if (context.status === 'ready') {
+    expect(context.cells.find(c => c.address.column === 0)!.ageMs).toBe(0);
+    expect(context.cells.find(c => c.address.column === 1)!.ageMs).toBeNull();
+    expect(context.cells.find(c => c.address.column === 1)!.source).toEqual(first.floors[1].cells['0:1'].source);
+    expect(context.cells[0].edges.find(e => e.state === 'open')!.ageMs).toBeNull();
+  }
+});
+
 describe('bounded remembered RPG context', () => {
   it('reports cell and edge ages independently without refreshing sources during recall', () => {
     const game = fixture(20, 4);

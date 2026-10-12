@@ -89,7 +89,7 @@ describe('immutable RPG knowledge projection', () => {
     expect(projectRpgKnowledge(first, { ...secondReceipt, revision: { owner: 'other', epoch: 1, revision: 2 } }))
       .toEqual({ status: 'refused', reason: 'out_of_order' });
     expect(projectRpgKnowledge(first, { ...secondReceipt, revision: { owner: 'other', epoch: 2, revision: 2 } }).status).toBe('known');
-    expect(projectRpgKnowledge(first, { ...secondReceipt, observedAt: time(0) })).toEqual({ status: 'refused', reason: 'out_of_order' });
+    expect(projectRpgKnowledge(first, { ...secondReceipt, observedAt: time(0) }).status).toBe('known');
   });
 
   it('does not freeze loaded input or mutate a caller-owned source archive', () => {
