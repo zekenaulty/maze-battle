@@ -1,9 +1,26 @@
 # Two-Dungeon Qualification: Earned Knowledge and Intentional Play
 
-Status: proposed acceptance specification, NOT RUN. Integrated revision 1,
-2026-10-11. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
+Status: acceptance specification with PARTIAL provider-free implementation.
+Integrated revision 2, 2026-10-12. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
 sequenced behind the dungeon repair in [the next-slices plan](agentic-play-next-slices.md).
 This is a game-owned scenario configuration, not a separate game implementation.
+
+The [A3 evidence report](reviews/a3-quest-retrieval.md) qualifies the authored A/B
+trajectory through actual-game collection and return, including selected recovery
+cases. It does not qualify the entire matrix below or live model competence.
+
+| Current gate | Evidence level / disposition |
+| --- | --- |
+| Cold start, earned junction evidence and changed intention | PASS in authored native/real-service A/B fixtures; three initially disclosed cells, no discovery prelude. |
+| Explicit collection and host-proven return | PASS at `3b54d9b`; real pack collectible, ordinary quest progress and return position jointly required. |
+| Effect custody and selected recovery | PASS for duplicate native delivery, rollback/deadlines, reload, lost effect reply, explicit adoption, busy refusal and Stop. Broader Q checkpoint matrix remains. |
+| Known-destination regression | PASS, ten paired service cases retained in the 22-case aggregate. |
+| Full counterfactual UI/tool/memory/progress matrix | PARTIAL; earlier A2 learned-route checks remain, full cross-surface comparison not yet qualified. |
+| Room-level exploration and human/tool perception parity | NOT QUALIFIED; forced-corridor continuation is not a room policy. |
+| Generated retrieval and growing-world read/work | NOT QUALIFIED by the authored small corpus. D1 generator evidence is separate; one old deep-floor unit timing gate currently fails. |
+| Live model competence | NOT RUN; separate owner-approved limits/authorization required. |
+
+None of these dispositions changes the acceptance requirements that follow.
 
 ## Question and Evidence Levels
 

@@ -3,8 +3,8 @@
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and
 real-service query/choice/decision proof and explicit earned-corridor continuation;
-whole-A2, A3/Q runtime qualification remains outstanding.
-2026-10-12. Revision 17. [D1 evidence](reviews/d1-qualification.md),
+bounded A3 retrieval/effect/recovery is now checked; whole-A2/Q remains outstanding.
+2026-10-12. Revision 18. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -16,7 +16,7 @@ D0 added offline diagnostics and review evidence only. D1's actual RPG repair is
 qualified at `b237160`; the linked ledger records scale limits rather than
 claiming infinite-world performance. A1's [explicit interaction / click travel
 sub-slice](reviews/a1-interaction-controls.md) is checked at `e0be2f1`; its durable
-controller/service qualification is recorded below; A2-A3/Q runtime work remains outstanding. A1's next checked
+controller/service qualification is recorded below; broader A2/Q work remains outstanding. A1's next checked
 sub-slice adds [atomic internal command receipts and earned-knowledge functions](reviews/a1-command-custody.md)
 at `58476db`. [Snapshot-bound source archival](reviews/a1-observation-archive.md)
 is checked through reviewed repair `6bad40e`. [Scoped durable memory](reviews/a1-scoped-memory.md)
@@ -46,8 +46,16 @@ restart/adoption through Agentica; it also repairs transferred-epoch successors.
 [Explicit corridor continuation](reviews/a2-corridor-continuation.md) now follows
 reciprocal observed passages under the original intention/grant and yields on
 new junction/object/changed evidence, including before the selected anchor.
-The full discovery/collection corpus, room-level exploration choices, human/tool
-parity and scale qualification remain outstanding.
+The [A3 shared quest retrieval slice](reviews/a3-quest-retrieval.md), checked at
+`3b54d9b`, now carries both authored A/B worlds through deliberate ordinary chest
+collection and host-proven return. It preserves a durable interaction decision
+across restart/lost replies and explicit adoption or Stop. This adds physical
+collectibles to ordinary accepted fetch quests, not a harness-only inventory.
+The full fixed-action information matrix, room-level exploration choices,
+human/tool parity and generated/growing-world qualification remain outstanding.
+The full unit run also exposed a repeatable 60-second timeout in the unchanged
+legacy `spaces-v2` level-1000 diagnostic; its correctness checks pass but its
+timing gate does not. A separate performance investigation is in progress.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -104,7 +112,8 @@ D0 is complete at the bounded offline diagnostic/review level; D1's finite RPG
 repair has integrated qualification; A0 source mapping is reviewed. A1's shared
 interaction/quest-policy cleanup, local durable SDK boundary and bounded
 controller/service gate are checked; A2's native frontier and bounded service
-handoff slices are checked, but broader A2 and A3/Q remain incomplete. Each produces
+handoff slices and bounded A3 retrieval are checked, but broader A2/Q remain
+incomplete. Each produces
 its own reviewable commit and evidence; none is permission
 to declare later slices complete.
 
