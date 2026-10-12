@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { RpgPerceivedCell, RpgPerceptionRegion } from '../domain/agentic/knowledge/perceptionTypes';
 import type { RpgObservedCell, RpgRememberedCell, RpgSource, RpgStair } from '../domain/agentic/knowledge/types';
 import type { Direction } from '../domain/types';
 import { isCellExplored, isCellVisible } from '../domain/maze/visibility';
+import { linkMap } from '../domain/maze/movement';
 import { collectWalls } from '../components/maze/drawMaze';
 import { isInViewport } from '../components/maze/mazeCamera';
+import { appendMazeFloorPath } from '../components/maze/mazeFloorPath';
 import { createPerceivedMazeView, type PerceivedMazeView } from './perceivedMaze';
 
 const source: RpgSource = { id: 'receipt-1', gameId: 'game-1', observedAt: '2026-10-12T00:00:00Z',
@@ -141,6 +143,7 @@ describe('receipt-only perceived maze projection', () => {
     view.maze.end.column++;
     view.maze.active.column++;
     view.viewport.rowStart++;
+    view.origin.row++;
     view.visibility.visible.clear();
     expect(input).toEqual(before);
     expect(createPerceivedMazeView(input, 'east').maze.active).toEqual({ row: 0, column: 0 });
@@ -168,9 +171,16 @@ describe('receipt-only perceived maze projection', () => {
       scope: { floor: 1, row: 1_000_000, column: 2_000_000, rows, columns },
     }), 'south');
     expect(view.maze.cells).toHaveLength(1024);
+    expect(view.maze.rows).toBe(rows);
+    expect(view.maze.columns).toBe(columns);
     expect(view.visibility.explored.size).toBe(1024);
     expect(view.visibility.visible.size).toBe(0);
-    expect(walls(view)).toEqual({ horizontal: new Set(), vertical: new Set() });
+    for (const viewport of [view.viewport, undefined]) {
+      const cells = linkMap(view.maze);
+      const get = vi.spyOn(cells, 'get');
+      expect(collectWalls(view.maze, cells, viewport, view.visibility)).toEqual({ horizontal: new Set(), vertical: new Set() });
+      expect(get).toHaveBeenCalledTimes(1024);
+    }
   });
 
   it.each([
@@ -189,26 +199,61 @@ describe('receipt-only perceived maze projection', () => {
       remembered(4, 5, { stairs: ['down'], chests: [chest(4, 5)] }),
       visible(0, 0, { stairs: ['down'], chests: [chest(0, 0)] }),
     ], { scope: { floor: 2, row: 4, column: 5, rows: 2, columns: 2 }, actor: at(4, 6) }), 'south');
-    expect(view.viewport).toEqual({ rowStart: 4, rowEnd: 6, columnStart: 5, columnEnd: 7, rows: 2, columns: 2 });
-    expect(view.maze).toMatchObject({ rows: 6, columns: 7, start: { row: 4, column: 5 } });
+    expect(view.origin).toEqual({ row: 4, column: 5 });
+    expect(view.viewport).toEqual({ rowStart: 0, rowEnd: 2, columnStart: 0, columnEnd: 2, rows: 2, columns: 2 });
+    expect(view.maze).toMatchObject({ rows: 2, columns: 2, start: { row: 0, column: 0 } });
     expect(view.maze.cells).toHaveLength(2);
     expect(view.chests).toEqual([]);
-    expect(isInViewport(view.maze.end, view.viewport)).toBe(false);
-    expect(isInViewport(view.maze.active, view.viewport)).toBe(false);
+    expect(view.maze.end).toEqual({ row: -1, column: -1 });
+    expect(view.maze.active).toEqual({ row: -1, column: -1 });
   });
 
-  it.each([0, 1_000_000, Number.MAX_SAFE_INTEGER - 64])('keeps allocation bounded at coordinate %s', offset => {
-    const view = createPerceivedMazeView(region([visible(offset, offset), remembered(offset + 1, offset + 1)], {
-      scope: { floor: 1, row: offset, column: offset, rows: 64, columns: 16 }, actor: at(offset, offset),
-    }), 'south');
-    expect(view.viewport).toEqual({ rowStart: offset, rowEnd: offset + 64, columnStart: offset, columnEnd: offset + 16, rows: 64, columns: 16 });
-    expect(view.maze.rows).toBe(offset + 64);
-    expect(view.maze.columns).toBe(offset + 16);
-    expect(view.maze.cells).toHaveLength(2);
-    expect(view.maze.visited).toHaveLength(0);
-    expect(view.visibility.explored.size).toBe(2);
-    expect(view.maze.active).toEqual({ row: offset, column: offset });
-    expect(walls(view)).toEqual({ horizontal: new Set(), vertical: new Set() });
+  it.each([
+    [0, 0], [1_000_000, 2_000_000], [Number.MAX_SAFE_INTEGER - 64, Number.MAX_SAFE_INTEGER - 16],
+  ])('projects identical local geometry at world origin %s, %s', (row, column) => {
+    const project = (r: number, c: number) => createPerceivedMazeView(region([
+      visible(r, c, { blocked: ['north', 'west'], stairs: ['town'] }),
+      remembered(r, c + 1, { edges: { west: { state: 'blocked', source }, east: { state: 'blocked', source } } }),
+      remembered(r + 1, c + 1, { stairs: ['down'], chests: [chest(r + 1, c + 1)] }),
+      visible(r + 63, c + 15, { blocked: directions }),
+    ], { scope: { floor: 1, row: r, column: c, rows: 64, columns: 16 }, actor: at(r + 63, c + 15) }), 'east');
+    const view = project(row, column);
+    const { origin, ...geometry } = view;
+    const { origin: baselineOrigin, ...baseline } = project(0, 0);
+    expect(origin).toEqual({ row, column });
+    expect(baselineOrigin).toEqual({ row: 0, column: 0 });
+    expect(geometry).toEqual(baseline);
+    expect(view.viewport).toEqual({ rowStart: 0, rowEnd: 64, columnStart: 0, columnEnd: 16, rows: 64, columns: 16 });
+    expect(view.maze).toMatchObject({ rows: 64, columns: 16, active: { row: 63, column: 15 },
+      start: { row: 0, column: 0 }, end: { row: 1, column: 1 } });
+    expect(view.chests).toEqual([{ row: 1, column: 1 }]);
+    expect(view.visibility).toEqual({ radius: 0, visible: new Set(['0:0', '63:15']), explored: new Set(['0:0', '0:1', '1:1', '63:15']) });
+    // Future hit testing adds origin only after validating a scope-local position.
+    expect({ row: origin.row + view.maze.active.row, column: origin.column + view.maze.active.column })
+      .toEqual({ row: row + 63, column: column + 15 });
+    for (const viewport of [view.viewport, undefined]) {
+      const cells = linkMap(view.maze);
+      const get = vi.spyOn(cells, 'get');
+      const network = collectWalls(view.maze, cells, viewport, view.visibility);
+      expect(network).toEqual(walls(project(0, 0)));
+      expect(network.vertical.has('0:1')).toBe(false);
+      expect(get).toHaveBeenCalledTimes(1024);
+      const rect = vi.fn();
+      const floorCells = appendMazeFloorPath({ rect } as unknown as CanvasRenderingContext2D,
+        view.maze, 10, 0, 0, viewport, cell => isCellVisible(view.visibility, cell));
+      expect(floorCells).toEqual(new Set([0, 1023]));
+      expect(rect.mock.calls).toEqual([[0, 0, 10, 10], [150, 630, 10, 10]]);
+    }
+  });
+
+  it('keeps absent markers at the same sentinel after translating an empty scope', () => {
+    const scope = { floor: 1, row: Number.MAX_SAFE_INTEGER - 3, column: Number.MAX_SAFE_INTEGER - 3, rows: 3, columns: 3 };
+    const { origin, ...view } = createPerceivedMazeView(region([], { scope }), 'south');
+    const { origin: baselineOrigin, ...baseline } = createPerceivedMazeView(region(), 'south');
+    expect(origin).toEqual({ row: scope.row, column: scope.column });
+    expect(baselineOrigin).toEqual({ row: 0, column: 0 });
+    expect(view).toEqual(baseline);
+    for (const marker of [view.maze.start, view.maze.end, view.maze.active]) expect(marker).toEqual({ row: -1, column: -1 });
   });
 
   it.each([
