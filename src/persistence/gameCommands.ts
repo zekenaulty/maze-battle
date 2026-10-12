@@ -42,7 +42,7 @@ export async function commitGameCommandInTransaction(tx: GameWrite, request: Gam
     const store = tx.objectStore('gameCommands'), stored = await store.get(input.attemptId);
     const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY));
     const previous = await tx.objectStore('saves').get('auto');
-    const current = control && previous ? { control, game: previous.game } : undefined;
+    const current = control && previous ? { control, game: previous.game, observationHead: previous.observationHead } : undefined;
     // The original wins even after deadline, manual play, replacement or takeover.
     if (stored) {
       const receipt = validateCommandReceipt(stored, input, fingerprint);
@@ -67,7 +67,7 @@ export async function commitGameCommandInTransaction(tx: GameWrite, request: Gam
       await tx.objectStore('saves').put({ ...previous!, game: applied.game, updatedAt: applied.game.updatedAt,
         ...(observationHead ? { observationHead } : {}) });
       await putControl(tx, afterControl);
-      next = { control: afterControl, game: applied.game };
+      next = { control: afterControl, game: applied.game, observationHead };
       outcome = applied.outcome;
     }
     const receipt: GameCommandReceipt = { version: 1, attemptId: input.attemptId, fingerprint, gameId: input.gameId,

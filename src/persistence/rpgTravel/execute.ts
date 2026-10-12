@@ -57,7 +57,7 @@ export async function commitRpgTravelInTransaction(tx: GameWrite, request: RpgTr
 
 export async function currentGame(tx: GameWrite) {
   const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY)), slot = await tx.objectStore('saves').get('auto');
-  return control && slot ? { control, game: slot.game } : undefined;
+  return control && slot ? { control, game: slot.game, observationHead: slot.observationHead } : undefined;
 }
 
 async function applyTravel(tx: GameWrite, input: RpgTravelRequest, rejectUnavailableStart: boolean): Promise<Pick<RpgTravelReceipt, 'disposition' | 'reason' | 'travel' | 'command'>> {

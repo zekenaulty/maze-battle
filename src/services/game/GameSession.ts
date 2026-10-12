@@ -22,7 +22,7 @@ import { advanceRpgHostOperation } from '../../persistence/rpgAgentica/advance';
 import { RpgWorkCancelled } from '../../persistence/rpgAgentica/transaction';
 
 export interface GameSessionView {
-  game?: GameState; telemetry?: PlayTelemetry; saves: SaveSummary[];
+  game?: GameState; observationHead?: string; telemetry?: PlayTelemetry; saves: SaveSummary[];
   status: string; controlled: boolean; warning?: string;
 }
 
@@ -90,7 +90,7 @@ export class GameSession {
     this.diagnosticsWritable = true;
     try { telemetry = await loadTelemetry(state.game.id); }
     catch { this.diagnosticsWritable = false; }
-    this.publish({ game: state.game, telemetry: telemetry ?? createPlayTelemetry(state.game.id),
+    this.publish({ game: state.game, observationHead: state.observationHead, telemetry: telemetry ?? createPlayTelemetry(state.game.id),
       controlled: this.active && state.control.owner === this.owner && (!this.lock.supported || this.lock.held) });
   }
 
@@ -101,7 +101,7 @@ export class GameSession {
       if (!this.active) return;
       const latest = await readGameControl();
       if (latest.control && latest.game && (!sameOwner(latest.control, this.control) || latest.control.revision !== this.control?.revision)) {
-        await this.adopt({ control: latest.control, game: latest.game });
+        await this.adopt({ control: latest.control, game: latest.game, observationHead: latest.observationHead });
         if (!this.view.controlled) this.publish({ status: 'Read only: another tab controls this game.' });
       }
     }).finally(() => { this.refreshPending = false; });
@@ -143,7 +143,7 @@ export class GameSession {
         return after;
       });
       this.control = next.control;
-      this.publish({ game: next.game, telemetry: trace, status: 'Saved' });
+      this.publish({ game: next.game, observationHead: next.observationHead, telemetry: trace, status: 'Saved' });
       await this.persistTrace(trace, next.control);
     }).catch(() => {}).finally(() => { if (automatic) this.autoPending = false; });
   };

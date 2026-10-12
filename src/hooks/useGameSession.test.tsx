@@ -7,6 +7,7 @@ import { useGameSession } from './useGameSession';
 
 const storage = vi.hoisted(() => ({
   claimGame: vi.fn(), readGameControl: vi.fn(), updateOwnedGame: vi.fn(), changeOwnedSave: vi.fn(),
+  loadOwnedGame: vi.fn(), replaceOwnedGame: vi.fn(),
   getGame: vi.fn(), listSaves: vi.fn(), loadTelemetry: vi.fn(), saveTelemetry: vi.fn(),
 }));
 vi.mock('../persistence/gameCustody', () => storage);
@@ -27,6 +28,77 @@ beforeEach(() => {
 });
 
 describe('game session persistence', () => {
+  it.each(['claimed-head', undefined])('publishes the initial claim with its exact head: %s', async observationHead => {
+    const game = createNewGameState();
+    storage.claimGame.mockImplementation(async owner => ({ game, observationHead, control: { owner, epoch: 1, revision: 1 } }));
+    const { result, unmount } = renderHook(useGameSession);
+    await waitFor(() => expect(result.current.controlled).toBe(true));
+    expect(result.current.game).toBe(game);
+    expect(result.current.observationHead).toBe(observationHead);
+    unmount();
+  });
+
+  it('publishes each manual transition with its returned head, including clearing a previous head', async () => {
+    const { result, unmount } = renderHook(useGameSession);
+    await waitFor(() => expect(result.current.controlled).toBe(true));
+    for (const observationHead of ['transition-head', undefined]) {
+      const game = { ...result.current.game!, mode: observationHead ? 'manual' as const : 'town' as const };
+      storage.updateOwnedGame.mockImplementationOnce(async control => ({ game, observationHead,
+        control: { ...control, revision: control.revision + 1 } }));
+      act(() => result.current.transition(() => game, { source: 'manual', action: 'test' }));
+      await act(() => result.current.flush());
+      expect(result.current.game).toBe(game);
+      expect(result.current.observationHead).toBe(observationHead);
+    }
+    unmount();
+  });
+
+  it('refreshes game and head together, then adopts the takeover head', async () => {
+    const { result, unmount } = renderHook(useGameSession);
+    await waitFor(() => expect(result.current.controlled).toBe(true));
+    const control = { owner: 'other-tab', epoch: 2, revision: 2 };
+    for (const observationHead of ['refreshed-head', undefined]) {
+      const game = createNewGameState();
+      control.revision++;
+      storage.readGameControl.mockResolvedValue({ game, observationHead, control: { ...control } });
+      await act(() => result.current.controller.refresh());
+      expect(result.current.game).toBe(game);
+      expect(result.current.observationHead).toBe(observationHead);
+      expect(result.current.controlled).toBe(false);
+    }
+    const game = createNewGameState();
+    storage.claimGame.mockImplementationOnce(async owner => ({ game, observationHead: 'takeover-head',
+      control: { owner, epoch: 3, revision: 5 } }));
+    await act(() => result.current.takeControl());
+    expect(result.current.game).toBe(game);
+    expect(result.current.observationHead).toBe('takeover-head');
+    expect(result.current.controlled).toBe(true);
+    unmount();
+  });
+
+  it('adopts load and replacement heads from custody, never a separate slot read or the previous view', async () => {
+    const { result, unmount } = renderHook(useGameSession);
+    await waitFor(() => expect(result.current.controlled).toBe(true));
+    storage.getGame.mockResolvedValue({ label: 'Manual', observationHead: 'stale-separate-read' });
+    for (const observationHead of ['loaded-head', undefined]) {
+      const game = createNewGameState();
+      storage.loadOwnedGame.mockImplementationOnce(async control => ({ game, observationHead,
+        control: { ...control, revision: control.revision + 1 } }));
+      await act(() => result.current.loadSave('manual'));
+      expect(result.current.game).toBe(game);
+      expect(result.current.observationHead).toBe(observationHead);
+    }
+    for (const observationHead of ['replacement-head', undefined]) {
+      const game = createNewGameState();
+      storage.replaceOwnedGame.mockImplementationOnce(async control => ({ game, observationHead,
+        control: { ...control, revision: control.revision + 1 } }));
+      await act(() => result.current.replaceGame(game));
+      expect(result.current.game).toBe(game);
+      expect(result.current.observationHead).toBe(observationHead);
+    }
+    unmount();
+  });
+
   it('preserves existing diagnostics when their read fails, without preventing game saves', async () => {
     storage.loadTelemetry.mockRejectedValue(new Error('temporary read failure'));
     const { result, unmount } = renderHook(useGameSession);

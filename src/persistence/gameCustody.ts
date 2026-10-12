@@ -4,14 +4,14 @@ import { getDatabase } from './saveRepository';
 import { AUTO_CONTROL_KEY, decodeControl, putControl, requireControl, type SaveControl } from './saveControl';
 import { appendRpgObservation } from './observationArchive';
 
-export interface OwnedGame { control: SaveControl; game: GameState }
+export interface OwnedGame { control: SaveControl; game: GameState; observationHead?: string }
 
 export async function readGameControl() {
   const db = await getDatabase(), tx = db.transaction(['meta', 'saves'], 'readonly');
   const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY));
   const slot = await tx.objectStore('saves').get('auto');
   await tx.done;
-  return { control, game: slot?.game };
+  return { control, game: slot?.game, observationHead: slot?.observationHead };
 }
 
 export async function claimGame(owner: string, takeover = false): Promise<OwnedGame> {
@@ -26,12 +26,13 @@ export async function claimGame(owner: string, takeover = false): Promise<OwnedG
       await putControl(tx, control);
     }
     const game = previous ? normalizeGameState(previous.game) : createNewGameState();
+    let observationHead = previous?.observationHead;
     if (control.owner === owner) {
-      const head = await appendRpgObservation(tx, game, control, previous?.observationHead);
-      await tx.objectStore('saves').put(autoSlot(game, previous, head));
+      observationHead = await appendRpgObservation(tx, game, control, observationHead);
+      await tx.objectStore('saves').put(autoSlot(game, previous, observationHead));
     }
     await tx.done;
-    return { control, game };
+    return { control, game, observationHead };
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
 }
 
@@ -70,7 +71,7 @@ async function writeOwnedGame(expected: SaveControl, update: (game: GameState) =
     await tx.objectStore('saves').put(autoSlot(game, previous, head));
     await putControl(tx, next);
     await tx.done;
-    return { control: next, game };
+    return { control: next, game, observationHead: head };
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
 }
 
