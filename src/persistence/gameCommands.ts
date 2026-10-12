@@ -6,6 +6,7 @@ import type { OwnedGame } from './gameCustody';
 import type { GameCommandReceipt, GameCommandRequest } from './gameCommandTypes';
 import { commandFingerprint, validateCommandReceipt } from './gameCommandValidation';
 import { appendRpgObservation } from './observationArchive';
+import type { GameWrite } from './gameTransaction';
 
 export interface GameCommandCommit { receipt: GameCommandReceipt; replayed: boolean; current?: OwnedGame }
 
@@ -25,10 +26,19 @@ export function settleGameCommand(request: GameCommandRequest): Promise<GameComm
 }
 
 async function commit(request: GameCommandRequest, settleOnly: boolean): Promise<GameCommandCommit> {
-  const fingerprint = commandFingerprint(request), input: GameCommandRequest = JSON.parse(fingerprint);
+  commandFingerprint(request);
   const db = await getDatabase(), tx = db.transaction(['meta', 'saves', 'gameCommands', 'observations'], 'readwrite');
   void tx.done.catch(() => {});
   try {
+    const result = await commitGameCommandInTransaction(tx, request, settleOnly);
+    await tx.done;
+    return result;
+  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
+}
+
+/** Caller owns completion/abort; travel progress can join the same ordinary effect. */
+export async function commitGameCommandInTransaction(tx: GameWrite, request: GameCommandRequest, settleOnly = false): Promise<GameCommandCommit> {
+    const fingerprint = commandFingerprint(request), input: GameCommandRequest = JSON.parse(fingerprint);
     const store = tx.objectStore('gameCommands'), stored = await store.get(input.attemptId);
     const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY));
     const previous = await tx.objectStore('saves').get('auto');
@@ -36,7 +46,6 @@ async function commit(request: GameCommandRequest, settleOnly: boolean): Promise
     // The original wins even after deadline, manual play, replacement or takeover.
     if (stored) {
       const receipt = validateCommandReceipt(stored, input, fingerprint);
-      await tx.done;
       return { receipt, replayed: true, current };
     }
     let reason: 'settled' | 'conflict' | 'expired' | undefined;
@@ -67,7 +76,5 @@ async function commit(request: GameCommandRequest, settleOnly: boolean): Promise
     validateCommandReceipt(receipt, input, fingerprint);
     if (!reason && Date.now() >= input.deadlineAt) throw new Error('Game command expired before commit. Reconcile its original attempt.');
     await store.add(receipt);
-    await tx.done;
     return { receipt, replayed: false, current: next };
-  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
 }

@@ -1,15 +1,15 @@
-import type { IDBPTransaction } from 'idb';
 import { observeRpg } from '../domain/agentic/knowledge/observe';
 import { integer, validId } from '../domain/agentic/knowledge/shared';
 import type { RpgObservation } from '../domain/agentic/knowledge/types';
 import type { GameState } from '../domain/types';
 import { canonicalJson } from '../services/agentica/sdk/agentica-host.mjs';
-import { getDatabase, type MazeBattleDb } from './saveRepository';
+import { getDatabase } from './saveRepository';
+import type { GameWrite } from './gameTransaction';
 import type { SaveControl } from './saveControl';
 import type { RpgHistoryPage, RpgHistoryRequest, RpgObservationNode } from './observationTypes';
 import { ancestorAt, ancestorIndex, observationReader, observationLineage, requireHistory, requireSuccessor, validateObservationNode } from './observationNodes';
 
-type Write = IDBPTransaction<MazeBattleDb, ('saves' | 'meta' | 'observations' | 'gameCommands')[], 'readwrite'>;
+type Write = GameWrite;
 const content = ({ actor, policy, cells }: RpgObservation) => canonicalJson({ actor, policy, cells });
 
 /** Called only inside the real save/effect transaction. Never imports legacy fog as evidence. */

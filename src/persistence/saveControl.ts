@@ -1,9 +1,8 @@
-import type { IDBPTransaction } from 'idb';
-import type { MazeBattleDb } from './saveRepository';
+import type { GameWrite } from './gameTransaction';
 
 export const AUTO_CONTROL_KEY = 'control:auto';
 export interface SaveControl { owner: string; epoch: number; revision: number }
-type ControlTransaction = IDBPTransaction<MazeBattleDb, ('saves' | 'meta' | 'telemetry' | 'gameCommands' | 'observations')[], 'readwrite'>;
+type ControlTransaction = GameWrite;
 
 export class SaveOwnershipError extends Error {
   constructor() { super('Another tab owns this game. Take control to continue.'); }

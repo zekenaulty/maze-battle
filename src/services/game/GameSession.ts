@@ -12,6 +12,10 @@ import { BrowserSaveLock } from './BrowserSaveLock';
 import type { GameCommand } from '../../domain/gameCommands';
 import type { GameCommandRequest } from '../../persistence/gameCommandTypes';
 import { executeOwnedGameCommand, settleGameCommand } from '../../persistence/gameCommands';
+import { executeRpgTravel } from '../../persistence/rpgTravel/execute';
+import { readRpgTravel } from '../../persistence/rpgTravel/read';
+import { prepareRpgMemory } from '../../persistence/rpgMemory/prepare';
+import type { RpgTravelAction, RpgTravelRequest } from '../../persistence/rpgTravel/types';
 
 export interface GameSessionView {
   game?: GameState; telemetry?: PlayTelemetry; saves: SaveSummary[];
@@ -168,6 +172,31 @@ export class GameSession {
 
   // Recovery is read/settlement only; it is valid after the old owner has lost control.
   reconcileCommand = async (request: GameCommandRequest) => (await settleGameCommand(structuredClone(request))).receipt;
+
+  prepareTravelMemory = () => this.enqueue(() => prepareRpgMemory('auto', { maxSources: 4 }));
+  readTravel = readRpgTravel;
+  travelRequest = (operationId: string, action: RpgTravelAction, attemptId = crypto.randomUUID(), deadlineAt = Date.now() + 120_000): RpgTravelRequest => {
+    if (!this.view.controlled || !this.control || !this.view.game) throw new SaveOwnershipError();
+    return structuredClone({ operationId, action, attemptId, deadlineAt, gameId: this.view.game.id, control: this.control });
+  };
+  executeTravel = (request: RpgTravelRequest) => {
+    const original = structuredClone(request);
+    return this.owned(async () => {
+      const before = this.view.game, trace = this.view.telemetry;
+      const result = await executeRpgTravel(original);
+      const latest = await readGameControl();
+      if (latest.control && latest.game) await this.adopt({ control: latest.control, game: latest.game });
+      this.publish({ status: result.receipt.reason });
+      if (!result.replayed && result.receipt.command && before && latest.game && latest.control) {
+        const nextTrace = recordTransition(trace ?? createPlayTelemetry(before.id), before, latest.game,
+          { source: 'system', action: 'agentic-travel-step' });
+        this.publish({ telemetry: nextTrace });
+        await this.persistTrace(nextTrace, latest.control);
+      }
+      return result.receipt;
+    });
+  };
+  reconcileTravel = async (request: RpgTravelRequest) => (await executeRpgTravel(structuredClone(request), true)).receipt;
 
   private async persistTrace(trace: PlayTelemetry | undefined, control: SaveControl) {
     if (!this.diagnosticsWritable || !trace) { this.publish({ status: 'Saved; diagnostics storage unavailable' }); return; }

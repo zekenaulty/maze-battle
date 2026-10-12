@@ -38,7 +38,7 @@ test('v4 source evidence and save heads survive v5 migration and seed the derive
       source: await db.get('observations', id), revision, control: (await h.custody.readGameControl()).control,
       memory: await h.memory.readRpgCells('auto', [1, 2].map(column => ({ floor: 1, row: 0, column }))) };
   });
-  expect(result.version).toBe(5);
+  expect(result.version).toBe(6);
   expect(result.prepared.status).toBe('ready');
   expect(result.saved).toEqual(result.slot);
   expect(result.source).toEqual(result.node);
