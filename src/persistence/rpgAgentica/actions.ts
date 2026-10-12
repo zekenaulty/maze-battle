@@ -17,7 +17,9 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false) {
   const input: AgenticaAction = JSON.parse(boundedJson(action, 8192));
   return rpgAgenticaWrite(async tx => {
     const key = actionKey(input), retained = await rpgActionAt(tx, key);
-    const command = parseRpgAction(input, retained.binding), original = retained.stored;
+    const command = parseRpgAction(input, retained.binding);
+    const original = retained.stored ?? (settleOnly ? sealHost({ key, version: 1 as const, operationId: crypto.randomUUID(),
+      record: { fingerprint: actionFingerprint(input), status: 'pending' as const } }) : undefined);
     requireRpg(original && original.record.fingerprint === actionFingerprint(input), 'original must be reserved before execution');
     if (original.record.status === 'completed') return { result: original.record.result!, replayed: true, current: await currentGame(tx) };
     const { binding } = retained, current = await currentGame(tx);

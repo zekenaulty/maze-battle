@@ -2,13 +2,56 @@ import { test, expect } from '@playwright/test';
 import { fixture } from './rpg-command-browser';
 import type {} from './rpg-agentica-events-fixture';
 
-test.beforeEach(async ({ page, context }) => {
+test.beforeEach(async ({ page, context, baseURL }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await context.route('**/*', route => new URL(route.request().url()).origin === 'http://127.0.0.1:5207'
+  await context.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL!).origin
     ? route.continue() : route.abort());
   await fixture(page);
   await page.evaluate(async () => { window.rpgAgenticaEvents = await import('/tests/e2e/rpg-agentica-events-fixture.ts'); });
   expect(errors).toEqual([]);
+});
+
+test('unchanged SDK action dispatch publishes the real GameSession; local steps signal without model activations', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgAgenticaEvents, h = window.rpgCommandTest, published: number[] = [];
+    const session = new h.GameSession(view => { if (view.game) published.push(view.game.maze.active.column); });
+    const { binding, action } = await f.bound(5, session), sent: object[] = [];
+    let invocations = 0;
+    const sdk = new f.AgenticaHost({ url: 'ws://127.0.0.1:5207/unused', loadAction: f.records.loadRpgAction, saveAction: f.records.saveRpgAction,
+      onAction: input => { invocations++; return session.executeAgenticaAction(input); },
+      reconcileAction: input => session.executeAgenticaAction(input, true) }) as any;
+    sdk.runs.set(action.runId, { ...binding, capabilities: f.rpgCapabilities() });
+    sdk.socket = { readyState: 1, send: (text: string) => sent.push(JSON.parse(text)) };
+    await sdk._action({ type: 'action.request', runId: action.runId, payload: action });
+    await sdk._action({ type: 'action.request', runId: action.runId, payload: action });
+    const admission = (sent[0] as any).payload, id = admission.operation.operationId, signals: object[] = [];
+    for (let i = 0; i < 4; i++) {
+      await session.prepareTravelMemory(); const travel = await session.readTravel();
+      const outcome = await session.advanceAgenticaOperation(session.travelRequest(id, { type: 'step', sequence: travel!.travel.operation.nextStep }));
+      await sdk.signalOperation(outcome.event!, { fetchImpl: async (_url: string, options: RequestInit) => {
+        signals.push(JSON.parse(options.body as string)); return new Response('{}', { status: 200 });
+      } });
+      await f.events.acknowledgeRpgHostEvent(outcome.event!);
+    }
+    const game = session.view.game; session.stop();
+    return { sent, signals, invocations, published, game };
+  });
+  expect(result.sent).toHaveLength(2); expect(result.sent[0]).toEqual(result.sent[1]); expect(result.invocations).toBe(1);
+  expect(result.signals.map((event: any) => event.kind)).toEqual(['progress', 'progress', 'progress', 'completed']);
+  expect(result.published).toEqual(expect.arrayContaining([1, 2, 3, 4, 5])); expect(result.game!.maze.active.column).toBe(5);
+  expect(result.game!.chests[0].opened).toBe(false);
+});
+
+test('unreserved original reconciliation settles without execution and produces a replayable SDK-valid reply', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgAgenticaEvents, { binding, action } = await f.bound();
+    const first = await f.executeRpgAction(action, true), late = await f.executeRpgAction(action);
+    const sdk = new f.AgenticaHost({ url: 'ws://127.0.0.1:5207/unused', onAction: async () => late.result }) as any;
+    sdk._validateResult(action, first.result, { ...binding, capabilities: f.rpgCapabilities() });
+    return { first, late, travel: await window.rpgCommandTest.travel.readRpgTravel() };
+  });
+  expect(result.first.result.disposition).toBe('unavailable'); expect(result.late.result).toEqual(result.first.result);
+  expect(result.travel).toBeUndefined(); expect(result.first.current!.game.maze.active.column).toBe(1);
 });
 
 test('real movement and exact progress are atomic; original replay survives acknowledgement and takeover', async ({ page }) => {
