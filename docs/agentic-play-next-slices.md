@@ -1,11 +1,11 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
 Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 partial.
-2026-10-11. Revision 10. [D1 evidence](reviews/d1-qualification.md),
+2026-10-11. Revision 11. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
-Reviewed Maze source: `codex/maze-live-launch` at `1f266a2`; remote `main` at
+Initial planning Maze source: `codex/maze-live-launch` at `1f266a2`; remote `main` at
 `b12a8c37df17612d249a48bf9f2d419c20363c4c`.
 Agentica remote main verified at `977d0cab5421fd4e09fd33f1224f241b7e425abe`;
 paired service source and SDK pin remain in [NS-6 integration](ns6-paired-integration.md).
@@ -13,16 +13,19 @@ D0 added offline diagnostics and review evidence only. D1's actual RPG repair is
 qualified at `b237160`; the linked ledger records scale limits rather than
 claiming infinite-world performance. A1's [explicit interaction / click travel
 sub-slice](reviews/a1-interaction-controls.md) is checked at `e0be2f1`; its durable
-host binding and A2-A3/Q runtime work remain outstanding. A1's next checked
+controller/service qualification and A2-A3/Q runtime work remain outstanding. A1's next checked
 sub-slice adds [atomic internal command receipts and earned-knowledge functions](reviews/a1-command-custody.md)
 at `58476db`. [Snapshot-bound source archival](reviews/a1-observation-archive.md)
 is checked through reviewed repair `6bad40e`. [Scoped durable memory](reviews/a1-scoped-memory.md)
 is checked through `ba8dc22`, including bounded cell/room reads beyond the resident
 2,048-cell cap. [Durable actual-game travel](reviews/a1-durable-rpg-travel.md)
 now reuses DestinationOperation and ordinary receipted game movement through
-`2d7f177`. These are internal host/session APIs, not yet an Agentica binding.
-Atomic SDK admission/results/events and its ordinary-game controller remain the
-next A1 gate; A2-A3 and Q are not replaced by these infrastructure proofs.
+`2d7f177`. The subsequent [actual-game Agentica boundary](reviews/a1-rpg-agentica-boundary.md)
+adds scoped SDK tools, atomic admission/results, immutable operation events and
+GameSession entry points. Provider-free browser tests exercise unchanged SDK
+dispatch against the real game, checked through `0716a94`. The ordinary-game launch/reconnect controller
+and paired service qualification remain the next A1 gate; A2-A3 and Q are not
+replaced by these boundary proofs.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional
@@ -77,8 +80,9 @@ remembered evidence; it was not a complete environmental examination system.
 
 D0 is complete at the bounded offline diagnostic/review level; D1's finite RPG
 repair has integrated qualification; A0 source mapping is reviewed. A1's shared
-interaction/quest-policy cleanup is checked, but its durable host gate and A2-A3/Q
-are NOT RUN. Each produces its own reviewable commit and evidence; none is permission
+interaction/quest-policy cleanup and local durable SDK boundary are checked, but
+its full controller/service gate is partial and A2-A3/Q are NOT RUN. Each produces
+its own reviewable commit and evidence; none is permission
 to declare later slices complete.
 
 | Slice | Deliverable | Gate before proceeding |
