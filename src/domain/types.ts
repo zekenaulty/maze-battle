@@ -352,6 +352,7 @@ export interface SaveSlot {
   createdAt: string;
   updatedAt: string;
   game: GameState;
+  observationHead?: string;
 }
 
 export interface SaveSummary {

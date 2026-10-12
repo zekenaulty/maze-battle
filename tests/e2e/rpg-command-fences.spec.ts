@@ -18,12 +18,12 @@ for (const condition of ['takeover', 'revision', 'replacement', 'expired'] as co
   });
 }
 
-for (const store of ['saves', 'meta', 'gameCommands'] as const) {
+for (const store of ['saves', 'meta', 'gameCommands', 'observations'] as const) {
   test(`${store} failure rolls back the game, fence, and command receipt together`, async ({ page }) => {
     const request = await seed(page);
     const result = await page.evaluate(async ({ request, store }) => {
       const h = window.rpgCommandTest, before = await h.custody.readGameControl();
-      const method = store === 'gameCommands' ? 'add' : 'put', original = IDBObjectStore.prototype[method];
+      const method = store === 'gameCommands' || store === 'observations' ? 'add' : 'put', original = IDBObjectStore.prototype[method];
       IDBObjectStore.prototype[method] = function(...args) {
         if (this.name === store) throw new DOMException('Injected quota', 'QuotaExceededError');
         return original.apply(this, args);
@@ -60,17 +60,18 @@ test('corrupt committed receipt is not treated as permission to rerun the effect
   expect(result.after).toEqual(result.first.current);
 });
 
-test('upgrading a v2 native database adds receipts without rewriting old save contents', async ({ page }) => {
+for (const version of [2, 3]) test(`upgrading a v${version} native database adds history without rewriting old save contents`, async ({ page }) => {
   await fixture(page);
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async version => {
     const h = window.rpgCommandTest, game = h.game();
     const old = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('maze-battle', 2);
+      const request = indexedDB.open('maze-battle', version);
       request.onupgradeneeded = () => {
         const db = request.result, saves = db.createObjectStore('saves', { keyPath: 'slotId' });
         saves.createIndex('byUpdatedAt', 'updatedAt'); saves.createIndex('byKind', 'kind');
         db.createObjectStore('meta', { keyPath: 'key' });
         db.createObjectStore('telemetry', { keyPath: 'gameId' }).createIndex('byUpdatedAt', 'updatedAt');
+        if (version === 3) db.createObjectStore('gameCommands', { keyPath: 'attemptId' }).createIndex('byGameId', 'gameId');
       };
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
@@ -84,9 +85,10 @@ test('upgrading a v2 native database adds receipts without rewriting old save co
     const db = await h.repository.getDatabase();
     return { slot, stored: await db.get('saves', slot.slotId), version: db.version,
       receipts: await db.count('gameCommands'), stores: [...db.objectStoreNames] };
-  });
-  expect(result.version).toBe(3);
+  }, version);
+  expect(result.version).toBe(4);
   expect(result.stored).toEqual(result.slot);
   expect(result.receipts).toBe(0);
   expect(result.stores).toContain('gameCommands');
+  expect(result.stores).toContain('observations');
 });

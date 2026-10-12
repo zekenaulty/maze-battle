@@ -2,6 +2,7 @@ import { createNewGameState, normalizeGameState } from '../domain/gameFactory';
 import type { GameState, SaveSlot } from '../domain/types';
 import { getDatabase } from './saveRepository';
 import { AUTO_CONTROL_KEY, decodeControl, putControl, requireControl, type SaveControl } from './saveControl';
+import { appendRpgObservation } from './observationArchive';
 
 export interface OwnedGame { control: SaveControl; game: GameState }
 
@@ -14,7 +15,7 @@ export async function readGameControl() {
 }
 
 export async function claimGame(owner: string, takeover = false): Promise<OwnedGame> {
-  const db = await getDatabase(), tx = db.transaction(['meta', 'saves'], 'readwrite');
+  const db = await getDatabase(), tx = db.transaction(['meta', 'saves', 'observations'], 'readwrite');
   void tx.done.catch(() => {});
   try {
     let control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY));
@@ -25,28 +26,48 @@ export async function claimGame(owner: string, takeover = false): Promise<OwnedG
       await putControl(tx, control);
     }
     const game = previous ? normalizeGameState(previous.game) : createNewGameState();
-    if (control.owner === owner) await tx.objectStore('saves').put(autoSlot(game, previous));
+    if (control.owner === owner) {
+      const head = await appendRpgObservation(tx, game, control, previous?.observationHead);
+      await tx.objectStore('saves').put(autoSlot(game, previous, head));
+    }
     await tx.done;
     return { control, game };
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
 }
 
-function autoSlot(game: GameState, previous?: SaveSlot): SaveSlot {
+function autoSlot(game: GameState, previous?: SaveSlot, observationHead?: string): SaveSlot {
   return { slotId: 'auto', label: 'Auto Save', kind: 'auto', game,
-    createdAt: previous?.createdAt ?? new Date().toISOString(), updatedAt: game.updatedAt };
+    createdAt: previous?.createdAt ?? new Date().toISOString(), updatedAt: game.updatedAt,
+    ...(observationHead ? { observationHead } : {}) };
 }
 
 /** The reducer runs only after the durable fence, inside the same write transaction. */
 export async function updateOwnedGame(expected: SaveControl, update: (game: GameState) => GameState): Promise<OwnedGame> {
-  const db = await getDatabase(), tx = db.transaction(['meta', 'saves'], 'readwrite');
+  return writeOwnedGame(expected, update);
+}
+
+export function replaceOwnedGame(expected: SaveControl, game: GameState) {
+  return writeOwnedGame(expected, () => game, undefined, true);
+}
+
+/** Load the game and its exact knowledge lineage in one fenced transaction. */
+export function loadOwnedGame(expected: SaveControl, slotId: string) {
+  return writeOwnedGame(expected, game => normalizeGameState(game), slotId);
+}
+
+async function writeOwnedGame(expected: SaveControl, update: (game: GameState) => GameState, slotId?: string, reset = false): Promise<OwnedGame> {
+  const db = await getDatabase(), tx = db.transaction(['meta', 'saves', 'observations'], 'readwrite');
   void tx.done.catch(() => {});
   try {
     const control = await requireControl(tx, expected);
     const previous = await tx.objectStore('saves').get('auto');
     if (!previous) throw new Error('Autosave is unavailable.');
-    const game = update(previous.game);
+    const source = slotId === undefined ? previous : await tx.objectStore('saves').get(slotId);
+    if (!source) throw new Error('This save no longer exists.');
+    const game = update(source.game);
     const next = { ...control, revision: control.revision + 1 };
-    await tx.objectStore('saves').put(autoSlot(game, previous));
+    const head = await appendRpgObservation(tx, game, next, !reset && game.id === source.game.id ? source.observationHead : undefined);
+    await tx.objectStore('saves').put(autoSlot(game, previous, head));
     await putControl(tx, next);
     await tx.done;
     return { control: next, game };

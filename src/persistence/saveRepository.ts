@@ -4,11 +4,13 @@ import type { GameState, SaveKind, SaveSlot, SaveSummary } from '../domain/types
 import type { PlayTelemetry } from '../domain/telemetry/types';
 import { AUTO_CONTROL_KEY, SaveOwnershipError } from './saveControl';
 import type { GameCommandReceipt } from './gameCommandTypes';
+import type { RpgObservationNode } from './observationTypes';
 
 const DB_NAME = 'maze-battle';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export interface MazeBattleDb extends DBSchema {
+  observations: { key: string; value: RpgObservationNode; indexes: { byGameId: string } };
   gameCommands: { key: string; value: GameCommandReceipt; indexes: { byGameId: string } };
   telemetry: { key: string; value: PlayTelemetry; indexes: { byUpdatedAt: string } };
   saves: {
@@ -33,6 +35,9 @@ let dbPromise: Promise<IDBPDatabase<MazeBattleDb>> | undefined;
 export function getDatabase() {
   dbPromise ??= openDB<MazeBattleDb>(DB_NAME, DB_VERSION, {
     upgrade(db) {
+      if (!db.objectStoreNames.contains('observations')) {
+        db.createObjectStore('observations', { keyPath: 'id' }).createIndex('byGameId', 'gameId');
+      }
       if (!db.objectStoreNames.contains('gameCommands')) {
         db.createObjectStore('gameCommands', { keyPath: 'attemptId' }).createIndex('byGameId', 'gameId');
       }

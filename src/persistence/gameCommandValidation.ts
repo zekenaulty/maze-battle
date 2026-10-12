@@ -26,7 +26,10 @@ export function commandFingerprint(input: GameCommandRequest): string {
 
 /** Fail closed on corrupt originals; never reinterpret a receipt as an unexecuted command. */
 export function validateCommandReceipt(value: unknown, request: GameCommandRequest, fingerprint: string): GameCommandReceipt {
-  check(exact(value, 'version,attemptId,fingerprint,gameId,beforeRevision,afterRevision,committedAt,outcome'));
+  check(object(value));
+  const hasHead = Object.hasOwn(value, 'observationHead');
+  check(exact(value, `version,attemptId,fingerprint,gameId,beforeRevision,afterRevision,committedAt,outcome${hasHead ? ',observationHead' : ''}`));
+  check(!hasHead || text(value.observationHead));
   check(value.version === 1 && value.attemptId === request.attemptId && value.gameId === request.gameId
     && value.fingerprint === fingerprint && integer(value.beforeRevision) && integer(value.afterRevision)
     && integer(value.committedAt) && exact(value.outcome, 'status,reason'));
@@ -36,6 +39,7 @@ export function validateCommandReceipt(value: unknown, request: GameCommandReque
   const refused = status === 'refused' && ['blocked', 'ineligible'].includes(reason as string);
   const settled = status === 'not-applied' && ['conflict', 'expired', 'settled'].includes(reason as string);
   check(applied || refused || settled);
+  check(!settled || !hasHead);
   check(settled ? value.afterRevision === value.beforeRevision
     : value.beforeRevision === request.control.revision && value.afterRevision === (value.beforeRevision as number) + 1);
   return value as unknown as GameCommandReceipt;

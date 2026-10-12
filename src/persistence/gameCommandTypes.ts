@@ -21,5 +21,6 @@ export interface GameCommandReceipt {
   beforeRevision: number;
   afterRevision: number;
   committedAt: number;
+  observationHead?: string;
   outcome: GameCommandOutcome | { status: 'not-applied'; reason: 'conflict' | 'expired' | 'settled' };
 }

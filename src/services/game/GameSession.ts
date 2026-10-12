@@ -3,7 +3,7 @@ import { ModuleCapacityError } from '../../domain/expedition/topology/modules/ty
 import { blockAutopilot } from '../../domain/automation/autopilotState';
 import { createPlayTelemetry, recordTransition } from '../../domain/telemetry/transitions';
 import type { PlayTelemetry, TransitionContext } from '../../domain/telemetry/types';
-import { claimGame, readGameControl, updateOwnedGame, changeOwnedSave, type OwnedGame } from '../../persistence/gameCustody';
+import { claimGame, readGameControl, updateOwnedGame, replaceOwnedGame, loadOwnedGame, changeOwnedSave, type OwnedGame } from '../../persistence/gameCustody';
 import { getGame, listSaves } from '../../persistence/saveRepository';
 import { loadTelemetry, saveTelemetry } from '../../persistence/telemetryRepository';
 import { sameOwner, SaveOwnershipError, type SaveControl } from '../../persistence/saveControl';
@@ -137,7 +137,7 @@ export class GameSession {
   };
 
   replaceGame = (game: GameState) => this.owned(async control => {
-    const next = await updateOwnedGame(control, () => game);
+    const next = await replaceOwnedGame(control, game);
     await this.adopt(next);
     this.publish({ status: 'Saved' });
   });
@@ -187,7 +187,7 @@ export class GameSession {
   loadSave = (id: string) => this.owned(async control => {
     const slot = await getGame(id);
     if (!slot) throw new Error('This save no longer exists.');
-    await this.adopt(await updateOwnedGame(control, () => slot.game));
+    await this.adopt(await loadOwnedGame(control, id));
     this.publish({ status: `Loaded ${slot.label}` });
   });
 
