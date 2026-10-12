@@ -5,6 +5,7 @@ import * as history from '../../src/persistence/observationArchive';
 import { projectRpgKnowledge } from '../../src/domain/agentic/knowledge/project';
 import { prepareRpgMemory } from '../../src/persistence/rpgMemory/prepare';
 import * as memoryReads from '../../src/persistence/rpgMemory/read';
+import { readRpgPerceptionRegion } from '../../src/persistence/rpgMemory/perception';
 import { readRpgRoute } from '../../src/persistence/rpgMemory/route';
 import { executeRpgTravel } from '../../src/persistence/rpgTravel/execute';
 import { readRpgTravel } from '../../src/persistence/rpgTravel/read';
@@ -15,8 +16,11 @@ import { chestAt, lineMaze, roomAt } from '../../src/domain/automation/autopilot
 
 if (!import.meta.env.DEV || !['http://127.0.0.1:5204', 'http://127.0.0.1:5207'].includes(location.origin)) throw new Error('Isolated test origin only');
 const harness = { commands, repository, custody, history, projectRpgKnowledge, GameSession,
+  preparePerceptionCanvas: async () => { await import('./rpg-perception-canvas'); },
+  paintPerception: async (...args: Parameters<typeof import('./rpg-perception-canvas').paintPerception>) =>
+    (await import('./rpg-perception-canvas')).paintPerception(...args),
   travel: { executeRpgTravel, readRpgTravel, runTravelWindow },
-  memory: { prepareRpgMemory, ...memoryReads, readRpgRoute }, lineMaze, roomAt,
+  memory: { prepareRpgMemory, ...memoryReads, readRpgRoute, readRpgPerceptionRegion }, lineMaze, roomAt,
   game: () => createNewGameState({ id: 'rpg-command-proof', maze: lineMaze(6, [], 1), chests: [chestAt(2)], randomBattles: false }),
 };
 declare global { interface Window { rpgCommandTest: typeof harness } }
