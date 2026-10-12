@@ -3,6 +3,7 @@ import type { GameState, SaveSlot } from '../domain/types';
 import { getDatabase } from './saveRepository';
 import { AUTO_CONTROL_KEY, decodeControl, putControl, requireControl, type SaveControl } from './saveControl';
 import { appendRpgObservation } from './observationArchive';
+import { observationReader, requireSuccessor } from './observationNodes';
 
 export interface OwnedGame { control: SaveControl; game: GameState; observationHead?: string }
 
@@ -30,6 +31,11 @@ export async function claimGame(owner: string, takeover = false): Promise<OwnedG
     if (control.owner === owner) {
       observationHead = await appendRpgObservation(tx, game, control, observationHead);
       await tx.objectStore('saves').put(autoSlot(game, previous, observationHead));
+    } else if (observationHead !== undefined) {
+      // Followers validate the same stored head/predecessor as append, without creating evidence.
+      const reader = observationReader(tx.objectStore('observations'), game.id);
+      const head = await reader.read(observationHead);
+      if (head.depth > 1) requireSuccessor(await reader.read(head.ancestors[0], head.depth - 1), head);
     }
     await tx.done;
     return { control, game, observationHead };

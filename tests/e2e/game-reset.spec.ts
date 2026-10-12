@@ -13,14 +13,16 @@ for (const corruption of ['history', 'control']) test(`reset bypasses corrupt ${
     const slot = (await db.get('saves', 'auto'))!;
     if (corruption === 'history') await db.put('saves', { ...slot, observationHead: 'missing-corrupt-head' });
     else await db.put('meta', { key: 'control:auto', value: '{' });
-    let loadError = '';
-    try { await h.custody.claimGame('reader', true); } catch (error) { loadError = String(error); }
+    const loadErrors: string[] = [];
+    for (const takeover of [false, true]) {
+      try { await h.custody.claimGame('reader', takeover); } catch (error) { loadErrors.push(String(error)); }
+    }
     const next = await resetGame();
     const counts = await Promise.all([...db.objectStoreNames].map(async name => [name, await db.count(name)]));
-    return { oldOwner: old.control.owner, oldId: old.game.id, next, loadError, counts,
+    return { oldOwner: old.control.owner, oldId: old.game.id, next, loadErrors, counts,
       current: await h.custody.readGameControl(), history: await readRpgHistory() };
   }, corruption);
-  expect(result.loadError).not.toBe('');
+  expect(result.loadErrors).toHaveLength(2);
   expect(result.next.control.owner).not.toBe(result.oldOwner);
   expect(result.next.game.id).not.toBe(result.oldId);
   expect(result.current).toEqual(result.next);

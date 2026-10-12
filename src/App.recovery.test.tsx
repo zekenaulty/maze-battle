@@ -40,12 +40,13 @@ describe('ordinary preview recovery controls', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Reset and start new game' }));
     expect(screen.getByRole('dialog', { name: 'Reset Maze Battle?' })).toBeVisible();
-    expect(screen.getByText(/discards all current Maze Battle saves and history/)).toBeVisible();
+    expect(screen.getByText(/discards this game's saves and observation history/)).toBeVisible();
+    expect(screen.getByText(/Separate expedition data is not cleared/)).toBeVisible();
     expect(state.session.resetGame).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reset and start new game' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Discard all saves and start new game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard saves and start new game' }));
     expect(state.session.resetGame).toHaveBeenCalledOnce();
     expect(state.pause).toHaveBeenCalledOnce();
     expect(state.cancel).toHaveBeenCalledOnce();
@@ -59,7 +60,7 @@ describe('ordinary preview recovery controls', () => {
     vi.mocked(state.session.resetGame).mockRejectedValue(new Error('Storage is unavailable'));
     const { rerender } = render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Reset and start new game' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Discard all saves and start new game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard saves and start new game' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Storage is unavailable');
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     state.session.status = 'Reset failed: Storage is unavailable';

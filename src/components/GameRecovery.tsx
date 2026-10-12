@@ -25,8 +25,8 @@ export function GameRecovery({ status, busy, onRetry, onReset }: GameRecoveryPro
     </section>
     {confirming && <ConfirmActionDialog
       title="Reset Maze Battle?"
-      message="This discards all current Maze Battle saves and history and takes control from other tabs. This cannot be undone."
-      confirmLabel="Discard all saves and start new game"
+      message="This discards this game's saves and observation history and takes control from other tabs. Separate expedition data is not cleared. This cannot be undone."
+      confirmLabel="Discard saves and start new game"
       onConfirm={async () => { await onReset(); }}
       onClose={() => setConfirming(false)}
     />}

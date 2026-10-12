@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNewGameState } from '../domain/gameFactory';
+import { createNewGameState, normalizeGameState } from '../domain/gameFactory';
 import { lineMaze } from '../domain/automation/autopilotTestFixtures';
 import type { GameState, SaveSlot } from '../domain/types';
 import { claimGame, loadOwnedGame, readGameControl, replaceOwnedGame, updateOwnedGame, type OwnedGame } from './gameCustody';
@@ -8,6 +8,7 @@ import type { GameCommandRequest } from './gameCommandTypes';
 import { currentGame } from './rpgTravel/execute';
 import type { GameWrite } from './gameTransaction';
 import { AUTO_CONTROL_KEY, decodeControl } from './saveControl';
+import type { RpgObservationNode } from './observationTypes';
 
 const storage = vi.hoisted(() => ({ getDatabase: vi.fn() }));
 vi.mock('./saveRepository', () => storage);
@@ -68,6 +69,46 @@ describe('custody observation head projection', () => {
     expect(initial.observationHead).toEqual(expect.any(String));
     expect(transaction).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['manual', 'town'] as const)('validates a follower head and predecessor in %s without writing evidence', async mode => {
+    seed();
+    const first = await claimGame('owner');
+    const latest = await updateOwnedGame(first.control, game => ({ ...game, maze: { ...game.maze, active: { row: 0, column: 3 } } }));
+    slot().game.mode = mode;
+    const before = structuredClone(tables);
+    expect(await claimGame('follower')).toEqual({ ...latest, game: normalizeGameState(slot().game) });
+    expect(tables).toEqual(before);
+  });
+
+  it('leaves an explicitly headless follower checkpoint headless', async () => {
+    seed({ ...game(), mode: 'town' });
+    const first = await claimGame('owner'), before = structuredClone(tables);
+    expect(await claimGame('follower')).toEqual(first);
+    expect(tables).toEqual(before);
+    expect(table('observations').size).toBe(0);
+  });
+
+  it.each(['missing-head', 'invalid-head', 'missing-predecessor', 'invalid-predecessor', 'regressing-revision', 'wrong-owner'])
+    ('rejects follower %s without changing saves, control, or evidence', async corruption => {
+      seed();
+      const first = await claimGame('owner');
+      const latest = await updateOwnedGame(first.control, game => ({ ...game, maze: { ...game.maze, active: { row: 0, column: 3 } } }));
+      const head = table('observations').get(latest.observationHead!) as RpgObservationNode;
+      const parent = table('observations').get(first.observationHead!) as RpgObservationNode;
+      expect(head.depth).toBe(2);
+      if (corruption === 'missing-head') table('observations').delete(head.id);
+      if (corruption === 'invalid-head') table('observations').set(head.id, { ...head, lineage: 'invalid' });
+      if (corruption === 'missing-predecessor') table('observations').delete(parent.id);
+      if (corruption === 'invalid-predecessor') table('observations').set(parent.id, { ...parent, lineage: 'invalid' });
+      if (corruption === 'regressing-revision' || corruption === 'wrong-owner') table('observations').set(head.id, {
+        ...head, observation: { ...head.observation, revision: { ...head.observation.revision,
+          ...(corruption === 'regressing-revision' ? { revision: 0 } : { owner: 'unrelated-owner' }) } },
+      });
+      const before = structuredClone(tables);
+      await expect(claimGame('follower')).rejects.toThrow('Invalid or unavailable observation history');
+      expect(transaction.mock.results.at(-1)!.value.abort).toHaveBeenCalledOnce();
+      expect(tables).toEqual(before);
+    });
 
   it('keeps unchanged and town heads, restores source lineage, and clears headless replacements and loads', async () => {
     seed();
