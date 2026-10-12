@@ -14,6 +14,10 @@ const test = base.extend<{ audit: void }>({ audit: [async ({ page, context }, us
     else { external.push(ws.url()); ws.close(); }
   });
   try { await use(); } finally {
+    if (info.status !== info.expectedStatus) {
+      const retained = await page.evaluate(() => window.rpgPaired?.snapshot()).catch(error => ({ error: String(error) }));
+      await info.attach('retained-checkpoint', { contentType: 'application/json', body: JSON.stringify(retained) });
+    }
     await page.evaluate(() => window.rpgPaired?.close()).catch(() => {});
     await info.attach('environment', { contentType: 'application/json', body: JSON.stringify({ errors, external, browser: context.browser()!.version() }) });
     expect(errors).toEqual([]); expect(external).toEqual([]);
@@ -137,3 +141,81 @@ test('an observed intermediate destination wakes one successor without completin
   expect(parent.latestEvent.usage.steps + successor.latestEvent.usage.steps).toBe(4);
   expect(await calls(request, binding.scopeId)).toEqual(plans);
 });
+
+for (const delivered of [false, true]) {
+  test(`final-step restart reconciles ${delivered ? 'lost completion acknowledgement' : 'undelivered completion'} without another move or plan`, async ({ page, request }) => {
+    const { binding, admission } = await start(page, request), before = await calls(request, binding.scopeId);
+    for (let i = 0; i < 3; i++) await page.evaluate(() => window.rpgPaired.tick());
+    const requests: unknown[] = [];
+    await page.route('**/api/operations/events', async route => {
+      if (route.request().postDataJSON().kind !== 'completed') return route.continue();
+      requests.push(route.request().postDataJSON());
+      if (delivered) expect((await route.fetch()).ok()).toBe(true);
+      await route.abort();
+    });
+    await expect(page.evaluate(() => window.rpgPaired.tick())).rejects.toThrow();
+    expect(requests).toHaveLength(1);
+    const arrived = await snapshot(page), prior = (await operations(request, binding.sessionId))[0];
+    expect(arrived.game!.maze.active.column).toBe(5); expect(arrived.view.steps).toBe(4);
+    expect(arrived.operation!.event).toEqual(requests[0]);
+    expect(arrived.operation!.link.sequence).toBe(arrived.operation!.link.acknowledged + 1);
+    expect(prior.state).toBe(delivered ? 'completed' : 'parked');
+    await page.unroute('**/api/operations/events');
+    await page.route('**/api/operations/events', async route => { requests.push(route.request().postDataJSON()); await route.continue(); });
+    await page.evaluate(() => window.rpgPaired.close()); await page.reload(); await page.waitForFunction(() => !!window.rpgPaired);
+    expect((await request.post(`${provider}/restart`)).ok()).toBe(true);
+    const recovered = await page.evaluate(() => window.rpgPaired.recover());
+    expect(recovered.owner).not.toBe(arrived.owner); expect(recovered.view).toMatchObject({ state: 'completed', steps: 4 });
+    expect(requests).toHaveLength(2); expect(requests[1]).toEqual(requests[0]);
+    expect(recovered.game).toEqual(arrived.game); expect(recovered.operation!.event).toEqual(arrived.operation!.event);
+    expect(recovered.operation!.link.acknowledged).toBe(arrived.operation!.link.sequence);
+    const final = (await operations(request, binding.sessionId))[0];
+    expect(final.state).toBe('completed'); expect(final.admission).toEqual(admission);
+    if (delivered) expect(final.latestEvent).toEqual(prior.latestEvent);
+    await page.evaluate(() => window.rpgPaired.tick()); expect((await snapshot(page)).game).toEqual(arrived.game);
+    expect(await calls(request, binding.scopeId)).toEqual(before);
+  });
+}
+
+for (const action of ['adopt', 'cancel'] as const) {
+  test(`pending decision restart stays paused until explicit ${action}`, async ({ page, request }) => {
+    let decision: unknown;
+    await page.routeWebSocket('ws://127.0.0.1:5092/api/host', ws => {
+      const server = ws.connectToServer();
+      ws.onMessage(message => {
+        const envelope = JSON.parse(message.toString());
+        if (envelope.type === 'operation.wake' && !decision) {
+          decision = envelope.payload; ws.close(); server.close();
+        } else server.send(message);
+      });
+    });
+    expect((await request.post(`${provider}/next-intermediate`)).ok()).toBe(true);
+    const { binding } = await start(page, request);
+    await expect(page.evaluate(() => window.rpgPaired.tick())).rejects.toThrow();
+    expect(decision).toBeDefined();
+    const pending = await snapshot(page), before = await calls(request, binding.scopeId);
+    expect(pending.game!.maze.active.column).toBe(2); expect(pending.operation!.event).toEqual(decision);
+    expect(pending.operation!.link.sequence).toBe(pending.operation!.link.acknowledged + 1);
+    expect(before).toHaveLength(1);
+    // Only the original wake is dropped; reconnection forwards the retained decision unchanged.
+    await page.evaluate(() => window.rpgPaired.close()); await page.reload(); await page.waitForFunction(() => !!window.rpgPaired);
+    expect((await request.post(`${provider}/restart`)).ok()).toBe(true);
+    const recovered = await page.evaluate(() => window.rpgPaired.recover());
+    expect(recovered.view.state).toBe('awaiting-adoption'); expect(recovered.game).toEqual(pending.game);
+    expect(recovered.operation!.event).toEqual(pending.operation!.event);
+    await page.evaluate(() => window.rpgPaired.tick());
+    expect((await snapshot(page)).game).toEqual(pending.game); expect(await calls(request, binding.scopeId)).toEqual(before);
+    if (action === 'cancel') {
+      await page.evaluate(() => window.rpgPaired.cancel());
+      const final = await snapshot(page); expect(final.view.state).toBe('cancelled'); expect(final.game).toEqual(pending.game);
+      expect(await calls(request, binding.scopeId)).toEqual(before);
+    } else {
+      await page.evaluate(() => window.rpgPaired.adopt());
+      await expect.poll(async () => (await operations(request, binding.sessionId))
+        .find((entry: any) => entry.action.runId !== binding.runId)?.state).toBe('parked');
+      const final = await finish(page); expect(final.game!.maze.active.column).toBe(5);
+      expect(final.binding!.objectiveId).toBe(binding.objectiveId); expect(final.game!.chests).toEqual(pending.game!.chests);
+      expect(await calls(request, binding.scopeId)).toHaveLength(2);
+    }
+  });
+}

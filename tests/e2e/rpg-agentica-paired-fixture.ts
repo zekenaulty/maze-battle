@@ -2,10 +2,11 @@ import { GameSession } from '../../src/services/game/GameSession';
 import { RpgAgenticaClient } from '../../src/services/agentica/rpg/client';
 import { createNewGameState } from '../../src/domain/gameFactory';
 import { chestAt, lineMaze, roomAt } from '../../src/domain/automation/autopilotTestFixtures';
-import { saveGame, getGame } from '../../src/persistence/saveRepository';
+import { saveGame, getGame, getDatabase } from '../../src/persistence/saveRepository';
 import { claimGame, updateOwnedGame } from '../../src/persistence/gameCustody';
 import { readRpgRun } from '../../src/persistence/rpgAgentica/runs';
 import { readRpgHostOperation } from '../../src/persistence/rpgAgentica/events';
+import { readRpgLaunch } from '../../src/persistence/rpgAgentica/launchRecords';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5212') throw new Error('Isolated paired RPG origin only.');
 const target = { floor: 1, row: 0, column: 5 }, socket = 'ws://127.0.0.1:5092/api/host';
@@ -38,7 +39,10 @@ async function seed() {
   return connect();
 }
 async function snapshot() {
-  return { view: client.view, game: (await getGame('auto'))?.game, sessionGame: session.view.game, positions: [...positions],
+  const slot = await getGame('auto'), db = await getDatabase();
+  return { view: client.view, game: slot?.game, sessionGame: session.view.game, positions: [...positions],
+    memory: { sourceHead: slot?.observationHead, ready: !!(slot?.observationHead && await db.get('rpgMemoryHeads', slot.observationHead)) },
+    launch: slot && await readRpgLaunch(slot.game.id),
     owner: session.owner, travel: await session.readTravel(), binding: client.view.runId ? await readRpgRun(client.view.runId) : undefined,
     operation: client.view.operationId ? await readRpgHostOperation(client.view.operationId) : undefined };
 }
