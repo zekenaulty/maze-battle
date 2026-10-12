@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { describe, expect, it } from 'vitest';
 import { createTopology, expandTopology } from './generation';
 import { MemoryTopology } from './memoryTopology';
@@ -9,7 +10,23 @@ const recipe = (seed = 0, level = 19): TopologyRecipe => ({ version: 'spaces-v2'
 const seeds = [0, 1, 0x7fffffff, 0x80000000, 0xffffffff,
   ...Array.from({ length: 59 }, (_, index) => Math.imul(index + 1, 2654435761) >>> 0)];
 
+// Keep every hot-loop check without rebuilding Vitest's assertion state a million times.
+function assertAtMost(actual: unknown, maximum: unknown, context: string) {
+  assert.ok(typeof actual === 'number' || typeof actual === 'bigint', `${context}: numeric actual required`);
+  assert.ok(typeof maximum === 'number' || typeof maximum === 'bigint', `${context}: numeric maximum required`);
+  assert.ok(actual <= maximum, `${context}: expected ${actual} <= ${maximum}`);
+}
+
 describe('topology adversarial qualification', () => {
+  it('keeps upper-bound checks strict about equality, overflow, NaN and nonnumeric inputs', () => {
+    for (const [actual, maximum] of [[0, 0], [1, 2], [-Infinity, 0], [Infinity, Infinity], [1n, 2n], [1n, 2]]) {
+      expect(() => assertAtMost(actual, maximum, 'boundary')).not.toThrow();
+    }
+    for (const [actual, maximum] of [[2, 1], [NaN, 1], [1, NaN], [Infinity, 1], ['1', 2], [1, '2'], [null, 2], [1, undefined]]) {
+      expect(() => assertAtMost(actual, maximum, 'boundary')).toThrow();
+    }
+  });
+
   it('rejects overlapping index entries before a bucket can grow without bound', () => {
     const index = new OccupancyIndex();
     const bounds = { row: 0, column: 0, rows: 1, columns: 1 };
@@ -84,24 +101,25 @@ describe('topology adversarial qualification', () => {
       while (!store.header().seal) {
         const header = store.header();
         const socket = store.socket(header.nextSocket)!;
-        expect(store.occupied(reservedBounds(store.space(socket.source.spaceId)!.spec, socket), socket.id)).toBe(false);
+        const context = `level ${level}, seed ${seed}, revision ${header.revision}`;
+        assert.equal(store.occupied(reservedBounds(store.space(socket.source.spaceId)!.spec, socket), socket.id), false, `${context}: reservation`);
         const before = store.occupancy.work;
         const proposal = expandTopology(store, header.revision, `step-${header.revision}`);
         if (proposal.status !== 'ready') throw new Error('Expected unsealed frontier');
         singletonPassages += proposal.delta.spaces.filter(space =>
           space.spec.kind === 'passage' && space.spec.rows * space.spec.columns === 1).length;
         const queries = store.occupancy.work.queries - before.queries;
-        expect(queries).toBeLessThanOrEqual(proposal.delta.work.occupancyQueries);
-        expect(proposal.delta.work.occupancyQueries).toBeLessThanOrEqual(20);
-        expect(store.occupancy.work.bucketReads - before.bucketReads).toBeLessThanOrEqual(queries * MAX_QUERY_BUCKETS);
-        expect(store.occupancy.work.entryChecks - before.entryChecks).toBeLessThanOrEqual(queries * MAX_QUERY_ENTRY_CHECKS);
+        assertAtMost(queries, proposal.delta.work.occupancyQueries, `${context}: query budget`);
+        assertAtMost(proposal.delta.work.occupancyQueries, 20, `${context}: proposal query limit`);
+        assertAtMost(store.occupancy.work.bucketReads - before.bucketReads, queries * MAX_QUERY_BUCKETS, `${context}: bucket budget`);
+        assertAtMost(store.occupancy.work.entryChecks - before.entryChecks, queries * MAX_QUERY_ENTRY_CHECKS, `${context}: entry budget`);
         checks = Math.max(checks, store.occupancy.work.entryChecks - before.entryChecks);
         buckets = Math.max(buckets, store.occupancy.work.bucketReads - before.bucketReads);
         store.commit(proposal.delta);
         const next = store.header();
-        expect(next.rooms + next.socketCount - next.nextSocket).toBeLessThanOrEqual(header.roomBudget);
-        expect(next.rooms).toBe(header.rooms + 1);
-        expect(next.nextSocket).toBe(header.nextSocket + 1);
+        assertAtMost(next.rooms + next.socketCount - next.nextSocket, header.roomBudget, `${context}: room budget`);
+        assert.equal(next.rooms, header.rooms + 1, `${context}: room increment`);
+        assert.equal(next.nextSocket, header.nextSocket + 1, `${context}: socket increment`);
       }
       const header = store.header();
       expect(header.nextSocket).toBe(header.socketCount);
