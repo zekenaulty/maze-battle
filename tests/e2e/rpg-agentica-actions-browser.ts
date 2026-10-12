@@ -1,7 +1,8 @@
 import { unwrap } from 'idb';
 import type { AgenticaAction, AgenticaActionRecord, AgenticaResult } from '../../src/services/agentica/contracts';
 import type { RpgAgenticaBinding } from '../../src/services/agentica/rpg/contracts';
-import { actionFingerprint, actionKey } from '../../src/services/agentica/sdk/agentica-host.mjs';
+import { actionFingerprint, actionKey, AgenticaHost } from '../../src/services/agentica/sdk/agentica-host.mjs';
+import { rpgCapabilities } from '../../src/services/agentica/rpg/capabilities';
 import type { SaveControl } from '../../src/persistence/saveControl';
 import type {} from './rpg-command-fixture';
 
@@ -16,6 +17,7 @@ interface RpgApi {
 }
 interface RpgHarness extends RpgApi {
   binding: RpgAgenticaBinding; actionKey: typeof actionKey; actionFingerprint: typeof actionFingerprint; snapshot: typeof snapshot;
+  checks: { source: string; sdkError: string; result: AgenticaResult }[];
   action(capabilityId?: string, args?: Record<string, unknown>, actionId?: string): AgenticaAction;
   reserve(action: AgenticaAction): Promise<unknown>;
   fault(action: AgenticaAction, store: string, method: 'put' | 'add', expire?: boolean): ReturnType<typeof fault>;
@@ -57,7 +59,7 @@ async function snapshot(includeActions = true): Promise<Record<string, unknown[]
   });
 }
 
-async function fault(api: RpgApi, action: AgenticaAction, store: string, method: 'put' | 'add', expire = false) {
+async function fault(execute: RpgApi['executeRpgAction'], action: AgenticaAction, store: string, method: 'put' | 'add', expire = false) {
   const original = IDBObjectStore.prototype[method], now = Date.now;
   let hits = 0, error = '';
   IDBObjectStore.prototype[method] = function(...args) {
@@ -68,18 +70,18 @@ async function fault(api: RpgApi, action: AgenticaAction, store: string, method:
     request.addEventListener('success', () => { Date.now = () => Date.parse(action.deadlineAt) + 1; }, { once: true });
     return request;
   };
-  try { await api.executeRpgAction(action); } catch (failure) { error = String(failure); }
+  try { await execute(action); } catch (failure) { error = String(failure); }
   finally { IDBObjectStore.prototype[method] = original; Date.now = now; }
   return { hits, error };
 }
 
-export async function install(control: SaveControl, large = false) {
+export async function install(control: SaveControl, large = false, steps = 64) {
   if (location.origin !== 'http://127.0.0.1:5204') throw new Error('Isolated RPG test origin only.');
   const h = window.rpgCommandTest;
   if (large) {
     const owned = await h.custody.updateOwnedGame(control, game => ({ ...game,
       maze: { ...h.lineMaze(60, [
-        ...Array.from({ length: 33 }, (_, column) => h.roomAt(`known-${column}`, 'junction', column)),
+        ...Array.from({ length: 33 }, (_, column) => h.roomAt(`known-${column}`, 'ordinary', column)),
         h.roomAt('wire-secret-room', 'boss', 59),
       ], 16), visibility: { radius: 16, explored: Array.from({ length: 60 }, (_, column) => ({ row: 0, column })) } },
       chests: [...game.chests, { id: 'wire-secret-chest', level: 1, position: { row: 0, column: 59 }, opened: false }],
@@ -92,7 +94,7 @@ export async function install(control: SaveControl, large = false) {
     sessionEpoch: String(scope.control.epoch), scopeId: scope.scopeId, perspectiveId: 'party',
     gameId: scope.gameId, floor: scope.floor, objectiveId: 'reach-known-exit', objective: 'Reach the remembered exit',
     runId: 'rpg-native-run', manifestHash: `sha256:${'a'.repeat(64)}`, control: scope.control,
-    completionTarget: { floor: scope.floor, row: 0, column: 5 }, travelLimits: { steps: 64, replans: 4, durationMs: 120000 } };
+    completionTarget: { floor: scope.floor, row: 0, column: 5 }, travelLimits: { steps, replans: 4, durationMs: 120000 } };
   await api.bindRpgRun(binding);
   await connect(binding);
   return binding;
@@ -100,15 +102,38 @@ export async function install(control: SaveControl, large = false) {
 
 /** Reload the public test handle without rebinding or adopting an old run. */
 export async function connect(binding: RpgAgenticaBinding) {
-  const api = await loadApi();
-  const harness = { ...api, binding, actionKey, actionFingerprint, snapshot,
+  const api = await loadApi(), checks: RpgHarness['checks'] = [];
+  // Exercise the pinned SDK's actual result contract without connecting any transport.
+  const host = new AgenticaHost({ url: 'ws://unused.invalid',
+    onAction: async action => (await executeRpgAction(action)).result,
+    loadAction: loadRpgAction, saveAction: async (key, record) => { await api.saveRpgAction(key, record); },
+  });
+  function validate(action: AgenticaAction, result: AgenticaResult, source: string) {
+    let sdkError = '';
+    try { (host as any)._validateResult(action, result, { objectiveId: binding.objectiveId, capabilities: rpgCapabilities() }); }
+    catch (error) { sdkError = String(error); }
+    // Audit separately so expected-error tests cannot swallow a result validation failure.
+    checks.push({ source, sdkError, result: structuredClone(result) });
+  }
+  async function loadRpgAction(key: string) {
+    const record = await api.loadRpgAction(key);
+    if (record?.result) validate(JSON.parse(record.fingerprint), record.result, 'persisted');
+    return record;
+  }
+  async function executeRpgAction(action: AgenticaAction, settleOnly = false) {
+    const outcome = await api.executeRpgAction(action, settleOnly);
+    validate(action, outcome.result, `${settleOnly ? 'settle' : 'execute'}:${outcome.replayed ? 'replay' : 'original'}`);
+    await loadRpgAction(actionKey(action));
+    return outcome;
+  }
+  const harness = { ...api, binding, actionKey, actionFingerprint, snapshot, checks, loadRpgAction, executeRpgAction,
     action(capabilityId = 'maze.navigate', args: Record<string, unknown> = { row: 0, column: 5 }, actionId = 'original'): AgenticaAction {
       return { actionId, runId: binding.runId, runnerRunId: 'native-runner', stepId: `step-${actionId}`,
         sessionId: binding.sessionId, sessionEpoch: binding.sessionEpoch, capabilityId, manifestHash: binding.manifestHash,
         arguments: args, expectedRevision: binding.control.revision, deadlineAt: new Date(Date.now() + 120000).toISOString() };
     },
     reserve: (action: AgenticaAction) => api.saveRpgAction(actionKey(action), { fingerprint: actionFingerprint(action), status: 'pending' }),
-    fault: (action: AgenticaAction, store: string, method: 'put' | 'add', expire = false) => fault(api, action, store, method, expire),
+    fault: (action: AgenticaAction, store: string, method: 'put' | 'add', expire = false) => fault(executeRpgAction, action, store, method, expire),
   };
   window.rpgAgenticaActionsTest = harness;
   return binding;

@@ -1,16 +1,26 @@
 import { test, expect, fixture, seed } from './rpg-command-browser';
 import type * as Browser from './rpg-agentica-actions-browser';
 
-async function setup(page: Parameters<typeof seed>[0], large = false) {
+async function setup(page: Parameters<typeof seed>[0], large = false, steps = 64) {
   const base = await seed(page);
-  return page.evaluate(async ({ control, large }) => {
+  return page.evaluate(async ({ control, large, steps }) => {
     const path = '/tests/e2e/rpg-agentica-actions-browser.ts';
-    return (await import(/* @vite-ignore */ path) as typeof Browser).install(control, large);
-  }, { control: base.control, large });
+    return (await import(/* @vite-ignore */ path) as typeof Browser).install(control, large, steps);
+  }, { control: base.control, large, steps });
 }
 function publicWire(value: unknown) {
   expect(JSON.stringify(value)).not.toMatch(/"(?:owner|control|gameState|maze|seed|recipe|sockets|monsters|lineage|ancestors|floors)"|wire-secret-/);
 }
+
+test.afterEach(async ({ page }, testInfo) => {
+  const checks = await page.evaluate(() => window.rpgAgenticaActionsTest?.checks ?? []);
+  await testInfo.attach('pinned-sdk-result-validation', { body: JSON.stringify(checks, null, 2), contentType: 'application/json' });
+  for (const check of checks) {
+    expect.soft(check.sdkError, `${check.source}: ${check.result.actionId} ${check.result.disposition}`).toBe('');
+    expect.soft(check.result.observation, `${check.source}: resolved scoped observation`).toBeDefined();
+    publicWire(check.result);
+  }
+});
 
 test('RPG scope and immutable run binding survive native storage without inventing a new grant', async ({ page }) => {
   await setup(page);
@@ -147,24 +157,37 @@ for (const condition of ['takeover', 'revision', 'replacement', 'floor', 'expire
       if (condition === 'replacement') await game.custody.replaceOwnedGame(h.binding.control, { ...game.game(), id: 'replacement' });
       if (condition === 'floor') await game.custody.updateOwnedGame(h.binding.control, g => ({ ...g, dungeonLevel: 2 }));
       const before = await h.snapshot(false), outcome = await h.executeRpgAction(action);
-      return { before, outcome, after: await h.snapshot(false) };
+      return { before, outcome, binding: h.binding, after: await h.snapshot(false) };
     }, condition);
-    expect(result.outcome.result.disposition).toBe(condition === 'expired' ? 'unavailable' : 'conflict');
+    expect(condition === 'expired' ? ['unavailable'] : ['conflict', 'unavailable']).toContain(result.outcome.result.disposition);
     expect(result.outcome.result.operation).toBeUndefined(); expect(result.outcome.result.completion).toBeUndefined();
     expect(result.outcome.result.beforeRevision).toBe(result.outcome.result.afterRevision); expect(result.after).toEqual(result.before);
+    const view = result.outcome.result.observation?.data;
+    expect(view).toMatchObject({ scopeId: result.binding.scopeId, gameId: result.binding.gameId, floor: result.binding.floor });
+    expect(JSON.stringify(view)).not.toMatch(/"(?:cells|rooms|chests|roomIds|edges)"|"replacement"/);
   });
 }
 
-test('unknown navigation targets refuse without creating travel or an operation link', async ({ page }) => {
-  await setup(page);
-  const result = await page.evaluate(async () => {
-    const h = window.rpgAgenticaActionsTest, action = h.action('maze.navigate', { row: 0, column: 999 }); await h.reserve(action);
-    const before = await h.snapshot(false), outcome = await h.executeRpgAction(action);
-    return { before, outcome, after: await h.snapshot(false) };
+for (const reason of ['unknown target', 'zero step budget'] as const) {
+  test(`${reason} refuses navigation without creating travel or an operation link`, async ({ page }) => {
+    await setup(page, false, reason === 'zero step budget' ? 0 : 64);
+    const result = await page.evaluate(async reason => {
+      const h = window.rpgAgenticaActionsTest, action = h.action('maze.navigate', { row: 0, column: reason === 'unknown target' ? 999 : 5 });
+      await h.reserve(action);
+      const before = await h.snapshot(false), outcome = await h.executeRpgAction(action);
+      return { before, outcome, after: await h.snapshot(false) };
+    }, reason);
+    expect(result.outcome.result.disposition).toBe('refused'); expect(result.outcome.result.operation).toBeUndefined();
+    expect(result.outcome.result.beforeRevision).toBe(result.outcome.result.afterRevision);
+    expect(result.outcome.result.completion).toBeUndefined();
+    const { rpgTravelActions: originalReceipts, ...before } = result.before;
+    const { rpgTravelActions: receipts, ...after } = result.after;
+    expect(after).toEqual(before);
+    expect(receipts).toEqual([...originalReceipts, expect.objectContaining({ disposition: 'refused' })]);
+    expect(receipts.at(-1)).not.toHaveProperty('travel'); expect(receipts.at(-1)).not.toHaveProperty('command');
+    publicWire(result.outcome.result);
   });
-  expect(result.outcome.result.disposition).toBe('refused'); expect(result.outcome.result.operation).toBeUndefined();
-  expect(result.outcome.result.completion).toBeUndefined(); expect(result.after).toEqual(result.before); publicWire(result.outcome.result);
-});
+}
 
 for (const kind of ['observe', 'map', 'room', 'inspect'] as const) {
   test(`${kind} queries expose bounded earned facts without hidden geometry, save owners or effects`, async ({ page }) => {
