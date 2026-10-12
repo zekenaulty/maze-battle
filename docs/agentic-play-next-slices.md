@@ -1,7 +1,7 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
 Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 partial.
-2026-10-11. Revision 11. [D1 evidence](reviews/d1-qualification.md),
+2026-10-12. Revision 12. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -23,9 +23,13 @@ now reuses DestinationOperation and ordinary receipted game movement through
 `2d7f177`. The subsequent [actual-game Agentica boundary](reviews/a1-rpg-agentica-boundary.md)
 adds scoped SDK tools, atomic admission/results, immutable operation events and
 GameSession entry points. Provider-free browser tests exercise unchanged SDK
-dispatch against the real game, checked through `0716a94`. The ordinary-game launch/reconnect controller
-and paired service qualification remain the next A1 gate; A2-A3 and Q are not
-replaced by these boundary proofs.
+dispatch against the real game, checked through `0716a94`. The subsequent
+[ordinary-game controller and paired lifecycle](reviews/a1-rpg-controller.md)
+adds compact controls, pause/Stop, explicit adoption, and real-service known
+travel/decision/completion proofs. A1 remains partial: pending-decision Stop
+after service restart genuinely fails its paired acceptance; new-owner decision
+continuation also remains unqualified. Those bounded lifecycle repairs precede
+A2-A3 and Q. They are not replaced by successful known-route tests.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional

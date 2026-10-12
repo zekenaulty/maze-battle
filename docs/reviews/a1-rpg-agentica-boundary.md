@@ -11,6 +11,10 @@ copy the RPG into the older streamed fixture database. No paid provider was
 called. The ordinary-game launch/reconnect UI and a paired Lab run are NOT
 qualified by this report.
 
+Follow-through: [ordinary-game controller and paired lifecycle](a1-rpg-controller.md)
+records the next checked implementation and the still-failing pending-decision
+restart gate. The historical proof limits below remain accurate for this report.
+
 ## Implemented
 
 - `services/agentica/rpg` defines the existing SDK envelopes for `maze.observe`,
