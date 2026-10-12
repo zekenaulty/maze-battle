@@ -8,11 +8,18 @@ import type { RpgObservationNode } from './observationTypes';
 import type { RpgMemoryHead } from './rpgMemory/types';
 import type { MemoryNode } from './rpgMemory/treeTypes';
 import type { RpgTravelReceipt, RpgTravelRecord } from './rpgTravel/types';
+import type { RpgAgenticaBinding } from '../services/agentica/rpg/contracts';
+import type { RpgHostAction, RpgHostAdvance, RpgHostEvent, RpgHostOperation } from './rpgAgentica/types';
 
 const DB_NAME = 'maze-battle';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 export interface MazeBattleDb extends DBSchema {
+  rpgAgenticaRuns: { key: string; value: RpgAgenticaBinding };
+  rpgAgenticaActions: { key: string; value: RpgHostAction };
+  rpgAgenticaOperations: { key: string; value: RpgHostOperation };
+  rpgAgenticaEvents: { key: string; value: RpgHostEvent };
+  rpgAgenticaAdvances: { key: string; value: RpgHostAdvance };
   rpgTravels: { key: string; value: RpgTravelRecord };
   rpgTravelActions: { key: string; value: RpgTravelReceipt };
   rpgMemoryNodes: { key: string; value: MemoryNode };
@@ -42,6 +49,11 @@ let dbPromise: Promise<IDBPDatabase<MazeBattleDb>> | undefined;
 export function getDatabase() {
   dbPromise ??= openDB<MazeBattleDb>(DB_NAME, DB_VERSION, {
     upgrade(db) {
+      if (!db.objectStoreNames.contains('rpgAgenticaRuns')) db.createObjectStore('rpgAgenticaRuns', { keyPath: 'runId' });
+      if (!db.objectStoreNames.contains('rpgAgenticaActions')) db.createObjectStore('rpgAgenticaActions', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('rpgAgenticaOperations')) db.createObjectStore('rpgAgenticaOperations', { keyPath: 'operationId' });
+      if (!db.objectStoreNames.contains('rpgAgenticaEvents')) db.createObjectStore('rpgAgenticaEvents', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('rpgAgenticaAdvances')) db.createObjectStore('rpgAgenticaAdvances', { keyPath: 'attemptId' });
       if (!db.objectStoreNames.contains('rpgTravels')) db.createObjectStore('rpgTravels', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('rpgTravelActions')) db.createObjectStore('rpgTravelActions', { keyPath: 'attemptId' });
       if (!db.objectStoreNames.contains('rpgMemoryNodes')) db.createObjectStore('rpgMemoryNodes', { keyPath: 'id' });

@@ -12,21 +12,29 @@ import { requireTravel, sameTravelPosition, sealTravel, travelFingerprint, valid
 import type { RpgTravelRecord, RpgTravelRequest, RpgTravelReceipt } from './types';
 
 export const ACTIVE_TRAVEL = 'travel:auto';
-const stores = ['meta', 'saves', 'gameCommands', 'observations', 'rpgMemoryNodes', 'rpgMemoryHeads', 'rpgTravels', 'rpgTravelActions'] as const;
+export const RPG_TRAVEL_STORES = ['meta', 'saves', 'gameCommands', 'observations', 'rpgMemoryNodes', 'rpgMemoryHeads', 'rpgTravels', 'rpgTravelActions'] as const;
 const unavailable = (reason: string) => ({ disposition: 'unavailable' as const, reason });
 const refused = (reason: string) => ({ disposition: 'refused' as const, reason });
 
 /** Admission, step, cancellation and original-attempt receipts share the ordinary game write. */
 export async function executeRpgTravel(request: RpgTravelRequest, settleOnly = false) {
   const fingerprint = travelFingerprint(request), input: RpgTravelRequest = JSON.parse(fingerprint);
-  const db = await getDatabase(), tx = db.transaction([...stores], 'readwrite');
+  const db = await getDatabase(), tx = db.transaction([...RPG_TRAVEL_STORES], 'readwrite');
   void tx.done.catch(() => {});
   try {
+    const result = await commitRpgTravelInTransaction(tx, input, settleOnly);
+    await tx.done;
+    return result;
+  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
+}
+
+/** The caller must abort on failure and recheck deadlines after any additional writes. */
+export async function commitRpgTravelInTransaction(tx: GameWrite, request: RpgTravelRequest, settleOnly = false) {
+    const fingerprint = travelFingerprint(request), input: RpgTravelRequest = JSON.parse(fingerprint);
     const previous = await tx.objectStore('rpgTravelActions').get(input.attemptId);
     if (previous) {
       const receipt = validateTravelReceipt(previous, input, fingerprint);
       const current = await currentGame(tx);
-      await tx.done;
       return { receipt, replayed: true, current };
     }
     const result = settleOnly ? { disposition: 'settled' as const, reason: 'Original attempt had no committed effect; settled without execution.' }
@@ -41,12 +49,10 @@ export async function executeRpgTravel(request: RpgTravelRequest, settleOnly = f
     if (receipt.disposition === 'applied') requireTravel(Date.now() < input.deadlineAt);
     if (receipt.command || receipt.travel && input.action.type === 'adopt')
       requireTravel(!destinationExpired(receipt.travel!.operation, Date.now()));
-    await tx.done;
     return { receipt, replayed: false, current };
-  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } throw error; }
 }
 
-async function currentGame(tx: GameWrite) {
+export async function currentGame(tx: GameWrite) {
   const control = decodeControl(await tx.objectStore('meta').get(AUTO_CONTROL_KEY)), slot = await tx.objectStore('saves').get('auto');
   return control && slot ? { control, game: slot.game } : undefined;
 }
