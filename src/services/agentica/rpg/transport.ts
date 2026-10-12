@@ -89,7 +89,12 @@ export class RpgAgenticaTransport {
     requireRpg(launch.binding, 'Original start identity is unresolved. A new start is not a retry.');
     this.launch = structuredClone(launch); this.binding = launch.binding;
     const bound = await readRpgRun(launch.binding.runId);
-    requireRpg(bound, 'Original run was announced but not locally bound; reconcile launch custody first.');
+    if (!bound) {
+      // An announced start that lost local custody can be stopped, never rebound as fresh authority.
+      this.ready.reject(new Error('Original start has no local effect grant.'));
+      await this.sdk.connect();
+      return;
+    }
     this.ready.resolve();
     try {
       const response = await this.sdk.resume({ runId: bound.runId, sessionId: bound.sessionId, sessionEpoch: bound.sessionEpoch });

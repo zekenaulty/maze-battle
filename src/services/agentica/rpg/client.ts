@@ -191,6 +191,8 @@ export class RpgAgenticaClient {
     } else if (retained?.event && retained.link.sequence !== retained.link.acknowledged && retained.event.kind !== 'decision') {
       await this.deliver(retained.event, false);
     }
+    if (retained?.travel.operation.status === 'cancelled' && retained.event?.kind !== 'cancelled')
+      await this.deliver(await stageRpgHostEvent(retained.travel.id, this.options.session.ownedControl()), false);
     if (!this.launch!.stopAcknowledged) {
       if (!launch.sent) this.launch = await markRpgLaunch(launch.id, { stopAcknowledged: true });
       else { requireRpg(launch.binding, 'Original service start identity is unresolved; local execution is stopped.'); await this.transport.cancel(); }

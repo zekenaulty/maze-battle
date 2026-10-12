@@ -7,7 +7,7 @@ import { sameTravelPosition, validateTravel } from '../rpgTravel/validation';
 import { sameOwner, type SaveControl } from '../saveControl';
 import { rpgOperationAt } from './records';
 import { checkHost, rpgAgenticaWrite, sealHost } from './transaction';
-import { rpgOperationObservation, rpgTravelUsage } from './evidence';
+import { rpgCancelledObservation, rpgOperationObservation, rpgTravelUsage } from './evidence';
 
 export const rpgEventKey = (id: string, sequence: number) => JSON.stringify([id, sequence]);
 const terminal = (event?: HostOperationEvent) => event && ['decision', 'completed', 'cancelled', 'blocked'].includes(event.kind);
@@ -39,7 +39,8 @@ export async function stageRpgEventAt(tx: GameWrite, id: string, expected: SaveC
   requireRpg(current && stored && current.game.id === link.binding.gameId && sameOwner(current.control, expected)
     && current.control.revision === expected.revision, 'event custody changed');
   const travel = validateTravel(stored, id), op = travel.operation;
-  requireRpg(sameOwner(travel.control, current.control) && travel.control.revision === current.control.revision, 'journey requires adoption');
+  requireRpg(op.status === 'cancelled' || sameOwner(travel.control, current.control)
+    && travel.control.revision === current.control.revision, 'journey requires adoption');
   const slot = await tx.objectStore('saves').get('auto'); requireRpg(slot, 'game missing');
   const position = { floor: current.game.dungeonLevel, ...current.game.maze.active };
   requireRpg(op.status === 'cancelled' || travel.sourceHead === slot.observationHead && sameTravelPosition(travel.position, position), 'journey position changed');
@@ -52,7 +53,8 @@ export async function stageRpgEventAt(tx: GameWrite, id: string, expected: SaveC
     : kind === 'decision' ? 'Reached the chosen destination. The governing destination objective is not complete.'
     : kind === 'transfer' ? 'Explicitly adopted the original journey; target, limits, elapsed time and usage retained.'
     : kind === 'progress' ? 'Routine browser-owned travel progress; no cognition requested.' : op.reason;
-  const observation = await rpgOperationObservation(tx, slot, current.control.revision, link.binding);
+  const observation = op.status === 'cancelled' ? await rpgCancelledObservation(tx, travel, link.binding)
+    : await rpgOperationObservation(tx, slot, current.control.revision, link.binding);
   const event: HostOperationEvent = { hostId: 'maze-battle', sessionId: link.binding.sessionId, sessionEpoch: link.activeEpoch,
     actionId: link.action.actionId, operationId: id, sequence: link.sequence + 1, eventId: crypto.randomUUID(), kind,
     observation, summary, usage: rpgTravelUsage(travel),
