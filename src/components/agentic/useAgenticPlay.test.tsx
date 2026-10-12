@@ -7,7 +7,8 @@ import { useAgenticPlay } from '../../hooks/useAgenticPlay';
 const mocks = vi.hoisted(() => {
   class Client {
     view: RpgAgenticaView = { state: 'idle', connected: false, steps: 0, replans: 0 };
-    constructor(readonly options: { onChange: (view: RpgAgenticaView) => void; target: unknown }) { instances.push(this); }
+    readonly options: { onChange: (view: RpgAgenticaView) => void; target: unknown };
+    constructor(options: Client['options']) { this.options = options; instances.push(this); }
     start = vi.fn(async () => { this.publish({ state: 'running', runId: 'run-one' }); });
     recover = vi.fn(async () => { this.publish({ state: 'paused', runId: 'retained', target: { floor: 2, row: 9, column: 9 } }); });
     adopt = vi.fn(async () => { this.publish({ state: 'running' }); });
@@ -161,4 +162,40 @@ describe('Agentic play executor ownership', () => {
     expect(previous.close).toHaveBeenCalledOnce();
     expect(result.current.view.state).toBe('paused'); expect(result.current.view.steps).toBe(0);
   });
+
+  it('keeps launch controls busy until pending Stop settles', async () => {
+    const { result } = setup();
+    await act(() => result.current.start(url, target));
+    const client = mocks.instances[0];
+    let release!: () => void;
+    client.cancel.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+    let stopping!: Promise<void>;
+    act(() => { stopping = result.current.stop(); });
+    expect(result.current.busy).toBe(true); expect(result.current.canStop).toBe(true);
+    await act(() => result.current.start(url, target));
+    expect(mocks.instances).toHaveLength(1);
+    await act(async () => { client.publish({ state: 'cancelled' }); release(); await stopping; });
+    expect(result.current.busy).toBe(false); expect(result.current.canStop).toBe(false);
+  });
+
+  it('allows the first post-adoption tick to publish updated status', async () => {
+    const { result } = setup();
+    await act(() => result.current.reconnect(url, target));
+    const client = mocks.instances[0];
+    client.adopt.mockImplementationOnce(async () => {});
+    client.tick.mockImplementationOnce(async () => { client.publish({ state: 'travelling' }); });
+    await act(() => result.current.adopt()); await advance(300);
+    expect(client.tick).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['completed', 'cancelled', 'blocked', 'paused', 'disconnected', 'awaiting-adoption'])
+    ('stops scheduling ticks after the controller reports %s', async state => {
+      const { result } = setup();
+      await act(() => result.current.start(url, target));
+      const client = mocks.instances[0];
+      client.tick.mockImplementationOnce(async () => { client.publish({ state }); });
+      await advance(900);
+      expect(client.tick).toHaveBeenCalledOnce();
+      expect(result.current.canStop).toBe(!['completed', 'cancelled', 'blocked'].includes(state));
+    });
 });

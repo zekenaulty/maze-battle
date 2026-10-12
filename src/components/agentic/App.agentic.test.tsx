@@ -29,6 +29,7 @@ describe('actual game Agentic play wiring', () => {
     const { rerender } = render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
     expect(screen.getByRole('dialog', { name: 'Agentic play' })).toBeVisible();
+    expect(screen.getByLabelText('Host endpoint')).toHaveValue('ws://127.0.0.1:5085/api/host');
     expect(state.agent.pause).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(state.agent.start).toHaveBeenCalledOnce();

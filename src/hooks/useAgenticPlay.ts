@@ -4,12 +4,15 @@ import type { GameSession } from '../services/game/GameSession';
 import type { RpgAddress } from '../domain/agentic/knowledge/types';
 
 const idle: RpgAgenticaView = { state: 'idle', connected: false, steps: 0, replans: 0 };
+const terminal = new Set(['completed', 'cancelled', 'blocked']);
+const inactive = (state: string) => terminal.has(state) || ['idle', 'paused', 'awaiting-adoption', 'disconnected'].includes(state);
 const ordinaryDialogOpen = () => [...document.querySelectorAll('dialog[open]')]
   .some(dialog => !dialog.querySelector('[data-agentic-play]'));
 
 export function useAgenticPlay(session: GameSession, suspended: boolean) {
   const [view, setView] = useState(idle);
   const [busy, setBusy] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [error, setError] = useState<string>();
   const [hasClient, setHasClient] = useState(false);
   const client = useRef<RpgAgenticaClient | undefined>(undefined);
@@ -55,7 +58,7 @@ export function useAgenticPlay(session: GameSession, suspended: boolean) {
         }
         return;
       } finally { ticking.current = false; }
-      if (mounted.current && generation.current === epoch && client.current === active) {
+      if (mounted.current && generation.current === epoch && client.current === active && !inactive(active.view.state)) {
         timer.current = setTimeout(tick, 150);
       }
     };
@@ -103,13 +106,13 @@ export function useAgenticPlay(session: GameSession, suspended: boolean) {
     const active = client.current;
     if (!active || cancelling.current) return;
     cancelling.current = true;
-    setError(undefined);
+    setStopping(true); setError(undefined);
     try { await active.cancel(); }
     catch (reason) { if (mounted.current && client.current === active) setError(String(reason instanceof Error ? reason.message : reason)); }
-    finally { cancelling.current = false; }
+    finally { cancelling.current = false; if (mounted.current) setStopping(false); }
   }, [pause]);
 
-  return { view, busy, error, canStop: hasClient, pause, stop,
+  return { view, busy: busy || stopping, error, canStop: hasClient && (busy || stopping || !terminal.has(view.state)), pause, stop,
     start: (url: string, target: RpgAddress) => invoke('start', url, target),
     reconnect: (url: string, target: RpgAddress) => invoke('recover', url, target),
     adopt: () => invoke('adopt') };
