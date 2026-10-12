@@ -1,4 +1,4 @@
-import type { RpgPerceptionRegion } from '../domain/agentic/knowledge/perceptionTypes';
+import type { RpgPerceptionRegion, RpgPerceptionScope } from '../domain/agentic/knowledge/perceptionTypes';
 import type { Direction, GridPosition } from '../domain/types';
 import { cellKey } from '../domain/maze/key';
 import { movePosition, opposite } from '../domain/maze/movement';
@@ -12,8 +12,7 @@ import type { MazeViewModel } from './mazeViewModel';
  * overview scans are bounded by the scope. Always pass the supplied visibility.
  * Future input adapters must bounds-check local hits, then add origin to recover
  * world coordinates; origin is not a renderer offset or traversal permission.
- * Stone/floor styling is viewport-local for now; UI adoption must decide whether
- * to preserve world-anchored styling continuity when the requested scope moves.
+ * Pass origin as drawMaze's artOrigin to keep stone/floor styling world-anchored.
  */
 export interface PerceivedMazeView extends MazeViewModel {
   origin: GridPosition;
@@ -42,13 +41,7 @@ export function createPerceivedMazeView(region: RpgPerceptionRegion, facing: Dir
   });
   const observations = new Map(scoped.flatMap(cell => cell.state === 'visible'
     ? [[cellKey(cell.observation.address), cell.observation] as const] : []));
-  const view: PerceivedMazeView = {
-    facing, origin: { row, column }, chests: [],
-    viewport: { rowStart: 0, rowEnd: rows, columnStart: 0, columnEnd: columns, rows, columns },
-    visibility: { radius: 0, visible: new Set(), explored: new Set() },
-    maze: { rows, columns,
-      start: absent(), end: absent(), active: absent(), visited: [], cells: [] },
-  };
+  const view = emptyPerceivedMazeView(region.scope, facing);
 
   for (const cell of scoped) {
     const details = cell.state === 'visible' ? cell.observation : cell.fact;
@@ -73,4 +66,11 @@ export function createPerceivedMazeView(region: RpgPerceptionRegion, facing: Dir
     view.maze.active = localPosition(region.actor);
   }
   return view;
+}
+
+export function emptyPerceivedMazeView({ row, column, rows, columns }: RpgPerceptionScope, facing: Direction): PerceivedMazeView {
+  return { facing, origin: { row, column }, chests: [],
+    viewport: { rowStart: 0, rowEnd: rows, columnStart: 0, columnEnd: columns, rows, columns },
+    visibility: { radius: 0, visible: new Set(), explored: new Set() },
+    maze: { rows, columns, start: absent(), end: absent(), active: absent(), visited: [], cells: [] } };
 }

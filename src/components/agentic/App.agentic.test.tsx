@@ -5,10 +5,15 @@ import type { QuestState } from '../../domain/types';
 import type { useGameSession } from '../../hooks/useGameSession';
 import type { useAgenticPlay } from '../../hooks/useAgenticPlay';
 import { App } from '../../App';
+import { observeRpg } from '../../domain/agentic/knowledge/observe';
+import { currentPerception } from '../../viewModels/currentPerception';
+import type { RpgPerceptionRegion } from '../../domain/agentic/knowledge/perceptionTypes';
 
 const state = vi.hoisted(() => ({ session: {} as ReturnType<typeof useGameSession>,
+  region: undefined as RpgPerceptionRegion | undefined,
   agent: {} as ReturnType<typeof useAgenticPlay>, navigate: vi.fn(), cancel: vi.fn() }));
 vi.mock('../../hooks/useGameSession', () => ({ useGameSession: () => state.session }));
+vi.mock('../../hooks/useMazePerception', () => ({ useMazePerception: () => ({ region: state.region }) }));
 vi.mock('../../hooks/useAgenticPlay', () => ({ useAgenticPlay: () => state.agent }));
 vi.mock('../../hooks/useClickNavigation', () => ({ useClickNavigation: () => ({ navigate: state.navigate, cancel: state.cancel, message: '' }) }));
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: ({ onTileClick }: { onTileClick?: (position: { row: number; column: number }) => void }) =>
@@ -19,6 +24,10 @@ beforeEach(() => {
   state.session = { game: createNewGameState({ mode: 'manual' }), controlled: true, status: 'Ready', saves: [],
     transition: vi.fn(), flush: vi.fn(async () => {}), refreshSaves: vi.fn(async () => {}),
   } as unknown as ReturnType<typeof useGameSession>;
+  const observed = observeRpg(state.session.game!, { id: 'view-source', observedAt: '2026-10-12T00:00:00Z',
+    revision: { owner: 'test-owner', epoch: 1, revision: 1 } });
+  if (observed.status !== 'observed') throw new Error('Invalid fixture sight');
+  state.region = currentPerception(observed, { floor: 1, row: 0, column: 0, rows: 7, columns: 9 });
   state.agent = { view: { state: 'running', connected: true, steps: 4, replans: 0, runId: 'run-one' },
     busy: false, canStop: true, error: undefined, pause: vi.fn(), stop: vi.fn(async () => {}),
     start: vi.fn(async () => {}), reconnect: vi.fn(async () => {}), adopt: vi.fn(async () => {}) };
@@ -33,6 +42,13 @@ const fetchQuest = (id: string, patch: Partial<QuestState> = {}): QuestState => 
 });
 
 describe('actual game Agentic play wiring', () => {
+  it('does not dispatch a canvas target before its observation is available', () => {
+    state.region = undefined;
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Walk target' }));
+    expect(state.navigate).not.toHaveBeenCalled();
+    expect(state.agent.pause).not.toHaveBeenCalled();
+  });
   it('offers only current-floor accepted unclaimed fetch quests and launches at the entrance without quest effects', () => {
     const game = state.session.game!;
     game.maze = { ...game.maze, start: { row: 2, column: 3 }, active: { row: 5, column: 6 } };

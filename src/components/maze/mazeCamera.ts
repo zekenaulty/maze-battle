@@ -37,7 +37,7 @@ const PADDING = 16;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.6;
 
-export function createMazeCamera(maze: MazeState, size: CanvasSize, camera: MazeCameraState = DEFAULT_MAZE_CAMERA): MazeViewport {
+export function createMazeCamera(maze: Pick<MazeState, 'rows' | 'columns' | 'active'>, size: CanvasSize, camera: MazeCameraState = DEFAULT_MAZE_CAMERA): MazeViewport {
   const isCompact = size.width < 760 || size.height < 640;
   const zoom = clampCameraZoom(camera.zoom ?? DEFAULT_MAZE_CAMERA.zoom);
   const targetCell = (isCompact ? MOBILE_TARGET_CELL : DESKTOP_TARGET_CELL) * zoom;

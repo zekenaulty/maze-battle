@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from '@playwright/test';
-import { createMazeCamera, cameraCellSize } from '../../src/components/maze/mazeCamera';
+import { cameraCellSize } from '../../src/components/maze/mazeCamera';
 import type {} from './click-navigation-fixture';
 
 const test = base.extend<{ audit: void }>({
@@ -21,16 +21,19 @@ const state = async (page: Page) => (await snapshot(page)).saves.find(s => s.slo
 async function open(page: Page) {
   await page.goto('/tests/e2e/click-navigation-fixture.html');
   await expect(page.locator('.screen-status')).toContainText('Ready');
+  await expect(page.getByLabel('Dungeon map')).not.toHaveAttribute('aria-busy', 'true');
 }
 async function at(page: Page, column: number) {
   await expect.poll(async () => (await state(page)).maze.active.column, { intervals: [25, 50] }).toBe(column);
 }
-async function point(page: Page, column: number, zoom = 1, overview = false) {
-  const canvas = page.getByLabel('Dungeon map'), bounds = (await canvas.boundingBox())!, maze = (await state(page)).maze;
+async function point(page: Page, column: number, _zoom = 1, overview = false) {
+  const canvas = page.getByLabel('Dungeon map');
+  await expect(canvas).not.toHaveAttribute('aria-busy', 'true');
+  const bounds = (await canvas.boundingBox())!;
+  const viewport = await canvas.evaluate(c => ({ rows: Number(c.dataset.rows), columns: Number(c.dataset.columns),
+    rowStart: Number(c.dataset.rowStart), columnStart: Number(c.dataset.columnStart) }));
   const size = { width: Math.floor(bounds.width), height: Math.floor(bounds.height) };
-  const viewport = overview ? { rows: maze.rows, columns: maze.columns, rowStart: 0, columnStart: 0 }
-    : createMazeCamera(maze, size, { mode: 'follow', zoom });
-  const cell = overview ? Math.min((size.width - 16) / maze.columns, (size.height - 16) / maze.rows) : cameraCellSize(size, viewport);
+  const cell = overview ? Math.min((size.width - 16) / viewport.columns, (size.height - 16) / viewport.rows) : cameraCellSize(size, viewport);
   const x = Math.floor((size.width - cell * viewport.columns) / 2) + (column - viewport.columnStart + .5) * cell;
   const y = Math.floor((size.height - cell * viewport.rows) / 2) + (3 - viewport.rowStart + .5) * cell;
   return { x: bounds.x + x * bounds.width / size.width, y: bounds.y + y * bounds.height / size.height };

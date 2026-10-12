@@ -44,6 +44,7 @@ interface MazeRenderOptions {
   visibility?: MazeVisibilitySnapshot;
   viewport?: MazeViewport;
   showStairs?: boolean;
+  artOrigin?: GridPosition;
 }
 
 interface RenderBounds {
@@ -90,6 +91,7 @@ const MAZE_COLORS = {
   stairGlowDown: 'rgba(106, 160, 255, 0.7)',
   playerShadow: 'rgba(5, 10, 20, 0.9)',
 };
+const ZERO_ORIGIN: GridPosition = { row: 0, column: 0 };
 
 export function onMazeSpritesReady(callback: () => void) {
   const unsubscribePlayer = subscribeSpriteSet(playerSpriteAssets(), callback);
@@ -130,15 +132,15 @@ export function drawMaze(
   const offsetY = viewportY - viewport.rowStart * cellSize;
 
   const walls = collectWalls(maze, linkMap(maze), viewport, options.visibility);
-  drawFloors(context, maze, cellSize, offsetX, offsetY, viewport, options.visibility);
+  drawFloors(context, maze, cellSize, offsetX, offsetY, viewport, options.visibility, options.artOrigin);
   drawLayoutOverlays(context, maze, cellSize, offsetX, offsetY, viewport, options.visibility);
-  drawWalls(context, maze, walls, cellSize, offsetX, offsetY, viewport);
+  drawWalls(context, maze, walls, cellSize, offsetX, offsetY, viewport, options.artOrigin);
   drawChests(context, chests, cellSize, offsetX, offsetY, viewport, options.visibility);
   if (options.showStairs !== false && isInViewport(maze.start, viewport) && isCellExplored(options.visibility, maze.start)) {
-    drawStairs(context, maze.start, cellSize, offsetX, offsetY, 'up');
+    drawStairs(context, maze.start, cellSize, offsetX, offsetY, 'up', options.artOrigin);
   }
   if (options.showStairs !== false && isInViewport(maze.end, viewport) && isCellExplored(options.visibility, maze.end)) {
-    drawStairs(context, maze.end, cellSize, offsetX, offsetY, 'down');
+    drawStairs(context, maze.end, cellSize, offsetX, offsetY, 'down', options.artOrigin);
   }
   if (isCellExplored(options.visibility, maze.active)) {
     drawPlayer(context, maze.active, facing, cellSize, offsetX, offsetY, now);
@@ -242,7 +244,7 @@ function drawOverviewMarker(
   context.restore();
 }
 
-function drawFloors(context: CanvasRenderingContext2D, maze: MazeState, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport, visibility?: MazeVisibilitySnapshot) {
+function drawFloors(context: CanvasRenderingContext2D, maze: MazeState, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport, visibility?: MazeVisibilitySnapshot, origin = ZERO_ORIGIN) {
   const bounds = renderBounds(maze, viewport);
   const x = offsetX + bounds.columnStart * cellSize;
   const y = offsetY + bounds.rowStart * cellSize;
@@ -250,6 +252,11 @@ function drawFloors(context: CanvasRenderingContext2D, maze: MazeState, cellSize
   const height = cellSize * bounds.rows;
   const tile = getFloorPatternTile(context, cellSize);
   const pattern = context.createPattern(tile, 'repeat');
+  if (pattern && (origin.row || origin.column)) {
+    // Reduce before multiplying so a distant viewport cannot lose pixel precision.
+    pattern.setTransform(new DOMMatrix().translate(-((origin.column % tile.width) * cellSize % tile.width),
+      -((origin.row % tile.height) * cellSize % tile.height)));
+  }
 
   context.save();
   context.beginPath();
@@ -501,7 +508,7 @@ function drawFloorBrick(context: CanvasRenderingContext2D, x: number, y: number,
   context.restore();
 }
 
-function drawWalls(context: CanvasRenderingContext2D, maze: MazeState, walls: WallNetwork, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport) {
+function drawWalls(context: CanvasRenderingContext2D, maze: MazeState, walls: WallNetwork, cellSize: number, offsetX: number, offsetY: number, viewport?: MazeViewport, origin = ZERO_ORIGIN) {
   const thickness = Math.max(4, Math.floor(cellSize * 0.18));
 
   context.save();
@@ -515,7 +522,7 @@ function drawWalls(context: CanvasRenderingContext2D, maze: MazeState, walls: Wa
       cellSize,
       thickness,
       'horizontal',
-      stoneSeed(row, column, 0),
+      stoneSeed(row + origin.row, column + origin.column, 0),
     );
   }
 
@@ -528,11 +535,11 @@ function drawWalls(context: CanvasRenderingContext2D, maze: MazeState, walls: Wa
       cellSize,
       thickness,
       'vertical',
-      stoneSeed(row, column, 1),
+      stoneSeed(row + origin.row, column + origin.column, 1),
     );
   }
 
-  drawWallJoints(context, walls, maze.rows, maze.columns, cellSize, offsetX, offsetY, thickness, viewport);
+  drawWallJoints(context, walls, maze.rows, maze.columns, cellSize, offsetX, offsetY, thickness, viewport, origin);
 
   context.restore();
 }
@@ -568,6 +575,7 @@ function drawWallJoints(
   offsetY: number,
   thickness: number,
   viewport?: MazeViewport,
+  origin = ZERO_ORIGIN,
 ) {
   const bounds = renderBounds({ rows, columns }, viewport);
   for (let row = bounds.rowStart; row <= bounds.rowEnd; row++) {
@@ -585,7 +593,7 @@ function drawWallJoints(
         offsetY + row * cellSize,
         connections,
         thickness,
-        stoneSeed(row, column, 7 + count),
+        stoneSeed(row + origin.row, column + origin.column, 7 + count),
       );
     }
   }
@@ -1002,6 +1010,7 @@ function drawStairs(
   offsetX: number,
   offsetY: number,
   direction: 'up' | 'down',
+  origin = ZERO_ORIGIN,
 ) {
   const x = offsetX + position.column * cellSize;
   const y = offsetY + position.row * cellSize;
@@ -1029,9 +1038,9 @@ function drawStairs(
     const visualIndex = direction === 'up' ? index : stepCount - index - 1;
     const progress = visualIndex / (stepCount - 1);
     const stepWidth = wellWidth * (0.54 + progress * 0.34);
-    const stepX = wellX + (wellWidth - stepWidth) / 2 + (seededNoise(stoneSeed(position.row, position.column, index + 41)) - 0.5) * cellSize * 0.02;
+    const stepX = wellX + (wellWidth - stepWidth) / 2 + (seededNoise(stoneSeed(position.row + origin.row, position.column + origin.column, index + 41)) - 0.5) * cellSize * 0.02;
     const stepY = wellY + stepGap + index * (stepHeight + stepGap);
-    const seed = stoneSeed(position.row, position.column, direction === 'up' ? index + 17 : index + 29);
+    const seed = stoneSeed(position.row + origin.row, position.column + origin.column, direction === 'up' ? index + 17 : index + 29);
     drawStairSlab(context, stepX, stepY, stepWidth, stepHeight, seed);
   }
 

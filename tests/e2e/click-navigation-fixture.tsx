@@ -5,6 +5,7 @@ import { seededRng } from '../../src/domain/automation/autopilotTestFixtures';
 import { getDatabase, saveGame } from '../../src/persistence/saveRepository';
 import type { Direction, MazeState } from '../../src/domain/types';
 import '../../src/styles.css';
+import * as perception from './click-perception-fixture';
 
 async function snapshot() {
   const db = await getDatabase(), tx = db.transaction(['saves', 'meta', 'telemetry'], 'readonly');
@@ -12,7 +13,7 @@ async function snapshot() {
   await tx.done;
   return { saves, meta, telemetry };
 }
-declare global { interface Window { clickRpg: { snapshot: typeof snapshot } } }
+declare global { interface Window { clickRpg: { snapshot: typeof snapshot; perception: typeof perception } } }
 
 async function start() {
   if (!import.meta.env.DEV || location.hostname !== '127.0.0.1' || location.port !== '5203') throw new Error('Isolated fixture origin required');
@@ -36,7 +37,7 @@ async function start() {
     await saveGame('auto', marker, 'auto', { ...game, party: game.party.map(a => ({ ...a, autoBattle: false })) });
     sessionStorage.setItem(marker, 'seeded');
   } else if (!sessionStorage.getItem(marker)) throw new Error('Refusing non-fixture database');
-  window.clickRpg = { snapshot };
+  window.clickRpg = { snapshot, perception };
   createRoot(document.getElementById('root')!).render(<App />);
 }
 void start();

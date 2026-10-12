@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GameState, GridPosition } from '../domain/types';
 import { AutoThrottleControl } from './AutoThrottleControl';
@@ -6,7 +6,9 @@ import { Controls } from './Controls';
 import type { MazeRenderMode } from './maze/drawMaze';
 import { DEFAULT_MAZE_CAMERA, zoomMazeCamera, type MazeCameraState } from './maze/mazeCamera';
 import { MazeCanvas } from './MazeCanvas';
-import { createMazeViewModel } from '../viewModels/mazeViewModel';
+import { createPerceivedMazeView, emptyPerceivedMazeView } from '../viewModels/perceivedMaze';
+import { perceptionScope } from '../viewModels/perceptionScope';
+import { useMazePerception } from '../hooks/useMazePerception';
 import { Dialog } from './Dialog';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
 import { AutoStatus } from './screens/AutoStatus';
@@ -18,7 +20,8 @@ interface ExploreScreenProps {
   game: GameState;
   status: string;
   onMove: (direction: Direction) => void;
-  chests: GridPosition[];
+  observationHead?: string;
+  chests?: GridPosition[];
   autoActive: boolean;
   wavesActive: boolean;
   autoThrottleMs: number;
@@ -45,7 +48,7 @@ export function ExploreScreen({
   game,
   status,
   onMove,
-  chests,
+  observationHead,
   autoActive,
   wavesActive,
   autoThrottleMs,
@@ -66,10 +69,15 @@ export function ExploreScreen({
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
   const portalCount = portalScrollCount ?? game.inventory.items.reduce((count, item) =>
     item.consumableEffect === 'townPortal' ? count + Math.max(0, Math.floor(item.quantity ?? 1)) : count, 0);
   const isOverview = mazeMode === 'overview';
-  const mazeView = createMazeViewModel(game, chests);
+  const scope = perceptionScope(game.dungeonLevel, game.maze.active, canvasSize, camera, mazeMode);
+  const scopeKey = JSON.stringify(scope);
+  const perception = useMazePerception(game.id, observationHead, scope);
+  const mazeView = useMemo(() => perception.region ? createPerceivedMazeView(perception.region, game.facing)
+    : emptyPerceivedMazeView(scope, game.facing), [perception.region, game.facing, scopeKey]);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
   const chest = chestAtActivePosition(game);
   const blocked = controlsDisabled || settingsOpen || confirmNew;
@@ -80,7 +88,7 @@ export function ExploreScreen({
 
   useEffect(() => {
     setCamera((current) => ({ ...current, mode: 'follow', origin: undefined }));
-  }, [game.dungeonLevel, game.maze.rows, game.maze.columns]);
+  }, [game.id, game.dungeonLevel]);
 
   return (
     <main className={`game-screen explore-screen refined-screen ${onDiagnostics ? 'has-diagnostics' : ''} ${onAgenticPlay ? 'has-agentic' : ''}`}>
@@ -131,10 +139,13 @@ export function ExploreScreen({
           chests={mazeView.chests}
           facing={mazeView.facing}
           visibility={mazeView.visibility}
+          viewport={mazeView.viewport} origin={mazeView.origin}
+          frameKey={`${observationHead ?? ''}:${scopeKey}`}
+          pending={perception.pending} onSizeChange={setCanvasSize}
           camera={camera}
           mode={mazeMode}
           onCameraChange={setCamera}
-          onTileClick={blocked ? undefined : onTileClick}
+          onTileClick={blocked || !perception.region ? undefined : onTileClick}
         />
         {mazeMode === 'camera' && (
           <div className="camera-controls" aria-label="Camera controls">
@@ -154,6 +165,7 @@ export function ExploreScreen({
       <div className="explore-interaction">
         <button type="button" onClick={interact} disabled={blocked || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
         <span aria-live="polite">{navigationMessage}</span>
+        {perception.error && <span role="alert">{perception.error}</span>}
       </div>
       <Controls onMove={onMove} disabled={blocked} />
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>

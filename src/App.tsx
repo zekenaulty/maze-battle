@@ -8,7 +8,6 @@ import { DiagnosticsDialog } from './components/diagnostics/DiagnosticsDialog';
 import { AgenticPlayDialog } from './components/agentic/AgenticPlayDialog';
 import { createNewGameState } from './domain/gameFactory';
 import { autoControlActive, wavesControlActive } from './domain/automation/autoPlay';
-import { activeUnopenedChests } from './domain/items/chests';
 import { getEffectiveActor, normalizeInventoryPolicy } from './domain/items/inventory';
 import { canUseTownPortal, portalScrollCount } from './domain/town/town';
 import { useGameSession } from './hooks/useGameSession';
@@ -78,7 +77,7 @@ export function App() {
       onToggleItemLock={commands.lock} onInventoryPolicyChange={commands.policy}
     /> : <ExploreScreen
       {...shared} {...automation} game={game} status={session.status} onMove={commands.move}
-      chests={activeUnopenedChests(game).map(chest => chest.position)}
+      observationHead={session.observationHead}
       onTown={commands.portal} portalScrollCount={portalScrollCount(game)} onNewGame={newGame}
       onRandomBattlesChange={commands.encounters}
       onTileClick={position => { pauseManual(); navigation.navigate(position); }} onStopWalking={pauseManual} navigationMessage={navigation.message}

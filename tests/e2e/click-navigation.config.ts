@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 export default defineConfig({
-  testDir: '.', testMatch: 'click-navigation.spec.ts', workers: 1, retries: 0,
+  testDir: '.', testMatch: ['click-navigation.spec.ts', 'click-perception.spec.ts'], workers: 1, retries: 0,
   timeout: 45_000, outputDir: '../../test-results/click-navigation',
   reporter: [['list'], ['json', { outputFile: '../../test-results/click-navigation/browser-results.json' }]],
   webServer: {
