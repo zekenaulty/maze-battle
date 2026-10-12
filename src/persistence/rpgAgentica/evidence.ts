@@ -6,6 +6,7 @@ import type { GameWrite } from '../gameTransaction';
 import { observationReader } from '../observationNodes';
 import type { RpgTravelRecord } from '../rpgTravel/types';
 import { rpgObservation } from '../../services/agentica/rpg/views';
+import { rpgQuestStatus } from '../../services/agentica/rpg/quest';
 
 /** Point-read a lawful source receipt; reporting progress does not require rebuilding the memory index. */
 export async function rpgOperationObservation(tx: GameWrite, slot: SaveSlot, revision: number,
@@ -16,8 +17,10 @@ export async function rpgOperationObservation(tx: GameWrite, slot: SaveSlot, rev
   requireRpg(receipt.actor.floor === slot.game.dungeonLevel && receipt.actor.row === slot.game.maze.active.row
     && receipt.actor.column === slot.game.maze.active.column, 'operation observation does not match actor');
   // Current observation projection does not read the memory index, which may lag this just-committed step.
-  if (local) return rpgObservation({ head: node }, revision, binding.scopeId);
-  return operationEvidence(receipt, revision, binding);
+  const observation = local ? await rpgObservation({ head: node }, revision, binding.scopeId)
+    : operationEvidence(receipt, revision, binding);
+  if (binding.mode === 'quest') observation.data.quest = rpgQuestStatus(slot.game, binding);
+  return observation;
 }
 
 /** A delayed cancellation reports its retained source, never the later owner's world. */

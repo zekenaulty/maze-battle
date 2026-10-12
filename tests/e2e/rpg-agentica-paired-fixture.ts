@@ -1,7 +1,7 @@
 import { GameSession } from '../../src/services/game/GameSession';
 import { RpgAgenticaClient } from '../../src/services/agentica/rpg/client';
 import { createNewGameState } from '../../src/domain/gameFactory';
-import { chestAt, lineMaze, roomAt } from '../../src/domain/automation/autopilotTestFixtures';
+import { chestAt, lineMaze, questFor, roomAt } from '../../src/domain/automation/autopilotTestFixtures';
 import { saveGame, getGame, getDatabase } from '../../src/persistence/saveRepository';
 import { claimGame, updateOwnedGame } from '../../src/persistence/gameCustody';
 import { readRpgRun } from '../../src/persistence/rpgAgentica/runs';
@@ -13,7 +13,7 @@ if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5212') throw n
 const target = { floor: 1, row: 0, column: 5 }, socket = 'ws://127.0.0.1:5092/api/host';
 let session: GameSession, client: RpgAgenticaClient;
 const positions: number[] = [];
-async function connect(recover = false, discovery = false) {
+async function connect(recover = false, discovery = false, questId?: string) {
   session = new GameSession(view => { if (view.game) positions.push(view.game.maze.active.column); });
   await session.start();
   if (!session.view.controlled) throw new Error('Fixture failed to acquire actual game custody.');
@@ -24,8 +24,9 @@ async function connect(recover = false, discovery = false) {
       if (memory.status !== 'partial' || batch >= 15) throw new Error('Fixture memory preparation bound exceeded.');
     }
   }
-  client = new RpgAgenticaClient({ session, url: socket, target: discovery ? { floor: 1, ...session.view.game!.maze.active } : target,
-    ...(discovery ? { mode: 'exploration' as const } : {}), onChange: () => {} });
+  client = new RpgAgenticaClient({ session, url: socket, target: questId ? { floor: 1, ...session.view.game!.maze.start }
+    : discovery ? { floor: 1, ...session.view.game!.maze.active } : target,
+    ...(questId ? { mode: 'quest' as const, questId } : discovery ? { mode: 'exploration' as const } : {}), onChange: () => {} });
   if (recover) await client.recover(); else await client.start();
   return snapshot();
 }
@@ -42,11 +43,12 @@ async function seed() {
 }
 async function snapshot() {
   const slot = await getGame('auto'), db = await getDatabase();
+  const launch = slot && await readRpgLaunch(slot.game.id);
   return { view: client.view, game: slot?.game, sessionGame: session.view.game, positions: [...positions],
     memory: { sourceHead: slot?.observationHead, ready: !!(slot?.observationHead && await db.get('rpgMemoryHeads', slot.observationHead)) },
-    launch: slot && await readRpgLaunch(slot.game.id),
+    launch,
     owner: session.owner, travel: await session.readTravel(), binding: client.view.runId ? await readRpgRun(client.view.runId) : undefined,
-    operation: client.view.operationId ? await readRpgHostOperation(client.view.operationId) : undefined };
+    operation: launch?.operationId ? await readRpgHostOperation(launch.operationId) : undefined };
 }
 async function seedDiscovery(variant: 'A' | 'B', corridor = false) {
   const maze = corridor ? corridorDungeon(variant) : discoveryDungeon(variant);
@@ -56,7 +58,44 @@ async function seedDiscovery(variant: 'A' | 'B', corridor = false) {
         : variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 } }], randomBattles: false, mode: 'manual' }));
   return connect(false, true);
 }
-const harness = { seed, seedDiscovery, snapshot, recover: () => connect(true),
+async function seedQuest(variant: 'A' | 'B') {
+  const maze = corridorDungeon(variant), position = variant === 'A' ? { row: 6, column: 11 } : { row: 3, column: 8 };
+  const room = { ...roomAt('survey-room', 'treasure', position.column), row: position.row, center: position };
+  maze.layout = { version: 'structured-v1', rooms: [room], mainPath: [], zones: [] };
+  const quest = questFor(room, 'fetch');
+  quest.id = 'accepted-survey'; quest.task.item = { baseId: 'survey-seal', displayName: 'Survey Seal', token: 'seal' };
+  await saveGame('auto', 'Retrieval actual RPG', 'auto', createNewGameState({ id: crypto.randomUUID(), maze,
+    quests: [quest], floors: [], chests: [{ id: 'survey-chest', level: 1, position, opened: false }], randomBattles: false, mode: 'manual' }));
+  return connect(false, false, quest.id);
+}
+function holdChestReply(drop: boolean) {
+  const send = WebSocket.prototype.send;
+  WebSocket.prototype.send = function(data) {
+    const message = typeof data === 'string' ? JSON.parse(data) : undefined;
+    if (message?.type === 'action.result' && message.payload?.observation?.data?.effect?.kind === 'open-chest') {
+      WebSocket.prototype.send = send;
+      client.pause();
+      if (drop) return;
+    }
+    return send.call(this, data);
+  };
+}
+function rejectNextAdoption() {
+  const send = WebSocket.prototype.send;
+  WebSocket.prototype.send = function(data) {
+    const message = typeof data === 'string' ? JSON.parse(data) : undefined;
+    if (message?.type === 'operation.adopt') {
+      WebSocket.prototype.send = send;
+      queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({
+        protocolVersion: message.protocolVersion, requestId: message.requestId, runId: message.runId, type: 'error',
+        payload: { code: 'connection.busy', message: 'Injected pre-admission refusal; no request forwarded.' },
+      }) })));
+      return;
+    }
+    return send.call(this, data);
+  };
+}
+const harness = { seed, seedDiscovery, seedQuest, holdChestReply, rejectNextAdoption, snapshot, recover: () => connect(true),
   tick: async () => { await client.tick(); return snapshot(); },
   pause: () => client.pause(), adopt: () => client.adopt(), cancel: () => client.cancel(),
   close: async () => { client?.close(); await session?.flush(); session?.stop(); },

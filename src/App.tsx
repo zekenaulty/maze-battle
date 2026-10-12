@@ -90,6 +90,7 @@ export function App() {
       position={{ floor: game.dungeonLevel, ...game.maze.active }} view={agent.view}
       entrance={{ floor: game.dungeonLevel, ...game.maze.start }}
       quests={game.quests.filter(quest => quest.floor === game.dungeonLevel && quest.task.objective === 'fetch'
+        && quest.task.item && quest.task.required === 1
         && (quest.status === 'active' || quest.status === 'complete'))
         .map(quest => ({ id: quest.id, title: quest.title, itemName: quest.task.item?.displayName ?? quest.task.noun }))}
       busy={agent.busy} canStop={agent.canStop} controlled={session.controlled} error={agent.error}

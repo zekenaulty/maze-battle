@@ -45,8 +45,8 @@ describe('actual game Agentic play wiring', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Retrieve quest item' }));
-    expect(screen.getAllByRole('option')).toHaveLength(3);
-    expect(screen.getByRole('option', { name: 'Fetch legacy - old cache' })).toBeInTheDocument();
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+    expect(screen.queryByRole('option', { name: 'Fetch legacy - old cache' })).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Fetch ready - Guild Cache' })).toBeInTheDocument();
     expect(screen.queryByText(/private-room/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ready' } });

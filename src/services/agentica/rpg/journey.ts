@@ -8,11 +8,15 @@ import { rpgFetch } from './network';
 
 export async function retainedRpgJourney(session: GameSession, launch: RpgLaunch) {
   if (!launch.operationId) return;
+  const retained = await readRpgHostOperation(launch.operationId);
+  requireRpg(retained.link.binding.runId === launch.binding?.runId, 'operation belongs to another run');
+  if (retained.link.kind === 'interaction') {
+    requireRpg(retained.event?.kind === 'decision', 'interaction decision missing');
+    return { ...retained, travel: undefined, adoptionRequired: false };
+  }
   const current = await session.readTravel();
   requireRpg(current && current.travel.id === launch.operationId && current.travel.gameId === launch.draft.gameId,
     'The retained journey is not the current game journey.');
-  const retained = await readRpgHostOperation(launch.operationId);
-  requireRpg(retained.link.binding.runId === launch.binding?.runId, 'journey belongs to another run');
   return { ...current, ...retained };
 }
 

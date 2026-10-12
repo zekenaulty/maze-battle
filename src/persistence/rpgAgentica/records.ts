@@ -8,6 +8,7 @@ import { checkHost, rpgAgenticaWrite, sealHost } from './transaction';
 import { rpgRunAt } from './runs';
 import type { RpgHostAction } from './types';
 import { sameTravelPosition, validateTravel } from '../rpgTravel/validation';
+import { commandFingerprint, validateCommandReceipt } from '../gameCommandValidation';
 
 export async function rpgActionAt(tx: GameWrite, key: string) {
   const parts = validateActionKey(key), binding = await rpgRunAt(tx, parts[2]);
@@ -31,7 +32,7 @@ export async function rpgActionAt(tx: GameWrite, key: string) {
       && ['applied', 'refused', 'conflict', 'unavailable'].includes(result.disposition)
       && integer(result.beforeRevision, 0) && integer(result.afterRevision, result.beforeRevision)
       && validId(result.evidenceId) && typeof result.summary === 'string', 'invalid archived result');
-    if (result.operation) requireRpg(['maze.navigate', 'maze.explore'].includes(action.capabilityId) && result.disposition === 'applied'
+    if (result.operation) requireRpg(['maze.navigate', 'maze.explore', 'maze.open-chest'].includes(action.capabilityId) && result.disposition === 'applied'
       && result.operation.operationId === stored.operationId, 'invalid operation admission');
     if (result.observation) requireRpg(result.observation.revision === result.afterRevision
       && result.observation.data.scopeId === binding.scopeId && result.observation.data.gameId === binding.gameId,
@@ -65,7 +66,7 @@ export function saveRpgAction(key: string, record: AgenticaActionRecord) {
 export async function rpgOperationAt(tx: GameWrite, id: string) {
   const link = await tx.objectStore('rpgAgenticaOperations').get(id);
   requireRpg(link, 'missing operation'); checkHost(link);
-  requireRpg(rpgShape(link, 'operationId,version,action,binding,activeEpoch,sequence,acknowledged,witness', 'adoption')
+  requireRpg(rpgShape(link, 'operationId,version,action,binding,activeEpoch,sequence,acknowledged,witness', 'adoption,kind')
     && link.version === 1 && link.operationId === id && validId(id) && /^[1-9]\d*$/.test(link.activeEpoch)
     && integer(link.sequence, 0) && integer(link.acknowledged, 0, link.sequence) && link.sequence - link.acknowledged <= 1, 'invalid operation');
   const original = await rpgActionAt(tx, actionKey(link.action));
@@ -74,9 +75,27 @@ export async function rpgOperationAt(tx: GameWrite, id: string) {
   requireRpg(original.stored?.record.result?.operation?.operationId === id
     && actionFingerprint(link.action) === original.stored.record.fingerprint
     && boundedJson(original.binding) === boundedJson(link.binding), 'operation admission lineage changed');
+  const command = parseRpgAction(link.action, link.binding);
+  if (link.kind === 'interaction') {
+    const receipt = await tx.objectStore('gameCommands').get(id);
+    requireRpg(command.type === 'open-chest' && receipt, 'missing interaction command');
+    const request = JSON.parse(receipt.fingerprint);
+    validateCommandReceipt(receipt, request, commandFingerprint(request));
+    const effect = original.stored.record.result.observation?.data.effect;
+    requireRpg(receipt.attemptId === id && receipt.gameId === link.binding.gameId && receipt.outcome.status === 'applied'
+      && request.command.type === 'open-chest' && request.command.chestId === command.chestId
+      && request.control.owner === link.binding.control.owner && request.control.epoch === link.binding.control.epoch
+      && request.control.revision === link.action.expectedRevision && request.floor === link.binding.floor
+      && receipt.afterRevision === original.stored.record.result.afterRevision
+      && rpgShape(effect, 'kind,attemptId,chestId,beforeRevision,afterRevision,outcome,sourceHead')
+      && effect.sourceHead === receipt.observationHead && effect.attemptId === id && effect.chestId === command.chestId,
+    'interaction receipt lineage changed');
+    return link;
+  }
+  requireRpg(!Object.hasOwn(link, 'kind'), 'invalid operation kind');
   const stored = await tx.objectStore('rpgTravels').get(id);
   requireRpg(stored, 'missing admitted journey');
-  const travel = validateTravel(stored, id), command = parseRpgAction(link.action, link.binding);
+  const travel = validateTravel(stored, id);
   requireRpg(travel.gameId === link.binding.gameId && (command.type === 'explore'
     ? boundedJson(travel.frontier) === boundedJson(command.frontier) && travel.exploration?.policy === command.continuation
     : command.type === 'navigate' && !travel.frontier && !travel.exploration

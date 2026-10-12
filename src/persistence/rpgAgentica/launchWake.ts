@@ -11,6 +11,7 @@ import { rpgAgenticaWrite, sealHost } from './transaction';
 import { memoryInGameTransaction } from '../rpgMemory/access';
 import { memoryBudget } from '../rpgMemory/budget';
 import { rpgObservation } from '../../services/agentica/rpg/views';
+import { rpgQuestStatus } from '../../services/agentica/rpg/quest';
 
 /** Persist one exact decision before requesting a successor; a retry reuses it. */
 export function prepareRpgWake(id: string, event: HostOperationEvent, control: SaveControl, adopt = false) {
@@ -46,10 +47,12 @@ export function prepareRpgWake(id: string, event: HostOperationEvent, control: S
     const slot = await tx.objectStore('saves').get('auto'), query = slot && await memoryInGameTransaction(tx, slot, memoryBudget());
     requireRpg(query, 'Adoption needs prepared earned memory.');
     const draft = { ...launch.binding, sessionEpoch: String(owner.epoch), control: owner, parentOperationId: input.operationId };
+    const observation = await rpgObservation(query, owner.revision, draft.scopeId);
+    if (draft.mode === 'quest') observation.data.quest = rpgQuestStatus(current.game, draft);
     return putLaunch(tx, { ...launch, wake: { ...(launch.wake ?? { event: input,
       draft: { ...launch.binding, parentOperationId: input.operationId } }), adoptedDraft: draft,
       adoption: { adoptionId: crypto.randomUUID(), nextSessionEpoch: draft.sessionEpoch,
-        observation: await rpgObservation(query, owner.revision, draft.scopeId) } } });
+        observation } } });
   });
 }
 

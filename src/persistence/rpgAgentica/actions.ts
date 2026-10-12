@@ -12,6 +12,9 @@ import { rpgActionAt } from './records';
 import { rpgAgenticaWrite, sealHost } from './transaction';
 import type { RpgHostAction } from './types';
 import { launchForRun, putLaunch, stopStatus } from './launchRecords';
+import { openRpgChest } from './interaction';
+import { rpgQuestStatus } from '../../services/agentica/rpg/quest';
+import { retainChestDecision } from './interactionDecision';
 
 /** The SDK result and real travel admission commit together, or neither does. */
 export function executeRpgAction(action: AgenticaAction, settleOnly = false, signal?: AbortSignal) {
@@ -42,6 +45,7 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false, sig
         if (!memory) result.summary = 'Earned memory is not prepared for this checkpoint.';
         else {
           result.observation = await rpgObservation(memory, revision, binding.scopeId, command.type === 'observe' ? 'local' : 'operation');
+          if (binding.mode === 'quest') result.observation.data.quest = rpgQuestStatus(current.game, binding);
           if (command.type === 'navigate' || command.type === 'explore') {
             const travel = await commitRpgTravelInTransaction(tx, { attemptId: original.operationId, operationId: original.operationId,
               gameId: binding.gameId, control: current.control, deadlineAt: Date.parse(input.deadlineAt),
@@ -61,9 +65,12 @@ export function executeRpgAction(action: AgenticaAction, settleOnly = false, sig
               const launch = await launchForRun(tx, binding);
               if (launch) await putLaunch(tx, { ...launch, operationId: original.operationId });
             }
+          } else if (command.type === 'open-chest') {
+            result = await openRpgChest(tx, input, binding, current, memory, original.operationId, command.chestId, result);
+            if (result.disposition === 'applied') result = await retainChestDecision(tx, input, binding, original.operationId, result);
           } else {
             result.disposition = 'applied'; result.summary = 'Actor-earned context; no world interaction performed.';
-            if (command.type !== 'observe') result.observation.data.context = await rpgContext(memory, command);
+            if (command.type !== 'observe' && command.type !== 'quest-status') result.observation.data.context = await rpgContext(memory, command);
           }
         }
       }

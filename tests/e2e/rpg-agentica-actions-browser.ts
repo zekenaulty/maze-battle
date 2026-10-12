@@ -110,7 +110,8 @@ export async function connect(binding: RpgAgenticaBinding) {
   });
   function validate(action: AgenticaAction, result: AgenticaResult, source: string) {
     let sdkError = '';
-    try { (host as any)._validateResult(action, result, { objectiveId: binding.objectiveId, capabilities: rpgCapabilities() }); }
+    try { (host as any)._validateResult(action, result, { objectiveId: binding.objectiveId,
+      capabilities: rpgCapabilities(binding.mode === 'quest' ? 'quest' : binding.mode === 'exploration') }); }
     catch (error) { sdkError = String(error); }
     // Audit separately so expected-error tests cannot swallow a result validation failure.
     checks.push({ source, sdkError, result: structuredClone(result) });

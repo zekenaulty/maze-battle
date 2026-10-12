@@ -28,13 +28,16 @@ const address = (value: unknown): value is RpgAddress => rpgShape(value, 'floor,
   && validAddress(value as unknown as RpgAddress);
 
 export function validateRpgBinding(binding: unknown): asserts binding is RpgAgenticaBinding {
-  requireRpg(rpgShape(binding, 'protocolVersion,hostId,sessionId,sessionEpoch,scopeId,perspectiveId,gameId,floor,objectiveId,objective,runId,manifestHash,control,completionTarget,travelLimits', 'parentOperationId,mode')
+  requireRpg(rpgShape(binding, 'protocolVersion,hostId,sessionId,sessionEpoch,scopeId,perspectiveId,gameId,floor,objectiveId,objective,runId,manifestHash,control,completionTarget,travelLimits', 'parentOperationId,mode,quest')
     && binding.protocolVersion === 1 && binding.hostId === 'maze-battle' && binding.perspectiveId === 'party', 'invalid binding shape');
   requireRpg([binding.sessionId, binding.sessionEpoch, binding.gameId, binding.objectiveId, binding.runId].every(id)
     && rpgScopeId(binding.scopeId) && binding.sessionId === binding.scopeId, 'invalid binding identity');
   requireRpg(typeof binding.objective === 'string' && binding.objective.trim().length > 0 && binding.objective.length <= 4000
     && (!Object.hasOwn(binding, 'parentOperationId') || id(binding.parentOperationId)), 'invalid objective or parent operation');
-  requireRpg(!Object.hasOwn(binding, 'mode') || binding.mode === 'exploration', 'invalid objective mode');
+  requireRpg(!Object.hasOwn(binding, 'mode') || binding.mode === 'exploration' || binding.mode === 'quest', 'invalid objective mode');
+  requireRpg(binding.mode === 'quest' ? rpgShape(binding.quest, 'id,baseId,token,required')
+    && id(binding.quest.id) && id(binding.quest.baseId) && id(binding.quest.token) && binding.quest.required === 1
+    : !Object.hasOwn(binding, 'quest'), 'invalid quest binding');
   const control = binding.control;
   requireRpg(rpgShape(control, 'owner,epoch,revision') && id(control.owner) && integer(control.epoch as number, 1)
     && integer(control.revision as number, 0) && binding.sessionEpoch === String(control.epoch), 'invalid ownership fence');
@@ -72,8 +75,16 @@ export function parseRpgAction(action: AgenticaAction, binding: RpgAgenticaBindi
     requireRpg(rpgShape(args, ''), 'observe takes no arguments');
     return { type: 'observe' };
   }
+  if (action.capabilityId === 'maze.open-chest') {
+    requireRpg(binding.mode === 'quest' && rpgShape(args, 'chestId') && id(args.chestId), 'unbound chest interaction or arguments');
+    return { type: 'open-chest', chestId: args.chestId };
+  }
+  if (action.capabilityId === 'quest.status') {
+    requireRpg(binding.mode === 'quest' && rpgShape(args, ''), 'unbound quest status or arguments');
+    return { type: 'quest-status' };
+  }
   if (action.capabilityId === 'maze.explore') {
-    requireRpg(binding.mode === 'exploration' && rpgShape(args, 'row,column,direction,sourceId', 'continuation')
+    requireRpg((binding.mode === 'exploration' || binding.mode === 'quest') && rpgShape(args, 'row,column,direction,sourceId', 'continuation')
       && (!Object.hasOwn(args, 'continuation') || args.continuation === 'corridor-v1'), 'unbound exploration or arguments');
     const frontier = { anchor: { floor: binding.floor, row: args.row, column: args.column }, direction: args.direction,
       sourceId: args.sourceId } as import('../../../persistence/rpgTravel/types').RpgFrontierTarget;
@@ -87,7 +98,7 @@ export function parseRpgAction(action: AgenticaAction, binding: RpgAgenticaBindi
     return { type: action.capabilityId === 'maze.navigate' ? 'navigate' : 'inspect', target };
   }
   const room = action.capabilityId === 'maze.room';
-  const frontiers = action.capabilityId === 'maze.frontiers' && binding.mode === 'exploration';
+  const frontiers = action.capabilityId === 'maze.frontiers' && (binding.mode === 'exploration' || binding.mode === 'quest');
   requireRpg((room || action.capabilityId === 'maze.map' || frontiers)
     && rpgShape(args, room ? 'roomId,limit' : 'limit', 'snapshotId,after'), 'unbound capability or arguments');
   const command = { type: room ? 'room' : frontiers ? 'frontiers' : 'map', ...args };

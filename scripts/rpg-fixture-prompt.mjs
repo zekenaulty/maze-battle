@@ -5,7 +5,7 @@ export function section(prompt, start, end) {
 }
 
 /** Shared parser for fixture planners. No access to the browser or world recipe. */
-export function readRpgPrompt(body, allowContext = false) {
+export function readRpgPrompt(body, allowContext = false, retrieval = false) {
   if (body.model !== 'fixture-model' || body.stream !== true || body.store !== false)
     throw new Error('Only stateless streaming fixture-model requests are permitted.');
   const user = Array.isArray(body.input) && body.input.findLast(message => message.role === 'user');
@@ -23,6 +23,7 @@ export function readRpgPrompt(body, allowContext = false) {
     || !Number.isSafeInteger(reference.Revision)) throw new Error('Invalid real RPG observation identity.');
   const allowed = ['kind', 'scopeId', 'perspectiveId', 'gameId', 'floor', 'actor', 'sourceHead', 'cells', 'observedCellCount', 'truncated'];
   if (allowContext) allowed.push('context', 'notice');
+  if (retrieval) allowed.push('quest', 'effect');
   if (Object.keys(frame).some(key => !allowed.includes(key)) || (frame.cells?.length ?? 0) > 32
     || /"(?:seed|recipe|layout|floors|maze|checkpoint|knowledge)"/.test(JSON.stringify(frame)))
     throw new Error('Unexpected world data in bounded RPG observation.');

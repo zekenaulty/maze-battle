@@ -1,6 +1,6 @@
 import type { AgenticaCapability } from '../contracts';
 
-export function rpgCapabilities(exploration = false): AgenticaCapability[] {
+export function rpgCapabilities(exploration: boolean | 'quest' = false): AgenticaCapability[] {
   const address = ['row', 'column'].map(name => ({ name, type: 'integer' as const, required: true,
     minimum: 0, maximum: Number.MAX_SAFE_INTEGER - 1 }));
   const page = (maximum: number): AgenticaCapability['inputSchema']['fields'] => [
@@ -9,9 +9,9 @@ export function rpgCapabilities(exploration = false): AgenticaCapability[] {
     { name: 'after', type: 'string', required: false, description: 'Returned next cursor, with its matching snapshotId.' },
   ];
   const capability = (id: string, name: string, description: string,
-    fields: AgenticaCapability['inputSchema']['fields'], navigate = false): AgenticaCapability => ({
-    id, name, description, kind: navigate ? 'action' : 'query', effect: navigate ? 'writesLocalState' : 'readOnly',
-    ...(navigate ? { durableHandoff: true } : {}), inputSchema: { fields, allowAdditionalProperties: false },
+    fields: AgenticaCapability['inputSchema']['fields'], action = false): AgenticaCapability => ({
+    id, name, description, kind: action ? 'action' : 'query', effect: action ? 'writesLocalState' : 'readOnly',
+    ...(action === true ? { durableHandoff: true } : {}), inputSchema: { fields, allowAdditionalProperties: false },
   });
   return [
     capability('maze.observe', 'Observe current receipt', 'Read bounded cells from the current retained observation. No movement or refresh.', []),
@@ -33,6 +33,13 @@ export function rpgCapabilities(exploration = false): AgenticaCapability[] {
           { name: 'sourceId', type: 'string', required: true, description: 'Exact source.id from a current frontier.' },
           { name: 'continuation', type: 'string', required: false, allowedValues: ['corridor-v1'],
             description: 'Explicitly allow bounded forced-corridor continuation; omit for approach only.' }], true),
+    ] : []),
+    ...(exploration === 'quest' ? [
+      capability('maze.open-chest', 'Open the selected chest',
+        'Explicitly open one observed unopened chest at the current actor cell through ordinary game rules. Commits real loot and quest progress exactly once per action, then hands off a durable decision checkpoint. Navigation never opens it. No remote or unseen interactions.',
+        [{ name: 'chestId', type: 'string', required: true }], true),
+      capability('quest.status', 'Read the bound retrieval objective',
+        'Read the accepted objective, carried collectible count and known return location. No hidden room, chest or route is disclosed. Only the host can prove return completion.', []),
     ] : []),
   ];
 }

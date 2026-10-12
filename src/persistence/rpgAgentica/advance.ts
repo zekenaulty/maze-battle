@@ -27,6 +27,7 @@ export function advanceRpgHostOperation(request: RpgTravelRequest, signal?: Abor
     }
     requireRpg(!await tx.objectStore('rpgTravelActions').get(input.attemptId), 'attempt was not admitted by this adapter');
     const link = await rpgOperationAt(tx, input.operationId);
+    requireRpg(link.kind !== 'interaction', 'Interaction decisions have no travel steps.');
     requireRpg(input.gameId === link.binding.gameId, 'operation belongs to another game');
     const previous = link.sequence ? await rpgEventAt(tx, input.operationId, link.sequence) : undefined;
     const pending = link.sequence !== link.acknowledged;

@@ -52,7 +52,7 @@ export function AgenticPlayDialog({ position, entrance, quests, view, busy, canS
         {!quests.length && <p className="agentic-detail">No accepted fetch quests on this floor.</p>}
         {mode === 'quest' && <label>Accepted fetch quest
           <select value={selectedQuest?.id ?? ''} disabled={disabled || !quests.length} required
-            style={{ width: '100%', minWidth: 0, minHeight: 38 }} onChange={event => setQuestId(event.currentTarget.value)}>
+            onChange={event => setQuestId(event.currentTarget.value)}>
             <option value="">Choose a quest</option>
             {quests.map(quest => <option key={quest.id} value={quest.id}>{quest.title} - {quest.itemName}</option>)}
           </select>

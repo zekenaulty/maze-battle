@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readRpgPrompt } from './rpg-fixture-prompt.mjs';
 import { discoveryPlan, validateDiscoverySequence } from './rpg-discovery-provider.mjs';
+import { questPlan, validateQuestSequence } from './rpg-quest-provider.mjs';
 
 /** Read only the real RPG observation and the owner's explicit objective, never a fixture map. */
 export function rpgPlan(body, ordinal, intermediate = false) {
@@ -48,17 +49,19 @@ export async function startRpgFixture(port, restart) {
       for await (const chunk of request) {
         bytes += chunk.length; if (bytes > 2_097_152) throw new Error('Fixture input bound exceeded.'); chunks.push(chunk);
       }
-      if (calls.length >= 48) throw new Error('Fixture planner call bound exceeded.');
+      if (calls.length >= 96) throw new Error('Fixture planner call bound exceeded.');
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      const parsed = readRpgPrompt(body, true), discovery = parsed.objective.startsWith('Explore from earned observations.');
+      const parsed = readRpgPrompt(body, true, true), discovery = parsed.objective.startsWith('Explore from earned observations.');
+      const retrieval = parsed.objective.startsWith('Retrieve the accepted quest collectible');
       const continuation = calls.find(call => call.scope === parsed.identity.ScopeId)?.continuation ?? nextCorridor;
-      const { text, ...record } = discovery ? discoveryPlan(body, calls.length + 1, continuation)
+      const { text, ...record } = retrieval ? questPlan(body, calls.length + 1) : discovery ? discoveryPlan(body, calls.length + 1, continuation)
         : rpgPlan(body, calls.length + 1, nextIntermediate);
       nextIntermediate = false; nextCorridor = false;
       const prior = calls.filter(call => call.scope === record.scope);
       const checkpoint = record.observationKind === 'operation' || record.observationKind === 'local'
         && record.epoch !== prior[0]?.epoch && record.observationRevision > prior[0]?.observationRevision;
-      if (discovery) validateDiscoverySequence(prior, record);
+      if (retrieval) validateQuestSequence(prior, record);
+      else if (discovery) validateDiscoverySequence(prior, record);
       else if (prior.length && !(prior.length === 1 && prior[0].intermediate && checkpoint
         && JSON.stringify(record.actor) === JSON.stringify(prior[0].destination) && record.objective === prior[0].objective))
         throw new Error('Unexpected repeated planning outside the one intermediate-destination wake.');

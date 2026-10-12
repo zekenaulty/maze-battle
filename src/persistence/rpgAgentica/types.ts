@@ -8,6 +8,7 @@ export interface RpgHostAction {
 export interface RpgHostOperation {
   operationId: string; version: 1; action: AgenticaAction; binding: RpgAgenticaBinding;
   activeEpoch: string; sequence: number; acknowledged: number; witness: string;
+  kind?: 'interaction';
   adoption?: { source: HostDecisionAdoption; control: import('../saveControl').SaveControl; runId: string };
 }
 export interface RpgHostEvent {

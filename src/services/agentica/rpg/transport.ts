@@ -31,7 +31,11 @@ export class RpgAgenticaTransport {
         await this.ready.promise; requireRpg(this.binding, 'missing run binding'); parseRpgAction(action, this.binding);
         const signal = this.signal();
         if (this.closed || !this.sdk.connected || signal.aborted) return session.executeAgenticaAction(action, true);
-        try { return await session.executeAgenticaAction(action, false, signal); }
+        try {
+          // Immediate effects create a new observation too; prepare its derived memory before the next tool.
+          if (this.binding.mode === 'quest') await session.prepareTravelMemory();
+          return await session.executeAgenticaAction(action, false, signal);
+        }
         catch (error) { if (signal.aborted) return session.executeAgenticaAction(action, true); throw error; }
       },
       reconcileAction: async action => { await this.ready.promise; return session.executeAgenticaAction(action, true); },
@@ -84,7 +88,14 @@ export class RpgAgenticaTransport {
       this.launch = await finishRpgWake(this.launch.id);
       this.binding = binding; this.announcing = false; this.ready.resolve();
       return binding;
-    } catch (error) { this.ready.reject(error instanceof Error ? error : new Error(String(error))); throw error; }
+    } catch (error) {
+      // The service may publish parked before its execution task has fully unwound.
+      // This explicit pre-admission refusal permits retry of the SAME retained decision only.
+      if (error instanceof Error && 'code' in error && error.code === 'connection.busy') {
+        this.announcing = false; this.ready.resolve(); return undefined;
+      }
+      this.ready.reject(error instanceof Error ? error : new Error(String(error))); throw error;
+    }
   }
   async recover(launch: RpgLaunch, signal?: AbortSignal) {
     requireRpg(launch.binding, 'Original start identity is unresolved. A new start is not a retry.');

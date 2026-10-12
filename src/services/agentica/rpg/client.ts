@@ -38,6 +38,7 @@ export class RpgAgenticaClient {
   private stopped = false;
   private stopping?: Promise<void>;
   private confirmed?: string;
+  private adoptingDecision?: string;
   private nextAdmissionCheck = 0;
   constructor(options: RpgAgenticaOptions) {
     this.options = { ...options, target: structuredClone(options.target) };
@@ -91,6 +92,7 @@ export class RpgAgenticaClient {
   }); }
   pause() {
     this.authority++; this.abort.abort(); this.reading.abort();
+    this.adoptingDecision = undefined;
     if (!terminal(this.view.state) && this.view.state !== 'idle') this.publish({ state: 'paused' });
   }
   close() { this.pause(); this.closed = true; this.transport.close(); }
@@ -99,10 +101,19 @@ export class RpgAgenticaClient {
     requireRpg(this.launch, 'launch unavailable');
     if (event.kind === 'decision') {
       if (!allowWake) { this.publish({ state: 'awaiting-adoption', detail: 'A retained decision needs explicit continuation.' }); return; }
+      if (adoptDecision) this.adoptingDecision = event.eventId;
       const signal = this.abort.signal, memory = await this.options.session.prepareTravelMemory();
       if (!this.active(signal) || memory.status !== 'ready') return;
       this.publish({ state: 'planning' });
-      await this.transport.wake(event, adoptDecision); await this.refresh(); this.confirmed = undefined;
+      const successor = await this.transport.wake(event, this.adoptingDecision === event.eventId);
+      this.confirmed = undefined;
+      if (!successor) {
+        this.nextAdmissionCheck = Date.now() + 1000;
+        this.publish({ state: 'parked', detail: 'Service is settling the original window; retained decision is unchanged.' });
+        return;
+      }
+      this.adoptingDecision = undefined;
+      await this.refresh();
       return;
     }
     const receipt = await this.transport.sdk.signalOperation(event, { fetchImpl: (input, init) =>
@@ -122,7 +133,7 @@ export class RpgAgenticaClient {
     if (!this.transport.sdk.connected) { this.pause(); this.publish({ state: 'disconnected' }); return; }
     const launch = await this.refresh(), retained = await retainedRpgJourney(this.options.session, launch);
     if (!this.active(signal) || !retained) return;
-    this.publish({ steps: retained.travel.operation.steps, replans: retained.travel.operation.replans });
+    if (retained.travel) this.publish({ steps: retained.travel.operation.steps, replans: retained.travel.operation.replans });
     if (this.confirmed !== launch.operationId) {
       if (Date.now() < this.nextAdmissionCheck) return;
       this.nextAdmissionCheck = Date.now() + 1000;
@@ -136,6 +147,7 @@ export class RpgAgenticaClient {
     }
     if (event && terminal(event.kind)) { this.abort.abort(); this.publish({ state: event.kind }); return; }
     if (retained.adoptionRequired) { this.pause(); this.publish({ state: 'awaiting-adoption' }); return; }
+    requireRpg(travel, 'No travel after interaction decision.');
     if (travel.operation.status !== 'running') {
       await this.deliver(await stageRpgHostEvent(travel.id, this.options.session.ownedControl()), true); return;
     }
@@ -159,7 +171,7 @@ export class RpgAgenticaClient {
     this.confirmed = entry?.admission?.operation?.operationId;
     const retained = await retainedRpgJourney(this.options.session, this.launch!);
     if (retained) {
-      this.publish({ steps: retained.travel.operation.steps, replans: retained.travel.operation.replans });
+      if (retained.travel) this.publish({ steps: retained.travel.operation.steps, replans: retained.travel.operation.replans });
       if (retained.event && retained.link.sequence !== retained.link.acknowledged) await this.deliver(retained.event, false);
       if (retained.event && terminal(retained.event.kind)) { this.publish({ state: retained.event.kind }); return; }
     }
@@ -180,7 +192,7 @@ export class RpgAgenticaClient {
       await this.deliver(retained.event, true, true);
       if (!this.active(signal) || retained.event.kind === 'decision') return;
     }
-    requireRpg(retained.travel.operation.status === 'running', 'The original journey is already terminal.');
+    requireRpg(retained.travel?.operation.status === 'running', 'The original journey is already terminal.');
     const memory = await this.options.session.prepareTravelMemory();
     requireRpg(memory.status === 'ready' && this.active(signal), 'Adoption paused or memory still preparing.');
     const outcome = await this.options.session.advanceAgenticaOperation(this.options.session.travelRequest(retained.travel.id, { type: 'adopt' }), signal);
@@ -198,7 +210,7 @@ export class RpgAgenticaClient {
     const launch = await this.refresh(); await markRpgLaunch(launch.id, { stopped: true });
     if (launch.binding) await stopRpgRun(launch.binding.runId);
     const retained = await retainedRpgJourney(this.options.session, launch);
-    if (retained?.travel.operation.status === 'running') {
+    if (retained?.travel?.operation.status === 'running') {
       const outcome = await this.options.session.advanceAgenticaOperation(this.options.session.travelRequest(retained.travel.id, { type: 'cancel' }));
       requireRpg(outcome.receipt?.disposition === 'applied', 'Local cancellation needs current game custody.');
       if (outcome.event) await this.deliver(outcome.event, false);
@@ -207,7 +219,7 @@ export class RpgAgenticaClient {
     } else if (retained?.event && retained.link.sequence !== retained.link.acknowledged && retained.event.kind !== 'decision') {
       await this.deliver(retained.event, false);
     }
-    if (retained?.travel.operation.status === 'cancelled' && retained.event?.kind !== 'cancelled')
+    if (retained?.travel?.operation.status === 'cancelled' && retained.event?.kind !== 'cancelled')
       await this.deliver(await stageRpgHostEvent(retained.travel.id, this.options.session.ownedControl()), false);
     if (retained?.event?.kind === 'decision' && !this.launch!.stopAcknowledged) {
       const event = retained.event;
