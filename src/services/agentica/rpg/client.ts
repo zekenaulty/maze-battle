@@ -15,11 +15,11 @@ import { stopRpgDecision } from './decisionStop';
 export interface RpgAgenticaView {
   state: string; connected: boolean; steps: number; replans: number;
   detail?: string; runId?: string; operationId?: string; target?: RpgAddress;
-  mode?: 'exploration';
+  mode?: 'exploration' | 'quest'; questId?: string;
 }
 export interface RpgAgenticaOptions {
   session: GameSession; url: string; target: RpgAddress;
-  mode?: 'exploration';
+  mode?: 'exploration' | 'quest'; questId?: string;
   provider?: AgenticaStart['provider']; limits?: AgenticaStart['limits']; onChange?(view: RpgAgenticaView): void;
 }
 const terminal = (kind: string) => ['completed', 'cancelled', 'blocked'].includes(kind);
@@ -42,7 +42,7 @@ export class RpgAgenticaClient {
   constructor(options: RpgAgenticaOptions) {
     this.options = { ...options, target: structuredClone(options.target) };
     this.view = { state: 'idle', connected: false, steps: 0, replans: 0, target: structuredClone(options.target),
-      ...(options.mode ? { mode: options.mode } : {}) };
+      ...(options.mode ? { mode: options.mode } : {}), ...(options.questId !== undefined ? { questId: options.questId } : {}) };
     this.abort.abort();
     this.transport = new RpgAgenticaTransport(options.session, options.url, () => this.abort.signal, message => {
       const state = rpgRunStatus(message, this.transport.binding?.runId);
@@ -67,7 +67,8 @@ export class RpgAgenticaClient {
     const launch = await readRpgLaunch(game.id);
     requireRpg(launch && (!this.launch || launch.id === this.launch.id), 'original launch changed');
     this.launch = launch;
-    this.publish({ runId: launch.binding?.runId, operationId: launch.operationId, target: launch.draft.completionTarget, mode: launch.draft.mode });
+    this.publish({ runId: launch.binding?.runId, operationId: launch.operationId, target: launch.draft.completionTarget,
+      mode: launch.draft.mode, questId: launch.draft.questId });
     return launch;
   }
   start() { return this.exclusive(async () => {
@@ -80,6 +81,7 @@ export class RpgAgenticaClient {
     this.launch = await prepareRpgLaunch(this.options.session.ownedControl(), {
       url: this.options.url, target: this.options.target, provider: this.options.provider, limits: this.options.limits,
       ...(this.options.mode ? { mode: this.options.mode } : {}),
+      ...(this.options.questId !== undefined ? { questId: this.options.questId } : {}),
     });
     if (!this.active(signal)) { await markRpgLaunch(this.launch.id, { stopped: true, stopAcknowledged: true }); return; }
     this.publish({ state: 'starting' });

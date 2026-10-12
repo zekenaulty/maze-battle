@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNewGameState } from '../../domain/gameFactory';
+import type { QuestState } from '../../domain/types';
 import type { useGameSession } from '../../hooks/useGameSession';
 import type { useAgenticPlay } from '../../hooks/useAgenticPlay';
 import { App } from '../../App';
@@ -24,14 +25,46 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+const fetchQuest = (id: string, patch: Partial<QuestState> = {}): QuestState => ({
+  id, source: 'guild', floor: 1, originRoomId: 'origin', targetRoomId: `private-room-${id}`,
+  targetRoomName: 'Private room', targetRoomKind: 'treasure', title: `Fetch ${id}`, description: 'Accepted task',
+  task: { objective: 'fetch', noun: 'old cache', required: 1, progress: 0 }, reward: { gold: 10 },
+  status: 'active', acceptedAt: '2026-10-12T00:00:00Z', ...patch,
+});
+
 describe('actual game Agentic play wiring', () => {
+  it('offers only current-floor accepted unclaimed fetch quests and launches at the entrance without quest effects', () => {
+    const game = state.session.game!;
+    game.maze = { ...game.maze, start: { row: 2, column: 3 }, active: { row: 5, column: 6 } };
+    game.quests = [fetchQuest('legacy'), fetchQuest('ready', { status: 'complete',
+      task: { objective: 'fetch', noun: 'cache', required: 1, progress: 1,
+        item: { baseId: 'guild-cache', displayName: 'Guild Cache', token: 'C' } } }),
+      fetchQuest('claimed', { status: 'claimed' }), fetchQuest('other-floor', { floor: 2 }),
+      fetchQuest('scout', { task: { objective: 'scout', noun: 'room', required: 1, progress: 0 } })];
+    const before = structuredClone(game.quests);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Retrieve quest item' }));
+    expect(screen.getAllByRole('option')).toHaveLength(3);
+    expect(screen.getByRole('option', { name: 'Fetch legacy - old cache' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Fetch ready - Guild Cache' })).toBeInTheDocument();
+    expect(screen.queryByText(/private-room/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ready' } });
+    expect(state.agent.start).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(state.agent.start).toHaveBeenCalledExactlyOnceWith('ws://127.0.0.1:5085/api/host',
+      { floor: game.dungeonLevel, ...game.maze.start }, 'quest', 'ready');
+    expect(state.session.transition).not.toHaveBeenCalled();
+    expect(game.quests).toEqual(before);
+  });
+
   it('passes explicit exploration mode and actor origin through the actual App', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Explore' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(state.agent.start).toHaveBeenCalledWith('ws://127.0.0.1:5085/api/host',
-      { floor: state.session.game!.dungeonLevel, ...state.session.game!.maze.active }, 'exploration');
+      { floor: state.session.game!.dungeonLevel, ...state.session.game!.maze.active }, 'exploration', undefined);
   });
   it('opens and starts from the agent dialog without a manual pause and ignores game rerenders', () => {
     const { rerender } = render(<App />);

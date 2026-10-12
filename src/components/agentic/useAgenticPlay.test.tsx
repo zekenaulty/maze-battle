@@ -1,13 +1,13 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameSession } from '../../services/game/GameSession';
-import type { RpgAgenticaView } from '../../services/agentica/rpg/client';
+import type { RpgAgenticaOptions, RpgAgenticaView } from '../../services/agentica/rpg/client';
 import { useAgenticPlay } from '../../hooks/useAgenticPlay';
 
 const mocks = vi.hoisted(() => {
   class Client {
     view: RpgAgenticaView = { state: 'idle', connected: false, steps: 0, replans: 0 };
-    readonly options: { onChange: (view: RpgAgenticaView) => void; target: unknown };
+    readonly options: RpgAgenticaOptions & { onChange: (view: RpgAgenticaView) => void };
     constructor(options: Client['options']) { this.options = options; instances.push(this); }
     start = vi.fn(async () => { this.publish({ state: 'running', runId: 'run-one' }); });
     recover = vi.fn(async () => { this.publish({ state: 'paused', runId: 'retained', target: { floor: 2, row: 9, column: 9 } }); });
@@ -33,6 +33,17 @@ const advance = (ms = 150) => act(() => vi.advanceTimersByTimeAsync(ms));
 const setup = () => renderHook(({ suspended }) => useAgenticPlay(session, suspended), { initialProps: { suspended: false } });
 
 describe('Agentic play executor ownership', () => {
+  it.each([undefined, 'exploration', 'quest'] as const)('passes %s launch options privately and leaves recovery unselected', async mode => {
+    const { result } = setup(), questId = mode === 'quest' ? 'accepted-fetch' : undefined;
+    await act(() => result.current.start(url, target, mode, questId));
+    const client = mocks.instances[0];
+    expect(client.options).toEqual({ session, url, target, onChange: expect.any(Function),
+      ...(mode ? { mode } : {}), ...(questId ? { questId } : {}) });
+    expect(client.start).toHaveBeenCalledOnce();
+    await act(() => result.current.reconnect(url, target));
+    expect(mocks.instances[1].options).toEqual({ session, url, target, onChange: expect.any(Function) });
+  });
+
   it('does not start, recover or adopt on mount or game rerenders, and closes on unmount', async () => {
     const { result, rerender, unmount } = setup();
     await advance(600);

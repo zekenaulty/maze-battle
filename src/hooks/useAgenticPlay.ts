@@ -65,7 +65,7 @@ export function useAgenticPlay(session: GameSession, suspended: boolean) {
     timer.current = setTimeout(tick, 150);
   }, [session, pause]);
 
-  const invoke = useCallback(async (action: 'start' | 'recover' | 'adopt', url?: string, target?: RpgAddress, mode?: 'exploration') => {
+  const invoke = useCallback(async (action: 'start' | 'recover' | 'adopt', url?: string, target?: RpgAddress, mode?: 'exploration' | 'quest', questId?: string) => {
     if (pending.current || cancelling.current || blocked.current || !session.view.controlled) return;
     pause();
     const epoch = generation.current;
@@ -78,6 +78,7 @@ export function useAgenticPlay(session: GameSession, suspended: boolean) {
         active?.close();
         let next: RpgAgenticaClient;
         next = new RpgAgenticaClient({ session, url, target, ...(mode ? { mode } : {}),
+          ...(questId !== undefined ? { questId } : {}),
           onChange: value => { if (mounted.current && client.current === next) setView(value); } });
         client.current = active = next;
         setView(next.view); setHasClient(true);
@@ -113,7 +114,7 @@ export function useAgenticPlay(session: GameSession, suspended: boolean) {
   }, [pause]);
 
   return { view, busy: busy || stopping, error, canStop: hasClient && (busy || stopping || !terminal.has(view.state)), pause, stop,
-    start: (url: string, target: RpgAddress, mode?: 'exploration') => invoke('start', url, target, mode),
+    start: (url: string, target: RpgAddress, mode?: 'exploration' | 'quest', questId?: string) => invoke('start', url, target, mode, questId),
     reconnect: (url: string, target: RpgAddress) => invoke('recover', url, target),
     adopt: () => invoke('adopt') };
 }

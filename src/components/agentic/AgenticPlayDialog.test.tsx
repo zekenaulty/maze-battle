@@ -4,12 +4,69 @@ import { AgenticPlayDialog } from './AgenticPlayDialog';
 import type { RpgAgenticaView } from '../../services/agentica/rpg/client';
 
 afterEach(cleanup);
-const props = () => ({ position: { floor: 2, row: 3, column: 4 },
+const props = () => ({ position: { floor: 2, row: 3, column: 4 }, entrance: { floor: 2, row: 0, column: 1 }, quests: [],
   view: { state: 'idle', connected: false, steps: 0, replans: 0 } as RpgAgenticaView,
   busy: false, canStop: false, controlled: true, endpoint: 'ws://127.0.0.1:5189/api/host',
   onEndpointChange: vi.fn(), onStart: vi.fn(), onReconnect: vi.fn(), onAdopt: vi.fn(), onStop: vi.fn(), onClose: vi.fn() });
 
 describe('Agentic play dialog', () => {
+  it('requires an owner-chosen quest and passes only its ID with the known entrance', () => {
+    const callbacks = props(), quests = [
+      { id: 'fetch-one', title: 'Recover cache', itemName: 'Guild Cache' },
+      { id: 'fetch-two', title: 'Recover relic', itemName: 'Silver Relic' },
+    ];
+    render(<AgenticPlayDialog {...callbacks} quests={quests} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Retrieve quest item' }));
+    expect(screen.queryByLabelText('Row (1-based)')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
+    expect(screen.getByRole('option', { name: 'Recover relic - Silver Relic' })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Accepted fetch quest' }), { target: { value: 'fetch-two' } });
+    expect(callbacks.onStart).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(callbacks.onStart).toHaveBeenCalledExactlyOnceWith(callbacks.endpoint, callbacks.entrance, 'quest', 'fetch-two');
+    fireEvent.click(screen.getByRole('radio', { name: 'Explore' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(callbacks.onStart).toHaveBeenLastCalledWith(callbacks.endpoint, callbacks.position, 'exploration');
+  });
+
+  it('disables unavailable quests and never submits a retained ineligible selection', () => {
+    const callbacks = props();
+    render(<AgenticPlayDialog {...callbacks} view={{ ...callbacks.view, mode: 'quest', questId: 'claimed' }} />);
+    expect(screen.getByRole('radio', { name: 'Retrieve quest item' })).toBeDisabled();
+    expect(screen.getByText('No accepted fetch quests on this floor.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Accepted fetch quest' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
+    fireEvent.submit(screen.getByRole('button', { name: 'Start' }).closest('form')!);
+    expect(callbacks.onStart).not.toHaveBeenCalled();
+  });
+
+  it('invalidates a removed quest without choosing another one on rerender', () => {
+    const callbacks = props(), quests = [
+      { id: 'one', title: 'First quest', itemName: 'First item' },
+      { id: 'two', title: 'Second quest', itemName: 'Second item' },
+    ];
+    const view = { ...callbacks.view, mode: 'quest' as const, questId: 'one', target: callbacks.entrance };
+    const { rerender } = render(<AgenticPlayDialog {...callbacks} quests={quests} view={view} />);
+    expect(screen.getByRole('combobox')).toHaveValue('one');
+    expect(screen.getByText('Entrance')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+    rerender(<AgenticPlayDialog {...callbacks} quests={[quests[1]]} view={view} />);
+    expect(screen.getByRole('combobox')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
+    fireEvent.submit(screen.getByRole('button', { name: 'Start' }).closest('form')!);
+    expect(callbacks.onStart).not.toHaveBeenCalled();
+  });
+
+  it.each([{ busy: true, controlled: true }, { busy: false, controlled: false }])
+    ('blocks quest submission while busy=$busy, controlled=$controlled', guard => {
+      const callbacks = props(), quests = [{ id: 'one', title: 'First quest', itemName: 'First item' }];
+      render(<AgenticPlayDialog {...callbacks} {...guard} quests={quests} view={{ ...callbacks.view, mode: 'quest', questId: 'one' }} />);
+      expect(screen.getByRole('combobox')).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
+      fireEvent.submit(screen.getByRole('button', { name: 'Start' }).closest('form')!);
+      expect(callbacks.onStart).not.toHaveBeenCalled();
+    });
+
   it('explicit exploration starts from the actor without a supplied destination', () => {
     const callbacks = props(); render(<AgenticPlayDialog {...callbacks} />);
     fireEvent.click(screen.getByRole('radio', { name: 'Explore' }));

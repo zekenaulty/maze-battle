@@ -88,9 +88,13 @@ export function App() {
     />}
     {dialog === 'agentic' && <AgenticPlayDialog
       position={{ floor: game.dungeonLevel, ...game.maze.active }} view={agent.view}
+      entrance={{ floor: game.dungeonLevel, ...game.maze.start }}
+      quests={game.quests.filter(quest => quest.floor === game.dungeonLevel && quest.task.objective === 'fetch'
+        && (quest.status === 'active' || quest.status === 'complete'))
+        .map(quest => ({ id: quest.id, title: quest.title, itemName: quest.task.item?.displayName ?? quest.task.noun }))}
       busy={agent.busy} canStop={agent.canStop} controlled={session.controlled} error={agent.error}
       endpoint={agentEndpoint} onEndpointChange={setAgentEndpoint}
-      onStart={(url, target, mode) => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.start(url, target, mode); }}
+      onStart={(url, target, mode, questId) => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.start(url, target, mode, questId); }}
       onReconnect={(url, target) => { navigation.cancel(); void agent.reconnect(url, target); }}
       onAdopt={() => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.adopt(); }}
       onStop={() => { void agent.stop(); }} onClose={() => setDialog(undefined)}
