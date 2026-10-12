@@ -89,3 +89,14 @@ by this sub-slice. No traps/pressure plates were added or newly qualified.
 
 The development preview is `http://127.0.0.1:5198/`, on a separate storage origin
 from the owner's existing game. The umbrella goal remains active.
+
+### Subsequent Controls Verification
+
+A separate agent rechecked the controls against integration `690f2b1` after the
+command/archive/memory changes: 83 focused unit tests across 9 files, all 8
+desktop/Pixel 7 browser cases, and TypeScript passed. No controls defect or
+tracked code change was needed. Browser audits had no page errors or outbound
+requests, with no skips/retries; screenshots were inspected. This does not
+upgrade the separate Agentica host-binding evidence. Local evidence is in the
+isolated controls worktree's `test-results/click-navigation-integration-690f2b1`
+and `tests/e2e/test-results/click-navigation-integration-690f2b1` directories.

@@ -109,6 +109,11 @@ source is not automatically evidence of current truth.
 
 ## Remaining Gate
 
+Follow-through: [scoped durable memory](a1-scoped-memory.md) now implements the
+bounded derived cache and retrieval described below, through `ba8dc22`. The
+following paragraph records the archive-only boundary when this report was
+written; the linked report supersedes its pending-cache status, not its evidence.
+
 Next: rebuild/retrieve scoped remembered projections from these sources, with
 bounded work and explicit partial/unknown results rather than a hidden-world
 fallback or whole-history dump. Durable room/cell retrieval and a projection
