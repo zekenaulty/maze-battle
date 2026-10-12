@@ -5,11 +5,15 @@ import type { PlayTelemetry } from '../domain/telemetry/types';
 import { AUTO_CONTROL_KEY, SaveOwnershipError } from './saveControl';
 import type { GameCommandReceipt } from './gameCommandTypes';
 import type { RpgObservationNode } from './observationTypes';
+import type { RpgMemoryHead } from './rpgMemory/types';
+import type { MemoryNode } from './rpgMemory/treeTypes';
 
 const DB_NAME = 'maze-battle';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 export interface MazeBattleDb extends DBSchema {
+  rpgMemoryNodes: { key: string; value: MemoryNode };
+  rpgMemoryHeads: { key: string; value: RpgMemoryHead };
   observations: { key: string; value: RpgObservationNode; indexes: { byGameId: string } };
   gameCommands: { key: string; value: GameCommandReceipt; indexes: { byGameId: string } };
   telemetry: { key: string; value: PlayTelemetry; indexes: { byUpdatedAt: string } };
@@ -35,6 +39,8 @@ let dbPromise: Promise<IDBPDatabase<MazeBattleDb>> | undefined;
 export function getDatabase() {
   dbPromise ??= openDB<MazeBattleDb>(DB_NAME, DB_VERSION, {
     upgrade(db) {
+      if (!db.objectStoreNames.contains('rpgMemoryNodes')) db.createObjectStore('rpgMemoryNodes', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('rpgMemoryHeads')) db.createObjectStore('rpgMemoryHeads', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('observations')) {
         db.createObjectStore('observations', { keyPath: 'id' }).createIndex('byGameId', 'gameId');
       }

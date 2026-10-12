@@ -1,7 +1,7 @@
-import type { Direction } from '../../types';
 import { cellKey } from '../../maze/key';
 import { freeze, refused, roomKey, sourceOf } from './shared';
-import { RPG_KNOWLEDGE_LIMITS as LIMITS, type RpgEdgeFact, type RpgKnowledge,
+import { mergeRpgCell } from './mergeCell';
+import { RPG_KNOWLEDGE_LIMITS as LIMITS, type RpgKnowledge,
   type RpgObservation, type RpgRefusal, type RpgRememberedCell } from './types';
 
 /** Trusted domain receipts only. Durable archive validation/deduplication belongs to the host. */
@@ -26,11 +26,7 @@ export function projectRpgKnowledge(previous: RpgKnowledge | undefined, observat
   for (const cell of observation.cells) {
     const key = cellKey(cell.address);
     const old = cells[key];
-    const edges: Partial<Record<Direction, RpgEdgeFact>> = { ...old?.edges };
-    // Cropped open edges are unknown in this receipt, not new walls. Keep their old source.
-    for (const direction of cell.links) edges[direction] = { state: 'open', source };
-    for (const direction of cell.blocked) edges[direction] = { state: 'blocked', source };
-    cells[key] = { address: cell.address, roomIds: cell.roomIds, chests: cell.chests, stairs: cell.stairs, edges, source };
+    cells[key] = mergeRpgCell(old, cell, source);
     for (const room of old?.roomIds ?? []) {
       if (cell.roomIds.includes(room)) continue;
       const indexed = rooms[roomKey(room)].filter(candidate => candidate !== key);
