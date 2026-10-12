@@ -1,7 +1,7 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
 Status: D0/D1 qualified at their declared bounded levels; A0 mapped, A1 partial.
-2026-10-11. Revision 9. [D1 evidence](reviews/d1-qualification.md),
+2026-10-11. Revision 10. [D1 evidence](reviews/d1-qualification.md),
 [A0 source map](reviews/a0-capability-authority-map.md).
 [Findings](dungeon-d0-findings.md) and [D1 repair plan](dungeon-d1-repair-plan.md)
 record the accepted amendments, implementation lanes and outstanding gates.
@@ -18,8 +18,11 @@ sub-slice adds [atomic internal command receipts and earned-knowledge functions]
 at `58476db`. [Snapshot-bound source archival](reviews/a1-observation-archive.md)
 is checked through reviewed repair `6bad40e`. [Scoped durable memory](reviews/a1-scoped-memory.md)
 is checked through `ba8dc22`, including bounded cell/room reads beyond the resident
-2,048-cell cap. These are internal repository APIs, not yet the actual-game
-destination/Agentica binding, which remains the next A1 gate.
+2,048-cell cap. [Durable actual-game travel](reviews/a1-durable-rpg-travel.md)
+now reuses DestinationOperation and ordinary receipted game movement through
+`2d7f177`. These are internal host/session APIs, not yet an Agentica binding.
+Atomic SDK admission/results/events and its ordinary-game controller remain the
+next A1 gate; A2-A3 and Q are not replaced by these infrastructure proofs.
 
 This integrates Lumina's owner-approved *NS-6 Continuation Plan and Two-Dungeon
 Qualification Design*, review draft v0.1 (2026-10-11), with the owner's additional

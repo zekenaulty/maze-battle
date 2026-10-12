@@ -95,6 +95,10 @@ origins with external requests blocked. The owner's port 5190 was untouched.
 
 ## Next Gate
 
+Follow-through: [durable actual-game travel](a1-durable-rpg-travel.md), checked
+through `2d7f177`, now connects remembered paths to DestinationOperation and the
+ordinary GameSession. The remaining SDK/Agentica boundary below is still open.
+
 These APIs are internal; they are not tool envelopes, Agentica admissions or
 automatically mounted context. No model receives the full index. Next, connect
 bounded remembered navigation to the existing DestinationOperation and the real
