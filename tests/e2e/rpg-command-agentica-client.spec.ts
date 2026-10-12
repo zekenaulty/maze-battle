@@ -106,3 +106,24 @@ test('delayed cancellation retains its old position evidence after a later manua
   expect(result.events.at(-1).observation.data.actor.column).toBe(2);
   expect(result.events.at(-1).observation.data.sourceHead.id).toBe(result.cancelled.sourceHead);
 });
+
+for (const stage of ['admission', 'step']) test(`pause at the final ${stage} write aborts all uncommitted effects`, async ({ page }) => {
+  const result = await page.evaluate(async stage => {
+    const f = window.rpgClientTest; await f.client.start(); if (stage === 'step') await f.admit();
+    const before = await f.h.custody.readGameControl(), oldTravel = await f.session.readTravel();
+    const add = IDBObjectStore.prototype.add;
+    IDBObjectStore.prototype.add = function(...args) {
+      const request = add.apply(this, args);
+      if (this.name === (stage === 'admission' ? 'rpgAgenticaOperations' : 'rpgAgenticaAdvances'))
+        request.addEventListener('success', () => f.client.pause(), { once: true });
+      return request;
+    };
+    try { if (stage === 'admission') await f.admit(); else await f.client.tick().catch(() => {}); }
+    finally { IDBObjectStore.prototype.add = add; }
+    const db = await f.h.repository.getDatabase();
+    return { before, oldTravel, after: await f.h.custody.readGameControl(), newTravel: await f.session.readTravel(),
+      events: await db.count('rpgAgenticaEvents'), advances: await db.count('rpgAgenticaAdvances'), controlled: f.session.view.controlled };
+  }, stage);
+  expect(result.after).toEqual(result.before); expect(result.newTravel).toEqual(result.oldTravel);
+  expect(result.events).toBe(0); expect(result.advances).toBe(0); expect(result.controlled).toBe(true);
+});
