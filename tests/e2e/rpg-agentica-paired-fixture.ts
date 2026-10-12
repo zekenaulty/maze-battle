@@ -7,12 +7,13 @@ import { claimGame, updateOwnedGame } from '../../src/persistence/gameCustody';
 import { readRpgRun } from '../../src/persistence/rpgAgentica/runs';
 import { readRpgHostOperation } from '../../src/persistence/rpgAgentica/events';
 import { readRpgLaunch } from '../../src/persistence/rpgAgentica/launchRecords';
+import { discoveryDungeon } from './rpg-discovery-layout';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5212') throw new Error('Isolated paired RPG origin only.');
 const target = { floor: 1, row: 0, column: 5 }, socket = 'ws://127.0.0.1:5092/api/host';
 let session: GameSession, client: RpgAgenticaClient;
 const positions: number[] = [];
-async function connect(recover = false) {
+async function connect(recover = false, discovery = false) {
   session = new GameSession(view => { if (view.game) positions.push(view.game.maze.active.column); });
   await session.start();
   if (!session.view.controlled) throw new Error('Fixture failed to acquire actual game custody.');
@@ -23,7 +24,8 @@ async function connect(recover = false) {
       if (memory.status !== 'partial' || batch >= 15) throw new Error('Fixture memory preparation bound exceeded.');
     }
   }
-  client = new RpgAgenticaClient({ session, url: socket, target, onChange: () => {} });
+  client = new RpgAgenticaClient({ session, url: socket, target: discovery ? { floor: 1, ...session.view.game!.maze.active } : target,
+    ...(discovery ? { mode: 'exploration' as const } : {}), onChange: () => {} });
   if (recover) await client.recover(); else await client.start();
   return snapshot();
 }
@@ -46,7 +48,14 @@ async function snapshot() {
     owner: session.owner, travel: await session.readTravel(), binding: client.view.runId ? await readRpgRun(client.view.runId) : undefined,
     operation: client.view.operationId ? await readRpgHostOperation(client.view.operationId) : undefined };
 }
-const harness = { seed, snapshot, recover: () => connect(true),
+async function seedDiscovery(variant: 'A' | 'B') {
+  const maze = discoveryDungeon(variant);
+  await saveGame('auto', 'Cold paired RPG discovery', 'auto', createNewGameState({ id: crypto.randomUUID(), maze,
+    floors: [], quests: [], chests: [{ id: 'survey-chest', level: 1, opened: false,
+      position: variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 } }], randomBattles: false, mode: 'manual' }));
+  return connect(false, true);
+}
+const harness = { seed, seedDiscovery, snapshot, recover: () => connect(true),
   tick: async () => { await client.tick(); return snapshot(); },
   pause: () => client.pause(), adopt: () => client.adopt(), cancel: () => client.cancel(),
   close: async () => { client?.close(); await session?.flush(); session?.stop(); },

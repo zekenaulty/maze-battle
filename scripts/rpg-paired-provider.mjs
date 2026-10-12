@@ -1,33 +1,10 @@
 import { createServer } from 'node:http';
-
-function section(prompt, start, end) {
-  const begin = prompt.indexOf(start), finish = prompt.indexOf(end, begin + start.length);
-  if (begin < 0 || finish < 0) throw new Error(`Missing public prompt section: ${start}`);
-  return prompt.slice(begin + start.length, finish).trim();
-}
+import { readRpgPrompt } from './rpg-fixture-prompt.mjs';
+import { discoveryPlan, validateDiscoverySequence } from './rpg-discovery-provider.mjs';
 
 /** Read only the real RPG observation and the owner's explicit objective, never a fixture map. */
 export function rpgPlan(body, ordinal, intermediate = false) {
-  if (body.model !== 'fixture-model' || body.stream !== true || body.store !== false)
-    throw new Error('Only stateless streaming fixture-model requests are permitted.');
-  const user = Array.isArray(body.input) && body.input.findLast(message => message.role === 'user');
-  const prompt = typeof user?.content === 'string' ? user.content
-    : user?.content?.filter(part => part.type === 'input_text').map(part => part.text).join('\n');
-  if (typeof prompt !== 'string') throw new Error('Missing Agentica planning prompt.');
-  const contexts = JSON.parse(section(prompt, 'Projected context frames:', 'Current planning constraints:'))
-    .map(frame => frame.payload).filter(payload => payload?.currentObservation?.Reference);
-  if (contexts.length !== 1) throw new Error('Expected one public RPG context.');
-  const { identity, currentObservation: { Reference: reference, Data: frame } } = contexts[0];
-  if (identity.HostId !== 'maze-battle' || identity.PerspectiveId !== 'party'
-    || !/^[0-9a-f-]{36}$/i.test(identity.ScopeId) || frame?.scopeId !== identity.ScopeId
-    || frame.perspectiveId !== 'party' || !['local', 'operation'].includes(frame.kind)
-    || frame.sourceHead?.gameId !== frame.gameId || frame.actor?.floor !== frame.floor
-    || !Number.isSafeInteger(reference.Revision)) throw new Error('Invalid real RPG observation identity.');
-  const allowed = ['kind', 'scopeId', 'perspectiveId', 'gameId', 'floor', 'actor', 'sourceHead', 'cells', 'observedCellCount', 'truncated'];
-  if (Object.keys(frame).some(key => !allowed.includes(key)) || (frame.cells?.length ?? 0) > 32
-    || /"(?:seed|recipe|layout|floors|maze|checkpoint|knowledge)"/.test(JSON.stringify(frame)))
-    throw new Error('Unexpected world data in bounded RPG observation.');
-  const objective = section(prompt, 'Objective:', 'Origin:');
+  const { prompt, identity, reference, frame, objective } = readRpgPrompt(body);
   const match = /^Reach the known destination at floor (\d+), row (\d+), column (\d+)\. Do not interact or collect\.$/.exec(objective);
   if (!match) throw new Error('Missing explicit owner destination; never infer it from map cells.');
   const [floor, row, column] = match.slice(1).map(Number);
@@ -69,12 +46,16 @@ export async function startRpgFixture(port, restart) {
         bytes += chunk.length; if (bytes > 2_097_152) throw new Error('Fixture input bound exceeded.'); chunks.push(chunk);
       }
       if (calls.length >= 32) throw new Error('Fixture planner call bound exceeded.');
-      const { text, ...record } = rpgPlan(JSON.parse(Buffer.concat(chunks).toString('utf8')), calls.length + 1, nextIntermediate);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      const discovery = readRpgPrompt(body, true).objective.startsWith('Explore from earned observations.');
+      const { text, ...record } = discovery ? discoveryPlan(body, calls.length + 1)
+        : rpgPlan(body, calls.length + 1, nextIntermediate);
       nextIntermediate = false;
       const prior = calls.filter(call => call.scope === record.scope);
       const checkpoint = record.observationKind === 'operation' || record.observationKind === 'local'
         && record.epoch !== prior[0]?.epoch && record.observationRevision > prior[0]?.observationRevision;
-      if (prior.length && !(prior.length === 1 && prior[0].intermediate && checkpoint
+      if (discovery) validateDiscoverySequence(prior, record);
+      else if (prior.length && !(prior.length === 1 && prior[0].intermediate && checkpoint
         && JSON.stringify(record.actor) === JSON.stringify(prior[0].destination) && record.objective === prior[0].objective))
         throw new Error('Unexpected repeated planning outside the one intermediate-destination wake.');
       calls.push({ ...record, ordinal: calls.length + 1, promptBytes: bytes });

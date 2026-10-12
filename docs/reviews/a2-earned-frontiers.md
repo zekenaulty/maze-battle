@@ -91,9 +91,10 @@ outbound requests are blocked and unexpected page errors fail the checks. Raw
 prefix contexts are attached as `unnormalized-prefix-traces`; screenshots are
 `exploration-dialog.png` in the desktop/mobile click-navigation result folders.
 
-Next: qualify these new tools through the real Agentica service and deterministic
-planner, with explicit evidence-driven successor selection and bounded local
-continuation/meaningful-observation policy. Recheck generated-room scale and
+Follow-through: [real-service discovery handoff](a2-service-discovery.md) now
+qualifies the frontier tools and deterministic planner with explicit
+evidence-driven successor selection and restart/adoption. Bounded local
+continuation/meaningful-observation policy remains next. Recheck generated-room scale and
 human fog/tool parity at this discovery boundary. Then implement A3's explicit
 ordinary quest collection/return and Q's full evidence/recovery matrix. Old
 known-destination service regressions are a separate cohort, not exploration

@@ -37,9 +37,11 @@ export function prepareRpgWake(id: string, event: HostOperationEvent, control: S
     const sameEpoch = String(owner.epoch) === input.sessionEpoch;
     requireRpg(sameEpoch || adopt && !launch.wake?.binding, 'Decision custody changed; explicit adoption is required.');
     if (sameEpoch) {
-      requireRpg(owner.revision === input.observation.revision, 'Decision checkpoint changed; reconcile before continuing.');
+      requireRpg(owner.revision === input.observation.revision && parent.activeEpoch === input.sessionEpoch,
+        'Decision checkpoint changed; reconcile before continuing.');
+      // A previously transferred journey keeps its original run binding; its successor uses current custody.
       return launch.wake ? launch : putLaunch(tx, { ...launch, wake: { event: input,
-        draft: { ...launch.binding, control: owner, parentOperationId: input.operationId } } });
+        draft: { ...launch.binding, sessionEpoch: input.sessionEpoch, control: owner, parentOperationId: input.operationId } } });
     }
     const slot = await tx.objectStore('saves').get('auto'), query = slot && await memoryInGameTransaction(tx, slot, memoryBudget());
     requireRpg(query, 'Adoption needs prepared earned memory.');

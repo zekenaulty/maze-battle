@@ -211,6 +211,27 @@ test('an unbound successor with stale custody is attached only for Stop, never g
   expect(result.launch!.stopAcknowledged).toBe(true);
 });
 
+test('travel transferred mid-route wakes its later decision under the transferred epoch', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(4); await f.client.tick();
+    const original = await f.snapshot(); await f.reopen(); await f.client.recover();
+    await f.client.adopt(); await f.client.tick(); await f.client.tick();
+    const handoff = await f.snapshot(), db = await f.h.repository.getDatabase();
+    const parent = await db.get('rpgAgenticaOperations', original.launch!.operationId!);
+    await f.admit(5); await f.client.tick();
+    return { original, handoff, parent, final: await f.snapshot() };
+  });
+  const before = result.original.launch!.binding!, child = result.handoff.launch!.binding!;
+  expect(child.sessionEpoch).not.toBe(before.sessionEpoch);
+  expect(child.sessionEpoch).toBe(String(child.control.epoch));
+  expect(child.parentOperationId).toBe(result.original.launch!.operationId);
+  expect(result.parent!.binding).toEqual(before); expect(result.parent!.activeEpoch).toBe(child.sessionEpoch);
+  expect(result.handoff.messages.find(m => m.type === 'operation.wake')!.payload.sessionEpoch).toBe(child.sessionEpoch);
+  expect(result.handoff.messages.filter(m => m.type === 'operation.adopt')).toHaveLength(0);
+  expect(result.handoff.game!.maze.active.column).toBe(4);
+  expect(result.final.view.state).toBe('completed'); expect(result.final.game!.maze.active.column).toBe(5);
+});
+
 test('pending decision adoption retains separate original and current ownership evidence', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const f = window.rpgClientTest; await f.client.start(); await f.admit(2); f.settings({ dropWake: true });

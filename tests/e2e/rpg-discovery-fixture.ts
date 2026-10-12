@@ -1,5 +1,4 @@
-import { movePosition, opposite } from '../../src/domain/maze/movement';
-import type { Direction, MazeState } from '../../src/domain/types';
+import { discoveryDungeon } from './rpg-discovery-layout';
 import { prepareRpgLaunch } from '../../src/persistence/rpgAgentica/launch';
 import { announceRpgLaunch } from '../../src/persistence/rpgAgentica/launchRecords';
 import { prepareRpgWake, acknowledgeRpgWake, finishRpgWake } from '../../src/persistence/rpgAgentica/launchWake';
@@ -11,23 +10,10 @@ import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { rpgCapabilities } from '../../src/services/agentica/rpg/capabilities';
 import type {} from './rpg-command-fixture';
 
-function dungeon(variant: 'A' | 'B'): MazeState {
-  const cells = Array.from({ length: 81 }, (_, i) => ({ row: Math.floor(i / 9), column: i % 9, links: [] as Direction[] }));
-  const join = (row: number, column: number, direction: Direction) => {
-    const next = movePosition({ row, column }, direction);
-    cells[row * 9 + column].links.push(direction); cells[next.row * 9 + next.column].links.push(opposite(direction));
-  };
-  for (let column = 0; column < 4; column++) join(6, column, 'east');
-  if (variant === 'A') for (let column = 4; column < 8; column++) join(6, column, 'east');
-  else for (let row = 6; row > 2; row--) join(row, 4, 'north');
-  return { rows: 9, columns: 9, start: { row: 6, column: 0 }, end: { row: 8, column: 8 }, active: { row: 6, column: 0 },
-    cells, visited: [], visibility: { radius: 2, explored: [] } };
-}
-
 export async function setupDiscovery(variant: 'A' | 'B') {
   if (location.origin !== 'http://127.0.0.1:5204') throw new Error('Isolated discovery test only');
   const h = window.rpgCommandTest, game = h.game();
-  game.maze = dungeon(variant); game.floors = []; game.quests = [];
+  game.maze = discoveryDungeon(variant); game.floors = []; game.quests = [];
   game.chests = [{ id: 'survey-chest', level: 1, opened: false,
     position: variant === 'A' ? { row: 6, column: 6 } : { row: 4, column: 4 } }];
   await h.repository.saveGame('auto', 'Cold discovery', 'auto', game);
