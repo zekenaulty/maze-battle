@@ -90,6 +90,8 @@ export class RpgAgenticaClient {
     requireRpg(this.launch, 'launch unavailable');
     if (event.kind === 'decision') {
       if (!allowWake) { this.publish({ state: 'awaiting-adoption', detail: 'A retained decision needs explicit continuation.' }); return; }
+      const signal = this.abort.signal, memory = await this.options.session.prepareTravelMemory();
+      if (!this.active(signal) || memory.status !== 'ready') return;
       this.publish({ state: 'planning' });
       await this.transport.wake(event); await this.refresh(); this.confirmed = undefined;
       return;
