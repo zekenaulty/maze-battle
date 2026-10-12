@@ -29,6 +29,8 @@ export class RpgAgenticaClient {
   private launch?: RpgLaunch;
   private work?: Promise<unknown>;
   private abort = new AbortController();
+  private reading = new AbortController();
+  private authority = 0;
   private closed = false;
   private stopped = false;
   private stopping?: Promise<void>;
@@ -81,7 +83,7 @@ export class RpgAgenticaClient {
     else if (this.active(signal)) this.publish({ state: 'planning' });
   }); }
   pause() {
-    this.abort.abort();
+    this.authority++; this.abort.abort(); this.reading.abort();
     if (!terminal(this.view.state) && this.view.state !== 'idle') this.publish({ state: 'paused' });
   }
   close() { this.pause(); this.closed = true; this.transport.close(); }
@@ -117,7 +119,7 @@ export class RpgAgenticaClient {
     if (this.confirmed !== launch.operationId) {
       if (Date.now() < this.nextAdmissionCheck) return;
       this.nextAdmissionCheck = Date.now() + 1000;
-      if (!await confirmRpgAdmission(this.transport, this.options.session, launch)) return;
+      if (!await confirmRpgAdmission(this.transport, this.options.session, launch, signal)) return;
       this.confirmed = launch.operationId;
     }
     if (!this.active(signal)) return;
@@ -142,11 +144,13 @@ export class RpgAgenticaClient {
 
   recover() { return this.exclusive(async () => {
     this.pause(); this.publish({ state: 'reconciling', detail: undefined });
+    this.reading = new AbortController();
     const launch = await this.refresh();
     requireRpg(launch.url === new URL(this.options.url).href, 'Reconnect to the original endpoint.');
-    const entry = await this.transport.recover(launch);
+    const entry = await this.transport.recover(launch, this.reading.signal);
+    await this.refresh();
     this.confirmed = entry?.admission?.operation?.operationId;
-    const retained = await retainedRpgJourney(this.options.session, launch);
+    const retained = await retainedRpgJourney(this.options.session, this.launch!);
     if (retained) {
       this.publish({ steps: retained.travel.operation.steps, replans: retained.travel.operation.replans });
       if (retained.event && retained.link.sequence !== retained.link.acknowledged) await this.deliver(retained.event, false);
@@ -155,11 +159,14 @@ export class RpgAgenticaClient {
     this.publish({ state: 'awaiting-adoption', detail: launch.stopped ? 'Local work is stopped; reconcile cancellation.' : 'Reconnected. Local execution remains paused.' });
   }); }
   adopt() { return this.exclusive(async () => {
+    const authority = this.authority;
+    this.reading = new AbortController(); const readSignal = this.reading.signal;
     const launch = await this.refresh();
     requireRpg(!this.stopped && !launch.stopped, 'Stopped work cannot be adopted.');
     requireRpg(this.transport.sdk.connected, 'Reconnect before adoption.');
     const retained = await retainedRpgJourney(this.options.session, launch);
-    requireRpg(retained && await confirmRpgAdmission(this.transport, this.options.session, launch), 'No settled journey to adopt.');
+    requireRpg(retained && await confirmRpgAdmission(this.transport, this.options.session, launch, readSignal), 'No settled journey to adopt.');
+    requireRpg(authority === this.authority && !this.closed && !this.stopped, 'Adoption was paused before authority could be granted.');
     this.confirmed = launch.operationId;
     this.abort = new AbortController(); const signal = this.abort.signal;
     if (retained.event && (retained.link.sequence !== retained.link.acknowledged || retained.event.kind === 'decision')) {

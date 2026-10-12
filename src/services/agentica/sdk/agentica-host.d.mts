@@ -37,10 +37,10 @@ export class AgenticaHost {
   start(request: AgenticaStart): Promise<AgenticaStarted>;
   resume(request: { runId: string; sessionId: string; sessionEpoch: string }): Promise<AgenticaMessage>;
   stop(runId: string): Promise<AgenticaMessage>;
-  listOperations(request: { hostId: string; sessionId: string }): Promise<AgenticaOperationEntry[]>;
+  listOperations(request: { hostId: string; sessionId: string; fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry[]>;
   signalOperation(event: HostOperationEvent, options?: { fetchImpl?: typeof fetch }): Promise<AgenticaOperationEntry>;
   wakeOperation(event: HostOperationEvent): Promise<AgenticaStarted>;
-  recover(request: { hostId: string; sessionId: string;
+  recover(request: { hostId: string; sessionId: string; fetchImpl?: typeof fetch;
     reconcile?(action: AgenticaAction, record: AgenticaActionRecord | null, entry: unknown): Promise<AgenticaResult | null | undefined>;
   }): Promise<{ actionId: string; runId: string; sessionEpoch: string; status: string; resolved: boolean }[]>;
 }

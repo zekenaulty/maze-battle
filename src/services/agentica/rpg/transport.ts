@@ -10,6 +10,7 @@ import { parseRpgAction, requireRpg } from './validation';
 import type { RpgAgenticaBinding } from './contracts';
 import { prepareRpgWake, finishRpgWake } from '../../../persistence/rpgAgentica/launchWake';
 import { acknowledgeRpgHostEvent } from '../../../persistence/rpgAgentica/events';
+import { rpgFetch } from './network';
 
 export class RpgAgenticaTransport {
   readonly sdk: AgenticaHost;
@@ -85,14 +86,27 @@ export class RpgAgenticaTransport {
       return binding;
     } catch (error) { this.ready.reject(error instanceof Error ? error : new Error(String(error))); throw error; }
   }
-  async recover(launch: RpgLaunch) {
+  async recover(launch: RpgLaunch, signal?: AbortSignal) {
     requireRpg(launch.binding, 'Original start identity is unresolved. A new start is not a retry.');
     this.launch = structuredClone(launch); this.binding = launch.binding;
+    if (launch.wake?.binding) {
+      const entries = await this.sdk.listOperations({ hostId: 'maze-battle', sessionId: launch.binding.sessionId, fetchImpl: rpgFetch(signal) });
+      const parent = entries.find(e => e.admission?.operation?.operationId === launch.wake!.event.operationId);
+      requireRpg(parent?.wakeRunId === launch.wake.binding.runId
+        && equivalentHostWire(parent.latestEvent, launch.wake.event, 'event')
+        && equivalentHostWire(parent.admission, await this.session.executeAgenticaAction(parent.action, true), 'result'),
+        'retained successor differs from the original service wake');
+      await acknowledgeRpgHostEvent(launch.wake.event);
+      // Bind only the original grant. A different owner/revision is not substituted here.
+      try { await bindRpgRun(launch.wake.binding); }
+      catch (error) { await this.attachForStop(launch.wake.binding); throw error; }
+      launch = await finishRpgWake(launch.id); this.launch = launch; this.binding = launch.binding;
+    }
+    requireRpg(launch.binding, 'missing retained successor');
     const bound = await readRpgRun(launch.binding.runId);
     if (!bound) {
       // An announced start that lost local custody can be stopped, never rebound as fresh authority.
-      this.ready.reject(new Error('Original start has no local effect grant.'));
-      await this.sdk.connect();
+      await this.attachForStop(launch.binding);
       return;
     }
     this.ready.resolve();
@@ -102,14 +116,22 @@ export class RpgAgenticaTransport {
         && response.payload.sessionId === bound.sessionId && response.payload.sessionEpoch === bound.sessionEpoch
         && response.payload.manifestHash === bound.manifestHash, 'resumed run mismatch');
     } catch {
-      const receipts = await this.sdk.recover({ hostId: bound.hostId, sessionId: bound.sessionId });
+      const receipts = await this.sdk.recover({ hostId: bound.hostId, sessionId: bound.sessionId, fetchImpl: rpgFetch(signal) });
       requireRpg(receipts.every(r => r.resolved), 'original service custody unresolved');
     }
-    const entries = await this.sdk.listOperations({ hostId: bound.hostId, sessionId: bound.sessionId });
+    const entries = await this.sdk.listOperations({ hostId: bound.hostId, sessionId: bound.sessionId, fetchImpl: rpgFetch(signal) });
     const operation = entries.find(e => e.action.runId === bound.runId && e.admission?.operation?.operationId === launch.operationId);
     if (operation) requireRpg(equivalentHostWire(operation.admission, await this.session.executeAgenticaAction(operation.action, true), 'result'),
       'service admission differs from original receipt');
     return operation;
+  }
+  private async attachForStop(binding: RpgAgenticaBinding) {
+    this.ready.reject(new Error('Original start has no current local effect grant.'));
+    this.binding = binding;
+    const response = await this.sdk.resume({ runId: binding.runId, sessionId: binding.sessionId, sessionEpoch: binding.sessionEpoch });
+    requireRpg(response.type === 'resumed' && response.payload.runId === binding.runId
+      && response.payload.sessionId === binding.sessionId && response.payload.sessionEpoch === binding.sessionEpoch
+      && response.payload.manifestHash === binding.manifestHash, 'unbound original resume mismatch');
   }
   async cancel() {
     const binding = this.binding; if (!binding) return;

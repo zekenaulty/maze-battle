@@ -27,6 +27,12 @@ class Socket extends EventTarget {
     }
     if (message.type === 'resume') reply('resumed', { ...requests.get(message.runId)!, runId: message.runId, manifestHash: hash });
     if (message.type === 'cancel') reply('cancelled', { stopRequested: true });
+    if (message.type === 'operation.wake') {
+      const entry = entries.find(e => e.admission?.operation?.operationId === message.payload.operationId)!;
+      entry.latestEvent = message.payload; entry.state = 'continued'; entry.wakeRunId = 'run-2';
+      const request = { ...entry.request, observation: message.payload.observation }; requests.set('run-2', request);
+      reply('started', { ...request, runId: 'run-2', manifestHash: hash }, 'run-2');
+    }
     if (message.type === 'action.result' && message.payload.operation) {
       const request = requests.get(message.runId)!;
       const entry: AgenticaOperationEntry = { request, action, admission: message.payload, activeEpoch: action.sessionEpoch,

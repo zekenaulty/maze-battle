@@ -127,3 +127,85 @@ for (const stage of ['admission', 'step']) test(`pause at the final ${stage} wri
   expect(result.after).toEqual(result.before); expect(result.newTravel).toEqual(result.oldTravel);
   expect(result.events).toBe(0); expect(result.advances).toBe(0); expect(result.controlled).toBe(true);
 });
+
+test('a late admission lookup cannot override a manual pause during Adopt', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(); f.client.pause();
+    const before = await f.snapshot(), fetch = globalThis.fetch;
+    let entered!: () => void, release!: () => void;
+    const ready = new Promise<void>(r => { entered = r; }), gate = new Promise<void>(r => { release = r; });
+    globalThis.fetch = async (input, init) => {
+      if (String(input).includes('/operations?')) { entered(); await gate; }
+      return fetch(input, init);
+    };
+    let error: string;
+    try { const adopt = f.client.adopt().then(() => '', e => String(e)); await ready; f.client.pause(); release(); error = await adopt; }
+    finally { globalThis.fetch = fetch; }
+    await f.client.tick(); return { before, error, ...await f.snapshot() };
+  });
+  expect(result.error).toContain('paused'); expect(result.view.state).toBe('paused');
+  expect(result.travel).toEqual(result.before.travel); expect(result.game).toEqual(result.before.game); expect(result.events).toEqual([]);
+});
+
+test('Stop aborts an unresponsive admission inventory read before cancelling the local journey', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(); const fetch = globalThis.fetch;
+    let entered!: () => void, aborted = false;
+    const ready = new Promise<void>(r => { entered = r; });
+    globalThis.fetch = async (input, init) => {
+      if (!String(input).includes('/operations?')) return fetch(input, init);
+      entered(); return new Promise<Response>((_resolve, reject) => init!.signal!.addEventListener('abort', () => {
+        aborted = true; reject(new DOMException('Aborted', 'AbortError'));
+      }, { once: true }));
+    };
+    try { const tick = f.client.tick().catch(() => {}); await ready; await f.client.cancel(); await tick; }
+    finally { globalThis.fetch = fetch; }
+    return { aborted, ...await f.snapshot() };
+  });
+  expect(result.aborted).toBe(true); expect(result.view.state).toBe('cancelled');
+  expect(result.travel!.travel.operation.status).toBe('cancelled'); expect(result.game!.maze.active.column).toBe(1);
+});
+
+test('reconnect reconciles an announced successor when final launch publication failed', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(2);
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(...args) {
+      const value = args[0];
+      if (this.name === 'meta' && typeof value.value === 'string') {
+        let launch; try { launch = JSON.parse(value.value); } catch { /* Other metadata is not JSON. */ }
+        if (launch?.binding?.parentOperationId && !launch.wake) throw new DOMException('Finish fault', 'QuotaExceededError');
+      }
+      return put.apply(this, args);
+    };
+    let error = '';
+    try { await f.client.tick(); } catch (e) { error = String(e); }
+    finally { IDBObjectStore.prototype.put = put; }
+    const before = await f.snapshot(); f.client.close(); f.makeClient(); await f.client.recover();
+    return { before, error, ...await f.snapshot() };
+  });
+  expect(result.error).toContain('Finish fault'); expect(result.before.launch!.wake!.binding!.runId).toBe('run-2');
+  expect(result.view).toMatchObject({ runId: 'run-2', state: 'awaiting-adoption' });
+  expect(result.launch!.wake).toBeUndefined(); expect(result.launch!.binding!.parentOperationId).toBe(result.before.launch!.operationId);
+  expect(result.game).toEqual(result.before.game); expect(result.messages.filter(m => m.type === 'operation.wake')).toHaveLength(1);
+  expect(result.messages.filter(m => m.type === 'start')).toHaveLength(1);
+});
+
+test('an unbound successor with stale custody is attached only for Stop, never granted fresh authority', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const f = window.rpgClientTest; await f.client.start(); await f.admit(2);
+    const add = IDBObjectStore.prototype.add;
+    IDBObjectStore.prototype.add = function(...args) {
+      if (this.name === 'rpgAgenticaRuns' && args[0].runId === 'run-2') throw new DOMException('Bind fault', 'QuotaExceededError');
+      return add.apply(this, args);
+    };
+    try { await f.client.tick().catch(() => {}); } finally { IDBObjectStore.prototype.add = add; }
+    await f.session.executeCommand(f.session.commandRequest({ type: 'move', direction: 'east', triggerStairs: false }));
+    f.client.close(); f.makeClient(); const error = await f.client.recover().then(() => '', e => String(e));
+    await f.client.cancel(); const db = await f.h.repository.getDatabase();
+    return { error, child: await db.get('rpgAgenticaRuns', 'run-2'), ...await f.snapshot() };
+  });
+  expect(result.error).toContain('custody'); expect(result.child).toBeUndefined(); expect(result.game!.maze.active.column).toBe(3);
+  expect(result.view.state).toBe('cancelled');
+  expect(result.messages.filter(m => m.type === 'cancel').map(m => m.runId)).toEqual(['run-2']);
+});

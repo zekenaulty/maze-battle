@@ -4,6 +4,7 @@ import { readRpgHostOperation } from '../../../persistence/rpgAgentica/events';
 import { equivalentHostWire } from '../directed/wire';
 import type { RpgAgenticaTransport } from './transport';
 import { requireRpg } from './validation';
+import { rpgFetch } from './network';
 
 export async function retainedRpgJourney(session: GameSession, launch: RpgLaunch) {
   if (!launch.operationId) return;
@@ -15,9 +16,9 @@ export async function retainedRpgJourney(session: GameSession, launch: RpgLaunch
   return { ...current, ...retained };
 }
 
-export async function confirmRpgAdmission(transport: RpgAgenticaTransport, session: GameSession, launch: RpgLaunch) {
+export async function confirmRpgAdmission(transport: RpgAgenticaTransport, session: GameSession, launch: RpgLaunch, signal?: AbortSignal) {
   requireRpg(launch.binding && launch.operationId, 'missing original admission');
-  const entries = await transport.sdk.listOperations({ hostId: 'maze-battle', sessionId: launch.binding.sessionId });
+  const entries = await transport.sdk.listOperations({ hostId: 'maze-battle', sessionId: launch.binding.sessionId, fetchImpl: rpgFetch(signal) });
   const entry = entries.find(value => value.action.runId === launch.binding!.runId
     && value.admission?.operation?.operationId === launch.operationId);
   if (!entry) return false;
