@@ -21,7 +21,7 @@ export function useGameSession() {
       session.stop();
     };
   }, [session]);
-  return { ...view, transition: session.transition, replaceGame: session.replaceGame,
+  return { ...view, controller: session, transition: session.transition, replaceGame: session.replaceGame,
     createManualSave: session.createManualSave, loadSave: session.loadSave, removeSave: session.removeSave,
     refreshSaves: session.refreshSaves, flush: session.flush, takeControl: session.takeControl };
 }

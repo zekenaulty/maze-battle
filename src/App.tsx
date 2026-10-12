@@ -5,6 +5,7 @@ import { ExploreScreen } from './components/ExploreScreen';
 import { SavesDialog } from './components/SavesDialog';
 import { TownScreen } from './components/TownScreen';
 import { DiagnosticsDialog } from './components/diagnostics/DiagnosticsDialog';
+import { AgenticPlayDialog } from './components/agentic/AgenticPlayDialog';
 import { createNewGameState } from './domain/gameFactory';
 import { autoControlActive, wavesControlActive } from './domain/automation/autoPlay';
 import { activeUnopenedChests } from './domain/items/chests';
@@ -14,27 +15,34 @@ import { useGameSession } from './hooks/useGameSession';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useGameCommands } from './hooks/useGameCommands';
 import { useClickNavigation } from './hooks/useClickNavigation';
+import { useAgenticPlay } from './hooks/useAgenticPlay';
 import type { GameTransition } from './hooks/useGameLoop';
 
-type DialogName = 'characters' | 'saves' | 'diagnostics' | undefined;
+type DialogName = 'characters' | 'saves' | 'diagnostics' | 'agentic' | undefined;
 
 export function App() {
   const session = useGameSession();
   const { game, telemetry } = session;
   const [dialog, setDialog] = useState<DialogName>();
+  const [agentEndpoint, setAgentEndpoint] = useState('ws://127.0.0.1:5085/api/host');
+  const agent = useAgenticPlay(session.controller, !session.controlled || Boolean(dialog && dialog !== 'agentic')
+    || game?.mode === 'town' || Boolean(game?.battle && game.battle.status !== 'won'));
   const blocked = Boolean(dialog) || !session.controlled;
   const navigation = useClickNavigation(game, blocked, session.transition);
-  const clock = useGameLoop(game, blocked, session.transition, navigation.cancel);
+  const pauseManual = useCallback(() => { agent.pause(); navigation.cancel(); }, [agent.pause, navigation.cancel]);
+  const clock = useGameLoop(game, blocked, session.transition, pauseManual);
   const manualTransition = useCallback<GameTransition>((update, context) => {
-    navigation.cancel();
+    pauseManual();
     session.transition(update, context);
-  }, [navigation.cancel, session.transition]);
+  }, [pauseManual, session.transition]);
   const commands = useGameCommands(manualTransition);
+  const openDialog = (name: DialogName) => { pauseManual(); setDialog(name); };
   const openSaves = () => {
-    setDialog('saves');
+    openDialog('saves');
     void session.flush().then(session.refreshSaves, session.refreshSaves).catch(() => undefined);
   };
   const newGame = async () => {
+    pauseManual();
     await session.replaceGame(createNewGameState());
     await session.flush();
     setDialog(undefined);
@@ -42,8 +50,8 @@ export function App() {
 
   if (!game) return <main className="loading-screen"><p>{session.status}</p>{session.status.startsWith('Load failed') && <button onClick={() => location.reload()}>Retry</button>}</main>;
   const shared = {
-    onCharacters: () => setDialog('characters'), onSaves: openSaves,
-    onDiagnostics: () => setDialog('diagnostics'), onAutoToggle: commands.toggleAuto,
+    onCharacters: () => openDialog('characters'), onSaves: openSaves,
+    onDiagnostics: () => openDialog('diagnostics'), onAutoToggle: commands.toggleAuto,
   };
   const automation = {
     autoActive: autoControlActive(game), wavesActive: wavesControlActive(game),
@@ -54,7 +62,7 @@ export function App() {
   return <>
     {!session.controlled && <aside className="session-custody" role="status">
       <span>{session.status.startsWith('Save failed') ? session.status : 'Read only. Another tab controls this game.'}</span>
-      <button onClick={() => { void session.takeControl().catch(() => {}); }}>Take control</button>
+      <button onClick={() => { pauseManual(); void session.takeControl().catch(() => {}); }}>Take control</button>
     </aside>}
     {session.warning && <aside className="session-warning" role="alert">{session.warning}</aside>}
     {game.battle && game.battle.status !== 'won' ? <BattleScreen
@@ -73,13 +81,24 @@ export function App() {
       chests={activeUnopenedChests(game).map(chest => chest.position)}
       onTown={commands.portal} portalScrollCount={portalScrollCount(game)} onNewGame={newGame}
       onRandomBattlesChange={commands.encounters}
-      onTileClick={navigation.navigate} onStopWalking={navigation.cancel} navigationMessage={navigation.message}
+      onTileClick={position => { pauseManual(); navigation.navigate(position); }} onStopWalking={pauseManual} navigationMessage={navigation.message}
       onOpenChest={commands.openChest} controlsDisabled={blocked}
+      onAgenticPlay={() => { navigation.cancel(); setDialog('agentic'); }}
+      onStopAgenticPlay={agent.canStop ? () => { void agent.stop(); } : undefined}
+    />}
+    {dialog === 'agentic' && <AgenticPlayDialog
+      position={{ floor: game.dungeonLevel, ...game.maze.active }} view={agent.view}
+      busy={agent.busy} canStop={agent.canStop} controlled={session.controlled} error={agent.error}
+      endpoint={agentEndpoint} onEndpointChange={setAgentEndpoint}
+      onStart={(url, target) => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.start(url, target); }}
+      onReconnect={(url, target) => { navigation.cancel(); void agent.reconnect(url, target); }}
+      onAdopt={() => { navigation.cancel(); if (autoControlActive(game) || wavesControlActive(game)) commands.stopAuto(); void agent.adopt(); }}
+      onStop={() => { void agent.stop(); }} onClose={() => setDialog(undefined)}
     />}
     {dialog === 'saves' && <SavesDialog
       readOnly={!session.controlled}
       saves={session.saves} onClose={() => setDialog(undefined)} onCreateSave={session.createManualSave}
-      onLoadSave={async id => { await session.loadSave(id); setDialog(undefined); }}
+      onLoadSave={async id => { pauseManual(); await session.loadSave(id); setDialog(undefined); }}
       onDeleteSave={session.removeSave} onNewGame={newGame}
     />}
     {dialog === 'characters' && <CharactersDialog

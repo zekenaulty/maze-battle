@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, Crosshair, Map, Save, Settings, Users, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GameState, GridPosition } from '../domain/types';
 import { AutoThrottleControl } from './AutoThrottleControl';
 import { Controls } from './Controls';
@@ -32,6 +32,8 @@ interface ExploreScreenProps {
   onRandomBattlesChange: (enabled: boolean) => void;
   portalScrollCount?: number;
   onDiagnostics?: () => void;
+  onAgenticPlay?: () => void;
+  onStopAgenticPlay?: () => void;
   onTileClick?: (position: GridPosition) => void;
   onStopWalking?: () => void;
   onOpenChest?: (id: string) => void;
@@ -57,6 +59,7 @@ export function ExploreScreen({
   onRandomBattlesChange,
   portalScrollCount,
   onDiagnostics,
+  onAgenticPlay, onStopAgenticPlay,
   onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false,
 }: ExploreScreenProps) {
   const [mazeMode, setMazeMode] = useState<MazeRenderMode>('camera');
@@ -80,7 +83,7 @@ export function ExploreScreen({
   }, [game.dungeonLevel, game.maze.rows, game.maze.columns]);
 
   return (
-    <main className={`game-screen explore-screen refined-screen ${onDiagnostics ? 'has-diagnostics' : ''}`}>
+    <main className={`game-screen explore-screen refined-screen ${onDiagnostics ? 'has-diagnostics' : ''} ${onAgenticPlay ? 'has-agentic' : ''}`}>
       <div className="screen-bar">
         <div>
           <h1>Maze Battle</h1>
@@ -88,13 +91,21 @@ export function ExploreScreen({
             Dungeon {game.dungeonLevel} - {status} - {game.maze.active.row + 1}, {game.maze.active.column + 1}
           </span>
         </div>
-        <nav aria-label="Explore actions" onClickCapture={() => onStopWalking?.()}>
+        <nav aria-label="Explore actions" onClickCapture={event => {
+          if (!(event.target instanceof Element && event.target.closest('[data-agentic-control]'))) onStopWalking?.();
+        }}>
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
           <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle}>
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
+          {onAgenticPlay && <button className="screen-icon" data-agentic-control type="button" title="Agentic play" aria-label="Agentic play" onClick={onAgenticPlay}>
+            <Robot size={18} aria-hidden="true" />
+          </button>}
+          {onStopAgenticPlay && <button className="agentic-stop" data-agentic-control type="button" title="Stop Agentic play" aria-label="Stop Agentic play" onClick={onStopAgenticPlay}>
+            <Square size={14} aria-hidden="true" />Stop
+          </button>}
           <button type="button" onClick={onTown} disabled={portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
             Portal ({portalCount})
           </button>
