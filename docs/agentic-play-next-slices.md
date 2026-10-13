@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 21 amendment, 2026-10-12: owner issue
+Revision 22 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -11,6 +11,10 @@ now precedes new room-map features and broader Q qualification. Preserve shared
 game behavior, earned knowledge and execution evidence in the new schema, not
 historical formats. The load-recovery fix and native baseline are prerequisites,
 not completion of the replacement. Prior test results remain historical evidence.
+P1a now has a checked [canonical storage kernel](reviews/issue-11-canonical-kernel.md),
+including atomic receipts, snapshot roots, bounded reads and emergency control
+reserve. P1b admitted-operation capacity and P2-P5 gameplay adoption/removal/
+qualification remain mandatory; the preview has not switched writers yet.
 
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and

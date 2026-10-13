@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 1,
-2026-10-13. Status: P0 prerequisite repair and baseline checked; canonical
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 2,
+2026-10-13. Status: P0 and the P1a storage kernel checked; canonical gameplay
 cutover NOT implemented or qualified. This is the next active engineering slice,
 ahead of further room-map/Agentic Play feature work.
 
@@ -68,9 +68,12 @@ Final indexes must serve these access paths directly: current head; exact space
 and reciprocal endpoint; entities within resident spaces; active quests on the
 current floor; item ownership; observations by perspective/sequence; original
 attempt; operation delivery sequence. No growing manifest in the active head.
-Versioned checkpoints must preserve mutations and knowledge together without
-walking an unbounded overlay chain. Select and benchmark the page-root strategy
-before exposing manual checkpoint load on the new schema.
+Versioned checkpoints use the existing copy-on-write radix index: three bounded
+roots reference immutable world, knowledge and execution records. P1a proves
+old-root reads and snapshot-scoped pagination after writes/reload without walking
+an overlay chain. Host roots are internal references, never provider capabilities.
+Manual save/load still needs game-level operation cancellation and checkpoint
+validation before it can be exposed on the new schema.
 
 ## Transaction Contract
 
@@ -108,8 +111,36 @@ Do not keep a second implementation after consumers are moved.
 | P5 qualification | New-schema Q recovery and knowledge matrix plus reproducible storage-growth/limit tests. | Shallow/deep/revisit/native-browser/build gates, exact evidence/replay and cancellation at capacity. Re-run the known-destination and two-dungeon regressions before further integration. |
 
 P0 is checked: [integrated recovery evidence](reviews/issue-11-recovery.md) and
-[native before-change baseline](reviews/issue-11-storage-baseline.md). P1-P5 remain
-unimplemented/unqualified. P0 does not improve ordinary-step payload scaling.
+[native before-change baseline](reviews/issue-11-storage-baseline.md). P1a is now
+checked: [kernel evidence and limits](reviews/issue-11-canonical-kernel.md).
+P1 is PARTIAL; P2-P5 remain unimplemented/unqualified. Neither P0 nor P1a changes
+ordinary-game movement payload scaling yet.
+
+P1 is split at the real remaining boundary:
+
+- **P1a, checked:** incompatible schema initialization, immutable record/root
+  storage, compact heads, atomic command receipts, snapshot-scoped reads,
+  generation/owner/revision fencing, per-operation work limits, logical quotas,
+  one bounded Stop/takeover using reserved capacity, and destructive reset.
+- **P1b, next:** durable admission and explicit capacity reservations for
+  already-admitted operation settlement/cancellation. Bind the original attempt,
+  owner epoch, reserved allowance and terminal receipt atomically. The emergency
+  Stop path in P1a is NOT proof that Agentica operations can settle at capacity.
+- Then **P2/P3** adopt floor/space/mutation and party/item/quest records through
+  actual game-owned commands. Wire the new opener only at that coherent cutover;
+  do not add a second playable entrypoint, old-state adapter or dual writer.
+
+The target database is `maze-battle` version 8 with `meta`, `heads`, `records`,
+`nodes` and `receipts`. The opener discards earlier store layouts without reading
+their values. Until P2/P3 adoption, only isolated native fixtures invoke it. The
+existing preview is intentionally not upgraded by importing the kernel.
+
+Normal command admission stops before the logical reserve. A host-only Stop or
+takeover fences the old epoch and enters `stopped`; repeated emergency actions
+cannot consume reserve indefinitely. Resume must pass normal admission again.
+Default accounting limits are 256 MiB total / 8 MiB reserve; all history remains
+immutable until explicit reset. These are logical charges, not physical disk
+capacity guarantees. Browser quota errors must still abort every staged effect.
 
 Each checked slice is committed/pushed. P1-P4 are a coordinated replacement,
 not permanent transitional adapters or a second runnable game. Do not declare
@@ -134,6 +165,7 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 ## Acceptance Not Yet Met
 
 The existing 2,667-unit/196-native/14-App evidence qualifies the prior build only.
-P0 recovery tests do not establish canonical depth scaling, full database reset,
-stream/RPG unification, new-schema save roots, quota headroom or the full Q matrix.
+P0/P1a tests do not establish actual-game depth scaling, retirement of all old
+databases, stream/RPG unification, game-level manual save/load, admitted-operation
+settlement capacity or the full Q matrix.
 These remain mandatory gates for #11, separate from any future live-model trial.
