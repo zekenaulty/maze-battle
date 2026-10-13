@@ -187,3 +187,32 @@ parent tip. The audit above remains a baseline inventory, not the current file l
 - No parent edits, services, provider calls or runtime compatibility added. Stop
   here at the first coherent checked increment; later store retirement still
   follows the extraction and protocol-evidence gates above.
+
+## P4 Extraction: Pure Occupancy And Bounded Types
+
+Follow-up on isolated `347a350` plus this increment. Moved `PagedOccupancy` into
+`src/persistence/topology/occupancy.ts`, with only geometry, bucket helpers and
+plain domain types as dependencies. The canonical adapter, old frontier reader,
+old delta writer and existing tests now import that same class directly. There
+is no DB import or compatibility re-export in the pure module.
+
+- Class source is identical after line-ending normalization; `loadFrontier` and
+  `stageDelta` bodies are identical. Existing bucket/neighborhood test assertions
+  are unchanged. Added a pure staging test for exact serialized values, dirty-bin
+  order and unchanged fetched records.
+- Canonical content types/validation now import `GuildContract` directly from
+  `contractFactory`. Inventory capacity derives its input from the already-used
+  `PackCapacityState`, retaining optional stash. These three modules emit identical
+  JavaScript before/after; an added unit exercises the bounded no-stash input.
+- A fresh AST import/export/import-type/dynamic-import closure confirms canonical
+  persistence and main no longer reach `topology/database.ts`, even through types.
+  Canonical no longer reaches the whole-floor `guild/contracts.ts` scanner.
+  Its only persistence dependencies outside `canonical/` are `rpgMemory/tree.ts`,
+  `rpgMemory/treeTypes.ts`, `topology/buckets.ts` and `topology/occupancy.ts`.
+- PASS: `npm run build`; 431 tests across 29 files via Vitest filters
+  `src/persistence/topology src/persistence/canonical src/viewModels
+  src/domain/guild/contractFactory.test.ts src/components/screens/TownGuild.test.tsx`.
+  No ports, native/browser runs, services or provider calls.
+- No store/client/world behavior or wholesale GameState retirement. Shared domain
+  types and other GameState wrappers still exist; this only removes the named
+  dependency edges. Parent checkout and documentation outside this report untouched.

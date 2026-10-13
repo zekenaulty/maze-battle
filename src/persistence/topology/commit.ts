@@ -2,7 +2,8 @@ import { reservedBounds } from '../../domain/expedition/topology/geometry';
 import type { TopologyDelta } from '../../domain/expedition/topology/types';
 import { boundsBuckets } from './buckets';
 import type { TopologyTransaction } from './database';
-import { PagedOccupancy, type Frontier } from './reader';
+import { PagedOccupancy } from './occupancy';
+import type { Frontier } from './reader';
 import type { TopologySpacePage } from './types';
 import { validSocket, validSpace } from './validation';
 

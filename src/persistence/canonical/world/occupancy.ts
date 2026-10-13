@@ -1,4 +1,4 @@
-import { PagedOccupancy } from '../../topology/reader';
+import { PagedOccupancy } from '../../topology/occupancy';
 import type { Bucket } from '../../topology/buckets';
 import type { Occupancy } from '../../../domain/expedition/topology/types';
 import type { CanonicalPages } from '../pages';

@@ -3,7 +3,7 @@ import { childBounds, passageBounds } from '../../../domain/expedition/topology/
 import { moduleSpace } from '../../../domain/expedition/topology/modules/placement';
 import type { Direction } from '../../../domain/types';
 import { boundsBuckets, neighborhood } from '../../topology/buckets';
-import { PagedOccupancy } from '../../topology/reader';
+import { PagedOccupancy } from '../../topology/occupancy';
 
 it('covers every allowed module candidate within the prefetched 25-bin neighborhood', () => {
   let checked = 0, maxExtent = 0;

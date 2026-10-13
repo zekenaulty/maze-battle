@@ -19,6 +19,13 @@ function fullPack(): GameState {
 }
 
 describe('inventory capacity previews', () => {
+  it('accepts only party and inventory fields with no stash or whole-game state', () => {
+    const context = { party: [characterFixture()], inventory: inventoryFixture([itemFixture({ id: 'spare' })]) };
+    expect(inventoryPackUsage(context)).toBe(1);
+    expect(equipDisabledReason(context, 'vor', 'spare')).toBeUndefined();
+    expect(stashDisabledReason(context, 'spare')).toBeUndefined();
+  });
+
   it('counts bag records, preserves a full-pack replacement, and leaves the source unchanged', () => {
     const game = fullPack();
     const before = structuredClone(game);

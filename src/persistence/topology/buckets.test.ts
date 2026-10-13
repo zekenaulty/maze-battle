@@ -6,7 +6,7 @@ import type { SpaceSpec } from '../../domain/expedition/types';
 import type { Occupancy } from '../../domain/expedition/topology/types';
 import { boundsBuckets, MAX_BUCKET_ENTRIES, neighborhood, validateBucket } from './buckets';
 import { recordBytes, type TopologyTransaction } from './database';
-import { PagedOccupancy } from './reader';
+import { PagedOccupancy } from './occupancy';
 
 const directions: Direction[] = ['north', 'east', 'south', 'west'];
 function spec(rows: number, columns: number): SpaceSpec {

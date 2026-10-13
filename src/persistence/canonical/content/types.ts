@@ -1,4 +1,4 @@
-import type { GuildContract } from '../../../domain/guild/contracts';
+import type { GuildContract } from '../../../domain/guild/contractFactory';
 import type { ChestState, QuestState } from '../../../domain/types';
 import type { WorldRoleBinding } from '../world/roles';
 

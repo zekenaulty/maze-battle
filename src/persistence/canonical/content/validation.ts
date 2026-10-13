@@ -1,4 +1,4 @@
-import type { GuildContract } from '../../../domain/guild/contracts';
+import type { GuildContract } from '../../../domain/guild/contractFactory';
 import type { QuestState } from '../../../domain/types';
 import { check, jsonBytes } from '../validation';
 import { fields, id, natural, text, timestamp } from '../roster/codec';

@@ -1,11 +1,11 @@
-import type { EquipmentSlot, GameState } from '../domain/types';
+import type { EquipmentSlot } from '../domain/types';
 import { canApplyPackChange, packSlotUsage, type PackCapacityState } from '../domain/items/packCapacity';
 import { ambiguousEquipmentIds, ambiguousItemIds } from '../domain/items/itemOwnership';
 import { isEquipmentItem, omitSlot, removeItemFromEquipment } from '../domain/items/equipment';
 import { itemQuantity, mergeInventoryItems } from '../domain/items/itemStacks';
 import { getEquippedItemOwner } from './inventoryComparison';
 
-type InventoryContext = Pick<GameState, 'inventory' | 'party'> & Partial<Pick<GameState, 'stash'>>;
+type InventoryContext = Pick<PackCapacityState, 'inventory' | 'party'> & Partial<Pick<PackCapacityState, 'stash'>>;
 
 function capacityState(context: InventoryContext): PackCapacityState {
   return { ...context, stash: context.stash ?? { capacity: 0, items: [] } };
