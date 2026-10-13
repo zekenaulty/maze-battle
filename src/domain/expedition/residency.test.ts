@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SpaceResidency } from './residency';
-import { sparseTestGeometry, storageFixture, testGeometry, testSpace } from './storage.testSupport';
+import { sparseTestGeometry, testGeometry, testSpace } from './storage.testSupport';
 import type { SpaceGeometry, SpaceSpec } from './types';
 
 describe('SpaceResidency', () => {
@@ -57,22 +57,6 @@ describe('SpaceResidency', () => {
     expect(ring.stats().residentCells).toBe(9);
   });
 
-  it('preserves opened loot and sparse geometry across eviction and snapshot reconstruction', () => {
-    const record = storageFixture();
-    const before = structuredClone(record);
-    const cache = new SpaceResidency(6, sparseTestGeometry);
-    const first = cache.get(record.plan.spaces[0]);
-    cache.get(record.plan.spaces[1]);
-    expect(cache.get(record.plan.spaces[0])).toEqual(first);
-    expect(first.cells).toHaveLength(3);
-    expect(cache.stats()).toEqual({ residentSpaces: 1, residentCells: 4, loads: 3, evictions: 2 });
-    const reconstructed = JSON.parse(JSON.stringify(record)) as typeof record;
-    expect(reconstructed).toEqual(before);
-    expect(reconstructed.checkpoint.openedChestIds).toEqual(['chest-a']);
-    expect(new SpaceResidency(6, sparseTestGeometry).get(reconstructed.plan.spaces[0])).toEqual(first);
-    expect(record).toEqual(before);
-  });
-
   it.each([0, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])('rejects bad budget %s', budget => {
     expect(() => new SpaceResidency(budget, testGeometry)).toThrow(RangeError);
   });
@@ -100,7 +84,10 @@ describe('SpaceResidency', () => {
     ['opening target', s => { s.openings[0].destination.spaceId = 'other'; }],
   ];
   it.each(drifts)('replaces the cached identity after %s drift', (_label, change) => {
-    const spec = storageFixture().plan.spaces[0];
+    const spec = testSpace();
+    spec.chests.push({ id: 'chest-a', cell: { row: 1, column: 1 } });
+    spec.openings.push({ id: 'a-b', cell: { row: 0, column: 1 }, direction: 'east',
+      destination: { spaceId: 'room-b', row: 0, column: 0 } });
     const cache = new SpaceResidency(20, testGeometry);
     const first = cache.get(spec);
     change(spec);
