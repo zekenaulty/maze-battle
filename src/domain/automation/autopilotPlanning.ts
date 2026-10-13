@@ -4,6 +4,7 @@ import { cellKey, samePosition } from '../maze/key';
 import { canMove, movePosition } from '../maze/movement';
 import { createMazePathSearch, type MazePath } from '../maze/solver';
 import { isInRoom } from '../quests/questTargets';
+import { QUEST_PRIORITY, autoScore, compareAutoTargets } from './autoPolicy';
 
 export type AutoTargetKind = 'quest-fetch' | 'quest-kill' | 'quest-locate' | 'quest-scout' | 'chest' | 'exit';
 
@@ -29,8 +30,6 @@ export type AutoIntent =
   | { type: 'descend'; plan: PlannedAutoTarget }
   | { type: 'battle'; quest: QuestState }
   | { type: 'idle'; reason: string };
-
-const QUEST_PRIORITY: Record<QuestState['task']['objective'], number> = { fetch: 1000, kill: 900, scout: 800, locate: 700 };
 
 export function nextAutoIntent(game: GameState): AutoIntent {
   if (game.battle?.status === 'active') return { type: 'idle', reason: 'Battle is already active.' };
@@ -78,8 +77,7 @@ export function chooseAutoTarget(game: GameState, targets: AutoTarget[]): Planne
   const paths = createMazePathSearch(game.maze);
   const ranked = targets.map((target) => ({ target, distance: paths.distanceTo(target.position) }))
     .filter((entry) => Number.isFinite(entry.distance))
-    .sort((a, b) => score(a.target, a.distance) - score(b.target, b.distance)
-      || b.target.priority - a.target.priority || a.distance - b.distance || a.target.id.localeCompare(b.target.id));
+    .sort((a, b) => compareAutoTargets({ ...a.target, distance: a.distance }, { ...b.target, distance: b.distance }));
   const best = ranked[0];
   if (!best) return undefined;
   const path = paths.pathTo(best.target.position)!;
@@ -124,5 +122,5 @@ function invalidObjectiveReason(game: GameState) {
 }
 
 function score(target: AutoTarget, distance: number) {
-  return distance * 10 - target.priority;
+  return autoScore(target.priority, distance);
 }
