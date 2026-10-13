@@ -33,6 +33,7 @@ export class GameSession {
   private head?: CanonicalHead;
   private queue: Promise<unknown> = Promise.resolve();
   private lifetime = new AbortController();
+  get hostSignal() { return this.lifetime.signal; }
   private active = false;
   private refreshing = false;
   private readonly lock = new BrowserSaveLock(() => this.stop('Read only: control moved to another tab.'));
@@ -173,7 +174,9 @@ export class GameSession {
   /** Local host integration shares manual/Auto/save serialization. Its domain executor owns grants and validation. */
   submitHostCommand = async (command: CanonicalHostCommand): Promise<CanonicalReceipt> => {
     const captured = captureHostCommand(command);
+    if (captured.signal && captured.signal !== this.lifetime.signal) throw new Error('Discarded stale host lifetime');
     return this.owned(async signal => {
+      if (captured.signal && captured.signal !== signal) throw new Error('Discarded stale host lifetime');
       const original = captured.kind === 'retry' ? captured.request : gameRequest(this.head!, captured.operation, captured.input);
       const started = performance.now(), result = await captured.execute(original, { signal });
       this.assert(signal);

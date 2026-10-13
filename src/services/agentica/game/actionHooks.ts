@@ -14,7 +14,10 @@ import { executeGameAction } from './actionExecution';
 /** Hooks for one published context. New wire revisions need an explicitly renewed publication/binding. */
 export function createGameActionHooks(port: CanonicalHostPort, input: ActionBinding): Pick<AgenticaHostOptions,
   'loadAction' | 'saveAction' | 'onAction' | 'reconcileAction'> {
-  const binding = captureBinding(input), fresh = new Set<string>();
+  const binding = captureBinding(input), fresh = new Set<string>(), signal = port.hostSignal;
+  const host: CanonicalHostPort = { hostSignal: signal, submitHostCommand(command) {
+    signal.throwIfAborted(); return port.submitHostCommand({ ...command, signal });
+  } };
   function sameReservation(retained: RetainedAction) {
     check(equal(retained.original.publication, binding.publication)
       && retained.original.effect === (retained.original.action.capabilityId === 'maze.navigate' ? 'writesLocalState' : 'readOnly'),
@@ -35,7 +38,7 @@ export function createGameActionHooks(port: CanonicalHostPort, input: ActionBind
       return;
     }
     let created = false;
-    await port.submitHostCommand({ kind: 'fresh', operation: 'agentica.action.reserve',
+    await host.submitHostCommand({ kind: 'fresh', operation: 'agentica.action.reserve',
       input: { action: identity.storageKey, grant: { ...binding.grant }, publication: { ...binding.publication } },
       execute: (input, options) => {
         const request = pinDeadline(input, action);
@@ -48,13 +51,14 @@ export function createGameActionHooks(port: CanonicalHostPort, input: ActionBind
         }, options);
       } });
     // Only the invocation that committed a new reservation can execute, once, in this lifetime.
-    if (created) fresh.add(identity.fingerprint);
+    if (created && !signal.aborted) fresh.add(identity.fingerprint);
   }
   async function onAction(value: AgenticaAction) {
     const identity = await prepareAction(value), original = (await readCanonical(pages => readAction(pages, identity))).value;
     if (original?.result) return original.result;
     if (!original || !fresh.delete(identity.fingerprint)) return unresolved(identity.action);
-    await executeGameAction(port, binding, identity);
+    signal.throwIfAborted();
+    await executeGameAction(host, binding, identity);
     return (await readCanonical(pages => readAction(pages, identity))).value?.result ?? unresolved(identity.action);
   }
   return { loadAction, saveAction, onAction,

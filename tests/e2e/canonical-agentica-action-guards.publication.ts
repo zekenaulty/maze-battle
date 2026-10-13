@@ -19,7 +19,7 @@ export async function changedPublication(race: boolean) {
   try {
     const publication = await publishAgain(c.session);
     let submissions = 0, missed = false;
-    const other = createGameActionHooks({ submitHostCommand: async command => {
+    const other = createGameActionHooks({ hostSignal: c.session.hostSignal, submitHostCommand: async command => {
       submissions++; entered.resolve();
       if (race) await release.promise;
       return c.session.submitHostCommand(command);
@@ -52,7 +52,7 @@ export async function samePublication() {
     await c.hooks.saveAction(key(c.action), pending(c.action));
     const before = await head(), original = await retained(c.action);
     let writes = 0;
-    const cold = createGameActionHooks({ submitHostCommand: async () => { writes++; throw Error('Duplicate reservation attempted a write'); } }, c.binding);
+    const cold = createGameActionHooks({ hostSignal: c.session.hostSignal, submitHostCommand: async () => { writes++; throw Error('Duplicate reservation attempted a write'); } }, c.binding);
     await c.hooks.saveAction(key(c.action), pending(c.action));
     await cold.saveAction(key(c.action), pending(c.action));
     const retry = await cold.onAction(c.action), reconciled = await cold.reconcileAction!(c.action, pending(c.action));
@@ -70,7 +70,7 @@ export async function completedDifferentPublication() {
     const result = await c.hooks.onAction(c.action), publication = await publishAgain(c.session);
     await c.session.cleanupHostOperation({ kind: 'cancel', target: c.guard }); c.session.stop();
     let writes = 0;
-    const other = createGameActionHooks({ submitHostCommand: async () => { writes++; throw Error('Completed replay attempted a write'); } },
+    const other = createGameActionHooks({ hostSignal: c.session.hostSignal, submitHostCommand: async () => { writes++; throw Error('Completed replay attempted a write'); } },
       { ...c.binding, publication });
     const before = await head(), original = await retained(c.action);
     const loaded = await other.loadAction(key(c.action));

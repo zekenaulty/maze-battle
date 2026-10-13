@@ -57,7 +57,7 @@ export async function setup(capability: Capability = 'maze.navigate') {
       input: { launchId: 'guard-fixture', run: { ...announced.run!.ref }, publication: { ...publication } }, execute: executeLaunchCommand });
     const binding = { grant: (await readLaunch()).value!.grant!.ref, publication };
     const submitted: { operations: string[]; inspect?: (command: CanonicalHostCommand) => void } = { operations: [] };
-    const port = { submitHostCommand(command: CanonicalHostCommand) {
+    const port = { get hostSignal() { return session.hostSignal; }, submitHostCommand(command: CanonicalHostCommand) {
       submitted.operations.push(command.kind === 'fresh' ? command.operation : command.request.operation);
       submitted.inspect?.(command); return session.submitHostCommand(command);
     } };

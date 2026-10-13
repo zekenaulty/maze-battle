@@ -8,17 +8,19 @@ type Executor = (request: CanonicalRequest, options: { signal: AbortSignal }) =>
 export type CanonicalHostCommand = (
   | { kind: 'fresh'; operation: string; input: Json }
   | { kind: 'retry'; request: CanonicalRequest }
-) & { execute: Executor };
+) & { execute: Executor; signal?: AbortSignal };
 
 export interface CanonicalHostPort {
+  readonly hostSignal: AbortSignal;
   submitHostCommand(command: CanonicalHostCommand): Promise<CanonicalCommit['receipt']>;
 }
 
 /** Capture before queueing, including an exact retry's original fence and deadline. */
 export function captureHostCommand(command: CanonicalHostCommand): CanonicalHostCommand {
-  const execute = command.execute;
+  const execute = command.execute, signal = command.signal;
   if (typeof execute !== 'function') throw new Error('Missing canonical host executor');
-  if (command.kind === 'retry') return { kind: 'retry', request: validateRequest(command.request), execute };
+  if (signal !== undefined && !(signal instanceof AbortSignal)) throw new Error('Invalid host lifetime');
+  if (command.kind === 'retry') return { kind: 'retry', request: validateRequest(command.request), execute, signal };
   if (command.kind !== 'fresh' || typeof command.operation !== 'string') throw new Error('Invalid canonical host command');
-  return { kind: 'fresh', operation: command.operation, input: structuredClone(command.input), execute };
+  return { kind: 'fresh', operation: command.operation, input: structuredClone(command.input), execute, signal };
 }

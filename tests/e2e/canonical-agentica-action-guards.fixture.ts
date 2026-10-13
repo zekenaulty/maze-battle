@@ -67,7 +67,7 @@ export async function completedAfterStop() {
     const original = await c.hooks.onAction(c.action);
     await c.session.cleanupHostOperation({ kind: 'cancel', target: c.guard }); c.session.stop();
     let writes = 0;
-    const cold = createGameActionHooks({ submitHostCommand: async () => { writes++; throw Error('Replay attempted a write'); } }, c.binding);
+    const cold = createGameActionHooks({ hostSignal: c.session.hostSignal, submitHostCommand: async () => { writes++; throw Error('Replay attempted a write'); } }, c.binding);
     const before = await head(), loaded = await cold.loadAction(key(c.action));
     await cold.saveAction(key(c.action), { fingerprint: actionFingerprint(c.action), status: 'completed', result: original });
     const reconciled = await cold.reconcileAction!(c.action, null), replayed = await cold.onAction(c.action);
