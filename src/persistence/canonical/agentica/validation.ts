@@ -1,12 +1,9 @@
 import { actionFingerprint, actionKey, canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
 import type { AgenticaAction } from '../../../services/agentica/contracts';
 import { fields } from '../roster/codec';
-import { check, integer, jsonBytes, recordKey, request as validateRequest, sameFence, validId } from '../validation';
-import { canonicalFence, type CanonicalWork } from '../transaction';
-import type { CanonicalRequest, CanonicalRecord, JsonObject } from '../types';
-import { gameCheckpoint } from '../game/checkpoint';
-import { MAX_ACTION_BYTES, MAX_PROOF_BYTES, MAX_SOURCE_REQUEST_BYTES } from './types';
-import type { PreparedAction, ProtocolRead, ProtocolRef, ProtocolSource, ProtocolWrite } from './types';
+import { check, integer, jsonBytes, recordKey, validId } from '../validation';
+import { MAX_ACTION_BYTES } from './types';
+import type { PreparedAction, ProtocolRef } from './types';
 
 export const equal = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 export function wireId(value: unknown): asserts value is string {
@@ -35,34 +32,4 @@ export function validatePrepared(value: PreparedAction) {
 export function reference(value: unknown): asserts value is ProtocolRef {
   jsonBytes(value, 1024); const ref = fields(value, 'key id'); recordKey(ref.key as string);
   check(validId(ref.id) && (ref.key as string).startsWith('agentica/'), 'invalid Agentica record reference');
-}
-export function source(tx: CanonicalWork, input: CanonicalRequest, kind: ProtocolSource['kind']): ProtocolSource {
-  jsonBytes(input, MAX_SOURCE_REQUEST_BYTES); const request = validateRequest(input);
-  check(tx.head.status === 'ready' && sameFence(request.expected, canonicalFence(tx.head)), 'Agentica writer custody changed');
-  gameCheckpoint(tx.head.checkpoint);
-  const { generation, gameId, revision, roots, checkpoint, owner, epoch } = tx.head;
-  return { schema: 1, kind, sourceAttemptId: request.attemptId, sourceRequest: request, owner, epoch,
-    snapshot: structuredClone({ generation, gameId, revision, roots: { world: roots.world, knowledge: roots.knowledge }, checkpoint }) };
-}
-export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: ProtocolSource['kind'], extra: string) {
-  reference(ref);
-  const { record, snapshot, source: original } = await pages.savedSnapshot(ref.key);
-  const row = fields(record.value, `schema kind sourceAttemptId sourceRequest snapshot owner epoch ${extra}`);
-  check(record.id === ref.id && record.key === ref.key && record.indexes.length === 0 && row.schema === 1 && row.kind === kind, 'Agentica source reference changed');
-  jsonBytes(row.sourceRequest, MAX_SOURCE_REQUEST_BYTES); validateRequest(row.sourceRequest as unknown as CanonicalRequest);
-  check(equal(row.sourceRequest, original) && row.sourceAttemptId === original.attemptId && equal(row.snapshot, snapshot)
-    && row.owner === original.expected.owner && row.epoch === original.expected.epoch, 'Agentica source custody changed');
-  gameCheckpoint(snapshot.checkpoint);
-  return structuredClone(row) as unknown as ProtocolSource;
-}
-export async function writeSource(tx: CanonicalWork, key: string, value: ProtocolSource): Promise<ProtocolWrite> {
-  check(!await tx.pages.get('execution', key), 'Agentica source is immutable');
-  const record = await tx.pages.set('execution', key, value as unknown as JsonObject);
-  return proof(record);
-}
-function proof(row: CanonicalRecord): ProtocolWrite {
-  const ref = { key: row.key, id: row.id };
-  // Caller must include these exact fields in its receipt. The kernel anchors the entire record.
-  const receipt = { snapshotRecordId: row.id, snapshotWitness: canonicalJson(row), reference: ref };
-  jsonBytes(receipt, MAX_PROOF_BYTES); return { reference: ref, receipt };
 }

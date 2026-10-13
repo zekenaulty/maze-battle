@@ -21,6 +21,8 @@ test('publication pins earned snapshot and wire revision across execution bookke
   expect(reloaded.observed.cells[0].world).toEqual({ row: -5, column: -2 });
   expect(reloaded.retained.value).toEqual(original.retained.value);
   expect(reloaded.retained.value!.original.action).toEqual(original.action);
+  expect(reloaded.retained.value!.original).not.toHaveProperty('snapshot');
+  expect(reloaded.retained.value!.original.sourceRequest).toEqual(original.pending.request);
   expect(reloaded.reconciled.value).toEqual({ status: 'pending', fingerprint: original.retained.value!.original.fingerprint });
   expect(reloaded.after).toBe(reloaded.before);
   expect(original.io.operations.some(op => ['getAll', 'getAllKeys', 'openCursor'].includes(op.method))).toBe(false);

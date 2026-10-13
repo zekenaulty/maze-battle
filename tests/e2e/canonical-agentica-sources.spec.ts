@@ -16,7 +16,7 @@ for (const target of ['publication', 'pending', 'result'] as const) for (const d
         await db.put('receipts', source, [head.gameId, source.attemptId]);
       } else {
         if (damage === 'malformed') value.extra = 'not-in-schema'; else value.owner = 'impostor';
-        (source.result as JsonObject).snapshotWitness = c.canonicalJson(row);
+        (source.result as JsonObject)[target === 'publication' ? 'snapshotWitness' : 'recordWitness'] = c.canonicalJson(row);
         await db.put('records', row, [head.gameId, ref.id]); await db.put('receipts', source, [head.gameId, source.attemptId]);
       }
       db.close(); const before = await c.dump();
@@ -36,7 +36,7 @@ for (const field of ['key', 'fingerprint', 'action']) test(`digest bucket does n
     else if (field === 'fingerprint') value.fingerprint = c.canonicalJson({ ...action, stepId: 'other-step' });
     else value.action = { ...action, arguments: { row: 999 } } as unknown as JsonObject;
     const receipt = (await db.get('receipts', [head.gameId, value.sourceAttemptId as string]))!;
-    (receipt.result as JsonObject).snapshotWitness = c.canonicalJson(row);
+    (receipt.result as JsonObject).recordWitness = c.canonicalJson(row);
     await db.put('records', row, [head.gameId, row.id]); await db.put('receipts', receipt, [head.gameId, receipt.attemptId]); db.close();
     const before = await c.dump(), read = await c.reconcile(action).catch(String), write = await c.pending(action, pub.reference).catch(String);
     return { before, after: await c.dump(), read, write };

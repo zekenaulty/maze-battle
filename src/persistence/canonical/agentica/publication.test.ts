@@ -4,14 +4,15 @@ import { canonicalFence } from '../transaction';
 import type { CanonicalWork } from '../transaction';
 import type { CanonicalRequest } from '../types';
 import { assertPublicationCurrent, readPublication } from './publication';
-import { source } from './validation';
+import { source } from './validation.source';
 import { protocolHead } from './types.test-support';
 import type { ProtocolRead, Publication } from './types';
 
 function fixture() {
   const head = protocolHead(), request: CanonicalRequest = { expected: canonicalFence(head), attemptId: 'publication', operation: 'fixture.publish', input: {}, deadlineAt: null };
   const anchor = source({ head } as CanonicalWork, request, 'agentica-publication');
-  const publication: Publication = { ...anchor, kind: 'agentica-publication', wireRevision: head.revision, observation: null };
+  const publication: Publication = { ...anchor, kind: 'agentica-publication', wireRevision: head.revision, observation: null,
+    snapshot: { generation: head.generation, gameId: head.gameId, revision: head.revision, checkpoint: head.checkpoint, roots: { world: null, knowledge: null } } };
   const ref = { key: 'agentica/publications/publication', id: 'record' };
   const stored = { record: { id: ref.id, key: ref.key, indexes: [], value: publication }, snapshot: publication.snapshot, source: request };
   const pages = { savedSnapshot: vi.fn(async () => structuredClone(stored)) } as unknown as ProtocolRead;

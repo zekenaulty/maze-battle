@@ -7,18 +7,18 @@ export const MAX_ACTION_BYTES = 4096;
 export const MAX_RESULT_BYTES = 4096;
 export const MAX_SOURCE_REQUEST_BYTES = 2048;
 export const MAX_PROOF_BYTES = 12 * 1024;
-export type ProtocolRead = Pick<CanonicalQuery, 'get' | 'savedSnapshot'>;
+export type ProtocolRead = Pick<CanonicalQuery, 'get' | 'savedSnapshot' | 'sourceReceipt'>;
 export interface ProtocolRef { key: string; id: string }
 /** Merge receipt verbatim into the caller's outcome; only one new source anchor per transaction. */
 export interface ProtocolWrite { reference: ProtocolRef; receipt: JsonObject }
 export interface ProtocolSource {
   schema: 1; kind: 'agentica-publication' | 'agentica-action' | 'agentica-result';
   sourceAttemptId: string; sourceRequest: CanonicalRequest;
-  snapshot: CanonicalGameSnapshot; owner: string; epoch: number;
+  owner: string; epoch: number;
 }
 export interface Publication extends ProtocolSource {
   kind: 'agentica-publication'; wireRevision: number;
-  observation: KnowledgeAnchor | null;
+  snapshot: CanonicalGameSnapshot; observation: KnowledgeAnchor | null;
 }
 /** Prepared before opening IndexedDB; hashing is never awaited inside a transaction. */
 export interface PreparedAction {

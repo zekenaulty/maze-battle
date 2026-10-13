@@ -3,7 +3,8 @@ import type { CanonicalWork } from '../transaction';
 import type { CanonicalRequest } from '../types';
 import { check } from '../validation';
 import { assertPublicationCurrent, readPublication } from './publication';
-import { equal, readSource, reference, source, validateAction, validatePrepared, writeSource } from './validation';
+import { equal, reference, validateAction, validatePrepared } from './validation';
+import { readSource, source, writeSource } from './validation.source';
 import { validateResult } from './validation.result';
 import type { ActionResult, PendingAction, PreparedAction, ProtocolRead, ProtocolRef, ProtocolWrite, RetainedAction } from './types';
 
@@ -21,9 +22,8 @@ async function original(pages: ProtocolRead, identity: PreparedAction) {
   const publication = await readPublication(pages, pending.publication);
   check(identity.action.expectedRevision === publication.wireRevision && identity.action.sessionEpoch === String(publication.epoch)
     && pending.owner === publication.owner && pending.epoch === publication.epoch
-    && pending.snapshot.generation === publication.snapshot.generation && pending.snapshot.gameId === publication.snapshot.gameId
-    && pending.snapshot.revision >= publication.snapshot.revision
-    && equal(pending.snapshot.roots, publication.snapshot.roots) && equal(pending.snapshot.checkpoint, publication.snapshot.checkpoint), 'action publication binding changed');
+    && pending.sourceRequest.expected.generation === publication.snapshot.generation && pending.sourceRequest.expected.gameId === publication.snapshot.gameId
+    && pending.sourceRequest.expected.revision >= publication.snapshot.revision, 'action publication binding changed');
   return { reference: ref, original: pending, publication };
 }
 
@@ -49,11 +49,12 @@ export async function readActionResult(pages: ProtocolRead, identity: PreparedAc
   const pending = await original(pages, identity); check(pending, 'missing original action');
   check(ref.key === `${identity.storageKey}/result`, 'result reference belongs to another action');
   const stored = await readSource(pages, ref, 'agentica-result', 'original result') as ActionResult;
-  check(equal(stored.original, pending.reference) && stored.snapshot.generation === pending.original.snapshot.generation
-    && stored.snapshot.gameId === pending.original.snapshot.gameId && stored.owner === pending.original.owner
-    && stored.epoch === pending.original.epoch && stored.snapshot.revision >= pending.original.snapshot.revision, 'result original custody changed');
+  const scope = stored.sourceRequest.expected, before = pending.original.sourceRequest.expected;
+  check(equal(stored.original, pending.reference) && scope.generation === before.generation
+    && scope.gameId === before.gameId && stored.owner === pending.original.owner
+    && stored.epoch === pending.original.epoch && scope.revision >= before.revision, 'result original custody changed');
   const result = validateResult(stored.result, identity.action, pending.original.effect);
-  check(result.afterRevision <= stored.snapshot.revision + 1, 'result exceeds its commit revision');
+  check(result.afterRevision <= scope.revision + 1, 'result exceeds its commit revision');
   return result;
 }
 
