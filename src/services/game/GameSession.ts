@@ -9,6 +9,7 @@ import { executeExplorationCommand } from '../../persistence/canonical/game/expl
 import { executeRosterCommand } from '../../persistence/canonical/game/rosterCommand';
 import { executeContentCommand } from '../../persistence/canonical/game/contentCommand';
 import { executeSettingsCommand } from '../../persistence/canonical/game/settings';
+import { executeAutoCommand } from '../../persistence/canonical/auto/command';
 import { executeSaveCommand, listManualSaves } from '../../persistence/canonical/game/manualSaves';
 import type { CanonicalHead, CanonicalReceipt, Json, JsonObject } from '../../persistence/canonical/types';
 import { BrowserSaveLock } from './BrowserSaveLock';
@@ -19,9 +20,9 @@ export interface GameSessionView {
   game?: GameView; saves: SaveSummary[]; diagnostics: GameDiagnostic[];
   status: string; controlled: boolean; recoveryRequired?: boolean; busy?: boolean;
 }
-export type CommandKind = 'exploration' | 'roster' | 'content' | 'settings';
+export type CommandKind = 'exploration' | 'roster' | 'content' | 'settings' | 'auto';
 const handlers = { exploration: executeExplorationCommand, roster: executeRosterCommand,
-  content: executeContentCommand, settings: executeSettingsCommand };
+  content: executeContentCommand, settings: executeSettingsCommand, auto: executeAutoCommand };
 
 /** One serialized writer. It publishes bounded projections, never accepts full-game reducers. */
 export class GameSession {
@@ -154,8 +155,10 @@ export class GameSession {
       const stairs = await executeExplorationCommand(gameRequest(this.head, 'exploration.command', { kind: 'stairs', direction: 'down' }));
       this.head = stairs.head ?? (await readCanonicalHead()).head;
     }
-    await this.adopt(this.head, signal, kind === 'exploration' || kind === 'settings');
-    this.publish({ busy: false, status: 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {
+    await this.adopt(this.head, signal, kind === 'exploration' || kind === 'settings'
+      || kind === 'auto' && (result.receipt.result as JsonObject).rosterChanged === false);
+    const reason = (result.receipt.result as JsonObject).reason;
+    this.publish({ busy: false, status: kind === 'auto' && typeof reason === 'string' ? reason : 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {
       revision: result.receipt.afterRevision, action: kind, replayed: result.replayed, elapsedMs: performance.now() - started, stats: result.stats }] });
     return result.receipt;
   });

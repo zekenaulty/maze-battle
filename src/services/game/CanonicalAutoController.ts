@@ -28,13 +28,17 @@ export class CanonicalAutoController {
     const { game, controlled, recoveryRequired } = this.session.view;
     const scope = game ? JSON.stringify([game.id, game.snapshot.generation, game.checkpoint.position.level, this.session.owner]) : '';
     const enabled = Boolean(game && autoEnabled(game));
+    const previous = this.scope ? JSON.parse(this.scope) as [string, string, number, string] : null;
+    const ownFloorTransition = this.pending && game && previous && previous[0] === game.id
+      && previous[1] === game.snapshot.generation && previous[3] === this.session.owner;
     if (!enabled) { this.cancel(); this.paused = false; }
-    else if (blocked || !controlled || recoveryRequired || this.enabled && scope !== this.scope) this.cancel();
+    else if (blocked || !controlled || recoveryRequired || this.enabled && scope !== this.scope && !ownFloorTransition) this.cancel();
     else if (!this.enabled) this.paused = false;
     this.scope = scope; this.enabled = enabled; this.blocked = blocked;
     this.schedule();
   }
   cancel = () => {
+    if (this.enabled && !this.paused && !this.disposed) this.changed('Auto paused. Toggle Auto to continue.');
     this.token++; this.paused = true;
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
@@ -53,7 +57,7 @@ export class CanonicalAutoController {
   }
   private async tick() {
     if (!this.available() || this.pending) return;
-    const token = this.token, game = this.session.view.game!, revision = game.snapshot.revision;
+    const token = this.token, game = this.session.view.game!, revision = game.snapshot.revision, level = game.checkpoint.position.level;
     this.pending = true;
     try {
       const receipt = await this.session.execute('auto', { kind: 'tick', revision });
@@ -61,10 +65,18 @@ export class CanonicalAutoController {
       const result = receipt.result;
       if (!result || typeof result !== 'object' || Array.isArray(result) || receipt.beforeRevision !== revision
         || receipt.afterRevision !== this.session.view.game?.snapshot.revision) { this.cancel(); this.changed('Auto publication changed; resume explicitly.'); return; }
+      if (level !== this.session.view.game.checkpoint.position.level) {
+        const action = result.action;
+        if (!action || typeof action !== 'object' || Array.isArray(action) || action.kind !== 'stairs' || action.moved !== true
+          || JSON.stringify(action.position) !== JSON.stringify(this.session.view.game.checkpoint.position)) {
+          this.cancel(); this.changed('Unconfirmed Auto floor transition; resume explicitly.'); return;
+        }
+      }
       this.changed(typeof result.reason === 'string' ? result.reason : 'Auto paused.');
       if (!['applied', 'planning'].includes(String(result.outcome))) this.cancel();
+      this.update(this.blocked);
     } catch (error) {
       if (token === this.token && !this.disposed) { this.cancel(); this.changed(error instanceof Error ? error.message : 'Auto failed.'); }
-    } finally { this.pending = false; this.schedule(); }
+    } finally { this.pending = false; this.update(this.blocked); }
   }
 }

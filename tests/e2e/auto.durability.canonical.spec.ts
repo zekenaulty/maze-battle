@@ -35,7 +35,7 @@ test('inactive and stale ticks cannot affect world; callback failure rolls all A
     const staleHead = await a.readCanonicalHead();
     const request = a.worldRequest(staleHead.head, 'auto.command', { kind: 'tick', revision: staleHead.head.revision });
     let error = '';
-    try { await a.executeCanonical(request, async tx => { await a.commitAutoCommand(tx, request.input); throw Error('injected rollback'); }); }
+    try { await a.executeCanonical(request, async tx => { await a.commitAutoCommand(tx, request.input, request.attemptId); throw Error('injected rollback'); }); }
     catch (e) { error = String(e); }
     const rollback = await a.readCanonicalHead(), state = await a.read();
     await a.enabled(false); const disabled = await a.readCanonicalHead(), paused = await a.act(), after = await a.readCanonicalHead();

@@ -9,6 +9,7 @@ import { loadRoster } from '../roster/projection';
 import { commitRosterCommand } from '../game/rosterCommand';
 import { commitContentCommand } from '../game/contentCommand';
 import { commitExplorationCommand } from '../game/explorationCommand';
+import { commitFloorPreparation } from '../game/preparation';
 import { loadObservation, validateKnowledge } from '../knowledge/evidence';
 import { readKnowledgeRoom } from '../knowledge/roomView';
 import { same } from '../world/records';
@@ -20,11 +21,11 @@ import { AutoBlocked, type AutoState } from './types';
 
 export function executeAutoCommand(request: CanonicalRequest) {
   request = validateRequest(request); check(request.operation === 'auto.command', 'invalid Auto operation');
-  return executeCanonical(request, tx => commitAutoCommand(tx, request.input), { limits: { reads: 16384, writes: 1024, bytes: 16 * 1024 * 1024 } });
+  return executeCanonical(request, tx => commitAutoCommand(tx, request.input, request.attemptId), { limits: { reads: 16384, writes: 1024, bytes: 16 * 1024 * 1024 } });
 }
 
 /** One policy-selected shared action and its progress commit together. No caller-supplied route or effects. */
-export async function commitAutoCommand(tx: CanonicalWork, input: unknown) {
+export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attemptId: string) {
   const command = fields(input, 'kind revision'); natural(command.revision);
   check(command.kind === 'tick', 'invalid Auto command');
   let checkpoint = gameCheckpoint(tx.head.checkpoint);
@@ -38,7 +39,7 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown) {
     if (state.rootId !== checkpoint.position.cell.spaceId && !await loadAutoRoom(tx.pages, state, checkpoint.position.cell.spaceId)) state = initialAutoState(checkpoint, tx.head.revision);
   }
   state.lastPosition = checkpoint.position;
-  const owned: CanonicalWork = { head: tx.head, pages: tx.pages, setCheckpoint: value => { checkpoint = gameCheckpoint(value); tx.setCheckpoint(value); } };
+  const owned: CanonicalWork = { ...tx, setCheckpoint: value => { checkpoint = gameCheckpoint(value); tx.setCheckpoint(value); } };
   const finish = async (action: JsonObject | null, outcome = 'applied', reason = state.reason) => {
     if (checkpoint.position.level !== state.level) state = initialAutoState(checkpoint, tx.head.revision);
     state.lastRevision = tx.head.revision + 1; state.lastPosition = checkpoint.position; state.reason = reason;
@@ -81,6 +82,9 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown) {
     const room = await currentAutoRoom(tx.pages, state);
     if (state.objective?.kind === 'exit' && state.completed && same(state.descent, checkpoint.position)) {
       check(here.stairs.includes('down') && guild.active.length === 0 && !guild.combatRequired, 'Auto descent has unfinished work');
+      const preparation = await commitFloorPreparation(owned, { level: checkpoint.position.level + 1 }, attemptId);
+      if (preparation.phase !== 'ready') return finish({ ...preparation, kind: 'prepare-floor', channel: 'preparation' }, 'planning',
+        `Preparing dungeon ${checkpoint.position.level + 1}: ${preparation.phase}`);
       state.route = null; return finish(await act('exploration', { kind: 'stairs', direction: 'down' }), 'applied', 'Explicit descent after completed work.');
     }
     if (!state.route) {

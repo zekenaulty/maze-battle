@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CanonicalAutoController, type CanonicalAutoSession } from './CanonicalAutoController';
 import { controllerFixture, deferred } from '../../hooks/canonicalHooks.test-support';
 import type { CanonicalReceipt } from '../../persistence/canonical/types';
+import { json } from '../../persistence/canonical/world/records';
 
 afterEach(() => vi.useRealTimers());
 async function setup() {
@@ -63,5 +64,26 @@ describe('canonical Auto scheduling', () => {
     await vi.advanceTimersByTimeAsync(500); expect(session.execute).toHaveBeenCalledTimes(1);
     session.view.game.snapshot.revision++; pending.resolve(receipt()); await vi.advanceTimersByTimeAsync(100);
     expect(session.execute).toHaveBeenCalledTimes(2); runner.dispose();
+  });
+  it('continues across a floor only after its own exact descent receipt', async () => {
+    const { session, runner, receipt } = await setup();
+    session.execute.mockImplementationOnce(async () => {
+      session.view.game.checkpoint.position.level++;
+      session.view.game.snapshot.revision++;
+      runner.update(false);
+      return { ...receipt(), result: json({ outcome: 'applied', action: { kind: 'stairs', moved: true,
+        position: structuredClone(session.view.game.checkpoint.position) } }) };
+    });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(session.execute).toHaveBeenCalledTimes(2); runner.dispose();
+  });
+  it('does not treat preparation ticks as a long uninterruptible command', async () => {
+    const { session, runner, receipt } = await setup();
+    session.execute.mockImplementation(async () => {
+      session.view.game.snapshot.revision++;
+      return { ...receipt(), result: { outcome: 'planning', reason: 'Preparing dungeon 2: generation' } };
+    });
+    await vi.advanceTimersByTimeAsync(100); runner.cancel();
+    await vi.advanceTimersByTimeAsync(1000); expect(session.execute).toHaveBeenCalledTimes(1); runner.dispose();
   });
 });

@@ -4,6 +4,7 @@ import type { SpendableAttribute } from '../domain/party/partyRules';
 import { CAMP_SKILLS, type CampSkill } from '../domain/party/campSkills';
 import type { CanonicalReceipt, Json } from '../persistence/canonical/types';
 import { disableManualAuto, manualScope, sameManualScope, type CanonicalController } from './canonicalManual';
+import { autoEnabled } from '../persistence/canonical/auto/source';
 
 export function useGameCommands(controller: CanonicalController, pauseManual: () => void) {
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -30,7 +31,7 @@ export function useGameCommands(controller: CanonicalController, pauseManual: ()
       openChest: (chestId: string) => run('content', { kind: 'open-chest', chestId }),
       acceptQuest: (contractId: string) => run('content', { kind: 'accept-quest', contractId }),
       claimQuest: (questId: string) => run('content', { kind: 'claim-quest', questId }),
-      toggleAuto: () => run('settings', () => ({ kind: 'auto', enabled: controller.view.game!.mode !== 'auto-play' }), false),
+      toggleAuto: () => run('settings', () => ({ kind: 'auto', enabled: !autoEnabled(controller.view.game!) }), false),
       stopAuto: () => run('settings', { kind: 'auto', enabled: false }, false),
       throttle: (ms: number) => run('settings', { kind: 'throttle', ms }),
       actorAuto: (actorId: string, enabled: boolean) => run('roster', { kind: 'actor-auto', actorId, enabled }),

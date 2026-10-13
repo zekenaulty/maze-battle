@@ -23,10 +23,9 @@
 .screen-settings .throttle-control input { width: 100%; }
 @media (max-width: 700px) {
   .refined-screen > .screen-bar { gap: 5px; padding: 6px 8px; }
-  .explore-screen.refined-screen .screen-bar nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(4, 28px); gap: 3px; width: 100%; }
-  .explore-screen.refined-screen.has-diagnostics .screen-bar nav { grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(5, 28px); }
-  .explore-screen.refined-screen .screen-bar nav button { min-width: 0; height: 40px; min-height: 40px; padding: 0 3px; font-size: 12px; white-space: normal; }
-  .explore-screen.refined-screen .screen-bar nav .screen-icon { width: 28px; }
+  .explore-screen.refined-screen .screen-bar nav { display: flex; flex-wrap: wrap; gap: 3px; width: 100%; }
+  .explore-screen.refined-screen .screen-bar nav button { flex: 0 0 auto; height: 40px; min-height: 40px; padding: 0 8px; font-size: 12px; white-space: nowrap; }
+  .explore-screen.refined-screen .screen-bar nav .screen-icon { width: 36px; padding: 0; }
   .explore-screen.refined-screen .controls { padding: 4px 0 max(4px, env(safe-area-inset-bottom)); }
   .explore-screen.refined-screen .dpad { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 44px); gap: 4px; }
   .explore-screen.refined-screen .dpad-down { grid-row: 2; grid-column: 2; }

@@ -11,6 +11,7 @@ vi.mock('../../hooks/useCanonicalMovement', () => ({ useCanonicalMovement: (...a
   state.movement(...args); return { cancel: state.cancel, navigate: vi.fn(), message: '' };
 } }));
 vi.mock('../../hooks/useGameCommands', () => ({ useGameCommands: () => ({}) }));
+vi.mock('../../hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: state.cancel, message: '' }) }));
 vi.mock('../../hooks/useMazePerception', () => ({ useMazePerception: () => ({ pending: false }) }));
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Dungeon map" /> }));
 // These factories run only if the production App imports a retired activation path.
@@ -40,19 +41,19 @@ describe('canonical App Agentic offline boundary', () => {
     expect(within(dialog).getByRole('status')).toHaveTextContent('Agentica is unavailable during the canonical storage cutover. No service or model calls will be made.');
     expect(within(dialog).queryByLabelText('Host endpoint')).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /Start|Reconnect|Adopt|Stop/ })).not.toBeInTheDocument();
-    expect(state.cancel).toHaveBeenCalledOnce(); expect(state.execute).not.toHaveBeenCalled();
+    expect(state.cancel).toHaveBeenCalledTimes(2); expect(state.execute).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
   });
 
   it('blocks navigation while the notice is open and never activates on close or rerender', () => {
     const { rerender } = render(<App />), game = state.session.game;
-    expect(state.movement).toHaveBeenLastCalledWith(game, false, state.session.controller);
+    expect(state.movement).toHaveBeenLastCalledWith(game, false, state.session.controller, state.cancel);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
-    expect(state.movement).toHaveBeenLastCalledWith(game, true, state.session.controller);
+    expect(state.movement).toHaveBeenLastCalledWith(game, true, state.session.controller, state.cancel);
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     state.session.game = { ...state.session.game! }; rerender(<App />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(state.movement).toHaveBeenLastCalledWith(state.session.game, false, state.session.controller);
+    expect(state.movement).toHaveBeenLastCalledWith(state.session.game, false, state.session.controller, state.cancel);
     expect(state.execute).not.toHaveBeenCalled(); expect(state.session.resetGame).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
   });

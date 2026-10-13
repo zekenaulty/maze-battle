@@ -12,6 +12,7 @@ import { recordGameObservation } from '../knowledge/write';
 import { loadObservation, validateKnowledge } from '../knowledge/evidence';
 import { DIRECTIONS } from '../knowledge/types';
 import { checkpointJson, gameCheckpoint, type GameCheckpoint } from './checkpoint';
+import { findPreparation } from './preparation';
 
 export type ExplorationCommand = { kind: 'look' } | { kind: 'move'; direction: Direction; triggerStairs: boolean }
   | { kind: 'stairs'; direction: 'up' | 'down' };
@@ -51,7 +52,11 @@ export async function commitExplorationCommand(tx: CanonicalWork, input: unknown
     }
   }
   if (stair) {
-    const travel = await resolveFloorTravel(tx.pages, next.position, stair);
+    const phase = stair === 'down' ? await findPreparation(tx.pages, next.position.level + 1) : null;
+    const floor = await loadFloor(tx.pages, next.position.level);
+    check(same(next.position.cell, stair === 'up' ? floor.entry : floor.exit), 'actor is not on these stairs');
+    const travel = phase && phase !== 'ready' ? { kind: 'prepare' as const, level: next.position.level + 1 }
+      : await resolveFloorTravel(tx.pages, next.position, stair);
     if (travel.kind === 'prepare') needsFloor = travel.level;
     else if (travel.kind === 'town') next = { ...next, mode: 'town', townReturnMode: before.mode as 'manual' | 'auto-play' | 'waves' };
     else {

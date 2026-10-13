@@ -1,5 +1,6 @@
 import type { GameView } from '../services/game/GameView';
 import type { CanonicalReceipt, Json } from '../persistence/canonical/types';
+import { autoEnabled } from '../persistence/canonical/auto/source';
 
 /** The canonical GameSession surface used by input; no legacy transition or storage fallback. */
 export interface CanonicalController {
@@ -23,7 +24,7 @@ export function sameManualScope(controller: CanonicalController, scope: ReturnTy
 export async function disableManualAuto(controller: CanonicalController, current: () => boolean = () => true) {
   const scope = manualScope(controller);
   if (!current()) throw new Error('Manual input cancelled.');
-  if (controller.view.game!.mode === 'auto-play') await controller.execute('settings', { kind: 'auto', enabled: false });
+  if (autoEnabled(controller.view.game!)) await controller.execute('settings', { kind: 'auto', enabled: false });
   if (!current() || !sameManualScope(controller, scope)) throw new Error('Manual input cancelled.');
-  if (controller.view.game!.mode === 'auto-play') throw new Error('Auto is still running.');
+  if (autoEnabled(controller.view.game!)) throw new Error('Auto is still running.');
 }

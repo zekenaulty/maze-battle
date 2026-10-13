@@ -12,9 +12,9 @@ const directions: Record<string, Direction> = { w: 'north', arrowup: 'north', d:
 const dialogOpen = () => Boolean(document.querySelector('dialog[open]'));
 type Walk = { token: number; scope: ReturnType<typeof manualScope>; route: KnownRoute; index: number; revision: number; deadline: number };
 
-export function useCanonicalMovement(game: GameView | undefined, blocked: boolean, controller: CanonicalController) {
+export function useCanonicalMovement(game: GameView | undefined, blocked: boolean, controller: CanonicalController, pauseAuto?: () => void) {
   const [message, setMessage] = useState('');
-  const latest = useRef({ game, blocked, controller }); latest.current = { game, blocked, controller };
+  const latest = useRef({ game, blocked, controller, pauseAuto }); latest.current = { game, blocked, controller, pauseAuto };
   const token = useRef(0), walk = useRef<Walk | null>(null), reading = useRef<AbortController | null>(null), pending = useRef(false);
   const cancel = useCallback(() => { token.current++; walk.current = null; reading.current?.abort(); reading.current = null; setMessage(''); }, []);
   const available = useCallback((allowBusy = false) => {
@@ -28,6 +28,7 @@ export function useCanonicalMovement(game: GameView | undefined, blocked: boolea
     const destination = { ...target };
     cancel();
     if (!available() || pending.current) return;
+    latest.current.pauseAuto?.();
     const serial = token.current, scope = manualScope(controller), abort = new AbortController(); reading.current = abort;
     const current = () => serial === token.current && available() && sameManualScope(controller, scope);
     try {
@@ -85,6 +86,7 @@ export function useCanonicalMovement(game: GameView | undefined, blocked: boolea
     const keyboard = async (event: KeyboardEvent) => {
       if (ignoresGameKey(event) || !directions[event.key.toLowerCase()] || !available(true)) return;
       event.preventDefault(); cancel();
+      latest.current.pauseAuto?.();
       if (pending.current || controller.view.busy) return;
       const serial = token.current;
       pending.current = true;

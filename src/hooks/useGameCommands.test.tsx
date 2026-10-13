@@ -6,6 +6,23 @@ import { controllerFixture, deferred } from './canonicalHooks.test-support';
 
 afterEach(cleanup);
 describe('explicit canonical commands', () => {
+  it('turns off town Auto before inventory interaction and toggles the town return policy', async () => {
+    const { controller, publish, receipt } = await controllerFixture(); publish(0, 'town');
+    controller.view.game.townReturnMode = 'auto-play';
+    controller.execute.mockImplementation(async (kind, input) => {
+      if (kind === 'settings') {
+        controller.view.game.townReturnMode = (input as { enabled: boolean }).enabled ? 'auto-play' : 'manual';
+      }
+      return receipt();
+    });
+    const { result } = renderHook(() => useGameCommands(controller, vi.fn()));
+    await result.current.sell('herb');
+    expect(controller.execute.mock.calls).toEqual([
+      ['settings', { kind: 'auto', enabled: false }], ['roster', { kind: 'sell', itemId: 'herb', amount: 1 }],
+    ]);
+    await result.current.toggleAuto(); await result.current.toggleAuto();
+    expect(controller.execute).toHaveBeenLastCalledWith('settings', { kind: 'auto', enabled: false });
+  });
   it.each([undefined, 1, 7])('forwards exact sale quantity %s without a legacy reducer', async amount => {
     const { controller } = await controllerFixture(), pause = vi.fn();
     const { result } = renderHook(() => useGameCommands(controller, pause));

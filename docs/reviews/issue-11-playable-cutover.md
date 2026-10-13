@@ -2,6 +2,9 @@
 
 2026-10-13. Branch `codex/agentic-game-a1`. Issue and umbrella goal remain open.
 
+Subsequent [Auto cutover](issue-11-auto-cutover.md) supersedes the disabled-Auto
+status below. This document retains the earlier manual-only evidence and counts.
+
 ## Implemented
 
 - Actual `App` and `GameSession` now use canonical v9 commands and bounded views.

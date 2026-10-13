@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameView } from '../services/game/GameView';
 import { CanonicalAutoController, type CanonicalAutoSession } from '../services/game/CanonicalAutoController';
 
-/** Intentionally unmounted. Parent must register the canonical Auto handler before mounting. */
+/** React lifecycle for the disposable Auto scheduler; durable policy state lives in canonical storage. */
 export function useCanonicalAuto(game: GameView | undefined, blocked: boolean, controller: CanonicalAutoSession) {
   const [message, setMessage] = useState(''), runner = useRef<CanonicalAutoController | null>(null);
   const cancel = useCallback(() => runner.current?.cancel(), []);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { CharactersDialog } from './components/CharactersDialog';
 import { ExploreScreen } from './components/ExploreScreen';
 import { SavesDialog } from './components/SavesDialog';
@@ -10,6 +10,7 @@ import { canUseTownPortal, portalScrollCount } from './domain/town/town';
 import { useGameSession } from './hooks/useGameSession';
 import { useGameCommands } from './hooks/useGameCommands';
 import { useCanonicalMovement } from './hooks/useCanonicalMovement';
+import { useCanonicalAuto } from './hooks/useCanonicalAuto';
 
 type DialogName = 'characters' | 'saves' | 'diagnostics' | 'agentic' | undefined;
 
@@ -18,11 +19,13 @@ export function App() {
   const [dialog, setDialog] = useState<DialogName>();
   const recovering = Boolean(session.recoveryRequired || session.busy);
   const blocked = recovering || Boolean(dialog) || !session.controlled;
-  const navigation = useCanonicalMovement(game, blocked, session.controller);
-  const commands = useGameCommands(session.controller, navigation.cancel);
-  const open = (name: DialogName) => { navigation.cancel(); setDialog(name); };
+  const auto = useCanonicalAuto(game, blocked, session.controller);
+  const navigation = useCanonicalMovement(game, blocked, session.controller, auto.cancel);
+  const pause = useCallback(() => { navigation.cancel(); auto.cancel(); }, [navigation.cancel, auto.cancel]);
+  const commands = useGameCommands(session.controller, pause);
+  const open = (name: DialogName) => { pause(); setDialog(name); };
   const openSaves = () => { open('saves'); void session.refreshSaves().catch(() => {}); };
-  const newGame = async () => { navigation.cancel(); await session.resetGame(); setDialog(undefined); };
+  const newGame = async () => { pause(); await session.resetGame(); setDialog(undefined); };
   if (!game || recovering) return <GameRecovery status={session.status} busy={session.busy} onRetry={session.retry} onReset={newGame} />;
   const shared = { onCharacters: () => open('characters'), onSaves: openSaves,
     onDiagnostics: () => open('diagnostics'), onAutoToggle: commands.toggleAuto };
@@ -30,16 +33,16 @@ export function App() {
     {!session.controlled && <aside className="session-custody" role="status">
       <span>{session.status}</span><button onClick={() => { navigation.cancel(); void session.takeControl().catch(() => {}); }}>Take control</button>
     </aside>}
-    {game.mode === 'town' ? <TownScreen {...shared} game={game} onAutoToggle={undefined} autoActive={false}
+    {game.mode === 'town' ? <TownScreen {...shared} game={game}
       onLeave={commands.leaveTown} onRest={commands.rest} onBuy={commands.buy}
       onAcceptQuest={commands.acceptQuest} onClaimQuest={commands.claimQuest}
       onSellJunk={commands.sellJunk} onWithdrawStash={commands.withdraw} onStashItem={commands.stash}
       onToggleItemLock={commands.lock} onInventoryPolicyChange={commands.policy}
-    /> : <ExploreScreen {...shared} game={game} status={session.status} onMove={commands.move}
-      autoActive={game.mode === 'auto-play'} autoAvailable={false} wavesActive={false} autoThrottleMs={game.autoThrottleMs}
+    /> : <ExploreScreen {...shared} game={game} status={game.mode === 'auto-play' ? auto.message || session.status : session.status} onMove={commands.move}
+      autoActive={game.mode === 'auto-play'} autoAvailable={session.controlled} wavesActive={false} autoThrottleMs={game.autoThrottleMs}
       onWavesToggle={() => {}} onAutoThrottleChange={commands.throttle}
       onTown={commands.portal} portalScrollCount={portalScrollCount(game)} onNewGame={newGame}
-      onRandomBattlesChange={() => {}} onTileClick={navigation.navigate} onStopWalking={navigation.cancel}
+      onRandomBattlesChange={() => {}} onTileClick={navigation.navigate} onStopWalking={pause}
       navigationMessage={navigation.message} onOpenChest={commands.openChest} controlsDisabled={blocked}
       onAgenticPlay={() => open('agentic')}
     />}
@@ -48,7 +51,7 @@ export function App() {
     </Dialog>}
     {dialog === 'saves' && <SavesDialog readOnly={!session.controlled} saves={session.saves}
       onClose={() => setDialog(undefined)} onCreateSave={session.createManualSave}
-      onLoadSave={async id => { navigation.cancel(); await session.loadSave(id); setDialog(undefined); }}
+      onLoadSave={async id => { pause(); await session.loadSave(id); setDialog(undefined); }}
       onDeleteSave={session.removeSave} onNewGame={newGame} />}
     {dialog === 'characters' && <CharactersDialog party={game.party} inventory={game.inventory} stash={game.stash}
       onAutoBattleChange={commands.actorAuto} onEquipItem={commands.equip} onUnequipItem={commands.unequip}

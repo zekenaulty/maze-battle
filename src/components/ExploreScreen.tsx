@@ -105,7 +105,7 @@ export function ExploreScreen({
           if (!(event.target instanceof Element && event.target.closest('[data-agentic-control]'))) onStopWalking?.();
         }}>
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}
-            disabled={!autoAvailable} title={autoAvailable ? undefined : 'Auto is unavailable during the persistence cutover'}>
+            disabled={!autoAvailable} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
           <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled title="Combat is disabled in this qualification build">
@@ -135,7 +135,7 @@ export function ExploreScreen({
           </button>
         </nav>
       </div>
-      {autoActive && <div className="screen-auto-status" role="status"><strong>Auto active</strong><span>{status}</span></div>}
+      {autoActive && <div className="screen-auto-status" role="status"><strong>Auto</strong><span>{status}</span></div>}
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''}`}>
         <MazeCanvas
           maze={mazeView.maze}

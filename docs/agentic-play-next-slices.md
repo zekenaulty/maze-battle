@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 28 amendment, 2026-10-13: owner issue
+Revision 29 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -34,9 +34,14 @@ former query route mounts that App. Six native App tests cover real startup,
 movement, reload, town, checkpoints, failed evidence reset and two-tab custody.
 The earned spatial index adds bounded logical writes: the updated command-level
 1/16-floor samples each write 59 records and about 97 KB, not the earlier 43/82 KB.
-Auto and Agentica remain explicitly unavailable until their controllers adopt
-canonical storage. P3 controller adoption, P4 removal of retired modules/databases,
-and P5 complete qualification remain mandatory. This is not Agentica completion.
+The [Auto cutover](reviews/issue-11-auto-cutover.md) now mounts the bounded Auto
+policy on those same commands. Earned exploration, explicit chest/guild/town care,
+manual interruption, reload/takeover and batchwise floor preparation are checked.
+Combat stays disabled; Auto stops honestly at remaining hostile contracts.
+Agentica remains unavailable pending canonical protocol adoption, informed by
+the [source audit](reviews/issue-11-agentica-adoption-audit.md). P3 Agentica adoption,
+P4 removal of retired modules/databases and P5 complete qualification remain
+mandatory. This is not Agentica completion.
 
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and

@@ -1,12 +1,15 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 8,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 9,
 2026-10-13. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
-P3 Auto, canonical Agentica adoption, P4 dead-code/database removal and P5 final
-qualification remain open. Auto and Agentica are unavailable in this intermediate
+P3 Auto now uses that same playable App and canonical commands, with earned
+waypoints, explicit collection/guild/care policy, interruption and bounded floor
+preparation. [Auto integration evidence](reviews/issue-11-auto-cutover.md).
+Canonical Agentica adoption, P4 dead-code/database removal and P5 final
+qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
 
 ## Authority and Supersession

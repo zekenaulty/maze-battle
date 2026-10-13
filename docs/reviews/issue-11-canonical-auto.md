@@ -1,5 +1,9 @@
 # Issue 11: Isolated Canonical Auto Qualification
 
+Historical isolated implementation report. Parent integration is now checked in
+[Auto cutover](issue-11-auto-cutover.md), which supersedes the unmounted status
+and floor-transition handoff below. The original evidence remains scoped to its run.
+
 ## Scope
 
 Provider-free host Auto for noncombat exploration, explicit loot and guild work, and real roster/town care. This is an unmounted P3 vertical, not full P3/P5 qualification. App, GameSession, settings, preparation, old movement hooks, and parent preview are untouched.

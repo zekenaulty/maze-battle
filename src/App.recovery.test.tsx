@@ -11,6 +11,7 @@ vi.mock('./hooks/useCanonicalMovement', () => ({ useCanonicalMovement: (...args:
   state.movement(...args); return { cancel: state.cancel, navigate: vi.fn(), message: '' };
 } }));
 vi.mock('./hooks/useGameCommands', () => ({ useGameCommands: () => ({}) }));
+vi.mock('./hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: state.cancel, message: '' }) }));
 vi.mock('./components/ExploreScreen', () => ({ ExploreScreen: () => <div>Canonical expedition</div> }));
 vi.mock('./hooks/useAgenticPlay', () => { throw Error('Recovery must not import the retired provider hook'); });
 
@@ -34,7 +35,7 @@ describe('canonical App recovery controls', () => {
       expect(screen.getByRole('status')).toHaveTextContent(state.session.status);
       expect(screen.queryByText('Canonical expedition')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Take control' })).not.toBeInTheDocument();
-      expect(state.movement).toHaveBeenLastCalledWith(state.session.game, true, state.session.controller);
+      expect(state.movement).toHaveBeenLastCalledWith(state.session.game, true, state.session.controller, state.cancel);
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
       await waitFor(() => expect(state.session.retry).toHaveBeenCalledOnce());
       expect(state.session.resetGame).not.toHaveBeenCalled();
@@ -53,7 +54,7 @@ describe('canonical App recovery controls', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reset and start new game' }));
     fireEvent.click(screen.getByRole('button', { name: 'Discard saves and start new game' }));
-    expect(state.session.resetGame).toHaveBeenCalledOnce(); expect(state.cancel).toHaveBeenCalledOnce();
+    expect(state.session.resetGame).toHaveBeenCalledOnce(); expect(state.cancel).toHaveBeenCalledTimes(2);
     expect(state.cancel.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(state.session.resetGame).mock.invocationCallOrder[0]);
     expect(screen.getByRole('button', { name: 'Working...' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
@@ -78,7 +79,7 @@ describe('canonical App recovery controls', () => {
     state.session.busy = true; state.session.status = 'Preparing dungeon 1: content'; render(<App />);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Reset and start new game' })).toBeDisabled();
-    expect(state.movement).toHaveBeenLastCalledWith(undefined, true, state.session.controller);
+    expect(state.movement).toHaveBeenLastCalledWith(undefined, true, state.session.controller, state.cancel);
     expect(state.session.resetGame).not.toHaveBeenCalled();
   });
 
