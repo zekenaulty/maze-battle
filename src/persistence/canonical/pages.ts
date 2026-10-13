@@ -9,6 +9,9 @@ export class CanonicalPages {
   private readonly trees = new Map<RecordArea, MemoryTree>();
   private readonly records = new Map<string, CanonicalRecord>();
   private readonly nodes = new Map<string, CanonicalIndexNode>();
+  // Immutable IDs are stable inside this transaction. Retention is bounded by the read/byte budget.
+  private readonly readNodes = new Map<string, CanonicalIndexNode>();
+  private readonly readRecords = new Map<string, CanonicalRecord>();
   private busy = false;
   private failed = false;
   private prepared = false;
@@ -34,11 +37,14 @@ export class CanonicalPages {
     if (!tree) {
       tree = new MemoryTree({
         get: async id => {
-          this.budget.read();
-          const row = await this.tx.objectStore('nodes').get([this.head.gameId, id]);
-          this.budget.received(row === undefined ? 0 : jsonBytes(row));
+          let row = this.readNodes.get(id);
+          if (!row) {
+            this.budget.read();
+            row = await this.tx.objectStore('nodes').get([this.head.gameId, id]);
+            this.budget.received(row === undefined ? 0 : jsonBytes(row));
+          }
           check(row, 'missing index node'); identity(row, this.head);
-          return validateNode(row.node, id);
+          const node = validateNode(row.node, id); this.readNodes.set(id, row); return node;
         },
         add: async node => {
           validateNode(node, node.id);
@@ -54,7 +60,7 @@ export class CanonicalPages {
 
   private async dereference(area: RecordArea, key: string, reference: unknown) {
     check(typeof reference === 'string' && validId(reference), 'invalid record pointer');
-    let row = this.records.get(reference);
+    let row = this.records.get(reference) ?? this.readRecords.get(reference);
     if (!row) {
       this.budget.read();
       row = await this.tx.objectStore('records').get([this.head.gameId, reference]);
@@ -62,6 +68,7 @@ export class CanonicalPages {
     }
     record(row, reference, this.head, area, key);
     check(row.revision <= this.head.revision + (this.records.has(reference) ? 1 : 0), 'future record revision');
+    if (!this.records.has(reference)) this.readRecords.set(reference, row);
     return structuredClone(row);
   }
 
