@@ -1,15 +1,16 @@
-import type { GameState, VendorId } from '../types';
+import type { VendorId } from '../types';
+import type { RosterState } from '../party/roster';
 import { BASE_ITEMS } from '../items/catalog';
 import { buyVendorItem, manageAutoInventory, recoverParty } from '../items/inventory';
 import { useTownPortal } from './portal';
 
 export { canUseTownPortal, portalScrollCount, useTownPortal } from './portal';
 
-export function enterTown(game: GameState): GameState {
+export function enterTown<T extends RosterState>(game: T): T {
   return useTownPortal(game);
 }
 
-export function leaveTown(game: GameState): GameState {
+export function leaveTown<T extends RosterState>(game: T): T {
   if (game.mode !== 'town') {
     return game;
   }
@@ -23,16 +24,16 @@ export function leaveTown(game: GameState): GameState {
   };
 }
 
-export function useInn(game: GameState): GameState {
+export function useInn<T extends RosterState>(game: T): T {
   return game.mode === 'town' ? recoverParty(game) : game;
 }
 
 /** Call on town arrival; unchanged repeat calls do not spend, move stock or add logs. */
-export function maintainTown(game: GameState): GameState {
+export function maintainTown<T extends RosterState>(game: T): T {
   return game.mode === 'town' ? recoverParty(manageAutoInventory(game)) : game;
 }
 
-export function buyFromVendor(game: GameState, vendor: VendorId, baseId: string): GameState {
+export function buyFromVendor<T extends RosterState>(game: T, vendor: VendorId, baseId: string): T {
   const item = BASE_ITEMS.find((candidate) => candidate.id === baseId && candidate.vendors?.includes(vendor));
   return item ? buyVendorItem(game, baseId) : game;
 }

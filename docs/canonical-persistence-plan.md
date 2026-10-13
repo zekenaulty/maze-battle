@@ -1,7 +1,8 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 4,
-2026-10-13. Status: P0, P1 and P2a structural world storage checked; canonical gameplay
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 5,
+2026-10-13. Status: P0, P1, P2a structural world storage, bounded room-role
+preparation and P3a roster commands checked at their storage boundaries; canonical gameplay
 cutover NOT implemented or qualified. This is the next active engineering slice,
 ahead of further room-map/Agentic Play feature work.
 
@@ -116,7 +117,9 @@ checked: [kernel evidence and limits](reviews/issue-11-canonical-kernel.md).
 P1b is also checked at the storage boundary:
 [operation-capacity evidence](reviews/issue-11-operation-capacity.md). P2a now has
 [bounded structural world evidence](reviews/issue-11-world-residency.md). P2 is
-partial; P3-P5 remain unimplemented/unqualified. These storage tests do not change ordinary-game
+partial; [room-role preparation and P3a roster commands](reviews/issue-11-roster-and-roles.md)
+now reuse actual domain rules through canonical records. Full P3 cutover and
+P4-P5 remain unimplemented/unqualified. These storage tests do not change ordinary-game
 movement payload scaling or qualify actual Agentica consumers yet.
 
 P1 storage contracts are split as follows:
@@ -134,10 +137,18 @@ P1 storage contracts are split as follows:
   ports/connections, frontier/counters, local mutations and reciprocal stairs.
   Native checks cover generation parity, restart, twelve-floor return, corruption
   and local resolver costs through 32 generated floors. Not App qualification.
-- **P2b/P3, next:** integrate content roles, floor qualification, chest/encounter
-  definitions and their shared domain effects, bounded render/knowledge residency,
-  portal resource handling and party/item/quest records through actual game-owned
-  commands. The structural stair resolver alone does not implement those effects.
+- **P2b role preparation, checked:** a compact generation-bound cursor reduces
+  at most eight rooms per commit through the shared role planner. Completed plans
+  preserve existing hub/specialty assignments but do not claim D1 quality or
+  content/knowledge readiness.
+- **P3a roster boundary, checked:** independent party, item, pack/stash and policy
+  records; actual equip, trade, supply, explicit town care and shared portal
+  commands with atomic receipts. Worn items have actor ownership and no pack-slot
+  charge. No unchanged item/actor or historical floor is rewritten.
+- **P2b/P3, next:** complete incremental floor qualification, chest/encounter and
+  quest content, mandatory movement effects and earned render/knowledge residency.
+  Adopt these commands in GameSession, manual checkpoints and Agentica execution.
+  The structural stair resolver and isolated roster facade are not App adoption.
   Wire the new opener only at that coherent cutover; do not add a second playable
   entrypoint, old-state adapter or dual writer.
 
@@ -157,6 +168,13 @@ loads at most its two endpoints; no floor history, room list or full grid is bui
 Generation prefetches at most 25 occupancy bins, independent of retained depth.
 Missing established geometry/endpoints are errors, never new-generation requests.
 These are internal authoritative reads; they are not player/agent observations.
+
+Room roles occupy `dungeon/<level>/roles`, with pinned generation identity and
+bounded preparation progress. Roster keys and current limits are in the
+[entity evidence report](reviews/issue-11-roster-and-roles.md). Item membership
+uses snapshot-specific indexes and stable insertion order; those indexes must
+resolve to the same primary record version. Item effects reuse the actual domain
+reducers on a bounded projection, never a fake maze or old-save conversion.
 
 Normal command admission stops before the logical reserve. A host-only Stop or
 takeover fences the old epoch and enters `stopped`; repeated emergency actions

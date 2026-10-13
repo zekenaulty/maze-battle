@@ -113,7 +113,11 @@ export class CanonicalPages {
       check(after === undefined || after.startsWith(prefix), 'cursor is outside prefix');
       const page = await this.tree(area).scan(`index/${prefix}`, after === undefined ? undefined : `index/${after}`, limit);
       const rows = [];
-      for (const entry of page.entries) rows.push(await this.dereference(area, entry.key, entry.value));
+      for (const entry of page.entries) {
+        const row = await this.dereference(area, entry.key, entry.value);
+        check(await this.tree(area).get(`record/${row.key}`) === row.id, 'index references a superseded record');
+        rows.push(row);
+      }
       return { rows, ...(page.next === undefined ? {} : { next: page.next.slice(6) }) };
     });
   }
