@@ -1,52 +1,58 @@
-import { useMemo } from 'react';
-import type { Direction, EquipmentSlot, GameState, InventoryPolicy, SkillId, VendorId } from '../domain/types';
-import { setActorAutoBattle, setAutoThrottle, setRandomBattles } from '../domain/gameFactory';
-import { advanceBattleRound, endBattle, useBattleSkill } from '../domain/combat/battleEngine';
-import { defaultRng } from '../domain/combat/rng';
-import { autoEquipBestGear, equipItem, sellItem, sellJunkItems, setInventoryPolicy, stashItem, toggleItemLock, unequipItem, useConsumable, withdrawStashItem } from '../domain/items/inventory';
-import { acceptGuildContract, claimGuildQuestReward } from '../domain/quests/quests';
-import { buyFromVendor, leaveTown, useInn, useTownPortal } from '../domain/town/town';
-import { stopAllAutomation, toggleAutoplay, toggleWaves } from '../domain/automation/autoPlay';
-import { castExplorationSkill, setAutoSpendPoints, spendAttribute, type SpendableAttribute } from '../domain/party/partyActions';
-import { moveManually, type GameTransition } from './useGameLoop';
-import { openChest } from '../domain/items/chests';
+import { useMemo, useRef } from 'react';
+import type { Direction, EquipmentSlot, InventoryPolicy, SkillId, VendorId } from '../domain/types';
+import type { SpendableAttribute } from '../domain/party/partyRules';
+import { CAMP_SKILLS, type CampSkill } from '../domain/party/campSkills';
+import type { CanonicalReceipt, Json } from '../persistence/canonical/types';
+import { disableManualAuto, manualScope, sameManualScope, type CanonicalController } from './canonicalManual';
 
-export function useGameCommands(transition: GameTransition) {
+export function useGameCommands(controller: CanonicalController, pauseManual: () => void) {
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
   return useMemo(() => {
-    const run = (action: string, update: (game: GameState) => GameState) => transition(update, { action, source: 'manual' });
-    return {
-      move: (direction: Direction) => run('move', g => moveManually(g, direction)),
-      openChest: (id: string) => run('open-chest', g => {
-        const opened = openChest(g, id, defaultRng);
-        return opened === g ? g : stopAllAutomation(opened);
-      }),
-      toggleAuto: () => run('toggle-auto', toggleAutoplay),
-      toggleWaves: () => run('toggle-waves', g => toggleWaves(g)),
-      stopAuto: () => run('stop-auto', stopAllAutomation),
-      throttle: (ms: number) => run('throttle', g => setAutoThrottle(g, ms)),
-      encounters: (enabled: boolean) => run('encounters', g => setRandomBattles(g, enabled)),
-      actorAuto: (id: string, enabled: boolean) => run('actor-auto', g => ({ ...setActorAutoBattle(g, id, enabled), automationPaused: enabled ? false : g.automationPaused })),
-      round: () => run('round', g => advanceBattleRound(g, defaultRng, Date.now())),
-      skill: (actorId: string, skillId: SkillId) => run('skill', g => g.battle ? useBattleSkill(g, actorId, skillId) : castExplorationSkill(g, actorId, skillId)),
-      closeBattle: () => run('end-battle', g => stopAllAutomation(endBattle(g))),
-      portal: () => run('portal', useTownPortal),
-      leaveTown: () => run('leave-town', leaveTown),
-      rest: () => run('inn', useInn),
-      buy: (vendor: VendorId, id: string) => run('buy', g => buyFromVendor(g, vendor, id)),
-      acceptQuest: (id: string) => run('accept-quest', g => acceptGuildContract(g, id)),
-      claimQuest: (id: string) => run('claim-quest', g => claimGuildQuestReward(g, id)),
-      equip: (actorId: string, id: string) => run('equip', g => equipItem(g, actorId, id)),
-      unequip: (actorId: string, slot: EquipmentSlot) => run('unequip', g => unequipItem(g, actorId, slot)),
-      useItem: (id: string, actorId?: string) => run('use-item', g => useConsumable(g, id, actorId)),
-      sell: (id: string, amount = 1) => run('sell', g => sellItem(g, id, amount)),
-      sellJunk: () => run('sell-junk', sellJunkItems),
-      stash: (id: string) => run('stash', g => stashItem(g, id)),
-      withdraw: (id: string) => run('withdraw', g => withdrawStashItem(g, id)),
-      autoEquip: () => run('auto-equip', autoEquipBestGear),
-      policy: (patch: Partial<InventoryPolicy>) => run('inventory-policy', g => setInventoryPolicy(g, patch)),
-      lock: (id: string) => run('lock-item', g => toggleItemLock(g, id)),
-      spend: (actorId: string, attribute: SpendableAttribute) => run('spend-attribute', g => spendAttribute(g, actorId, attribute)),
-      autoSpend: (actorId: string, enabled: boolean) => run('auto-spend', g => setAutoSpendPoints(g, actorId, enabled)),
+    const run = async (kind: Parameters<CanonicalController['execute']>[0], input: Json | (() => Json), stopAuto = true): Promise<CanonicalReceipt> => {
+      const captured = typeof input === 'function' ? input : structuredClone(input), scope = manualScope(controller);
+      pauseManual();
+      // Queue whole intents, including Auto shutdown, not just their individual writes.
+      const action = queue.current.then(async () => {
+        if (!sameManualScope(controller, scope)) throw new Error('Manual input cancelled.');
+        if (stopAuto) await disableManualAuto(controller);
+        if (!sameManualScope(controller, scope)) throw new Error('Manual input cancelled.');
+        return controller.execute(kind, typeof captured === 'function' ? captured() : captured);
+      });
+      queue.current = action.catch(() => {});
+      return action;
     };
-  }, [transition]);
+    const camp = (actorId: string, skillId: CampSkill) => run('roster', { kind: 'camp', actorId, skillId });
+    return {
+      move: (direction: Direction, options: { triggerStairs?: boolean } = {}) =>
+        run('exploration', { kind: 'move', direction, triggerStairs: options.triggerStairs !== false }),
+      stairs: (direction: 'up' | 'down') => run('exploration', { kind: 'stairs', direction }),
+      look: () => run('exploration', { kind: 'look' }),
+      openChest: (chestId: string) => run('content', { kind: 'open-chest', chestId }),
+      acceptQuest: (contractId: string) => run('content', { kind: 'accept-quest', contractId }),
+      claimQuest: (questId: string) => run('content', { kind: 'claim-quest', questId }),
+      toggleAuto: () => run('settings', () => ({ kind: 'auto', enabled: controller.view.game!.mode !== 'auto-play' }), false),
+      stopAuto: () => run('settings', { kind: 'auto', enabled: false }, false),
+      throttle: (ms: number) => run('settings', { kind: 'throttle', ms }),
+      actorAuto: (actorId: string, enabled: boolean) => run('roster', { kind: 'actor-auto', actorId, enabled }),
+      camp,
+      skill: (actorId: string, skillId: SkillId) => CAMP_SKILLS.some(skill => skill === skillId)
+        ? run('roster', { kind: 'camp', actorId, skillId }) : Promise.reject(new Error('Only Heal, Group Heal and Resurrect are available outside combat.')),
+      portal: () => run('roster', { kind: 'portal' }),
+      leaveTown: () => run('roster', { kind: 'leave-town' }),
+      rest: () => run('roster', { kind: 'rest' }),
+      buy: (vendor: VendorId, baseId: string) => run('roster', { kind: 'buy', vendor, baseId }),
+      equip: (actorId: string, itemId: string) => run('roster', { kind: 'equip', actorId, itemId }),
+      unequip: (actorId: string, slot: EquipmentSlot) => run('roster', { kind: 'unequip', actorId, slot }),
+      useItem: (itemId: string, actorId?: string) => run('roster', { kind: 'use', itemId, ...(actorId === undefined ? {} : { actorId }) }),
+      sell: (itemId: string, amount = 1) => run('roster', { kind: 'sell', itemId, amount }),
+      sellJunk: () => run('roster', { kind: 'sell-junk' }),
+      stash: (itemId: string) => run('roster', { kind: 'stash', itemId }),
+      withdraw: (itemId: string) => run('roster', { kind: 'withdraw', itemId }),
+      autoEquip: () => run('roster', { kind: 'auto-equip' }),
+      policy: (patch: Partial<InventoryPolicy>) => run('roster', { kind: 'policy', patch }),
+      lock: (itemId: string) => run('roster', { kind: 'lock', itemId }),
+      spend: (actorId: string, attribute: SpendableAttribute) => run('roster', { kind: 'spend-attribute', actorId, attribute }),
+      autoSpend: (actorId: string, enabled: boolean) => run('roster', { kind: 'auto-spend', actorId, enabled }),
+    };
+  }, [controller, pauseManual]);
 }

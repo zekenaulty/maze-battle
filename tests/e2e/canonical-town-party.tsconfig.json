@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": { "types": ["vite/client", "node"] },
-  "include": ["canonical-town-party.fixture.ts", "town-party.canonical.spec.ts", "canonical-town-party.config.ts"]
+  "include": ["canonical-town-party.fixture.ts", "town-party.canonical.spec.ts", "movement.canonical.spec.ts", "canonical-town-party.config.ts"]
 }
