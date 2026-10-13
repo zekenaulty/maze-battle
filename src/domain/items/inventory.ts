@@ -1,4 +1,5 @@
-import type { EquipmentSlot, GameState, InventoryState, ItemInstance, StashState } from '../types';
+import type { EquipmentSlot, InventoryState, ItemInstance, StashState } from '../types';
+import type { RosterState } from '../party/roster';
 import { itemSummary } from './catalog';
 import { createItemInstance } from './loot';
 import { clampActorVitals, getEffectiveActor, isEquipmentItem, omitSlot, removeItemFromEquipment } from './equipment';
@@ -48,13 +49,13 @@ export function normalizeStash(stash: Partial<StashState> | undefined, protected
   return { capacity: normalizeCapacity(stash?.capacity, 96), items: stackInventoryItems(stash?.items ?? [], protectedIds) };
 }
 
-export function addItemsToInventory(game: GameState, items: ItemInstance[], source: string): GameState {
+export function addItemsToInventory<T extends RosterState>(game: T, items: ItemInstance[], source: string): T {
   if (items.length === 0) return game;
   // Awarded loot has no ground container to return to; retain it in an overfull pack.
   const protectedIds = duplicateItemIds([...game.inventory.items, ...game.stash.items, ...items]);
   const { inventory, accepted } = mergeInventoryItems(game.inventory, items, true, protectedIds, equippedPackItemIds(game));
   if (accepted.length === 0) return game;
-  const next: GameState = {
+  const next: T = {
     ...game,
     inventory,
     updatedAt: new Date().toISOString(),
@@ -64,7 +65,7 @@ export function addItemsToInventory(game: GameState, items: ItemInstance[], sour
   return { ...equipped, activityLog: [`${source}: ${accepted.map(itemSummary).join(', ')}.${overflow}`, ...equipped.activityLog].slice(0, 12) };
 }
 
-export function equipItem(game: GameState, actorId: string, itemId: string): GameState {
+export function equipItem<T extends RosterState>(game: T, actorId: string, itemId: string): T {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   const actor = game.party.find((candidate) => candidate.id === actorId);
   if (!item?.slot || !actor || !isEquipmentItem(item) || itemQuantity(item) !== 1 || !itemId || ambiguousEquipmentIds(game).has(itemId)) return game;
@@ -86,7 +87,7 @@ export function equipItem(game: GameState, actorId: string, itemId: string): Gam
   };
 }
 
-export function unequipItem(game: GameState, actorId: string, slot: EquipmentSlot): GameState {
+export function unequipItem<T extends RosterState>(game: T, actorId: string, slot: EquipmentSlot): T {
   const actor = game.party.find((candidate) => candidate.id === actorId);
   if (!actor?.equipment[slot]) return game;
   if (game.party.filter((candidate) => candidate.id === actorId).length !== 1) return game;
@@ -101,14 +102,14 @@ export function unequipItem(game: GameState, actorId: string, slot: EquipmentSlo
   };
 }
 
-export function useConsumable(game: GameState, itemId: string, actorId?: string): GameState {
+export function useConsumable<T extends RosterState>(game: T, itemId: string, actorId?: string): T {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   if (!item?.consumableEffect || item.category !== 'consumable' || item.slot || item.locked || itemQuantity(item) === 0 || ambiguousItemIds(game).has(itemId)) return game;
   if (item.consumableEffect === 'townPortal') return useTownPortal(game, itemId);
   if (item.consumableEffect !== 'heal' && item.consumableEffect !== 'mana') return game;
   const resource = item.consumableEffect === 'mana' ? 'mp' : 'hp';
   const maximum = resource === 'mp' ? 'maxMp' : 'maxHp';
-  const needsResource = (actor: GameState['party'][number]) => actor.hp > 0 && actor[resource] < getEffectiveActor(actor, game.inventory)[maximum];
+  const needsResource = (actor: RosterState['party'][number]) => actor.hp > 0 && actor[resource] < getEffectiveActor(actor, game.inventory)[maximum];
   const actor = actorId === undefined ? game.party.find(needsResource) : game.party.find((candidate) => candidate.id === actorId);
   const amount = item.consumableAmount ?? 0;
   if (!actor || !needsResource(actor) || !Number.isFinite(amount) || amount <= 0) return game;
@@ -123,7 +124,7 @@ export function useConsumable(game: GameState, itemId: string, actorId?: string)
   };
 }
 
-export function recoverParty(game: GameState): GameState {
+export function recoverParty<T extends RosterState>(game: T): T {
   const party = game.party.map((actor) => {
     const effective = getEffectiveActor(actor, game.inventory);
     return { ...actor, hp: effective.maxHp, mp: effective.maxMp };

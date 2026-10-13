@@ -1,9 +1,9 @@
-import type { GameState } from '../types';
+import type { RosterState } from '../party/roster';
 import { ambiguousEquipmentIds } from './itemOwnership';
 import { itemQuantity } from './itemStacks';
 import { packSlotUsage } from './packCapacity';
 
-export function inventoryDiagnostics(game: GameState) {
+export function inventoryDiagnostics(game: Pick<RosterState, 'party' | 'inventory' | 'stash'>) {
   const items = [...game.inventory.items, ...game.stash.items];
   return {
     pack: { used: packSlotUsage(game), capacity: game.inventory.capacity },

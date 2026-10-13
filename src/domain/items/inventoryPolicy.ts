@@ -1,4 +1,5 @@
-import type { GameState, InventoryPolicy } from '../types';
+import type { InventoryPolicy } from '../types';
+import type { RosterState } from '../party/roster';
 import { ambiguousItemIds } from './itemOwnership';
 
 export const DEFAULT_INVENTORY_POLICY: Readonly<InventoryPolicy> = Object.freeze({
@@ -25,16 +26,16 @@ export function normalizeInventoryPolicy(policy?: Partial<InventoryPolicy>): Inv
   };
 }
 
-export function setInventoryPolicy(game: GameState, patch: Partial<InventoryPolicy>): GameState {
+export function setInventoryPolicy<T extends RosterState>(game: T, patch: Partial<InventoryPolicy>): T {
   const inventoryPolicy = normalizeInventoryPolicy({ ...normalizeInventoryPolicy(game.inventoryPolicy), ...patch });
   if (JSON.stringify(game.inventoryPolicy) === JSON.stringify(inventoryPolicy)) return game;
   return { ...game, inventoryPolicy, updatedAt: new Date().toISOString() };
 }
 
-export function toggleItemLock(game: GameState, itemId: string): GameState {
+export function toggleItemLock<T extends Pick<RosterState, 'inventory' | 'stash' | 'updatedAt'>>(game: T, itemId: string): T {
   if (ambiguousItemIds(game).has(itemId)) return game;
   if (![...game.inventory.items, ...game.stash.items].some((item) => item.id === itemId)) return game;
-  const toggle = (items: GameState['inventory']['items']) =>
+  const toggle = (items: RosterState['inventory']['items']) =>
     items.map((item) => item.id === itemId ? { ...item, locked: !item.locked } : item);
   return {
     ...game,

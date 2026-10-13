@@ -1,4 +1,5 @@
-import type { GameState, ItemInstance } from '../types';
+import type { ItemInstance } from '../types';
+import type { RosterState } from '../party/roster';
 import { findBaseItem, itemSummary } from './catalog';
 import { isEquipmentItem, isItemEquipped } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
@@ -12,14 +13,14 @@ import { equippedPackItemIds } from './packCapacity';
 
 export { getSellValue } from './itemValue';
 
-export function buyVendorItem(game: GameState, baseId: string, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
+export function buyVendorItem<T extends RosterState>(game: T, baseId: string, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): T {
   const base = findBaseItem(baseId);
   if (game.mode !== 'town' || !base || !Number.isFinite(game.inventory.gold) || game.inventory.gold < base.value) return game;
   // Consumable potency does not scale with floor; fixed vendor level keeps repeat purchases stackable.
   const item = createVendorItem(baseId, base.slot ? game.dungeonLevel : 1);
   const { inventory, accepted } = mergeInventoryItems(game.inventory, [item], false, ambiguousItemIds(game), equippedPackItemIds(game));
   if (accepted.length === 0) return game;
-  const next: GameState = {
+  const next: T = {
     ...game,
     inventory: { ...inventory, gold: game.inventory.gold - base.value },
     activityLog: [`Bought ${item.displayName}.`, ...game.activityLog].slice(0, 12),
@@ -28,7 +29,7 @@ export function buyVendorItem(game: GameState, baseId: string, policy: GearEvalu
   return item.slot && normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(next, policy) : next;
 }
 
-export function sellItem(game: GameState, itemId: string, amount = 1): GameState {
+export function sellItem<T extends RosterState>(game: T, itemId: string, amount = 1): T {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   if (game.mode !== 'town' || !item || item.locked || isItemEquipped(game, itemId) || ambiguousItemIds(game).has(itemId)) return game;
   if (item.category !== 'equipment' && item.category !== 'consumable') return game;
@@ -46,7 +47,7 @@ export function sellItem(game: GameState, itemId: string, amount = 1): GameState
 export type InventoryScope = 'pack' | 'stash' | 'all';
 
 /** All rarities are sellable when not an upgrade for any hero; locks and non-gear always survive. */
-export function junkItemsForSale(game: GameState, scope: InventoryScope = 'all', policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): ItemInstance[] {
+export function junkItemsForSale(game: Pick<RosterState, 'party' | 'inventory' | 'stash'>, scope: InventoryScope = 'all', policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): ItemInstance[] {
   const owned = [...game.inventory.items, ...game.stash.items];
   const ambiguous = ambiguousItemIds(game);
   const candidates = scope === 'pack' ? game.inventory.items : scope === 'stash' ? game.stash.items : owned;
@@ -55,7 +56,7 @@ export function junkItemsForSale(game: GameState, scope: InventoryScope = 'all',
     && !retainGearForParty(game.party, item, owned, policy));
 }
 
-export function sellJunkItems(game: GameState, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
+export function sellJunkItems<T extends RosterState>(game: T, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): T {
   if (game.mode !== 'town' || !Number.isSafeInteger(game.inventory.gold) || game.inventory.gold < 0) return game;
   const next = normalizeInventoryPolicy(game.inventoryPolicy).autoEquip ? autoEquipBestGear(game, policy) : game;
   const junk = junkItemsForSale(next, 'all', policy);
@@ -72,7 +73,7 @@ export function sellJunkItems(game: GameState, policy: GearEvaluationPolicy = BA
   };
 }
 
-export function stashItem(game: GameState, itemId: string): GameState {
+export function stashItem<T extends RosterState>(game: T, itemId: string): T {
   const item = game.inventory.items.find((candidate) => candidate.id === itemId);
   if (game.mode !== 'town' || !item || item.locked || isItemEquipped(game, item.id) || ambiguousItemIds(game).has(itemId)) return game;
   const { inventory: stash, accepted } = mergeInventoryItems(game.stash, [item], false, ambiguousItemIds(game));
@@ -86,12 +87,12 @@ export function stashItem(game: GameState, itemId: string): GameState {
   };
 }
 
-export function withdrawStashItem(game: GameState, itemId: string): GameState {
+export function withdrawStashItem<T extends RosterState>(game: T, itemId: string): T {
   const item = game.stash.items.find((candidate) => candidate.id === itemId);
   if (game.mode !== 'town' || !item || ambiguousItemIds(game).has(itemId)) return game;
   const { inventory, accepted } = mergeInventoryItems(game.inventory, [item], false, ambiguousItemIds(game), equippedPackItemIds(game));
   if (accepted.length === 0) return game;
-  const next: GameState = {
+  const next: T = {
     ...game,
     inventory,
     stash: { ...game.stash, items: game.stash.items.filter((candidate) => candidate.id !== itemId) },

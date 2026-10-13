@@ -1,4 +1,5 @@
-import type { GameState, ItemInstance } from '../types';
+import type { ItemInstance } from '../types';
+import type { RosterState } from '../party/roster';
 
 /** Identity collisions are not duplicates we can safely discard or silently rename. */
 export function duplicateItemIds(items: readonly ItemInstance[]): Set<string> {
@@ -11,12 +12,12 @@ export function duplicateItemIds(items: readonly ItemInstance[]): Set<string> {
   return duplicates;
 }
 
-export function ambiguousItemIds(game: Pick<GameState, 'inventory' | 'stash'>): Set<string> {
+export function ambiguousItemIds(game: Pick<RosterState, 'inventory' | 'stash'>): Set<string> {
   return duplicateItemIds([...game.inventory.items, ...game.stash.items]);
 }
 
 /** Also pin an item referenced by more than one equipment slot/hero. */
-export function ambiguousEquipmentIds(game: Pick<GameState, 'party' | 'inventory' | 'stash'>): Set<string> {
+export function ambiguousEquipmentIds(game: Pick<RosterState, 'party' | 'inventory' | 'stash'>): Set<string> {
   const ids = ambiguousItemIds(game);
   const seen = new Set<string>();
   for (const actor of game.party) {

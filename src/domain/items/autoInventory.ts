@@ -1,4 +1,5 @@
-import type { ConsumableEffect, GameState, InventoryPolicy, ItemInstance } from '../types';
+import type { ConsumableEffect, InventoryPolicy, ItemInstance } from '../types';
+import type { RosterState } from '../party/roster';
 import { isEquipmentItem, isItemEquipped } from './equipment';
 import { autoEquipBestGear } from './equipmentOptimizer';
 import { BALANCED_GEAR_POLICY, retainGearForParty, type GearEvaluationPolicy } from './gearEvaluation';
@@ -16,7 +17,7 @@ const SUPPLIES: Array<{ effect: ConsumableEffect; baseId: string; reserve: keyof
 ];
 
 /** One bounded, repeat-safe pass. No travel, combat, healing or autonomous timer. */
-export function manageAutoInventory(game: GameState, gearPolicy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
+export function manageAutoInventory<T extends RosterState>(game: T, gearPolicy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): T {
   const policy = normalizeInventoryPolicy(game.inventoryPolicy);
   let next = compactContainers(setInventoryPolicy(game, policy));
   if (next.mode !== 'town') return policy.autoEquip ? autoEquipBestGear(next, gearPolicy) : next;
@@ -31,7 +32,7 @@ export function manageAutoInventory(game: GameState, gearPolicy: GearEvaluationP
 }
 
 /** Counts usable, unlocked pack supplies, not stash stock or empty stacks. */
-export function consumableCount(game: GameState, effect: ConsumableEffect): number {
+export function consumableCount(game: Pick<RosterState, 'inventory' | 'stash'>, effect: ConsumableEffect): number {
   const ambiguous = ambiguousItemIds(game);
   return game.inventory.items.filter((item) => !ambiguous.has(item.id) && usableSupply(item, effect)).reduce((total, item) => total + itemQuantity(item), 0);
 }
@@ -41,7 +42,7 @@ function usableSupply(item: ItemInstance, effect: ConsumableEffect): boolean {
     && (effect === 'townPortal' || (Number.isFinite(item.consumableAmount) && (item.consumableAmount ?? 0) > 0));
 }
 
-function compactContainers(game: GameState): GameState {
+function compactContainers<T extends RosterState>(game: T): T {
   const ambiguous = ambiguousItemIds(game);
   const pack = stackInventoryItems(game.inventory.items, ambiguous);
   const stash = stackInventoryItems(game.stash.items, ambiguous);
@@ -54,7 +55,7 @@ function compactContainers(game: GameState): GameState {
   };
 }
 
-function stashSurplus(game: GameState, policy: InventoryPolicy, gearPolicy: GearEvaluationPolicy): GameState {
+function stashSurplus<T extends RosterState>(game: T, policy: InventoryPolicy, gearPolicy: GearEvaluationPolicy): T {
   let next = game;
   for (const item of game.inventory.items) {
     if (!isEquipmentItem(item) || item.locked || isItemEquipped(next, item.id)) continue;
@@ -71,7 +72,7 @@ function stashSurplus(game: GameState, policy: InventoryPolicy, gearPolicy: Gear
   return next;
 }
 
-function restockSupplies(game: GameState, policy: InventoryPolicy, gearPolicy: GearEvaluationPolicy): GameState {
+function restockSupplies<T extends RosterState>(game: T, policy: InventoryPolicy, gearPolicy: GearEvaluationPolicy): T {
   let next = game;
   for (const supply of SUPPLIES) {
     for (const item of next.stash.items.filter((candidate) => usableSupply(candidate, supply.effect))) {
@@ -91,7 +92,7 @@ function restockSupplies(game: GameState, policy: InventoryPolicy, gearPolicy: G
   return next;
 }
 
-function transferSupply(game: GameState, item: ItemInstance, quantity: number, destination: 'pack' | 'stash'): GameState {
+function transferSupply<T extends RosterState>(game: T, item: ItemInstance, quantity: number, destination: 'pack' | 'stash'): T {
   if (quantity <= 0 || ambiguousItemIds(game).has(item.id)) return game;
   const moved = { ...stackPortion(item, quantity), id: quantity === itemQuantity(item) ? item.id : crypto.randomUUID() };
   const target = destination === 'pack' ? game.inventory : game.stash;

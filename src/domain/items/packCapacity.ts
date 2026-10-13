@@ -1,8 +1,9 @@
-import type { GameState, ItemInstance } from '../types';
+import type { ItemInstance } from '../types';
+import type { RosterState } from '../party/roster';
 import { isEquipmentItem } from './equipment';
 import { ambiguousEquipmentIds } from './itemOwnership';
 
-export type PackCapacityState = Pick<GameState, 'party' | 'inventory' | 'stash'>;
+export type PackCapacityState = Pick<RosterState, 'party' | 'inventory' | 'stash'>;
 
 /** Only a single, valid pack item worn in its matching slot is outside the bag. */
 export function equippedPackItemIds(game: PackCapacityState): ReadonlySet<string> {

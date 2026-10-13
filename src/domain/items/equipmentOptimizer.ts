@@ -1,4 +1,5 @@
-import type { ActorState, EquipmentSlot, GameState, ItemInstance } from '../types';
+import type { ActorState, EquipmentSlot, ItemInstance } from '../types';
+import type { RosterState } from '../party/roster';
 import { clampActorVitals, EQUIPMENT_SLOTS, isEquipmentItem, omitSlot } from './equipment';
 import { BALANCED_GEAR_POLICY, evaluateGearUpgrade, evaluateLoadoutChange, type GearEvaluationPolicy } from './gearEvaluation';
 import { ambiguousEquipmentIds } from './itemOwnership';
@@ -7,7 +8,7 @@ import { canApplyPackChange } from './packCapacity';
 export const MAX_EQUIPMENT_PASSES = 8;
 
 /** Bounded coordinate assignment, not a combinatorial search across equipment slots. */
-export function autoEquipBestGear(game: GameState, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): GameState {
+export function autoEquipBestGear<T extends RosterState>(game: T, policy: GearEvaluationPolicy = BALANCED_GEAR_POLICY): T {
   const items = game.mode === 'town' ? [...game.inventory.items, ...game.stash.items] : game.inventory.items;
   const protectedIds = ambiguousEquipmentIds(game);
   const party = game.party.map((actor) => ({ ...actor, equipment: { ...actor.equipment } }));
@@ -37,7 +38,7 @@ export function autoEquipBestGear(game: GameState, policy: GearEvaluationPolicy 
   };
 }
 
-function projectEquipment(game: GameState, party: ActorState[], protectedIds: Set<string>): GameState {
+function projectEquipment<T extends Pick<RosterState, 'party' | 'inventory' | 'stash' | 'mode'>>(game: T, party: ActorState[], protectedIds: Set<string>): T {
   const equippedIds = new Set(party.flatMap((actor) => Object.values(actor.equipment)));
   const withdrawn = new Set(game.mode === 'town' ? game.stash.items.filter((item) => !protectedIds.has(item.id) && isEquipmentItem(item) && equippedIds.has(item.id)) : []);
   return {
@@ -47,7 +48,7 @@ function projectEquipment(game: GameState, party: ActorState[], protectedIds: Se
   };
 }
 
-function bestSlotAssignments(game: GameState, party: ActorState[], items: ItemInstance[], slot: EquipmentSlot, protectedIds: Set<string>, policy: GearEvaluationPolicy) {
+function bestSlotAssignments(game: Pick<RosterState, 'party' | 'inventory' | 'stash' | 'mode'>, party: ActorState[], items: ItemInstance[], slot: EquipmentSlot, protectedIds: Set<string>, policy: GearEvaluationPolicy) {
   const current = party.map((actor) => actor.equipment[slot]);
   const packIds = new Set(game.inventory.items.map((item) => item.id));
   const options = party.map((actor, index) => {

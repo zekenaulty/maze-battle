@@ -1,4 +1,5 @@
-import type { ActorState, EquipmentSlot, GameState, InventoryState, ItemInstance, ItemStats } from '../types';
+import type { ActorState, EquipmentSlot, InventoryState, ItemInstance, ItemStats } from '../types';
+import type { RosterState } from '../party/roster';
 import { addItemStats, getItemTotalStats } from './itemDetails';
 
 export const EQUIPMENT_SLOTS: EquipmentSlot[] = ['weapon', 'offhand', 'head', 'body', 'hands', 'feet', 'ring', 'amulet'];
@@ -37,7 +38,7 @@ export function getEquipmentStats(actor: ActorState, inventory: InventoryState):
   return getEquippedItems(actor, inventory).reduce<ItemStats>((stats, item) => addItemStats(stats, getItemTotalStats(item)), {});
 }
 
-export function isItemEquipped(game: GameState, itemId: string) {
+export function isItemEquipped(game: Pick<RosterState, 'party'>, itemId: string) {
   return game.party.some((actor) => Object.values(actor.equipment).includes(itemId));
 }
 
