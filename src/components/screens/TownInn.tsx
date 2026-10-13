@@ -1,7 +1,7 @@
-import type { GameState } from '../../domain/types';
+import type { RosterState } from '../../domain/party/roster';
 import { getEffectiveActor } from '../../domain/items/inventory';
 
-export function TownInn({ game, onRest }: { game: GameState; onRest: () => void }) {
+export function TownInn({ game, onRest }: { game: Pick<RosterState, 'party' | 'inventory'>; onRest: () => void }) {
   const rested = game.party.every(actor => {
     const effective = getEffectiveActor(actor, game.inventory);
     return effective.hp === effective.maxHp && effective.mp === effective.maxMp;

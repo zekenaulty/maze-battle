@@ -10,6 +10,7 @@ import { SavesDialog } from '../SavesDialog';
 import { Dialog } from '../Dialog';
 import { Controls } from '../Controls';
 import { canReceiveTownItem } from './townCapacity';
+import { townViewFixture } from './townViewFixture';
 
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Maze" /> }));
 afterEach(cleanup);
@@ -105,7 +106,7 @@ describe('battle controls', () => {
 
 describe('town', () => {
   it('shows all stash entries, supports search and exact-item withdrawals', () => {
-    const game = createNewGameState({ mode: 'town' });
+    const game = townViewFixture();
     game.stash.items = Array.from({ length: 12 }, (_, index) => ({ ...createVendorItem('rusty-sword'), displayName: `Sword ${index}` }));
     const onWithdrawStash = vi.fn();
     render(<TownScreen {...townProps} game={game} onWithdrawStash={onWithdrawStash} />);
@@ -118,7 +119,7 @@ describe('town', () => {
   it('permits compatible consumable stacking at capacity and rejects equipment', () => {
     const herb = createVendorItem('health-herb');
     const container = { capacity: 1, items: [herb] };
-    const game = createNewGameState({ mode: 'town' });
+    const game = townViewFixture();
     game.inventory = { ...container, gold: 100 };
     expect(canReceiveTownItem(game, createVendorItem('health-herb'))).toBe(true);
     expect(canReceiveTownItem(game, createVendorItem('rusty-sword'))).toBe(false);
@@ -129,8 +130,8 @@ describe('town', () => {
     expect(screen.getAllByText('Pack full').length).toBeGreaterThan(0);
   });
   it('shows prior-floor quest progress and exposes claim without a current contract', () => {
-    const game = createNewGameState({ mode: 'town' });
-    game.quests = [{ id: 'old', source: 'guild', floor: 7, originRoomId: 'hub', targetRoomId: 'room', targetRoomName: 'Old room', targetRoomKind: 'boss', title: 'Old contract', description: 'Clear old room', task: { objective: 'kill', noun: 'hostiles', progress: 3, required: 3 }, reward: { gold: 99 }, status: 'complete', acceptedAt: game.createdAt }];
+    const game = townViewFixture();
+    game.quests = [{ id: 'old', source: 'guild', floor: 7, originRoomId: 'hub', targetRoomId: 'room', targetRoomName: 'Old room', targetRoomKind: 'boss', title: 'Old contract', description: 'Clear old room', task: { objective: 'kill', noun: 'hostiles', progress: 3, required: 3 }, reward: { gold: 99 }, status: 'complete', acceptedAt: game.updatedAt }];
     const onClaimQuest = vi.fn();
     render(<TownScreen {...townProps} game={game} onClaimQuest={onClaimQuest} />);
     expect(screen.getByText('3/3 hostiles')).toBeVisible();
@@ -139,7 +140,7 @@ describe('town', () => {
     expect(onClaimQuest).toHaveBeenCalledWith('old');
   });
   it('labels obsolete gear sale scope and protections and still requires confirmation', async () => {
-    const game = createNewGameState({ mode: 'town' });
+    const game = townViewFixture();
     game.inventory.items.push({ ...createVendorItem('rusty-sword'), displayName: 'Obsolete test sword', stats: {}, value: 20 });
     const onSellJunk = vi.fn();
     const { rerender } = render(<TownScreen {...townProps} game={game} onSellJunk={onSellJunk} />);
@@ -161,7 +162,7 @@ describe('town', () => {
     expect(screen.getByRole('button', { name: 'Sell obsolete gear (0) - 0g (pack and stash)' })).toBeDisabled();
   });
   it('wires optional deposit, lock, policy, stop and diagnostics callbacks', () => {
-    const game = createNewGameState({ mode: 'town' });
+    const game = townViewFixture();
     game.inventoryPolicy = { autoEquip: true, autoSellJunk: false, autoStash: false, autoRestock: false, healthReserve: 1, manaReserve: 1, portalReserve: 1 };
     const onStashItem = vi.fn(), onToggleItemLock = vi.fn(), onInventoryPolicyChange = vi.fn(), onAutoToggle = vi.fn(), onDiagnostics = vi.fn();
     render(<TownScreen {...townProps} game={game} autoActive onStashItem={onStashItem} onToggleItemLock={onToggleItemLock} onInventoryPolicyChange={onInventoryPolicyChange} onAutoToggle={onAutoToggle} onDiagnostics={onDiagnostics} />);

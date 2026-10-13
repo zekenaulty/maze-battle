@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Lock, Unlock } from 'lucide-react';
-import type { GameState, ItemInstance } from '../../domain/types';
+import type { ItemInstance } from '../../domain/types';
+import type { RosterState } from '../../domain/party/roster';
 import { ambiguousItemIds, getSellValue, isItemEquipped, junkItemsForSale, packSlotUsage } from '../../domain/items/inventory';
 import { itemQuantity } from '../../domain/items/itemStacks';
 import { itemSummary } from '../../domain/items/catalog';
@@ -9,7 +10,7 @@ import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { canReceiveTownItem } from './townCapacity';
 
 interface TownStorageProps {
-  game: GameState;
+  game: Pick<RosterState, 'party' | 'inventory' | 'stash'>;
   onSellJunk: () => void;
   onWithdrawStash: (itemId: string) => void;
   onStashItem?: (itemId: string) => void;

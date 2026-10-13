@@ -3,38 +3,20 @@ import { applySkill } from '../combat/applySkill';
 import { createCombatContext } from '../combat/battleContext';
 import { canUseSkill } from '../combat/combatant';
 import { defaultRng, type Rng } from '../combat/rng';
-import { getEffectiveActor } from '../items/inventory';
 import { createMazePathSearch } from '../maze/solver';
 import { samePosition } from '../maze/key';
 import { revealMazeVisibility } from '../maze/visibility';
 import { updateQuestProgress } from '../quests/quests';
+import { castCampSkill } from './campSkills';
 
-export type SpendableAttribute = 'strength' | 'vitality' | 'intellect';
-const CAMP_SKILLS: SkillId[] = ['heal', 'groupHeal', 'resurrect', 'teleport'];
-
-export function spendAttribute(game: GameState, actorId: string, attribute: SpendableAttribute): GameState {
-  const actor = game.party.find(a => a.id === actorId);
-  if (!actor || actor.attributes.available < 1 || !['strength', 'vitality', 'intellect'].includes(attribute)) return game;
-  return {
-    ...game,
-    party: game.party.map(a => a.id !== actorId ? a : {
-      ...a, attributes: { ...a.attributes, available: a.attributes.available - 1, [attribute]: a.attributes[attribute] + 1 },
-      maxHp: a.maxHp + (attribute === 'vitality' ? 2 : 0), maxMp: a.maxMp + (attribute === 'intellect' ? 2 : 0),
-    }),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-export function setAutoSpendPoints(game: GameState, actorId: string, enabled: boolean): GameState {
-  return { ...game, party: game.party.map(a => a.id === actorId ? { ...a, autoSpendPoints: enabled } : a), updatedAt: new Date().toISOString() };
-}
+export { spendAttribute, setAutoSpendPoints, setActorAutoBattle, type SpendableAttribute } from './partyRules';
+export { castCampSkill, type CampSkill } from './campSkills';
 
 export function castExplorationSkill(game: GameState, actorId: string, skillId: SkillId, rng: Rng = defaultRng, now = Date.now()): GameState {
-  if (game.battle || !CAMP_SKILLS.includes(skillId)) return game;
+  if (skillId === 'heal' || skillId === 'groupHeal' || skillId === 'resurrect') return castCampSkill(game, actorId, skillId, rng, now);
+  if (game.battle || skillId !== 'teleport') return game;
   const original = game.party.find(a => a.id === actorId);
   if (!original || !canUseSkill(original, skillId, now)) return game;
-  if (skillId === 'resurrect' && game.party.every(a => a.hp > 0)) return game;
-  if ((skillId === 'heal' || skillId === 'groupHeal') && !game.party.some(a => a.hp > 0 && a.hp < getEffectiveActor(a, game.inventory).maxHp)) return game;
   const destinations = skillId === 'teleport' ? teleportDestinations(game) : [];
   if (skillId === 'teleport' && (game.mode === 'town' || !destinations.length)) return game;
   const context = createCombatContext(game, rng, now);

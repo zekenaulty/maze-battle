@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
-import type { GameState, VendorId } from '../../domain/types';
+import type { VendorId } from '../../domain/types';
+import type { RosterState } from '../../domain/party/roster';
 import { vendorStock } from '../../domain/town/town';
 import { createVendorItem } from '../../domain/items/loot';
 import { ItemDetails } from '../ItemDetails';
 import { canReceiveTownItem } from './townCapacity';
 
 export function TownVendor({ vendor, title, game, onBuy }: {
-  vendor: VendorId; title: string; game: GameState; onBuy: (vendor: VendorId, baseId: string) => void;
+  vendor: VendorId; title: string; game: Pick<RosterState, 'party' | 'inventory' | 'stash' | 'dungeonLevel'>; onBuy: (vendor: VendorId, baseId: string) => void;
 }) {
   const stock = useMemo(() => vendorStock(vendor, game.dungeonLevel).map((base) => ({ base, item: createVendorItem(base.id, base.slot ? game.dungeonLevel : 1) })), [vendor, game.dungeonLevel]);
   return (

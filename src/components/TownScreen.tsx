@@ -1,8 +1,10 @@
 import { useId, useState, type ReactNode } from 'react';
 import { Activity, BedSingle, Castle, FlaskConical, Hammer, Settings2, Warehouse } from 'lucide-react';
-import type { GameState, InventoryPolicy, VendorId } from '../domain/types';
+import type { InventoryPolicy, VendorId } from '../domain/types';
+import type { RosterState } from '../domain/party/roster';
+import type { GameView } from '../services/game/GameView';
 import { normalizeInventoryPolicy, packSlotUsage } from '../domain/items/inventory';
-import { AutoStatus } from './screens/AutoStatus';
+import { AutoStatus, type AutoStatusDetail } from './screens/AutoStatus';
 import { TownGuild } from './screens/TownGuild';
 import { TownStorage } from './screens/TownStorage';
 import { TownVendor } from './screens/TownVendor';
@@ -22,8 +24,10 @@ const TABS = [
 ] as const;
 type TownTab = typeof TABS[number]['id'];
 
+export type TownView = Pick<GameView, keyof RosterState | 'quests' | 'contracts'>;
+
 interface TownScreenProps {
-  game: GameState;
+  game: TownView;
   onLeave: () => void;
   onRest: () => void;
   onBuy: (vendor: VendorId, baseId: string) => void;
@@ -34,6 +38,7 @@ interface TownScreenProps {
   onCharacters: () => void;
   onSaves: () => void;
   autoActive?: boolean;
+  autoStatus?: AutoStatusDetail;
   onAutoToggle?: () => void;
   onStashItem?: (itemId: string) => void;
   onToggleItemLock?: (itemId: string) => void;
@@ -42,7 +47,7 @@ interface TownScreenProps {
 }
 
 export function TownScreen({ game, onLeave, onRest, onBuy, onAcceptQuest, onClaimQuest, onSellJunk, onWithdrawStash, onCharacters, onSaves,
-  autoActive = game.townReturnMode === 'auto-play', onAutoToggle, onStashItem, onToggleItemLock, onInventoryPolicyChange, onDiagnostics }: TownScreenProps) {
+  autoActive = game.townReturnMode === 'auto-play', autoStatus, onAutoToggle, onStashItem, onToggleItemLock, onInventoryPolicyChange, onDiagnostics }: TownScreenProps) {
   const [selected, setSelected] = useState<TownTab>('guild');
   const id = useId();
   const tabs = TABS.filter(tab => tab.id !== 'care' || onInventoryPolicyChange);
@@ -70,7 +75,7 @@ export function TownScreen({ game, onLeave, onRest, onBuy, onAcceptQuest, onClai
           {onDiagnostics && <button className="screen-icon" type="button" title="Diagnostics" aria-label="Diagnostics" onClick={onDiagnostics}><Activity size={18} aria-hidden="true" /></button>}
         </nav>
       </div>
-      <AutoStatus game={game} active={autoActive} />
+      <AutoStatus game={game} active={autoActive} status={autoStatus} />
       <div className="town-navigation">
         <ScreenTabs id={id} label="Town services" tabs={tabs} selected={active} onSelect={setSelected} />
         {game.activityLog[0] && <p className="town-feedback" role="status" title={game.activityLog[0]}>{game.activityLog[0]}</p>}

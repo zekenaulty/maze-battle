@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import type { GameState } from '../../domain/types';
-import { guildContractsForFloor } from '../../domain/guild/contracts';
+import type { GameView } from '../../services/game/GameView';
 
 export function TownGuild({ game, onAcceptQuest, onClaimQuest }: {
-  game: GameState;
+  game: Pick<GameView, 'quests' | 'contracts'>;
   onAcceptQuest: (contractId: string) => void;
   onClaimQuest: (questId: string) => void;
 }) {
   const [history, setHistory] = useState(false);
-  const contracts = guildContractsForFloor(game);
-  const posted = contracts.filter((contract) => !game.quests.some((quest) => quest.id === contract.id));
+  const posted = game.contracts.filter((contract) => !game.quests.some((quest) => quest.id === contract.id));
   const quests = game.quests.filter(quest => (quest.status === 'claimed') === history)
     .sort((a, b) => Number(b.status === 'complete') - Number(a.status === 'complete') || b.floor - a.floor);
   return (

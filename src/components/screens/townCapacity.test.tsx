@@ -1,22 +1,21 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNewGameState } from '../../domain/gameFactory';
 import { buyVendorItem, stashItem, withdrawStashItem } from '../../domain/items/inventory';
 import { createVendorItem } from '../../domain/items/loot';
-import type { GameState } from '../../domain/types';
 import { characterFixture, itemFixture } from '../../viewModels/characterTestFixtures';
-import { TownScreen } from '../TownScreen';
+import { TownScreen, type TownView } from '../TownScreen';
 import { TownStorage } from './TownStorage';
 import { TownVendor } from './TownVendor';
 import { canReceiveTownItem } from './townCapacity';
+import { townViewFixture } from './townViewFixture';
 
 afterEach(cleanup);
 const noop = () => {};
 
-function town(): GameState {
+function town(): TownView {
   const worn = itemFixture({ id: 'worn' });
   return {
-    ...createNewGameState({ mode: 'town' }),
+    ...townViewFixture(),
     party: [characterFixture({ equipment: { weapon: worn.id } })],
     inventory: { gold: 1000, capacity: 1, items: [worn] },
     stash: { capacity: 1, items: [itemFixture({ id: 'stored', displayName: 'Stored Sword' })] },
