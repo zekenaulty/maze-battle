@@ -1,88 +1,11 @@
-import type { GameState, MazeRoomKind, MazeRoomState, QuestItemSpec, QuestObjective } from '../types';
+import type { GameState, MazeRoomState } from '../types';
 import { cellKey } from '../maze/key';
 import { createMazeVisibilitySnapshot } from '../maze/visibility';
 import { createMazePathSearch } from '../maze/solver';
 import { isInRoom } from '../quests/questTargets';
+import { createGuildContract, guildContractId, guildContractPriority, type GuildContract, type GuildContractStatus } from './contractFactory';
 
-export type GuildContractObjective = QuestObjective;
-
-export type GuildContractStatus = 'posted' | 'located' | 'nearby';
-
-export interface GuildContractTask {
-  objective: GuildContractObjective;
-  noun: string;
-  required: number;
-  item?: QuestItemSpec;
-}
-
-export interface GuildContract {
-  id: string;
-  floor: number;
-  originRoomId: string;
-  targetRoomId: string;
-  targetRoomName: string;
-  targetRoomKind: MazeRoomKind;
-  objective: GuildContractObjective;
-  task: GuildContractTask;
-  title: string;
-  description: string;
-  rewardGold: number;
-  status: GuildContractStatus;
-}
-
-interface GuildContractTemplate {
-  task: GuildContractTask;
-  titlePrefix: string;
-  description: string;
-  rewardBase: number;
-  rewardPerFloor: number;
-  priority: number;
-}
-
-const DEFAULT_TEMPLATE: GuildContractTemplate = {
-  task: { objective: 'scout', noun: 'room', required: 1 },
-  titlePrefix: 'Scout',
-  description: 'chart and report this room',
-  rewardBase: 25,
-  rewardPerFloor: 10,
-  priority: 3,
-};
-
-const CONTRACT_TEMPLATES: Partial<Record<MazeRoomKind, GuildContractTemplate>> = {
-  boss: {
-    task: { objective: 'kill', noun: 'hostiles', required: 3 },
-    titlePrefix: 'Clear',
-    description: 'clear the hostile room',
-    rewardBase: 80,
-    rewardPerFloor: 25,
-    priority: 0,
-  },
-  treasure: {
-    task: { objective: 'fetch', noun: 'guild cache', required: 1,
-      item: { baseId: 'guild-cache', displayName: 'Guild Cache', token: '\u{1f4e6}' } },
-    titlePrefix: 'Recover Cache:',
-    description: 'recover the guild cache from a chest in this room',
-    rewardBase: 55,
-    rewardPerFloor: 18,
-    priority: 1,
-  },
-  exit: {
-    task: { objective: 'locate', noun: 'descent route', required: 1 },
-    titlePrefix: 'Locate',
-    description: 'confirm the descent route',
-    rewardBase: 40,
-    rewardPerFloor: 15,
-    priority: 2,
-  },
-  safe: {
-    task: { objective: 'scout', noun: 'safe room', required: 1 },
-    titlePrefix: 'Scout',
-    description: 'chart and verify this safe room',
-    rewardBase: 35,
-    rewardPerFloor: 12,
-    priority: 3,
-  },
-};
+export type { GuildContract, GuildContractObjective, GuildContractStatus, GuildContractTask } from './contractFactory';
 
 export function guildContractsForFloor(game: GameState, acceptedIds?: ReadonlySet<string>): GuildContract[] {
   const rooms = game.maze.layout?.rooms ?? [];
@@ -92,7 +15,7 @@ export function guildContractsForFloor(game: GameState, acceptedIds?: ReadonlySe
 
   const origin = rooms.find((room) => room.kind === 'hub') ?? rooms.find((room) => room.kind === 'start') ?? rooms[0];
   const candidates = rooms.filter(room => isContractRoom(room, origin)
-    && !acceptedIds?.has(contractId(game.dungeonLevel, origin, room)));
+    && !acceptedIds?.has(guildContractId(game.dungeonLevel, origin.id, room)));
   if (!candidates.length) return [];
   const visibility = createMazeVisibilitySnapshot(game.maze);
   const paths = createMazePathSearch(game.maze, game.maze.start);
@@ -100,32 +23,12 @@ export function guildContractsForFloor(game: GameState, acceptedIds?: ReadonlySe
   return candidates
     .filter((room) => room.kind !== 'treasure' || game.chests.some((chest) =>
       chest.level === game.dungeonLevel && !chest.opened && isInRoom(chest.position, room) && Number.isFinite(paths.distanceTo(chest.position))))
-    .map((room) => createContract(game.dungeonLevel, origin, room, roomStatus(room, visibility)))
-    .sort((a, b) => contractPriority(a) - contractPriority(b) || a.targetRoomName.localeCompare(b.targetRoomName));
-}
-
-function createContract(floor: number, origin: MazeRoomState, target: MazeRoomState, status: GuildContractStatus): GuildContract {
-  const template = templateForRoom(target.kind);
-  const task = { ...template.task, ...(template.task.item ? { item: { ...template.task.item } } : {}) };
-
-  return {
-    id: contractId(floor, origin, target),
-    floor,
-    originRoomId: origin.id,
-    targetRoomId: target.id,
-    targetRoomName: target.name,
-    targetRoomKind: target.kind,
-    objective: task.objective,
-    task,
-    title: titleForRoom(template, target),
-    description: descriptionForRoom(template, target, status),
-    rewardGold: rewardForRoom(floor, template),
-    status,
-  };
-}
-
-function contractId(floor: number, origin: MazeRoomState, target: MazeRoomState) {
-  return `floor-${floor}:${origin.id}:${target.id}:${templateForRoom(target.kind).task.objective}`;
+    .map((room) => {
+      const status = roomStatus(room, visibility);
+      return createGuildContract({ floor: game.dungeonLevel, originRoomId: origin.id, target: room,
+        ...(status === 'posted' ? { status } : { status, location: room.center }) });
+    })
+    .sort((a, b) => guildContractPriority(a) - guildContractPriority(b) || a.targetRoomName.localeCompare(b.targetRoomName));
 }
 
 function isContractRoom(room: MazeRoomState, origin: MazeRoomState) {
@@ -143,26 +46,4 @@ function roomStatus(room: MazeRoomState, visibility: ReturnType<typeof createMaz
   }
 
   return 'posted';
-}
-
-function templateForRoom(kind: MazeRoomKind) {
-  return CONTRACT_TEMPLATES[kind] ?? DEFAULT_TEMPLATE;
-}
-
-function titleForRoom(template: GuildContractTemplate, room: MazeRoomState) {
-  return `${template.titlePrefix} ${room.name}`;
-}
-
-function descriptionForRoom(template: GuildContractTemplate, room: MazeRoomState, status: GuildContractStatus) {
-  const location = status === 'posted' ? 'Unmapped room' : `${room.center.row + 1}, ${room.center.column + 1}`;
-  return `Guild request: ${template.description}. Last fix: ${location}.`;
-}
-
-function rewardForRoom(floor: number, template: GuildContractTemplate) {
-  const level = Math.max(1, floor);
-  return template.rewardBase + level * template.rewardPerFloor;
-}
-
-function contractPriority(contract: GuildContract) {
-  return templateForRoom(contract.targetRoomKind).priority;
 }

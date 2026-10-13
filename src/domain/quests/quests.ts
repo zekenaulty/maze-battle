@@ -1,9 +1,10 @@
 import type { BattleState, EnemyState, GameState, GridPosition, MazeRoomState, QuestState } from '../types';
-import { guildContractsForFloor, type GuildContract } from '../guild/contracts';
+import { guildContractsForFloor } from '../guild/contracts';
 import { cellKey } from '../maze/key';
 import { createMazeVisibilitySnapshot } from '../maze/visibility';
 import { isInRoom } from './questTargets';
 import { ownedQuestItemCount } from './questItems';
+import { advanceQuestProgress, claimQuest, questFromContract } from './questRules';
 
 export function acceptGuildContract(game: GameState, contractId: string): GameState {
   if (game.quests.some((quest) => quest.id === contractId)) {
@@ -15,7 +16,7 @@ export function acceptGuildContract(game: GameState, contractId: string): GameSt
     return game;
   }
 
-  const quest = questFromContract(contract);
+  const quest = questFromContract(contract, new Date().toISOString());
   const withQuest = {
     ...game,
     quests: [...game.quests, quest],
@@ -40,29 +41,11 @@ export function updateQuestProgress(game: GameState): GameState {
     }
 
     const progress = progressForQuest(game, quest);
-    const itemFetch = quest.task.objective === 'fetch' && quest.task.item;
-    if ((itemFetch ? progress === quest.task.progress : progress <= quest.task.progress) && progress < quest.task.required) {
-      return quest;
-    }
-
+    const nextQuest = advanceQuestProgress(quest, progress, new Date().toISOString());
+    if (nextQuest === quest) return quest;
     changed = true;
-    const required = Math.max(1, quest.task.required);
-    const nextQuest: QuestState = {
-      ...quest,
-      task: {
-        ...quest.task,
-        progress: Math.min(required, progress),
-      },
-    };
-
-    if (nextQuest.task.progress >= required) {
+    if (nextQuest.status === 'complete') {
       completedTitles.push(nextQuest.title);
-      const completedQuest: QuestState = {
-        ...nextQuest,
-        status: 'complete',
-        completedAt: new Date().toISOString(),
-      };
-      return completedQuest;
     }
 
     return nextQuest;
@@ -118,19 +101,20 @@ export function recordKillQuestProgress(game: GameState, defeated: EnemyState[],
 
 export function claimGuildQuestReward(game: GameState, questId: string): GameState {
   const quest = game.quests.find((item) => item.id === questId);
-  if (!quest || quest.source !== 'guild' || quest.status !== 'complete') {
+  const claimedAt = new Date().toISOString();
+  const claim = quest && claimQuest(quest, claimedAt);
+  if (!claim) {
     return game;
   }
 
-  const claimedAt = new Date().toISOString();
   return {
     ...game,
     inventory: {
       ...game.inventory,
-      gold: game.inventory.gold + quest.reward.gold,
+      gold: game.inventory.gold + claim.gold,
     },
-    quests: game.quests.map((item) => (item.id === quest.id ? { ...item, status: 'claimed', claimedAt } : item)),
-    activityLog: trimLog([`Claimed ${quest.reward.gold}g for ${quest.title}.`, ...game.activityLog]),
+    quests: game.quests.map((item) => (item.id === claim.quest.id ? { ...item, status: claim.quest.status, claimedAt } : item)),
+    activityLog: trimLog([`Claimed ${claim.gold}g for ${claim.quest.title}.`, ...game.activityLog]),
     updatedAt: claimedAt,
   };
 }
@@ -142,7 +126,7 @@ function autoAcceptGuildContracts(game: GameState): GameState {
     return game;
   }
 
-  const quests = contracts.map(questFromContract);
+  const quests = contracts.map((contract) => questFromContract(contract, new Date().toISOString()));
   return {
     ...game,
     quests: [...game.quests, ...quests],
@@ -152,14 +136,17 @@ function autoAcceptGuildContracts(game: GameState): GameState {
 }
 
 function claimCompletedGuildQuests(game: GameState): GameState {
-  const completed = game.quests.filter((quest) => quest.source === 'guild' && quest.status === 'complete');
+  const claimedAt = new Date().toISOString();
+  const completed = game.quests.flatMap((quest) => {
+    const claim = claimQuest(quest, claimedAt);
+    return claim ? [claim] : [];
+  });
   if (completed.length === 0) {
     return game;
   }
 
-  const gold = completed.reduce((total, quest) => total + quest.reward.gold, 0);
-  const claimedAt = new Date().toISOString();
-  const completedIds = new Set(completed.map((quest) => quest.id));
+  const gold = completed.reduce((total, claim) => total + claim.gold, 0);
+  const completedById = new Map(completed.map((claim) => [claim.quest.id, claim.quest]));
 
   return {
     ...game,
@@ -167,32 +154,12 @@ function claimCompletedGuildQuests(game: GameState): GameState {
       ...game.inventory,
       gold: game.inventory.gold + gold,
     },
-    quests: game.quests.map((quest) => (completedIds.has(quest.id) ? { ...quest, status: 'claimed', claimedAt } : quest)),
+    quests: game.quests.map((quest) => {
+      const claimed = completedById.get(quest.id);
+      return claimed ? { ...quest, status: claimed.status, claimedAt: claimed.claimedAt } : quest;
+    }),
     activityLog: trimLog([`Guild paid ${gold}g for ${completed.length} completed quest${completed.length === 1 ? '' : 's'}.`, ...game.activityLog]),
     updatedAt: claimedAt,
-  };
-}
-
-function questFromContract(contract: GuildContract): QuestState {
-  return {
-    id: contract.id,
-    source: 'guild',
-    floor: contract.floor,
-    originRoomId: contract.originRoomId,
-    targetRoomId: contract.targetRoomId,
-    targetRoomName: contract.targetRoomName,
-    targetRoomKind: contract.targetRoomKind,
-    title: contract.title,
-    description: contract.description,
-    task: {
-      ...contract.task,
-      progress: 0,
-    },
-    reward: {
-      gold: contract.rewardGold,
-    },
-    status: 'active',
-    acceptedAt: new Date().toISOString(),
   };
 }
 
@@ -225,28 +192,11 @@ function updateMatchingQuestProgress(game: GameState, progressFor: (quest: Quest
     }
 
     const progress = progressFor(quest);
-    const itemFetch = quest.task.objective === 'fetch' && quest.task.item;
-    if (itemFetch ? progress === quest.task.progress : progress <= quest.task.progress) {
-      return quest;
-    }
-
+    const nextQuest = advanceQuestProgress(quest, progress, new Date().toISOString(), 'event');
+    if (nextQuest === quest) return quest;
     changed = true;
-    const required = Math.max(1, quest.task.required);
-    const nextQuest: QuestState = {
-      ...quest,
-      task: {
-        ...quest.task,
-        progress: Math.min(required, progress),
-      },
-    };
-
-    if (nextQuest.task.progress >= required) {
+    if (nextQuest.status === 'complete') {
       completedTitles.push(nextQuest.title);
-      return {
-        ...nextQuest,
-        status: 'complete',
-        completedAt: new Date().toISOString(),
-      } satisfies QuestState;
     }
 
     return nextQuest;

@@ -1,7 +1,7 @@
 import type { ChestState, GameState, GridPosition, MazeState } from '../types';
 import { samePosition } from '../maze/key';
 import type { Rng } from '../combat/rng';
-import { rollLoot } from './loot';
+import { canOpenChest, rollChestLoot } from './chestRules';
 import { addItemsToInventory } from './inventory';
 import { recordFetchQuestProgress } from '../quests/quests';
 import { questItemsForChest } from '../quests/questItems';
@@ -63,8 +63,7 @@ export function activeUnopenedChests(game: GameState) {
 }
 
 export function chestAtActivePosition(game: GameState) {
-  if (game.battle || game.mode === 'town' || game.party.every(actor => actor.hp <= 0)) return undefined;
-  return game.chests.find(candidate => candidate.level === game.dungeonLevel && !candidate.opened && samePosition(candidate.position, game.maze.active));
+  return game.chests.find(candidate => canOpenChest(game, game.maze.active, candidate));
 }
 
 /** Shared voluntary command: an exact, eligible target, then the ordinary loot service. */
@@ -80,7 +79,7 @@ export function openChestAtActivePosition(game: GameState, rng: Rng): GameState 
     return game;
   }
 
-  const loot = [...rollLoot({ source: 'chest', level: game.dungeonLevel }, rng), ...questItemsForChest(game, chest)];
+  const loot = [...rollChestLoot(chest, rng), ...questItemsForChest(game, chest)];
   const opened = {
     ...game,
     chests: game.chests.map((candidate) => (candidate === chest ? { ...candidate, opened: true, loot } : candidate)),
