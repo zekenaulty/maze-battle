@@ -1,5 +1,10 @@
 # Structural streaming exploration
 
+Superseded persistence direction (2026-10-12): owner issue #11 authorizes discarding
+all old saves and replaces the preservation/isolated-save requirements in this
+historical plan with [one canonical data layer](canonical-persistence-plan.md).
+The isolated runtimes below describe previous evidence, not the target architecture.
+
 Status: S0-S5 foundation acceptance is qualified, including isolated v2 play,
 paged discovered maps, a separate level-19 fixture and provider-free Agentica
 first-chest/recovery/takeover proof. Branch: `codex/streaming-exploration`.

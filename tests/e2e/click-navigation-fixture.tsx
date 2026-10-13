@@ -3,6 +3,7 @@ import { App } from '../../src/App';
 import { createNewGameState } from '../../src/domain/gameFactory';
 import { seededRng } from '../../src/domain/automation/autopilotTestFixtures';
 import { getDatabase, saveGame } from '../../src/persistence/saveRepository';
+import { claimGame } from '../../src/persistence/gameCustody';
 import type { Direction, MazeState } from '../../src/domain/types';
 import '../../src/styles.css';
 import * as perception from './click-perception-fixture';
@@ -35,6 +36,15 @@ async function start() {
       chests: [{ id: 'click-chest', level: 1, position: { row: 3, column: 5 }, opened: false }] });
     Math.random = random;
     await saveGame('auto', marker, 'auto', { ...game, party: game.party.map(a => ({ ...a, autoBattle: false })) });
+    const corruption = new URLSearchParams(location.search).get('corrupt');
+    if (corruption === 'history' || corruption === 'control') {
+      await claimGame('fixture-old-owner');
+      const db = await getDatabase();
+      if (corruption === 'history') {
+        const slot = (await db.get('saves', 'auto'))!;
+        await db.put('saves', { ...slot, observationHead: 'missing-fixture-observation' });
+      } else await db.put('meta', { key: 'control:auto', value: '{' });
+    }
     sessionStorage.setItem(marker, 'seeded');
   } else if (!sessionStorage.getItem(marker)) throw new Error('Refusing non-fixture database');
   window.clickRpg = { snapshot, perception };

@@ -1,5 +1,10 @@
 # Two-Dungeon Qualification: Earned Knowledge and Intentional Play
 
+2026-10-12 sequencing amendment: [issue #11's canonical persistence cutover](canonical-persistence-plan.md)
+now precedes further Q work. Re-run the behavioral gates below on the new shared
+schema; old-format save compatibility is no longer an acceptance requirement.
+Prior PASS entries are historical, not qualification of the replacement.
+
 Status: acceptance specification with PARTIAL provider-free implementation.
 Integrated revision 4, 2026-10-12. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
 sequenced behind the dungeon repair in [the next-slices plan](agentic-play-next-slices.md).

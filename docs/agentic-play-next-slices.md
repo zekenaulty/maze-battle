@@ -1,5 +1,17 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
+## Active Priority: Persistence Replacement
+
+Revision 21 amendment, 2026-10-12: owner issue
+[#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
+preservation and parallel/isolate-persistence requirements below, including those
+quoted in the original goal. All pre-existing saves are disposable; no migration
+or fallback readers. The [canonical persistence plan](canonical-persistence-plan.md)
+now precedes new room-map features and broader Q qualification. Preserve shared
+game behavior, earned knowledge and execution evidence in the new schema, not
+historical formats. The load-recovery fix and native baseline are prerequisites,
+not completion of the replacement. Prior test results remain historical evidence.
+
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and
 real-service query/choice/decision proof and explicit earned-corridor continuation;
