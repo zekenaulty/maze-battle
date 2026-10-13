@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 11,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 12,
 2026-10-13. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -21,6 +21,10 @@ The [shared GameSession host queue](reviews/issue-11-game-host-queue.md) and
 compose with the actual game under provider-free tests. P4 has removed the
 [standalone expedition writer](reviews/issue-11-expedition-store-closure.md) and
 [its legacy-only snapshot validators](reviews/issue-11-expedition-validator-followup.md).
+The [scoped perception and SDK action boundary](reviews/issue-11-scoped-action-host.md)
+now uses that same queue, with exact pending/result reconciliation and atomic
+navigation admission. The disconnected [standalone launch journal](reviews/issue-11-standalone-launch-closure.md)
+and [directed-v1 store](reviews/issue-11-directed-v1-store-closure.md) are removed.
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
@@ -193,12 +197,17 @@ P1 storage contracts are split as follows:
   and explicit initial grant; actual GameSession queue, transaction aborts and
   funded same-owner cleanup. Read/reload grants no execution. Ambiguous starts
   block replacements even after local cancel/ACK. No SDK mount is claimed.
-- **P3 Agentica, remaining:** canonical event delivery/adoption lifecycle, scoped tool
-  projection, SDK delivery/reconciliation and mounted application recovery.
+- **P3 scoped SDK actions, checked:** earned actor/room/map/cell projections,
+  unchanged SDK offline action dispatch, one-shot reservations, atomic navigation
+  admission and exact read-only reconciliation through the actual game queue.
+  Hooks are fenced to their original publication and GameSession lifetime.
+- **P3 Agentica, remaining:** canonical transport, event delivery/adoption lifecycle,
+  publication renewal, service custody confirmation and mounted application recovery.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 started:** disconnected preview screens, stale route tests, standalone
-  expedition writer and its legacy-format validators removed. Stream/directed,
-  old launch and old RPG adapters still require closure.
+  expedition writer and its legacy-format validators, standalone launch journal,
+  and standalone directed-v1 store removed. Stream/directed-stream and old RPG
+  adapters still require closure.
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
   qualification remain mandatory, not inferred from focused passes.

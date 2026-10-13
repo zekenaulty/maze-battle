@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 31 amendment, 2026-10-13: owner issue
+Revision 32 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -51,6 +51,11 @@ the standalone expedition writer and legacy-only validators are also now removed
 share the actual game's queue. [Canonical launch custody](reviews/issue-11-launch-custody.md)
 retains original starts/runs and requires a separate initial grant. These are
 provider-free composition proofs, not an SDK mount or live service evidence.
+The [scoped SDK action boundary](reviews/issue-11-scoped-action-host.md) now binds
+earned actor/room/map/cell projections and exact SDK reconciliation to the same
+GameSession queue. Navigation admission is atomic and performs no movement;
+service custody confirmation and continuation remain unimplemented. Pending publication and Stop/start lifetime races
+are fenced. The standalone launch journal and directed-v1 store are now retired.
 Old stores are not yet fully retired. P3 Agentica lifecycle adoption,
 remaining P4 removal and P5 complete qualification remain
 mandatory. This is not Agentica completion.

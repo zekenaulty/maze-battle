@@ -5,6 +5,10 @@ import { executeExplorationCommand } from '../../src/persistence/canonical/game/
 import { prepareGameFloor } from '../../src/persistence/canonical/game/preparation';
 import { loadFloor, loadWorld } from '../../src/persistence/canonical/world/records';
 import { recordGameObservation } from '../../src/persistence/canonical/knowledge/write';
+import { loadObservation } from '../../src/persistence/canonical/knowledge/evidence';
+import { cellKey } from '../../src/persistence/canonical/knowledge/keys';
+import { DIRECTIONS } from '../../src/persistence/canonical/knowledge/types';
+import { opposite } from '../../src/domain/maze/movement';
 import type { WorldPosition } from '../../src/persistence/canonical/world/types';
 import { gameRequest } from '../../src/services/game/canonicalRequests';
 import { storageProbe } from './storage-probe';
@@ -34,10 +38,23 @@ export async function retainFloors(count: number) {
     const { head } = await readCanonicalHead();
     await executeExplorationCommand(gameRequest(head, 'exploration.command', { kind: 'stairs', direction: 'down' }));
   }
-  // Use one common open-room position, off the entrance so alternating keys cannot trigger town.
-  const cell = { ...before.value.first.entry, row: before.value.first.entry.row + 1 };
-  await place({ level: 1, cell });
-  return (await readCanonical(p => loadWorld(p))).value.deepestLevel;
+  // Choose a verified reciprocal edge, not an assumed rectangle next to the entrance.
+  await place({ level: 1, cell: before.value.first.entry });
+  const setup = await readCanonical(async (pages, snapshot) => {
+    const checkpoint = gameCheckpoint(snapshot.checkpoint), source = checkpoint.knowledge!;
+    const sight = await loadObservation(pages, { sequence: source.sequence, id: source.id });
+    const byCell = new Map(sight.cells.map(cell => [cellKey(cell.at), cell]));
+    for (const from of sight.cells) for (const direction of DIRECTIONS) {
+      const at = from.edges[direction], to = at ? byCell.get(cellKey(at)) : undefined;
+      if (!to || from.stairs.length || to.stairs.length || from.at.cell.spaceId !== to.at.cell.spaceId
+        || !to.edges[opposite(direction)] || cellKey(to.edges[opposite(direction)]!) !== cellKey(from.at)) continue;
+      return { at: from.at, direction, floors: (await loadWorld(pages)).deepestLevel };
+    }
+    throw Error('Depth fixture needs an observed reciprocal edge off the stairs');
+  });
+  await place(setup.value.at);
+  const keys = { north: 'ArrowUp', east: 'ArrowRight', south: 'ArrowDown', west: 'ArrowLeft' };
+  return { floors: setup.value.floors, keys: [keys[setup.value.direction], keys[opposite(setup.value.direction)]] };
 }
 
 let active: { finish: () => ReturnType<ReturnType<typeof storageProbe>['finish']>; started: number;

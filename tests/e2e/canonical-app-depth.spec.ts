@@ -5,9 +5,9 @@ async function settled(page: Page) {
   await expect(page.locator('canvas')).not.toHaveAttribute('aria-busy', 'true');
 }
 async function step(page: Page, key: string) {
-  const status = await page.locator('.screen-status').textContent();
+  const position = (await page.locator('.screen-status').textContent())!.split(' - ').at(-1)!.trim();
   await page.keyboard.press(key);
-  await expect(page.locator('.screen-status')).not.toHaveText(status!);
+  await expect.poll(async () => (await page.locator('.screen-status').textContent())!.split(' - ').at(-1)!.trim()).not.toBe(position);
   await settled(page);
 }
 
@@ -20,13 +20,14 @@ test('actual App movement and render I/O stays local with 1, 8 and 16 retained q
   for (const floors of [1, 8, 16]) {
     // Keep GameSession out of setup transactions. No mutation of the user's preview origin.
     await page.goto('/depth-setup');
-    expect(await page.evaluate(async floors => {
+    const fixture = await page.evaluate(async floors => {
       const f = await import('../../tests/e2e/canonical-app-depth.fixture.ts'); return f.retainFloors(floors);
-    }, floors)).toBe(floors);
+    }, floors);
+    expect(fixture.floors).toBe(floors);
     await page.goto('/'); await settled(page);
     // Warm the same two cells before each measurement; no floor-depth-dependent cold-map comparison.
-    await step(page, 'ArrowRight'); await step(page, 'ArrowLeft');
-    for (const key of ['ArrowRight', 'ArrowLeft']) {
+    for (const key of fixture.keys) await step(page, key);
+    for (const key of fixture.keys) {
       await page.evaluate(async () => { const f = await import('../../tests/e2e/canonical-app-depth.fixture.ts'); await f.startProbe(); });
       await step(page, key);
       const sample = await page.evaluate(async () => { const f = await import('../../tests/e2e/canonical-app-depth.fixture.ts'); return f.finishProbe(); });
@@ -39,8 +40,9 @@ test('actual App movement and render I/O stays local with 1, 8 and 16 retained q
       expect(sample.writeBytes).toBeLessThan(180_000);
     }
   }
-  for (const key of ['ArrowRight', 'ArrowLeft']) {
+  for (const key of new Set(samples.map(s => s.key))) {
     const sameKey = samples.filter(s => s.key === key), first = sameKey[0];
+    expect(sameKey).toHaveLength(3);
     for (const sample of sameKey.slice(1)) {
       expect(sample.reads).toBeLessThan(first.reads + 100);
       expect(sample.writeBytes).toBeLessThan(first.writeBytes + 20_000);
