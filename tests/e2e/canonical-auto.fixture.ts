@@ -11,6 +11,8 @@ import { readKnowledgeRoom } from '../../src/persistence/canonical/knowledge/roo
 import { CanonicalPages } from '../../src/persistence/canonical/pages';
 import { request as validateRequest } from '../../src/persistence/canonical/validation';
 import type { CanonicalRequest, CanonicalSnapshot } from '../../src/persistence/canonical/types';
+import { seedAuto } from './canonical-auto.seed';
+import { auditAutoCompletion } from './canonical-auto.audit';
 
 async function enabled(value = true) {
   const { head } = await readCanonicalHead();
@@ -34,7 +36,7 @@ async function read(snapshot?: CanonicalSnapshot) {
 }
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5221') throw Error('Isolated Auto fixture only');
 const replay = (serialized: string) => act(validateRequest(JSON.parse(serialized)));
-const api = { seed, act, replay, enabled, read, readCanonical, readCanonicalHead, executeCanonical, executeAutoCommand, commitAutoCommand,
+const api = { seed, seedAuto, auditAutoCompletion, act, replay, enabled, read, readCanonical, readCanonicalHead, executeCanonical, executeAutoCommand, commitAutoCommand,
   knowledge, roster, worldRequest, nextFloor, prepare, readKnowledgeRoom, readAutoGuild, AUTO_STATE_KEY, CanonicalPages };
 declare global { interface Window { canonicalAuto: typeof api } }
 window.canonicalAuto = api;

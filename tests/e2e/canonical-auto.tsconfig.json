@@ -1,5 +1,6 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": { "types": ["vite/client", "node"] },
-  "include": ["canonical-auto.fixture.ts", "auto*.canonical.spec.ts", "canonical-auto.config.ts"]
+  "include": ["canonical-auto.fixture.ts", "auto*.canonical.spec.ts", "canonical-auto.config.ts",
+    "../../src/persistence/canonical/auto/**/*.test.ts", "../../src/persistence/canonical/knowledge/roomView*.test.ts"]
 }
