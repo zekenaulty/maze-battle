@@ -1,0 +1,1 @@
+{ "extends": "../../tsconfig.json", "include": ["canonical-role-fixture.ts", "canonical-role-fixture.vite.ts", "canonical-roles.spec.ts", "canonical-roles.config.ts"] }
