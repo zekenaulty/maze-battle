@@ -64,3 +64,25 @@ test('hook binding, SDK record and nested action arguments belong to their submi
   const r = await page.evaluate(() => window.actionGuards.capturedInputs());
   expect(r.disposition).toBe('applied'); expect(r.original).toBe(true); expect(r.target).toMatchObject({ target: r.expectedTarget });
 });
+
+for (const race of [false, true]) {
+  test(`changed publication rejects pending save at ${race ? 'transactional insertion race' : 'preflight'}`, async ({ page }) => {
+    const r = await page.evaluate(race => window.actionGuards.changedPublication(race), race);
+    expect(r.different).toBe(true); expect(r.rejected).toContain('original action publication or effect changed');
+    expect(r.submissions).toBe(race ? 1 : 0); expect(r.missed).toBe(race);
+    expect(r.unchanged).toBe(true); expect(r.originalUnchanged).toBe(true); expect(r.publication).toEqual(r.expectedPublication);
+    expect(r.pending).toBe(true); expect(r.operation).toBeNull(); expect(r.destination).toBeNull(); expect(r.retry).toBe('unresolved');
+  });
+}
+
+test('same publication pending replay is harmless and does not mint fresh execution permission', async ({ page }) => {
+  const r = await page.evaluate(() => window.actionGuards.samePublication());
+  expect(r.writes).toBe(0); expect(r.unchanged).toBe(true); expect(r.retry).toBe('unresolved'); expect(r.reconciled).toBeNull();
+  expect(r.completion).toBe('applied'); expect(r.effects).toBe(1);
+});
+
+test('completed P1 result replays through P2 after stop while a P2 pending save remains rejected', async ({ page }) => {
+  const r = await page.evaluate(() => window.actionGuards.completedDifferentPublication());
+  expect(r.different).toBe(true); expect(r.status).toBe('completed'); expect(r.exact).toBe(true);
+  expect(r.writes).toBe(0); expect(r.unchanged).toBe(true); expect(r.pendingRejected).toContain('original action publication or effect changed');
+});

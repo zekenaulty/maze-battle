@@ -2,7 +2,9 @@ import { createGameActionHooks } from '../../src/services/agentica/game/actionHo
 import { actionFingerprint } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { same } from '../../src/persistence/canonical/world/records';
 import { capabilityExpiry } from './canonical-agentica-action-guards.expiry';
+import { changedPublication, samePublication, completedDifferentPublication } from './canonical-agentica-action-guards.publication';
 import { failure, head, key, pending, retained, setup, type Capability } from './canonical-agentica-action-guards.setup';
+export { changedPublication, samePublication, completedDifferentPublication };
 
 export async function invalidated(kind: 'cancel' | 'move', capability: Capability) {
   const c = await setup(capability);
@@ -89,4 +91,5 @@ export async function capturedInputs() {
   } finally { c.session.stop(); }
 }
 
-Object.assign(window, { actionGuards: { invalidated, concurrent, changedFingerprint, completedAfterStop, capturedInputs, capabilityExpiry } });
+Object.assign(window, { actionGuards: { invalidated, concurrent, changedFingerprint, completedAfterStop, capturedInputs, capabilityExpiry,
+  changedPublication, samePublication, completedDifferentPublication } });
