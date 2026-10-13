@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 26 amendment, 2026-10-13: owner issue
+Revision 27 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -22,6 +22,12 @@ P2b now has bounded room-role preparation, and P3a has canonical
 Structural floor qualification and explicit chest/guild quest storage are now
 [checked at the canonical command boundary](reviews/issue-11-content-and-quality.md),
 including exact award provenance and unchanged historical-floor records.
+The subsequent [earned exploration persistence increment](reviews/issue-11-earned-exploration.md)
+checks shared linked sight, paged immutable observations/memory, local movement,
+stair return, accepted visit progress, and exact replay/recovery. Native floor-one
+steps with 1/16 retained floors each write 43 records and about 82 KB of logical
+payload; no historical floor is fetched or rewritten. This is isolated command
+evidence, not physical disk bytes or App-level performance.
 The remaining P2b/P3-P5 gameplay adoption/removal/qualification remains mandatory;
 the preview has not switched writers yet. These are storage
 proofs, not a claim of game-level Agentica completion.

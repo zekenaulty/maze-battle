@@ -1,8 +1,8 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 6,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 7,
 2026-10-13. Status: P0, P1, P2a structural world storage, bounded room-role/quality
-preparation and P3a roster/chest/quest commands checked at their storage boundaries; canonical gameplay
+preparation and P3a roster/chest/quest/local exploration commands checked at their storage boundaries; canonical gameplay
 cutover NOT implemented or qualified. This is the next active engineering slice,
 ahead of further room-map/Agentic Play feature work.
 
@@ -120,6 +120,8 @@ P1b is also checked at the storage boundary:
 partial; [room-role preparation and P3a roster commands](reviews/issue-11-roster-and-roles.md)
 now reuse actual domain rules through canonical records. The next checked increment
 adds [floor qualification and explicit chest/quest persistence](reviews/issue-11-content-and-quality.md).
+The next increment adds [earned observation, memory and local exploration](reviews/issue-11-earned-exploration.md)
+with native per-step cost/recovery evidence independent of retained floor count.
 Full P3 cutover and
 P4-P5 remain unimplemented/unqualified. These storage tests do not change ordinary-game
 movement payload scaling or qualify actual Agentica consumers yet.
@@ -153,8 +155,13 @@ P1 storage contracts are split as follows:
   and accepted quests; explicit accept/open/claim commands and local visit progress.
   Item ownership, award provenance, quest progress, gold and original receipt commit
   atomically. These commands do not accept or loot merely because the actor moves.
-- **P2b/P3, next:** encounter/mandatory movement effects and earned render/knowledge
-  residency, then actual-game adoption of roster, content and navigation commands.
+- **P2b/P3 knowledge and local exploration, checked:** bounded shared linked sight,
+  immutable source chunks, independently paged remembered cells and known rooms,
+  local move/stair/accepted-visit commands, and atomic observation of explicit
+  chest effects. Cropped coverage retains earned edges; unchanged memory blocks
+  are not rewritten. Source/namespace identities are pinned by the compact head.
+- **P3, next:** actual-game resident/session/render adoption of roster, content,
+  knowledge and navigation commands, with combat disabled for this vertical.
   Adopt these commands in GameSession, manual checkpoints and Agentica execution.
   The structural stair resolver and isolated roster facade are not App adoption.
   Wire the new opener only at that coherent cutover; do not add a second playable
@@ -206,6 +213,15 @@ Transaction-local immutable node/record caches avoid repeatedly fetching the sam
 radix branches for a valid large pack. They are bounded by the transaction's native
 read/byte allowance, never shared between transactions, and never republished as
 changed world data.
+
+Earned observations live under `perception/observation/<sequence>` in knowledge,
+with at most eight sixteen-cell chunks per radius-seven receipt. Remembered 4x4
+blocks and first-observed room membership use independent `perception/cell/` and
+`perception/room/` records. The game checkpoint pins their primary namespace plus
+the latest source ID/sequence. Detail queries read 1-64 requested cells; room
+queries page at most sixteen observed identities. Neither reads world truth.
+Complete bounded sight receipts still grow per action under the enforced quota;
+unchanged remembered blocks do not. This is not infinite retention or compaction.
 
 Normal command admission stops before the logical reserve. A host-only Stop or
 takeover fences the old epoch and enters `stopped`; repeated emergency actions
