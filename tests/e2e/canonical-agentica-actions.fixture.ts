@@ -7,6 +7,7 @@ import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
 import { readCanonical, readCanonicalHead } from '../../src/persistence/canonical/read';
 import { readDestination } from '../../src/persistence/canonical/navigation/commands';
 import { bytes, earnedTargets, fundLaunch, startGame } from './canonical-agentica-actions.setup';
+import * as lifetime from './canonical-agentica-actions.lifetime';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5236') throw Error('Isolated action fixture origin required');
 
@@ -72,7 +73,7 @@ async function reserve(action: AgenticaAction) {
   await hooks!.saveAction!(actionKey(action), { fingerprint: actionFingerprint(action), status: 'pending' });
   return retained(action);
 }
-const api = { boot, resume, action, dispatch, retained, reserve, bytes,
+const api = { boot, resume, action, dispatch, retained, reserve, bytes, lifetime,
   async head() { return (await readCanonicalHead()).head; },
   async destination(id: string) { return (await readDestination(id)).value; },
   async launch() { return (await readLaunch()).value; },
