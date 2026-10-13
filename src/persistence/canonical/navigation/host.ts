@@ -5,7 +5,7 @@ import type { CanonicalPages } from '../pages';
 import { fields } from '../roster/codec';
 import type { CanonicalWork } from '../transaction';
 import type { CanonicalHead, CanonicalOperation, CanonicalRecord, CanonicalRequest, GameIdentity, Json } from '../types';
-import { check, isObject, jsonBytes, record, recordKey, result as validateResult, validId } from '../validation';
+import { check, isObject, jsonBytes, record, recordKey, request as validateRequest, result as validateResult, validId } from '../validation';
 import { json, same } from '../world/records';
 import type { DestinationProgress } from './types';
 
@@ -51,6 +51,8 @@ export async function prepareNavigationHost(tx: CanonicalWork, operation: Canoni
   if (!hooks) return async (data: NavigationCommitData) => data.result;
   check(typeof hooks.prepare === 'function' && typeof hooks.commit === 'function', 'invalid navigation host hooks');
   const { prepare, commit } = hooks;
+  jsonBytes(operation); operation = structuredClone(operation); request = validateRequest(request);
+  jsonBytes(tx.head); const head = structuredClone(tx.head);
   let phase: 'prepare' | 'work' | 'commit' | 'closed' = 'prepare', pending = 0, failed = false;
   const appended = new Map<string, NavigationRecordRef>();
   const access = async <T>(work: () => Promise<T>): Promise<T> => {
@@ -60,7 +62,7 @@ export async function prepareNavigationHost(tx: CanonicalWork, operation: Canoni
     finally { pending--; }
   };
   const knowledge = (area: string) => check(area === 'knowledge', 'navigation host cannot read hidden world');
-  const metadata = () => structuredClone({ head: tx.head, request, operation,
+  const metadata = () => structuredClone({ head, request, operation,
     receiptRef: navigationReceiptRef({ ...request.expected, attemptId: request.attemptId }) });
   const readers = {
     getExecution: (key: string) => access(() => tx.pages.get('execution', key)),
@@ -77,8 +79,10 @@ export async function prepareNavigationHost(tx: CanonicalWork, operation: Canoni
   phase = 'work'; check(!failed && pending === 0, 'navigation host work is not usable');
   return async (data: NavigationCommitData): Promise<Json> => {
     check(phase === 'work' && !failed && pending === 0, 'navigation host work is not usable'); phase = 'commit';
+    jsonBytes(data); data = structuredClone(data);
     const appendExecution = (key: string, value: Json) => access(async () => {
       recordKey(key); check(!key.startsWith('navigation/') && appended.size < 8, 'invalid navigation host record');
+      jsonBytes(value); value = structuredClone(value);
       check(!await tx.pages.get('execution', key), 'navigation host record already exists');
       const row = await tx.pages.set('execution', key, value);
       const ref = navigationRecordRef(row, request.attemptId);

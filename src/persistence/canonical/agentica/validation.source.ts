@@ -4,19 +4,22 @@ import type { CanonicalRequest, JsonObject } from '../types';
 import { fields } from '../roster/codec';
 import { navigationRecordRef } from '../navigation/host';
 import { check, isObject, jsonBytes, request as validateRequest, sameFence } from '../validation';
-import { equal, reference } from './validation';
+import { equal, snapshotJson, snapshotReference } from './validation';
 import { MAX_PROOF_BYTES, MAX_SOURCE_REQUEST_BYTES } from './types';
 import type { ProtocolRead, ProtocolRef, ProtocolSource, ProtocolWrite } from './types';
 
+export function snapshotRequest(input: CanonicalRequest): CanonicalRequest {
+  jsonBytes(input, MAX_SOURCE_REQUEST_BYTES); return validateRequest(input);
+}
 export function source(tx: Pick<CanonicalWork, 'head'>, input: CanonicalRequest, kind: ProtocolSource['kind']): ProtocolSource {
-  jsonBytes(input, MAX_SOURCE_REQUEST_BYTES); const request = validateRequest(input);
+  const request = snapshotRequest(input);
   check(tx.head.status === 'ready' && sameFence(request.expected, canonicalFence(tx.head)), 'Agentica writer custody changed');
   return { schema: 1, kind, sourceAttemptId: request.attemptId, sourceRequest: request, owner: tx.head.owner, epoch: tx.head.epoch };
 }
 
 /** Kernel readers own receipt/fence validation; this layer checks only protocol-specific bindings. */
 export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: ProtocolSource['kind'], extra: string) {
-  reference(ref);
+  ref = snapshotReference(ref);
   let record, original;
   if (kind === 'agentica-publication') {
     ({ record, source: original } = await pages.savedSnapshot(ref.key));
@@ -44,6 +47,7 @@ export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: Pr
 }
 
 export async function writeSource(tx: CanonicalWork, key: string, value: ProtocolSource): Promise<ProtocolWrite> {
+  value = snapshotJson(value);
   check(!await tx.pages.get('execution', key), 'Agentica source is immutable');
   const row = await tx.pages.set('execution', key, value as unknown as JsonObject), ref = { key, id: row.id };
   // Snapshot restoration and ordinary record provenance use their respective kernel contracts.

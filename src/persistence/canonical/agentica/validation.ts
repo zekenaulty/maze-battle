@@ -27,9 +27,22 @@ export async function prepareAction(value: AgenticaAction): Promise<PreparedActi
   prepared.set(identity, canonicalJson(identity)); return identity;
 }
 export function validatePrepared(value: PreparedAction) {
-  check(prepared.has(value) && prepared.get(value) === canonicalJson(value), 'prepare the exact original action before the transaction');
+  check(prepared.has(value), 'prepare the exact original action before the transaction');
+  jsonBytes(value, 4 * MAX_ACTION_BYTES);
+  check(prepared.get(value) === canonicalJson(value), 'prepare the exact original action before the transaction');
+}
+/** Own the validated wire input before yielding; readonly does not protect nested arguments. */
+export function snapshotPrepared(value: PreparedAction): PreparedAction {
+  validatePrepared(value);
+  const copy = structuredClone(value); prepared.set(copy, prepared.get(value)!); return copy;
+}
+export function snapshotJson<T>(value: T, max?: number): T {
+  jsonBytes(value, max); return structuredClone(value);
 }
 export function reference(value: unknown): asserts value is ProtocolRef {
   jsonBytes(value, 1024); const ref = fields(value, 'key id'); recordKey(ref.key as string);
   check(validId(ref.id) && (ref.key as string).startsWith('agentica/'), 'invalid Agentica record reference');
+}
+export function snapshotReference(value: ProtocolRef): ProtocolRef {
+  reference(value); return structuredClone(value);
 }

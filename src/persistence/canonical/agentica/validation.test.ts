@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { actionFingerprint, actionKey } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { MAX_ACTION_BYTES, MAX_RESULT_BYTES } from './types';
-import { prepareAction, validateAction, validatePrepared } from './validation';
+import { prepareAction, snapshotPrepared, validateAction, validatePrepared } from './validation';
 import { validateResult } from './validation.result';
 import { protocolAction, protocolResult } from './types.test-support';
 
@@ -34,6 +34,15 @@ describe('exact SDK action identities', () => {
     expect(() => validatePrepared({ ...prepared })).toThrow('prepare');
     expect(() => validatePrepared({ ...prepared, storageKey: 'agentica/actions/collision' })).toThrow('prepare');
     prepared.action.arguments.row = 0; expect(() => validatePrepared(prepared)).toThrow('prepare');
+  });
+  it('owns a revalidated copy and rejects accessor mutation without invoking the accessor', async () => {
+    const prepared = await prepareAction(protocolAction()), copy = snapshotPrepared(prepared);
+    prepared.action.arguments.row = 999;
+    expect(copy.action.arguments.row).toBe(-5); expect(() => validatePrepared(copy)).not.toThrow();
+    expect(() => snapshotPrepared(prepared)).toThrow('prepare');
+    let reads = 0;
+    Object.defineProperty(prepared.action.arguments, 'row', { get: () => { reads++; return -5; }, enumerable: true });
+    expect(() => snapshotPrepared(prepared)).toThrow(); expect(reads).toBe(0);
   });
   it('rejects accessors without invoking them, hidden fields, cycles and oversized inputs', () => {
     let reads = 0; const accessor = { ...protocolAction() };

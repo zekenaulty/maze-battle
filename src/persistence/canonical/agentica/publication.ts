@@ -4,7 +4,7 @@ import { gameCheckpoint } from '../game/checkpoint';
 import { validateKnowledge } from '../knowledge/evidence';
 import { knowledgeAnchor } from '../knowledge/validation';
 import { check, validId } from '../validation';
-import { equal } from './validation';
+import { equal, snapshotJson, snapshotReference } from './validation';
 import { readSource, source, writeSource } from './validation.source';
 import type { ProtocolRead, ProtocolRef, Publication } from './types';
 
@@ -12,15 +12,16 @@ const key = (attempt: string) => { check(validId(attempt), 'invalid publication 
 
 /** Return receipt fields with the caller's other outcome fields; one source anchor per transaction. */
 export async function retainPublication(tx: CanonicalWork, request: CanonicalRequest) {
-  const anchor = source(tx, request, 'agentica-publication'), checkpoint = gameCheckpoint(tx.head.checkpoint);
+  const head = snapshotJson(tx.head), anchor = source({ head }, request, 'agentica-publication'), checkpoint = gameCheckpoint(head.checkpoint);
+  const { generation, gameId, revision, roots } = head;
+  const snapshot = structuredClone({ generation, gameId, revision, roots: { world: roots.world, knowledge: roots.knowledge }, checkpoint: head.checkpoint });
   await validateKnowledge(tx.pages, checkpoint.knowledge);
-  const { generation, gameId, revision, roots } = tx.head;
-  const snapshot = structuredClone({ generation, gameId, revision, roots: { world: roots.world, knowledge: roots.knowledge }, checkpoint: tx.head.checkpoint });
   const publication: Publication = { ...anchor, kind: 'agentica-publication', snapshot, wireRevision: revision, observation: checkpoint.knowledge };
-  return writeSource(tx, key(request.attemptId), publication);
+  return writeSource(tx, key(anchor.sourceAttemptId), publication);
 }
 /** Missing or malformed referenced sources throw; they are never interpreted as an absent publication. */
 export async function readPublication(pages: ProtocolRead, ref: ProtocolRef): Promise<Publication> {
+  ref = snapshotReference(ref);
   const value = await readSource(pages, ref, 'agentica-publication', 'snapshot wireRevision observation') as Publication;
   check(ref.key === key(value.sourceAttemptId) && value.wireRevision === value.snapshot.revision, 'publication identity changed');
   knowledgeAnchor(value.observation);

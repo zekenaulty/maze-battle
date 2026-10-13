@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
-import { canonicalFence } from '../transaction';
+import { canonicalFence, type CanonicalWork } from '../transaction';
 import type { CanonicalRecord, CanonicalRequest, JsonObject } from '../types';
 import { protocolHead } from './types.test-support';
 import type { ProtocolRead } from './types';
-import { readSource, source } from './validation.source';
+import { readSource, source, writeSource } from './validation.source';
 
 function fixture() {
   const head = protocolHead(), request: CanonicalRequest = { attemptId: 'source', operation: 'fixture.action',
@@ -31,6 +31,21 @@ describe('canonical source-receipt reuse', () => {
   it('propagates kernel source failures rather than manufacturing an absent or valid original', async () => {
     const f = fixture(); f.sourceReceipt.mockRejectedValueOnce(Error('malformed original receipt'));
     await expect(readSource(f.pages, f.ref, 'agentica-action', '')).rejects.toThrow('malformed original receipt');
+  });
+  it('snapshots references before source receipt work', async () => {
+    const f = fixture(), ref = { ...f.ref }, work = readSource(f.pages, ref, 'agentica-action', '');
+    ref.id = 'changed'; ref.key = 'agentica/actions/changed';
+    expect(await work).toEqual(f.value);
+  });
+  it('snapshots the source body before the append-only existence check', async () => {
+    const f = fixture(), expected = structuredClone(f.value);
+    const set = vi.fn(async (_area, _key, value) => ({ ...f.record, value }));
+    const tx = { pages: { get: async () => undefined, set } } as unknown as CanonicalWork;
+    const work = writeSource(tx, f.ref.key, f.value);
+    (f.value.sourceRequest.input as JsonObject).exact = 'changed';
+    const result = await work;
+    expect(set).toHaveBeenCalledWith('execution', f.ref.key, expected);
+    expect(result.receipt.recordWitness).toBe(canonicalJson({ ...f.record, value: expected }));
   });
   it.each(['witness', 'id', 'revision', 'reference', 'request'])('checks protocol %s after kernel source validation', async changed => {
     const f = fixture();

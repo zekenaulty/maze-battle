@@ -5,12 +5,14 @@ import { check, jsonBytes } from '../validation';
 import { loadOriginalAction } from './actions.original';
 import { actionResultWrite } from './actions.result';
 import { assertPublicationCurrent } from './publication';
-import { equal } from './validation';
-import { MAX_PROOF_BYTES, type PreparedAction, type ProtocolRead } from './types';
+import { equal, snapshotJson, snapshotPrepared } from './validation';
+import { snapshotRequest } from './validation.source';
+import { MAX_PROOF_BYTES, MAX_RESULT_BYTES, type PreparedAction, type ProtocolRead } from './types';
 
 function reader(view: NavigationPreparation): ProtocolRead {
-  return { get: (area, key) => { check(area === 'execution', 'action reader cannot read hidden world'); return view.getExecution(key); },
-    savedSnapshot: key => view.savedSnapshot(key), sourceReceipt: id => view.sourceReceipt(id) };
+  const { getExecution, savedSnapshot, sourceReceipt } = view;
+  return { get: (area, key) => { check(area === 'execution', 'action reader cannot read hidden world'); return getExecution(key); },
+    savedSnapshot, sourceReceipt };
 }
 
 /**
@@ -19,23 +21,29 @@ function reader(view: NavigationPreparation): ProtocolRead {
  */
 export function navigationActionHooks(identity: PreparedAction,
   resultFor: (view: NavigationCommit) => AgenticaResult | Promise<AgenticaResult>): NavigationHostHooks {
+  identity = snapshotPrepared(identity);
   let prepared: CanonicalRequest | undefined;
   return {
     async prepare(view) {
       prepared = undefined;
+      const head = snapshotJson(view.head), request = snapshotRequest(view.request);
       const pages = reader(view), pending = await loadOriginalAction(pages, identity);
       check(pending && pending.original.effect === 'writesLocalState', 'navigation needs an original writable action');
-      assertPublicationCurrent(pending.publication, view.head);
+      assertPublicationCurrent(pending.publication, head);
       check(!await pages.get('execution', `${identity.storageKey}/result`), 'action already has a result; reconcile original');
-      prepared = structuredClone(view.request);
+      prepared = request;
     },
     async commit(view) {
-      check(prepared && equal(prepared, view.request), 'navigation action was not prepared'); prepared = undefined;
-      const write = await actionResultWrite(reader(view), view.head, view.request, identity, await resultFor(view), 'navigation');
+      const head = snapshotJson(view.head), request = snapshotRequest(view.request), operationId = view.operation.id;
+      const pages = reader(view), appendExecution = view.appendExecution;
+      check(prepared && equal(prepared, request), 'navigation action was not prepared'); prepared = undefined;
+      // Synchronous builders transfer their result now, not after an unnecessary await.
+      const candidate = resultFor(view), input = snapshotJson(candidate instanceof Promise ? await candidate : candidate, MAX_RESULT_BYTES);
+      const write = await actionResultWrite(pages, head, request, identity, input, 'navigation');
       check(!('existing' in write), 'action already has a result; reconcile original');
-      check(write.value.result.disposition === 'applied' && write.value.result.operation?.operationId === view.operation.id
-        && write.value.result.afterRevision === view.head.revision + 1, 'navigation result must bind this operation commit');
-      const actionResult = await view.appendExecution(write.key, write.value as unknown as JsonObject);
+      check(write.value.result.disposition === 'applied' && write.value.result.operation?.operationId === operationId
+        && write.value.result.afterRevision === head.revision + 1, 'navigation result must bind this operation commit');
+      const actionResult = await appendExecution(write.key, write.value as unknown as JsonObject);
       jsonBytes(actionResult, MAX_PROOF_BYTES); return { actionResult };
     },
   };

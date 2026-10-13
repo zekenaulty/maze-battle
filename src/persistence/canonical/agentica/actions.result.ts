@@ -4,13 +4,15 @@ import type { CanonicalHead, CanonicalRequest } from '../types';
 import { check, isObject } from '../validation';
 import { assertPublicationCurrent } from './publication';
 import { loadOriginalAction } from './actions.original';
-import { equal } from './validation';
-import { readSource, source, writeSource } from './validation.source';
+import { equal, snapshotJson, snapshotPrepared, snapshotReference } from './validation';
+import { readSource, snapshotRequest, source, writeSource } from './validation.source';
 import { validateResult } from './validation.result';
 import type { ActionResult, PreparedAction, ProtocolRead, ProtocolRef, ProtocolWrite } from './types';
+import { MAX_RESULT_BYTES } from './types';
 
 /** Missing result references throw. Only discovery of an as-yet-unwritten result may return null. */
 export async function readActionResult(pages: ProtocolRead, identity: PreparedAction, ref: ProtocolRef): Promise<AgenticaResult> {
+  identity = snapshotPrepared(identity); ref = snapshotReference(ref);
   const pending = await loadOriginalAction(pages, identity); check(pending, 'missing original action');
   check(ref.key === `${identity.storageKey}/result`, 'result reference belongs to another action');
   const stored = await readSource(pages, ref, 'agentica-result', 'proof original result') as ActionResult;
@@ -30,6 +32,9 @@ export async function readActionResult(pages: ProtocolRead, identity: PreparedAc
 export async function actionResultWrite(pages: ProtocolRead, head: CanonicalHead, request: CanonicalRequest,
   identity: PreparedAction, input: AgenticaResult, proof: ActionResult['proof'] = 'standalone'):
   Promise<{ key: string; value: ActionResult } | { existing: ProtocolRef }> {
+  identity = snapshotPrepared(identity); input = snapshotJson(input, MAX_RESULT_BYTES);
+  head = snapshotJson(head); request = snapshotRequest(request);
+  check(proof === 'standalone' || proof === 'navigation', 'invalid action proof format');
   const pending = await loadOriginalAction(pages, identity); check(pending, 'missing original action');
   const result = validateResult(input, identity.action, pending.original.effect), key = `${identity.storageKey}/result`;
   const previous = await pages.get('execution', key);

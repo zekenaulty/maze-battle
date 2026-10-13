@@ -1,13 +1,16 @@
 import { check } from '../validation';
 import { readPublication } from './publication';
-import { equal, reference, validateAction, validatePrepared } from './validation';
+import { equal, reference, snapshotPrepared, validateAction } from './validation';
 import { readSource } from './validation.source';
 import type { PendingAction, PreparedAction, ProtocolRead } from './types';
 
 export async function loadOriginalAction(pages: ProtocolRead, identity: PreparedAction) {
-  validatePrepared(identity);
+  identity = snapshotPrepared(identity);
   const row = await pages.get('execution', identity.storageKey);
-  if (!row) return null;
+  if (!row) {
+    check(!await pages.get('execution', `${identity.storageKey}/result`), 'retained result without original action');
+    return null;
+  }
   const ref = { key: identity.storageKey, id: row.id };
   const pending = await readSource(pages, ref, 'agentica-action', 'key fingerprint action publication effect') as PendingAction;
   check(pending.key === identity.key && pending.fingerprint === identity.fingerprint, 'action key collision or original input changed');
