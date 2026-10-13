@@ -1,16 +1,12 @@
 import type { GridPosition, MazeState } from '../types';
 import { cellKey } from './key';
+import { linkedVision } from './linkedVision';
 import { mazeCellAt, movePosition } from './movement';
 
 export interface MazeVisibilitySnapshot {
   radius: number;
   visible: Set<string>;
   explored: Set<string>;
-}
-
-interface VisibilityNode {
-  distance: number;
-  position: GridPosition;
 }
 
 export const DEFAULT_VISION_RADIUS = 7;
@@ -41,29 +37,12 @@ export function revealMazeVisibility(maze: MazeState, radius = maze.visibility?.
 }
 
 export function computeVisibleCells(maze: MazeState, origin: GridPosition = maze.active, radius = DEFAULT_VISION_RADIUS): GridPosition[] {
-  const queue: VisibilityNode[] = [{ position: origin, distance: 0 }];
-  const visited = new Set([cellKey(origin)]);
-
-  for (let index = 0; index < queue.length; index++) {
-    const current = queue[index];
-    if (current.distance >= radius) {
-      continue;
-    }
-
-    const cell = mazeCellAt(maze, current.position);
-    for (const direction of cell?.links ?? []) {
-      const next = movePosition(current.position, direction);
-      const key = cellKey(next);
-      if (visited.has(key) || !mazeCellAt(maze, next)) {
-        continue;
-      }
-
-      visited.add(key);
-      queue.push({ position: next, distance: current.distance + 1 });
-    }
-  }
-
-  return visiblePositions(visited);
+  return linkedVision(origin, radius, cellKey, (position) => {
+    const cell = mazeCellAt(maze, position);
+    return (cell?.links ?? [])
+      .map(direction => movePosition(position, direction))
+      .filter(next => Boolean(mazeCellAt(maze, next)));
+  }).map(({ row, column }) => ({ row, column }));
 }
 
 export function isCellVisible(visibility: MazeVisibilitySnapshot | undefined, position: GridPosition) {

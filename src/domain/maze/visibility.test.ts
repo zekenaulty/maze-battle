@@ -31,6 +31,30 @@ describe('maze visibility', () => {
     expect(snapshot.explored.has('0:0')).toBe(true);
     expect(snapshot.visible.has('0:2')).toBe(true);
   });
+
+  it('preserves link order, blocks walls, and ignores links to missing cells', () => {
+    const maze = makeMaze();
+    maze.cells[0].links = ['south', 'east', 'north', 'east'];
+    maze.cells[3].links = ['north', 'east'];
+    maze.cells = maze.cells.filter(cell => cellKey(cell) !== '1:1');
+
+    expect(computeVisibleCells(maze, maze.active, 2).map(cellKey)).toEqual(['0:0', '1:0', '0:1', '0:2']);
+    expect(computeVisibleCells(maze, maze.active, 3).map(cellKey)).toEqual(['0:0', '1:0', '0:1', '0:2', '1:2']);
+    expect(computeVisibleCells(makeMaze(), { row: 1, column: 0 }, 16)).toEqual([{ row: 1, column: 0 }]);
+  });
+
+  it('returns the origin without reading topology at radius zero', () => {
+    const maze = makeMaze();
+    Object.defineProperty(maze, 'cells', { get() { throw new Error('Unexpected topology read'); } });
+    const visible = computeVisibleCells(maze, maze.active, 0);
+
+    expect(visible).toEqual([maze.active]);
+    expect(visible[0]).not.toBe(maze.active);
+  });
+
+  it('preserves an absent origin without discovering unrelated cells', () => {
+    expect(computeVisibleCells(makeMaze(), { row: 10, column: 10 }, 2)).toEqual([{ row: 10, column: 10 }]);
+  });
 });
 
 function makeMaze(): MazeState {
