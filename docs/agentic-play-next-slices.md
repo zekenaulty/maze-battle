@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 25 amendment, 2026-10-13: owner issue
+Revision 26 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -19,6 +19,9 @@ and independent allocation anchors. P2a now has checked [structural world storag
 with incremental generation, independently stored rooms and reciprocal traversal.
 P2b now has bounded room-role preparation, and P3a has canonical
 [roster/portal commands using the shared game rules](reviews/issue-11-roster-and-roles.md).
+Structural floor qualification and explicit chest/guild quest storage are now
+[checked at the canonical command boundary](reviews/issue-11-content-and-quality.md),
+including exact award provenance and unchanged historical-floor records.
 The remaining P2b/P3-P5 gameplay adoption/removal/qualification remains mandatory;
 the preview has not switched writers yet. These are storage
 proofs, not a claim of game-level Agentica completion.

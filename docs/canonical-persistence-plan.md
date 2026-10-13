@@ -1,8 +1,8 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 5,
-2026-10-13. Status: P0, P1, P2a structural world storage, bounded room-role
-preparation and P3a roster commands checked at their storage boundaries; canonical gameplay
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 6,
+2026-10-13. Status: P0, P1, P2a structural world storage, bounded room-role/quality
+preparation and P3a roster/chest/quest commands checked at their storage boundaries; canonical gameplay
 cutover NOT implemented or qualified. This is the next active engineering slice,
 ahead of further room-map/Agentic Play feature work.
 
@@ -118,7 +118,9 @@ P1b is also checked at the storage boundary:
 [operation-capacity evidence](reviews/issue-11-operation-capacity.md). P2a now has
 [bounded structural world evidence](reviews/issue-11-world-residency.md). P2 is
 partial; [room-role preparation and P3a roster commands](reviews/issue-11-roster-and-roles.md)
-now reuse actual domain rules through canonical records. Full P3 cutover and
+now reuse actual domain rules through canonical records. The next checked increment
+adds [floor qualification and explicit chest/quest persistence](reviews/issue-11-content-and-quality.md).
+Full P3 cutover and
 P4-P5 remain unimplemented/unqualified. These storage tests do not change ordinary-game
 movement payload scaling or qualify actual Agentica consumers yet.
 
@@ -145,8 +147,14 @@ P1 storage contracts are split as follows:
   records; actual equip, trade, supply, explicit town care and shared portal
   commands with atomic receipts. Worn items have actor ownership and no pack-slot
   charge. No unchanged item/actor or historical floor is rewritten.
-- **P2b/P3, next:** complete incremental floor qualification, chest/encounter and
-  quest content, mandatory movement effects and earned render/knowledge residency.
+- **P2b/P3a content boundary, checked:** shared D1 structural criteria reduced in
+  four-room batches, exact topology/scratch namespace witnesses, and two-room
+  content-preparation batches. Independently stored chests, posted guild contracts
+  and accepted quests; explicit accept/open/claim commands and local visit progress.
+  Item ownership, award provenance, quest progress, gold and original receipt commit
+  atomically. These commands do not accept or loot merely because the actor moves.
+- **P2b/P3, next:** encounter/mandatory movement effects and earned render/knowledge
+  residency, then actual-game adoption of roster, content and navigation commands.
   Adopt these commands in GameSession, manual checkpoints and Agentica execution.
   The structural stair resolver and isolated roster facade are not App adoption.
   Wire the new opener only at that coherent cutover; do not add a second playable
@@ -175,6 +183,29 @@ bounded preparation progress. Roster keys and current limits are in the
 uses snapshot-specific indexes and stable insertion order; those indexes must
 resolve to the same primary record version. Item effects reuse the actual domain
 reducers on a bounded projection, never a fake maze or old-save conversion.
+
+Floor qualification lives under `dungeon/<level>/quality` with bounded progress
+and separately addressed per-room reductions. A primary radix-prefix witness pins
+the immutable space/ports/join/connection namespaces and current scratch namespace.
+Changing any of those records invalidates the proof; unrelated item, content or
+other-floor writes do not. This is copy-on-write record identity, not a new
+cryptographic disk-integrity claim. Scratch costs O(rooms), retained under the same
+explicit logical quota; no pruning/replay-source deletion is introduced.
+
+Pinned room content uses `dungeon/<level>/content/<spaceId>` plus a compact
+preparation cursor and `dungeon/<level>/chest/<chestId>`. Each treasure room has
+one cache on its walkable center. The new module content policy does not reconstruct
+the old full-grid scatter pass. Guild templates/rewards and ordinary loot generation
+are shared with the actual game. `contract/<id>` records posted offers and explicit
+acceptance; `quest/<id>` stores progress, claim state and award-source identity.
+Indexes bound queries by floor/status/target. An opened cache no longer offers a
+new fetch quest. Posted engine metadata is NOT an earned observation or a provider
+capability. A separate disclosure projection is still required at P3 adoption.
+
+Transaction-local immutable node/record caches avoid repeatedly fetching the same
+radix branches for a valid large pack. They are bounded by the transaction's native
+read/byte allowance, never shared between transactions, and never republished as
+changed world data.
 
 Normal command admission stops before the logical reserve. A host-only Stop or
 takeover fences the old epoch and enters `stopped`; repeated emergency actions
