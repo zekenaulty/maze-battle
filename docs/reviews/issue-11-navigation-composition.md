@@ -33,7 +33,7 @@ reservation and live-owner/epoch validation. Admission does not settle navigatio
 4. Navigation includes those refs in `receipt.result.host`. Movement, observation,
    progress, host records, operation ledger changes, and the receipt commit together.
 
-Both hooks expose `getExecution`, `sourceReceipt`, `liveOperation`, and a
+Both hooks expose `getExecution`, `savedSnapshot`, `sourceReceipt`, `liveOperation`, and a
 knowledge-only `KnowledgeRead` facade. No world writes, hidden-world reads,
 checkpoint setter, restore, raw database, or independent transaction is exposed.
 Hooks may await only transaction work, never timers/network/provider operations.
@@ -44,7 +44,9 @@ the validated admitted row; `request` names the proposed settlement disposition.
 Append is create-only, has no indexes, and rejects the navigation namespace.
 At most eight records may be appended per hook, under existing record/work/quota
 bounds. Return refs must exactly match records appended by THIS hook invocation:
-`{ key, recordId, revision, sourceAttemptId }`. The enclosing receipt supplies
+`{ key, recordId, revision, sourceAttemptId, recordWitness }`. The witness binds
+the full immutable record body; each reference is capped at 12 KiB and the whole
+receipt retains the existing 16 KiB bound. The enclosing receipt supplies
 generation/game identity. Auxiliary chunks may be linked from those root records.
 The hook cannot return fabricated or earlier records as newly committed effects.
 
@@ -106,3 +108,7 @@ command and TypeScript commands in [the navigation report](issue-11-canonical-na
 This does not qualify SDK start/wake ambiguity, parked decisions, delivery/ACK,
 provider usage accounting, protocol digest validation, or application recovery.
 Parent retains Auto/integration ownership; no incomplete client is mounted.
+
+The later [canonical action-binding increment](issue-11-agentica-records.md)
+adds guarded snapshot reads and record witnesses to this API. The 56 native
+navigation cases pass again after that extension and the mutable-input repairs.

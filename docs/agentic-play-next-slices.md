@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 29 amendment, 2026-10-13: owner issue
+Revision 30 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -39,8 +39,15 @@ policy on those same commands. Earned exploration, explicit chest/guild/town car
 manual interruption, reload/takeover and batchwise floor preparation are checked.
 Combat stays disabled; Auto stops honestly at remaining hostile contracts.
 Agentica remains unavailable pending canonical protocol adoption, informed by
-the [source audit](reviews/issue-11-agentica-adoption-audit.md). P3 Agentica adoption,
-P4 removal of retired modules/databases and P5 complete qualification remain
+the [source audit](reviews/issue-11-agentica-adoption-audit.md). The canonical
+[retained navigation](reviews/issue-11-navigation-composition.md) and
+[publication/action binding](reviews/issue-11-agentica-records.md) now pass native
+proofs without mounting an incomplete SDK client. Three independent integrity
+findings are repaired. [Actual-App depth tests](reviews/issue-11-app-depth.md)
+include GameSession publication and map reads through 16 retained qualified
+floors. P4 has [removed unmounted preview UI and extracted shared occupancy](reviews/issue-11-p4-retirement-map.md);
+old stores are not yet fully retired. P3 Agentica lifecycle adoption,
+remaining P4 removal and P5 complete qualification remain
 mandatory. This is not Agentica completion.
 
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared

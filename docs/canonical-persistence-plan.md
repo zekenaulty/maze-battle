@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 9,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 10,
 2026-10-13. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -8,7 +8,15 @@ routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cuto
 P3 Auto now uses that same playable App and canonical commands, with earned
 waypoints, explicit collection/guild/care policy, interruption and bounded floor
 preparation. [Auto integration evidence](reviews/issue-11-auto-cutover.md).
-Canonical Agentica adoption, P4 dead-code/database removal and P5 final
+Retained known-destination execution and atomic host hooks are checked separately
+from the unmounted Agentica client. [Navigation proof](reviews/issue-11-navigation-composition.md).
+Actual-App depth-local movement is now measured through 16 retained qualified
+floors. [Method and limitations](reviews/issue-11-app-depth.md).
+P4 has removed disconnected preview UI and stale route suites; the
+[retirement map](reviews/issue-11-p4-retirement-map.md) identifies remaining writers.
+Canonical publication/action results now compose atomically with that navigation,
+including reviewed corruption/mutation fixes. [Binding evidence and next integration](reviews/issue-11-agentica-records.md).
+The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
 
@@ -129,9 +137,10 @@ now reuse actual domain rules through canonical records. The next checked increm
 adds [floor qualification and explicit chest/quest persistence](reviews/issue-11-content-and-quality.md).
 The next increment adds [earned observation, memory and local exploration](reviews/issue-11-earned-exploration.md)
 with native per-step cost/recovery evidence independent of retained floor count.
-Full P3 cutover and
-P4-P5 remain unimplemented/unqualified. These storage tests do not change ordinary-game
-movement payload scaling or qualify actual Agentica consumers yet.
+P3 manual and Auto now run in the actual App, including named saves and recovery.
+The actual-App native depth test includes session publication and map reads, not
+only isolated storage callbacks. P3 Agentica lifecycle, remaining P4 writers and
+full P5 qualification remain open; no canonical live-provider claim is made.
 
 P1 storage contracts are split as follows:
 
@@ -167,17 +176,27 @@ P1 storage contracts are split as follows:
   local move/stair/accepted-visit commands, and atomic observation of explicit
   chest effects. Cropped coverage retains earned edges; unchanged memory blocks
   are not rewritten. Source/namespace identities are pinned by the compact head.
-- **P3, next:** actual-game resident/session/render adoption of roster, content,
-  knowledge and navigation commands, with combat disabled for this vertical.
-  Adopt these commands in GameSession, manual checkpoints and Agentica execution.
-  The structural stair resolver and isolated roster facade are not App adoption.
-  Wire the new opener only at that coherent cutover; do not add a second playable
-  entrypoint, old-state adapter or dual writer.
+- **P3 manual and Auto, checked:** actual GameSession, earned map/rendering,
+  roster/content commands, receipt-bound named saves, explicit interactions,
+  bounded Auto scheduling and batchwise floor preparation. Reload never resumes
+  Auto without a fresh toggle; other tabs need explicit takeover.
+- **P3 navigation foundation, checked:** retained earned-route windows with
+  cumulative limits, funded cancellation/ACK, explicit adoption and atomic host
+  hooks. Protocol record binding is checked on this same transaction
+  host; no old session adapter or second playable world is permitted.
+- **P3 Agentica, remaining:** canonical launch/run/event lifecycle, scoped tool
+  projection, SDK delivery/reconciliation and mounted application recovery.
+  Admission is not arrival; reconnect is not adoption; navigation is not loot.
+- **P4 started:** disconnected preview screens and stale route tests removed.
+  Independent experiment writers and old RPG adapters still require closure.
+- **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
+  movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
+  qualification remain mandatory, not inferred from focused passes.
 
 The target database is `maze-battle` version 9 with `meta`, `heads`, `records`,
 `nodes`, `receipts` and `operations`. The opener discards earlier store layouts without reading
-their values. Until P2/P3 adoption, only isolated native fixtures invoke it. The
-existing preview is intentionally not upgraded by importing the kernel.
+their values. The actual App now uses this opener; all former query routes mount
+that same App. Retired stores are never used as fallback readers.
 
 P2a keys in the world area are `dungeon` (world identity/deepest generated level),
 `dungeon/<level>` (pinned recipe and bounded generation counters), and independent
@@ -271,8 +290,9 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 ## Acceptance Not Yet Met
 
-The existing 2,667-unit/196-native/14-App evidence qualifies the prior build only.
-P0/P1 tests do not establish actual-game depth scaling, retirement of all old
-databases, stream/RPG unification, game-level manual save/load, real Agentica
-operation settlement at capacity or the full Q matrix.
-These remain mandatory gates for #11, separate from any future live-model trial.
+The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
+only. Current manual/Auto and depth samples are documented above, not extrapolated
+to arbitrary history. Canonical Agentica delivery and recovery, removal of all
+obsolete writers/databases, full multi-controller depth/revisit/Q and game-level
+remote settlement at capacity remain mandatory. No paid-model test is included
+without separate limits/authorization. Issue #11 is not complete.
