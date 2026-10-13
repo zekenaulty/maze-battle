@@ -1,12 +1,8 @@
-import { opposite } from '../../../maze/movement';
-import { connection } from '../geometry';
 import { OccupancyIndex } from '../occupancy';
-import { keyedSeed } from '../seed';
 import { DEFAULT_MODULE_LIMITS, validateModuleLimits, validateModuleRecipe, type ModuleLimits, type ModuleRecipe } from './policy';
-import { moduleSpace, reserveModuleSockets, spaceOccupancy } from './placement';
+import { spaceOccupancy } from './placement';
+import { bootstrapModule, proposeModuleStep } from './step';
 import { ModuleCapacityError, type ModuleAssemblyState, type ModuleDelta, type ModuleWork } from './types';
-
-const emptyWork = (): ModuleWork => ({ candidates: 0, occupancyQueries: 0, localChecks: 0 });
 
 /** Ephemeral floor compiler. The RPG alone persists the completed cell projection.
  * Reuses v2 geometry/index/keyed randomness, not v2 passage or reward arithmetic. */
@@ -14,20 +10,17 @@ export class ModuleAssembly {
   private state: ModuleAssemblyState;
   private readonly occupancy = new OccupancyIndex();
   private readonly receipts = new Map<string, { signature: string; revision: number }>();
-  private readonly counts = emptyWork();
+  private readonly counts: ModuleWork;
 
   constructor(recipe: ModuleRecipe, limits: ModuleLimits = DEFAULT_MODULE_LIMITS) {
     validateModuleRecipe(recipe);
     validateModuleLimits(limits);
     if (recipe.roomBudget > limits.maxModules) throw new ModuleCapacityError('modules', `Requested ${recipe.roomBudget} modules exceeds projection budget ${limits.maxModules}`);
-    const owned = structuredClone(recipe);
-    const side = Math.max(owned.policy.minSide, Math.min(9, owned.policy.maxSide));
-    const root = moduleSpace('entry', 'room', { row: 0, column: 0, rows: side, columns: side }, keyedSeed(owned.seed, 'entry'));
-    const added = [spaceOccupancy(root)];
-    const pending = reserveModuleSockets(owned, root, 0, owned.roomBudget - 1, undefined, () => false, added, this.counts);
-    this.state = { recipe: owned, scopeId: JSON.stringify(owned), revision: 0, rooms: 1, nextSequence: pending.length,
-      spaces: [root], joins: [], connections: [], pending };
-    for (const entry of added) this.occupancy.add(entry);
+    const { state, space, pending, occupancy, work } = bootstrapModule(recipe);
+    this.counts = work;
+    this.state = { recipe: state.recipe, scopeId: state.scopeId, revision: state.revision, rooms: state.rooms,
+      nextSequence: state.nextSequence, spaces: [space], joins: [], connections: [], pending };
+    for (const entry of occupancy) this.occupancy.add(entry);
   }
 
   snapshot(): ModuleAssemblyState { return structuredClone(this.state); }
@@ -41,18 +34,9 @@ export class ModuleAssembly {
     const socket = this.state.pending[0];
     if (!socket) throw new ModuleCapacityError('spatial', `No legal frontier after ${this.state.rooms} of ${this.state.recipe.roomBudget} modules`);
     const source = this.state.spaces.find(space => space.id === socket.sourceId)!;
-    const spaces = [socket.room, ...(socket.passage ? [socket.passage] : [])];
-    const added = spaces.map(spaceOccupancy);
-    const work = emptyWork();
-    const remaining = this.state.recipe.roomBudget - this.state.rooms - this.state.pending.length;
-    const pending = reserveModuleSockets(this.state.recipe, socket.room, this.state.nextSequence, remaining,
-      opposite(socket.direction), (bounds, except) => this.occupancy.occupied(bounds, except), added, work, socket.id);
-    const connections = socket.passage
-      ? [connection(`${socket.id}:entrance`, source, socket.passage, socket.direction), connection(`${socket.id}:exit`, socket.passage, socket.room, socket.direction)]
-      : [connection(`${socket.id}:door`, source, socket.room, socket.direction)];
-    return structuredClone({ scopeId: this.state.scopeId, expectedRevision, requestId, resolved: socket.id, spaces,
-      join: { id: socket.id, fromRoomId: source.id, toRoomId: socket.room.id, direction: socket.direction,
-        ...(socket.passage ? { passageId: socket.passage.id } : {}) }, connections, pending, work });
+    const { recipe, scopeId, revision, rooms, nextSequence } = this.state;
+    return proposeModuleStep({ recipe, scopeId, revision, rooms, nextSequence, pendingCount: this.state.pending.length },
+      socket, source, (bounds, except) => this.occupancy.occupied(bounds, except), requestId);
   }
 
   commit(delta: ModuleDelta): { status: 'applied' | 'duplicate' | 'conflict'; revision: number } {
