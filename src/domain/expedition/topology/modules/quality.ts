@@ -1,6 +1,21 @@
 import type { ModuleAssemblyState } from './types';
 import { ModuleCapacityError } from './types';
 
+export interface ModuleStructuralQuality {
+  rooms: number;
+  reachable: number;
+  joins: number;
+  forks: number;
+  longestChain: number;
+}
+
+/** Shared acceptance gate for compiled D1 floors and bounded canonical reductions. */
+export function passesModuleStructuralQuality(quality: ModuleStructuralQuality, roomBudget: number): boolean {
+  const minimumForks = quality.rooms >= 12 ? 2 : quality.rooms >= 7 ? 1 : 0;
+  return quality.rooms === roomBudget && quality.reachable === quality.rooms && quality.joins === quality.rooms - 1
+    && quality.forks >= minimumForks && quality.longestChain <= Math.ceil(quality.rooms * 0.6);
+}
+
 export function moduleQuality(state: ModuleAssemblyState) {
   const rooms = state.spaces.filter(space => space.kind === 'room');
   const graph = new Map(rooms.map(room => [room.id, [] as string[]]));
@@ -45,9 +60,7 @@ export function moduleQuality(state: ModuleAssemblyState) {
 
 export function assertModuleQuality(state: ModuleAssemblyState) {
   const quality = moduleQuality(state);
-  const minimumForks = quality.rooms >= 12 ? 2 : quality.rooms >= 7 ? 1 : 0;
-  if (quality.rooms !== state.recipe.roomBudget || quality.reachable !== quality.rooms || state.joins.length !== quality.rooms - 1
-    || quality.forks < minimumForks || quality.longestChain > Math.ceil(quality.rooms * 0.6)) {
+  if (!passesModuleStructuralQuality({ ...quality, joins: state.joins.length }, state.recipe.roomBudget)) {
     throw new ModuleCapacityError('quality', `Module floor failed structural qualification: ${JSON.stringify(quality)}`);
   }
   return quality;
