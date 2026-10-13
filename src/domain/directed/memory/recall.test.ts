@@ -27,6 +27,18 @@ describe('exact bounded destination recall', () => {
     expect(knowledge).toEqual(before);
   });
 
+  it('retains omission metadata for a budget-omitted known examination', () => {
+    const knowledge = memoryFixture();
+    knowledge.examinations = { lever: remembered({ featureId: 'lever', detail: 'Old inscription.' }) };
+    const before = structuredClone(knowledge);
+    const { memory } = recallDirectedDestination(freeze(knowledge), at('S'), identity,
+      { kind: 'feature', featureId: 'lever' }, { facts: 1 });
+    expect(memory.feature!.value.id).toBe('lever');
+    expect(memory.examination).toBeUndefined();
+    expect(memory.omissions).toMatchObject({ examinations: 1, causes: { facts: true } });
+    expect(knowledge).toEqual(before);
+  });
+
   it('uses the existing actor pathfinder and preserves adjacent versus occupy arrival', () => {
     const knowledge = memoryFixture();
     const target = { kind: 'feature' as const, featureId: 'lever', arrival: 'adjacent' as const };

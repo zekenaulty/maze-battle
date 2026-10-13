@@ -29,6 +29,17 @@ describe('shared bounded destination execution', () => {
     expect(operation.steps).toBe(0); expect(operation.route).toHaveLength(1);
   });
 
+  it('returns an independent remaining route after a completed step', () => {
+    const operation = createDestinationOperation({ id: 'review-trip', target: { id: 'destination' }, epoch: 1, now: 0,
+      plan: { status: 'ready', distance: 2, visits: 3, route: [
+        { spaceId: 'W', row: 0, column: 1 }, { spaceId: 'W', row: 0, column: 2 },
+      ] } });
+    const original = structuredClone(operation);
+    const completed = completeDestinationStep(operation, false);
+    completed.route[0].column = 99;
+    expect(operation).toEqual(original);
+  });
+
   it('bounds local reconsideration and leaves collisions stopped at the same step', () => {
     const operation = ready(); operation.replans = 4;
     const plan = vi.fn();

@@ -18,8 +18,6 @@ dist-ssr
 *.tsbuildinfo
 test-results
 playwright-report
-tests/e2e/directed-storage-cache/
-tests/e2e/directed-storage-results/
 
 # Editor directories and files
 .vscode/*

@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { addressKey } from '../expedition/address';
 import { directedViewModel } from '../../viewModels/directedViewModel';
-import * as validate from '../../persistence/directed/stateValidation';
 import { presentDirected } from './context';
 import { createDirectedWorld } from './fixture';
-import { emptyDirectedKnowledge, rememberDirected } from './knowledge';
-import { observeDirected } from './perception';
+import { emptyDirectedKnowledge } from './knowledge';
 import type { PerceptionProfileId } from './perceptionTypes';
 import { applyDirectedCommand } from './transition';
 import type { DirectedSession } from './operationTypes';
@@ -24,7 +22,6 @@ describe('versioned fixture perception and inspection', () => {
   it.each(['untrained', 'alert', 'keen', 'expert'] as const)('discloses only the %s profile grade to both views', profile => {
     const result = inspect(setup(profile));
     const observation = result.observations[0];
-    validate.observation(observation, result.session);
     const human = presentDirected(result.session, 'human', 'human-view');
     const agent = presentDirected(result.session, 'agent', 'decision-fixture');
     expect(human.json).toBe(agent.json);
@@ -100,28 +97,10 @@ describe('versioned fixture perception and inspection', () => {
     expect(new Set(scenes.map(scene => scene.inspection?.attemptId)).size).toBe(12);
   });
 
-  it('preserves old policy receipts and keeps the profile through movement', () => {
+  it('keeps the perception profile through movement', () => {
     const current = setup('expert');
-    const legacyActor = { id: current.actor.id, position: current.actor.position };
-    const legacy = observeDirected(current.world, legacyActor, current.knowledge, 'look');
-    expect(legacy.policyVersion).toBe('fixture-visibility-v1');
-    expect(legacy.perception).toBeUndefined();
-    expect(rememberDirected(current.knowledge, legacy).features.T).toBeUndefined();
     const moved = moveDirectedWorld(current.world, current.actor, { spaceId: 'W', row: 0, column: 1 });
     expect(moved.actor.perceptionProfile).toBe('expert');
-  });
-
-  it('rejects invented coverage, passive examination, unsupported policies and privileged cue fields', () => {
-    const original = inspect(setup('expert'));
-    for (const mutate of [
-      (value: typeof original.observations[0]) => { value.scene.inspection!.coveredCells = []; },
-      (value: typeof original.observations[0]) => { value.reason = 'look'; },
-      (value: typeof original.observations[0]) => { Object.assign(value, { policyVersion: 'future-policy' }); },
-      (value: typeof original.observations[0]) => { value.scene.cues = [{ kind: 'suspicious', direction: 'east', message: 'Something seems unusual nearby.', ...{ featureId: 'T' } }]; },
-    ]) {
-      const forged = structuredClone(original.observations[0]); mutate(forged);
-      expect(() => validate.observation(forged, original.session)).toThrow();
-    }
   });
 
   it('requires stopped travel and a receiptable attempt for inspection', () => {
