@@ -8,6 +8,7 @@ import { sourceReader, validateKnowledge, loadObservation } from './evidence';
 import { boundedCellQuery, loadMemoryBlock, validateCellEvidence } from './memory';
 import { cellSource } from './validation';
 import type { KnowledgeRead, MemoryBlock } from './types';
+import { DIRECTIONS } from './types';
 
 /** Shared human/agent projection. No authoritative world or roster read is permitted here. */
 export async function readKnownCells(pages: KnowledgeRead, checkpoint: GameCheckpoint, positions: WorldPosition[]) {
@@ -22,7 +23,13 @@ export async function readKnownCells(pages: KnowledgeRead, checkpoint: GameCheck
     if (!cell) { check(!visible.has(cellKey(at)), 'current observation is missing from memory'); result.push({ at, state: 'unknown' as const }); continue; }
     check(checkpoint.knowledge && cell.source.sequence <= checkpoint.knowledge.sequence, 'memory is ahead of checkpoint');
     await validateCellEvidence(cell, readSource);
-    if (visible.has(cellKey(at))) check(cell.source.id === checkpoint.knowledge.id, 'visible fact is not from current observation');
+    if (visible.has(cellKey(at))) {
+      const seen = current!.cells.find(c => cellKey(c.at) === cellKey(at))!;
+      // Unchanged facts retain their original source; the new receipt proves renewed visibility.
+      check(same({ ...seen, edges: {} }, { at: cell.at, world: cell.world, chests: cell.chests, stairs: cell.stairs, edges: {} })
+        && DIRECTIONS.every(d => !Object.hasOwn(seen.edges, d) || cell.edges[d] && same(cell.edges[d]!.target, seen.edges[d])),
+      'visible fact differs from current observation');
+    }
     result.push({ at, state: visible.has(cellKey(at)) ? 'visible' as const : 'remembered' as const, cell });
   }
   return result;

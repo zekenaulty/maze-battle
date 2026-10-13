@@ -34,16 +34,20 @@ export function validateRememberedCell(value: unknown): asserts value is Remembe
 }
 
 export async function rememberObservation(pages: CanonicalPages, cells: ObservedCell[], reference: { sequence: number; id: string }) {
-  const blocks = new Map<string, MemoryBlock>(), rooms = new Set<string>();
+  const blocks = new Map<string, MemoryBlock>(), changed = new Set<string>(), rooms = new Set<string>();
   for (let index = 0; index < cells.length; index++) {
     const seen = cells[index], source: CellSource = { ...reference, index }, key = blockKey(seen.at);
     let block = blocks.get(key);
     if (!block) { block = await loadMemoryBlock(pages, seen.at) ?? { schema: 1, ...blockAddress(seen.at), cells: {} }; blocks.set(key, block); }
     const old = block.cells[localKey(seen.at)];
     if (old) check(old.source.sequence < reference.sequence, 'memory would rewind its evidence');
-    const edges = { ...old?.edges };
-    for (const d of DIRECTIONS) if (Object.hasOwn(seen.edges, d)) edges[d] = { target: seen.edges[d]!, source };
-    block.cells[localKey(seen.at)] = { ...seen, source, edges };
+    const differs = !old || !same({ ...seen, edges: {} }, { at: old.at, world: old.world, chests: old.chests, stairs: old.stairs, edges: {} })
+      || DIRECTIONS.some(d => Object.hasOwn(seen.edges, d) && (!old.edges[d] || !same(old.edges[d]!.target, seen.edges[d])));
+    if (differs) {
+      const edges = { ...old?.edges };
+      for (const d of DIRECTIONS) if (Object.hasOwn(seen.edges, d)) edges[d] = { target: seen.edges[d]!, source };
+      block.cells[localKey(seen.at)] = { ...seen, source, edges }; changed.add(key);
+    }
     const rk = roomKey(seen.at.level, seen.at.cell.spaceId);
     if (!rooms.has(rk)) {
       rooms.add(rk);
@@ -51,7 +55,7 @@ export async function rememberObservation(pages: CanonicalPages, cells: Observed
         json({ schema: 1, level: seen.at.level, spaceId: seen.at.cell.spaceId, source }), [`known-rooms/${seen.at.level}/${seen.at.cell.spaceId}`]);
     }
   }
-  for (const [key, block] of blocks) await pages.set('knowledge', key, json(block));
+  for (const key of changed) await pages.set('knowledge', key, json(blocks.get(key)!));
 }
 
 export async function validateCellEvidence(cell: RememberedCell, readSource: (source: CellSource) => Promise<ObservedCell>) {

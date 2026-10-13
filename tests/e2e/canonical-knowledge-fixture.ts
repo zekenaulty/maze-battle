@@ -10,6 +10,7 @@ import { worldRequest } from './canonical-world-fixture';
 import { seed as seedContent } from './canonical-content-fixture';
 
 export { readKnownCells, listKnownRooms, executeExplorationCommand };
+export { commitExplorationCommand } from '../../src/persistence/canonical/game/explorationCommand';
 export * from '../../src/persistence/canonical/knowledge/evidence';
 export * from '../../src/persistence/canonical/knowledge/keys';
 export * from '../../src/persistence/canonical/knowledge/observe';
