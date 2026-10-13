@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import type {} from './canonical-quality-fixture';
 import './canonical-quality.failures';
 import './canonical-quality.integrity';
+import './canonical-quality.provenance';
+import './canonical-quality.witness';
 
 const origin = 'http://127.0.0.1:5212';
 test.beforeEach(async ({ page, context, baseURL }) => {
@@ -25,6 +27,7 @@ for (const joins of ['direct', 'mixed', 'passage'] as const) test(`offline ${joi
   expect(result.parity.floor).toEqual(result.floor);
   expect(result.begun).toMatchObject({ status: 'running', metrics: null, nextRoom: 24 });
   for (const batch of result.batches) {
+    expect(batch.witnesses.length).toBeLessThanOrEqual(6);
     expect(batch.keys.length).toBeLessThanOrEqual(160); expect(batch.writes.length).toBeLessThanOrEqual(5);
     expect(batch.writes.every(key => key.startsWith('dungeon/1/quality/'))).toBe(true);
     expect(batch.stats.reads).toBeLessThanOrEqual(2048); expect(batch.stats.writes).toBeLessThanOrEqual(512);
@@ -63,13 +66,15 @@ for (const count of [8, 65]) test(`fixed batch bound at ${count} rooms with addr
     const c = window.canonicalQuality; await c.seedWorld(781, count, 'passage'); await c.begin();
     const batches = [];
     for (let i = 0; i < Math.ceil(count / 4); i++) batches.push(await c.advance());
-    return { count, batches: batches.map(batch => ({ reads: batch.keys.length, writes: batch.writes.length, stats: batch.stats })), parity: await c.parity() };
+    return { count, batches: batches.map(batch => ({ reads: batch.keys.length, writes: batch.writes.length,
+      witnesses: batch.witnesses.length, stats: batch.stats })), parity: await c.parity() };
   }, count);
   await info.attach('quality-batch-costs', { body: JSON.stringify(measured, null, 2), contentType: 'application/json' });
   expect(measured.parity.state.metrics).toEqual(measured.parity.expected);
   expect(measured.parity.state.status).toBe(measured.parity.passed ? 'qualified' : 'failed');
   expect(Math.max(...measured.batches.map(batch => batch.reads))).toBeLessThanOrEqual(160);
   expect(Math.max(...measured.batches.map(batch => batch.writes))).toBeLessThanOrEqual(5);
+  expect(Math.max(...measured.batches.map(batch => batch.witnesses))).toBe(6);
 });
 
 test('complete connected chain fails full D1 quality durably and cannot restart', async ({ page }) => {

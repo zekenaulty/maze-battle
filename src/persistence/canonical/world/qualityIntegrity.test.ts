@@ -17,7 +17,7 @@ it.each(['space', 'ports', 'join', 'connection', 'passage'])('missing establishe
   const suffix = { space: 'space/socket-23:room', ports: 'ports/socket-23:room', join: 'join/socket-23',
     connection: 'connection/socket-23:exit', passage: 'space/socket-23:passage' }[what];
   m.rows.delete(`dungeon/1/${suffix}`); m.clear();
-  await expect(advanceWorldFloorQuality(m.pages, 1, 1)).rejects.toThrow('missing established');
+  await expect(advanceWorldFloorQuality(m.pages, 1, 1)).rejects.toThrow('quality binding');
   expect(m.writes).toEqual([]);
 });
 
@@ -54,7 +54,7 @@ it.each(['running', 'qualified'])('pins the exact floor generation record in %s 
 it('rejects a child re-versioned between bounded batches', async () => {
   const m = qualityFixture(781, 3); await beginWorldFloorQuality(m.pages, 1); await advanceWorldFloorQuality(m.pages, 1, 2);
   m.put('dungeon/1/ports/socket-0:room', m.value('dungeon/1/ports/socket-0:room')); m.clear();
-  await expect(advanceWorldFloorQuality(m.pages, 1)).rejects.toThrow('changed established quality child');
+  await expect(advanceWorldFloorQuality(m.pages, 1)).rejects.toThrow('quality binding');
   expect(m.writes).toEqual([]);
 });
 

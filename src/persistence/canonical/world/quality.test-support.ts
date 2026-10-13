@@ -5,7 +5,16 @@ import type { CanonicalRecord } from '../types';
 import { advanceWorldFloorQuality, beginWorldFloorQuality } from './quality';
 
 export function qualityMemory() {
-  const rows = new Map<string, CanonicalRecord>(), reads: string[] = [], writes: string[] = [];
+  const namespaces = new Map<string, { id: string; count: number }>();
+  const touch = (key: string, delta: number) => {
+    const prefix = key.slice(0, key.lastIndexOf('/') + 1), count = (namespaces.get(prefix)?.count ?? 0) + delta;
+    if (count) namespaces.set(prefix, { id: crypto.randomUUID(), count }); else namespaces.delete(prefix);
+  };
+  const rows = new class extends Map<string, CanonicalRecord> {
+    override set(key: string, row: CanonicalRecord) { touch(key, Number(!this.has(key))); return super.set(key, row); }
+    override delete(key: string) { if (this.has(key)) touch(key, -1); return super.delete(key); }
+  }(), reads: string[] = [], writes: string[] = [];
+  let fallbackWitness: string | null = null;
   let fallback: (key: string) => unknown = () => undefined;
   const put = (key: string, value: unknown) => {
     const row = { id: crypto.randomUUID(), value: structuredClone(value) } as CanonicalRecord;
@@ -18,10 +27,13 @@ export function qualityMemory() {
       return structuredClone(rows.get(key) ?? (value === undefined ? undefined : { id: key.replaceAll('/', ':'), value }));
     },
     set: async (_area: string, key: string, value: unknown) => { writes.push(key); return put(key, value); },
+    witness: async (_area: string, prefix: string) => namespaces.get(prefix)?.id
+      ?? (/^dungeon\/1\/(space|ports|join|connection)\/$/.test(prefix) ? fallbackWitness : null),
     scan: async () => { throw Error('Quality must not scan'); },
   } as unknown as CanonicalPages;
   return { pages, rows, reads, writes, put, value: (key: string) => rows.get(key)!.value as any,
-    clear: () => { reads.length = 0; writes.length = 0; }, fallback: (get: typeof fallback) => { fallback = get; } };
+    clear: () => { reads.length = 0; writes.length = 0; },
+    fallback: (get: typeof fallback) => { fallback = get; fallbackWitness = crypto.randomUUID(); } };
 }
 
 export function qualityFixture(seed = 781, count = 25, joins: ModulePolicy['joins'] = 'mixed') {

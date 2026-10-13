@@ -2,6 +2,7 @@ import { passesModuleStructuralQuality, type ModuleStructuralQuality } from '../
 import type { CanonicalRecord } from '../types';
 import { check, integer, isObject, jsonBytes, validId } from '../validation';
 import { levelKey, loadFloor, loadWorld, same } from './records';
+import { qualityNamespace, qualityScratchPrefix, qualityTopology } from './qualityWitness';
 import type { WorldRead } from './types';
 
 export const qualityKey = (level: number) => `${levelKey(level)}/quality`;
@@ -11,10 +12,11 @@ export const qualityRoomId = (ordinal: number) => ordinal === 0 ? 'entry' : `soc
 
 export interface WorldQualityBinding {
   floorRecordId: string; scopeId: string; revision: number; roomCount: number; entryId: string; exitId: string;
+  topology: Awaited<ReturnType<typeof qualityTopology>>;
 }
 export interface WorldFloorQuality {
   schema: 1; level: number; binding: WorldQualityBinding; anchorId: string;
-  nextRoom: number; lastNodeId: string | null;
+  nextRoom: number; lastNodeId: string | null; scratchWitness: string | null;
   status: 'running' | 'qualified' | 'failed'; metrics: ModuleStructuralQuality | null;
 }
 export interface QualityWitness { space: string; ports: string; join: string | null }
@@ -44,13 +46,13 @@ export async function qualityContext(pages: WorldRead, level: number) {
   const row = await pages.get('world', levelKey(level));
   check(row && validId(row.id), 'missing quality floor record');
   const binding: WorldQualityBinding = { floorRecordId: row.id, scopeId: g.scopeId, revision: g.revision,
-    roomCount: g.rooms, entryId: floor.entry.spaceId, exitId: floor.exit.spaceId };
+    roomCount: g.rooms, entryId: floor.entry.spaceId, exitId: floor.exit.spaceId, topology: await qualityTopology(pages, level) };
   return { floor, binding };
 }
 export type QualityContext = Awaited<ReturnType<typeof qualityContext>>;
 
 export function validateQualityAnchor(row: CanonicalRecord, context: QualityContext) {
-  jsonBytes(row.value, 2048); qualityFields(row.value, 'binding,level,schema');
+  jsonBytes(row.value, 4096); qualityFields(row.value, 'binding,level,schema');
   const value = row.value as unknown as { schema: number; level: number; binding: WorldQualityBinding };
   check(validId(row.id) && value.schema === 1 && value.level === context.floor.level
     && same(value.binding, context.binding), 'stale or invalid quality binding');
@@ -88,11 +90,14 @@ export async function readQualityProgress(pages: WorldRead, context: QualityCont
   const row = await pages.get('world', qualityProgressKey(context.floor.level));
   check(row, 'missing established quality progress');
   jsonBytes(row.value, 4096);
-  qualityFields(row.value, 'anchorId,binding,lastNodeId,level,metrics,nextRoom,schema,status');
+  qualityFields(row.value, 'anchorId,binding,lastNodeId,level,metrics,nextRoom,schema,scratchWitness,status');
   const state = row.value as unknown as WorldFloorQuality;
   check(state.schema === 1 && state.level === context.floor.level && state.anchorId === anchor.id
     && same(state.binding, context.binding), 'stale or invalid quality progress binding');
   check(integer(state.nextRoom, -1) && state.nextRoom < state.binding.roomCount, 'invalid quality cursor');
+  check((state.nextRoom === state.binding.roomCount - 1 ? state.scratchWitness === null : validId(state.scratchWitness))
+    && state.scratchWitness === await qualityNamespace(pages, qualityScratchPrefix(state.level)),
+  'missing or changed established quality node namespace');
   if (state.nextRoom === state.binding.roomCount - 1) check(state.lastNodeId === null, 'invalid initial quality cursor');
   else {
     const last = await pages.get('world', qualityNodeKey(state.level, state.nextRoom + 1));

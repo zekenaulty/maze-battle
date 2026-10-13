@@ -7,6 +7,7 @@ import { loadFloor, json } from '../../src/persistence/canonical/world/records';
 import * as quality from '../../src/persistence/canonical/world/quality';
 import * as roles from '../../src/persistence/canonical/world/roles';
 import { chainRecords } from '../../src/persistence/canonical/world/qualityChain.test-support';
+import { twoArmChain } from '../../src/persistence/canonical/world/qualityProvenance.test-support';
 import { qualityRoomId } from '../../src/persistence/canonical/world/qualityRecords';
 import { createModuleRecipe, type ModulePolicy } from '../../src/domain/expedition/topology/modules/policy';
 import { ModuleAssembly } from '../../src/domain/expedition/topology/modules/assembly';
@@ -33,15 +34,16 @@ async function begin(original?: CanonicalRequest) {
 }
 
 async function advance(original?: CanonicalRequest, maxRooms = 4) {
-  const keys: string[] = [], writes: string[] = [];
+  const keys: string[] = [], writes: string[] = [], witnesses: string[] = [];
   const result = await executeCanonical(original ?? await request('fixture.quality.advance', { level: 1, maxRooms }), async ({ pages }) => {
-    const get = pages.get.bind(pages), set = pages.set.bind(pages);
+    const get = pages.get.bind(pages), set = pages.set.bind(pages), witness = pages.witness.bind(pages);
     pages.get = (area, key) => { keys.push(key); return get(area, key); };
     pages.set = (area, key, value, indexes) => { writes.push(key); return set(area, key, value, indexes); };
+    pages.witness = (area, prefix) => { witnesses.push(prefix); return witness(area, prefix); };
     pages.scan = async () => { throw Error('Quality must not scan'); };
     return json(await quality.advanceWorldFloorQuality(pages, 1, maxRooms));
   });
-  return { ...result, keys, writes };
+  return { ...result, keys, writes, witnesses };
 }
 
 async function state() { return readCanonical(pages => quality.loadWorldQuality(pages, 1)); }
@@ -91,6 +93,18 @@ async function sizes() {
   } finally { db.close(); }
 }
 
+async function seedTwoArm() {
+  const m = twoArmChain();
+  await initializeCanonical('quality-owner', {}, async pages => {
+    for (const key of ['dungeon', 'dungeon/1']) await pages.set('world', key, m.rows.get(key)!.value);
+  });
+  for (const [key, row] of m.rows) if (key.startsWith('dungeon/1/')) {
+    await executeCanonical(await request('fixture.two-arm-node'), async ({ pages }) => {
+      await pages.set('world', key, row.value); return null;
+    });
+  }
+}
+
 async function snapshot() {
   const read = await readCanonical(async pages => ({ floor: await pages.get('world', 'dungeon/1'),
     anchor: await pages.get('world', 'dungeon/1/quality'), progress: await pages.get('world', 'dungeon/1/quality/progress') }));
@@ -108,7 +122,7 @@ async function rejections() {
 }
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5212') throw Error('Isolated quality fixture only');
-const api = { seedWorld, seedChain, request, begin, advance, state, finishQuality, parity, sizes, snapshot, rejections, quality, roles, json,
+const api = { seedWorld, seedChain, seedTwoArm, request, begin, advance, state, finishQuality, parity, sizes, snapshot, rejections, quality, roles, json,
   executeCanonical, controlCanonical, readCanonical, readCanonicalHead, loadFloor };
 declare global { interface Window { canonicalQuality: typeof api } }
 window.canonicalQuality = api;

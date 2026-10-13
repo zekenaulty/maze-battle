@@ -81,6 +81,26 @@ export class MemoryTree {
     return this.operation(() => this.change(key, copy, false));
   }
 
+  /** Identity of the immutable subtree covering exactly this prefix, without enumerating it.
+   * Copy-on-write edits outside the prefix preserve this identity, even after radix splits. */
+  async witness(prefix: string): Promise<string | null> {
+    requireTree(validKey(prefix, true));
+    return this.operation(async () => {
+      const path = new Set<string>();
+      let id = this.root, parent: Parent | undefined;
+      while (id !== null) {
+        const node = await this.read(id, path, parent);
+        path.add(id);
+        if (node.prefix.startsWith(prefix)) return id;
+        if (!prefix.startsWith(node.prefix)) return null;
+        const edge = prefix[node.prefix.length];
+        parent = { node, edge };
+        id = node.children[edge] ?? null;
+      }
+      return null;
+    });
+  }
+
   async delete(key: string): Promise<void> {
     requireTree(validKey(key));
     return this.operation(() => this.change(key, undefined, true));

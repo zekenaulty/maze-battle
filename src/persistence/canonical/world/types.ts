@@ -3,7 +3,7 @@ import type { ModuleStepState } from '../../../domain/expedition/topology/module
 import type { CanonicalPages } from '../pages';
 import type { JsonObject } from '../types';
 
-export type WorldRead = Pick<CanonicalPages, 'get' | 'scan'>;
+export type WorldRead = Pick<CanonicalPages, 'get' | 'scan'> & Partial<Pick<CanonicalPages, 'witness'>>;
 export interface WorldHeader { schema: 1; worldId: string; deepestLevel: number }
 export interface WorldFloor {
   schema: 1;

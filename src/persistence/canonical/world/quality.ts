@@ -3,6 +3,7 @@ import type { CanonicalPages } from '../pages';
 import { check, integer } from '../validation';
 import { json, same } from './records';
 import { readQualityRoom } from './qualityGraph';
+import { qualityNamespace, qualityScratchPrefix } from './qualityWitness';
 import { qualityContext, qualityKey, qualityNodeKey, qualityProgressKey, readQualityProgress,
   validateQualityNode, type QualityNode, type WorldFloorQuality } from './qualityRecords';
 import type { WorldRead } from './types';
@@ -20,9 +21,10 @@ export async function beginWorldFloorQuality(pages: CanonicalPages, level: numbe
     check(state.status !== 'failed', 'floor failed structural qualification'); return state;
   }
   check(!await pages.get('world', qualityProgressKey(level)), 'missing established quality anchor');
+  check(await qualityNamespace(pages, qualityScratchPrefix(level)) === null, 'missing established quality controls with surviving nodes');
   const anchor = await pages.set('world', qualityKey(level), json({ schema: 1, level, binding: context.binding }));
   const state: WorldFloorQuality = { schema: 1, level, binding: context.binding, anchorId: anchor.id,
-    nextRoom: context.binding.roomCount - 1, lastNodeId: null, status: 'running', metrics: null };
+    nextRoom: context.binding.roomCount - 1, lastNodeId: null, scratchWitness: null, status: 'running', metrics: null };
   await pages.set('world', qualityProgressKey(level), json(state)); return state;
 }
 
@@ -70,6 +72,7 @@ export async function advanceWorldFloorQuality(pages: CanonicalPages, level: num
     const status = room.ordinal !== 0 ? 'running' : passesModuleStructuralQuality(metrics, state.binding.roomCount) ? 'qualified' : 'failed';
     state = { ...state, nextRoom: room.ordinal - 1, lastNodeId: written.id, status, metrics: room.ordinal === 0 ? metrics : null };
   }
+  state = { ...state, scratchWitness: await qualityNamespace(pages, qualityScratchPrefix(level)) };
   await pages.set('world', qualityProgressKey(level), json(state)); return state;
 }
 

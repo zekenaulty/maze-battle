@@ -5,7 +5,7 @@ import { operationAt } from './operations';
 import { CANONICAL_STORES, type CanonicalHead, type CanonicalSnapshot, type CanonicalWorkLimits, type RecordArea } from './types';
 import { check, head, jsonBytes, marker, snapshot as validateSnapshot } from './validation';
 
-export type CanonicalQuery = Pick<CanonicalPages, 'get' | 'scan'> & {
+export type CanonicalQuery = Pick<CanonicalPages, 'get' | 'scan' | 'witness'> & {
   liveOperation(id: string): ReturnType<typeof operationAt>;
 };
 type Options = { snapshot?: CanonicalSnapshot; limits?: CanonicalWorkLimits; signal?: AbortSignal };
@@ -42,7 +42,8 @@ export async function readCanonical<T>(query: (pages: CanonicalQuery, snapshot: 
       catch (error) { operationFailed = true; throw error; }
       finally { pendingOperations--; }
     };
-    const view = snapshotOf(projected), value = await query({ get: pages.get.bind(pages), scan: pages.scan.bind(pages), liveOperation }, structuredClone(view));
+    const view = snapshotOf(projected), value = await query({ get: pages.get.bind(pages), scan: pages.scan.bind(pages),
+      witness: pages.witness.bind(pages), liveOperation }, structuredClone(view));
     check(!operationFailed && pendingOperations === 0, 'operation read is not usable');
     pages.finishRead(); budget.alive(); await tx.done;
     return { head: current, snapshot: view, value, stats: budget.snapshot() };

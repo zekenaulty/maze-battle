@@ -80,6 +80,14 @@ export class CanonicalPages {
 
   get(area: RecordArea, key: string) { return this.operation(() => this.lookup(area, key)); }
 
+  /** Primary-record namespace identity, independent of secondary indexes. */
+  witness(area: RecordArea, prefix: string) {
+    return this.operation(() => {
+      recordKey(prefix);
+      return this.tree(area).witness(`record/${prefix}`);
+    });
+  }
+
   async set(area: RecordArea, key: string, value: Json, indexes: string[] = []) {
     return this.operation(async () => {
       check(this.tx.mode === 'readwrite', 'read-only record view');
