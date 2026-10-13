@@ -95,16 +95,90 @@ test('stale competing attempts cannot skip a batch, while the original committed
   expect(result.state.nextRoom).toBe(8);
 });
 
-test('unfinished floors refuse role preparation without changing generation or head', async ({ page }) => {
-  const result = await page.evaluate(async () => {
-    const c = window.canonicalRoles; const floor = await c.seedWorld(42, 24, 'mixed', false);
-    const before = (await c.readCanonicalHead()).head;
-    const failure = await c.begin().catch(String);
-    return { before, failure, floor, after: (await c.readCanonicalHead()).head,
-      current: (await c.readCanonical(pages => c.loadFloor(pages, 1))).value };
+for (const expansions of [0, 1, 6]) test(`partial generation after ${expansions} expansions rejects every role API without publication`, async ({ page }) => {
+  const result = await page.evaluate(async expansions => {
+    const c = window.canonicalRoles;
+    const floor = await c.seedWorld(42, 8, 'mixed', expansions);
+    return { floor, ...await c.roleRejections() };
+  }, expansions);
+  expect(result.floor.generation.rooms).toBe(expansions + 1);
+  expect(result.floor.generation.revision).toBe(expansions);
+  expect(result.floor.generation.pendingCount).toBeGreaterThan(0);
+  expect(result.floor.exit).toBeNull(); expect(result.before.roles).toBeUndefined();
+  expect(result.failures.map(failure => failure.operation)).toEqual(['begin', 'advance', 'status', 'lookup']);
+  for (const failure of result.failures) {
+    expect(failure.error).toBe('Canonical storage: role preparation requires completed generation');
+    expect(failure.after).toEqual(result.before);
+  }
+});
+
+for (const phase of ['partial', 'complete'] as const) test(`changed generation scope rejects a ${phase} role compilation without resetting it`, async ({ page }) => {
+  const result = await page.evaluate(async phase => {
+    const c = window.canonicalRoles; await c.seedWorld(781, 8); await c.begin();
+    if (phase === 'complete') await c.finishRoles(); else await c.advance(undefined, 3);
+    const prepared = (await c.state()).value;
+    await c.executeCanonical(await c.request('fixture.change-generation'), async ({ pages }) => {
+      const floor = await c.loadFloor(pages, 1), recipe = { ...floor.generation.recipe, seed: 782 };
+      await pages.set('world', 'dungeon/1', c.json({ ...floor,
+        generation: { ...floor.generation, recipe, scopeId: JSON.stringify(recipe) } }), ['floors/1']);
+      return null;
+    });
+    // The header still passes loadFloor; rejection must come from the role binding.
+    const floor = (await c.readCanonical(pages => c.loadFloor(pages, 1))).value;
+    return { prepared, floor, ...await c.roleRejections() };
+  }, phase);
+  expect(result.prepared.nextRoom).toBe(phase === 'complete' ? 8 : 3);
+  expect(result.prepared.plan === null).toBe(phase === 'partial');
+  expect(result.floor.generation.recipe.seed).toBe(782);
+  expect(result.floor.generation.rooms).toBe(result.floor.generation.recipe.roomBudget);
+  expect(result.floor.generation.scopeId).not.toBe(result.prepared.binding.scopeId);
+  expect(result.before.roles!.value).toEqual(result.prepared);
+  expect(result.failures.map(failure => failure.operation)).toEqual(['begin', 'advance', 'status', 'lookup']);
+  for (const failure of result.failures) {
+    expect(failure.error).toBe('Canonical storage: stale or invalid room role binding');
+    expect(failure.after).toEqual(result.before);
+  }
+});
+
+for (const field of ['scopeId', 'revision', 'roomCount', 'entryId', 'exitId'] as const) {
+  test(`stale role binding ${field} fails exactly and preserves stored progress`, async ({ page }) => {
+    const result = await page.evaluate(async field => {
+      const c = window.canonicalRoles; await c.seedWorld(781, 8); await c.begin(); await c.advance(undefined, 3);
+      await c.executeCanonical(await c.request('fixture.damage-binding'), async ({ pages }) => {
+        const state = await c.roles.loadWorldRoleCompilation(pages, 1), binding = { ...state.binding };
+        switch (field) {
+          case 'scopeId': binding.scopeId += ':stale'; break;
+          case 'revision': binding.revision--; break;
+          case 'roomCount': binding.roomCount++; break;
+          case 'entryId': binding.entryId = 'socket-0:room'; break;
+          case 'exitId': binding.exitId = 'entry'; break;
+        }
+        await pages.set('world', 'dungeon/1/roles', c.json({ ...state, binding })); return null;
+      });
+      return c.roleRejections();
+    }, field);
+    expect(result.failures.map(failure => failure.operation)).toEqual(['begin', 'advance', 'status', 'lookup']);
+    for (const failure of result.failures) {
+      expect(failure.error).toBe('Canonical storage: stale or invalid room role binding');
+      expect(failure.after).toEqual(result.before);
+    }
   });
-  expect(result.failure).toContain('completed generation'); expect(result.after).toEqual(result.before);
-  expect(result.current).toEqual(result.floor);
+}
+
+test('partial role compilation on a completed floor cannot supply role metadata', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const c = window.canonicalRoles; const floor = await c.seedWorld(781, 8);
+    await c.begin(); await c.advance(undefined, 3);
+    const state = (await c.state()).value, before = await c.roleSnapshot();
+    const failure = await c.readCanonical(pages => c.roles.loadWorldRoomRole(pages, 1, 'entry'))
+      .then(() => null, error => error instanceof Error ? error.message : String(error));
+    return { floor, state, before, failure, after: await c.roleSnapshot() };
+  });
+  expect(result.floor.exit).not.toBeNull(); expect(result.floor.generation.pendingCount).toBe(0);
+  expect(result.state.nextRoom).toBe(3); expect(result.state.accumulator.roomCount).toBe(3);
+  expect(result.state.plan).toBeNull();
+  expect(result.failure).toBe('Canonical storage: room roles are not prepared');
+  expect(result.after).toEqual(result.before);
 });
 
 test('lookup rejects missing ordinary rooms and changed final plans', async ({ page }) => {

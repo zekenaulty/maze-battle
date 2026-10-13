@@ -14,11 +14,13 @@ async function request(operation: string, input: Json = {}): Promise<CanonicalRe
   return { attemptId: crypto.randomUUID(), expected: canonicalFence((await readCanonicalHead()).head), operation, input, deadlineAt: null };
 }
 
-async function seedWorld(seed = 781, roomBudget = 24, joins: ModulePolicy['joins'] = 'mixed', finish = true) {
+async function seedWorld(seed = 781, roomBudget = 24, joins: ModulePolicy['joins'] = 'mixed', finish: boolean | number = true) {
   const recipe = { ...createModuleRecipe('roles-browser', 1, seed), roomBudget };
   recipe.policy.joins = joins;
+  const expansions = typeof finish === 'number' ? finish : finish ? roomBudget - 1 : 0;
+  if (!Number.isSafeInteger(expansions) || expansions < 0 || expansions >= roomBudget) throw Error('Invalid fixture generation prefix');
   await initializeCanonical('roles-owner', {}, async pages => { await createWorldFloor(pages, recipe); });
-  if (finish) for (let step = 1; step < roomBudget; step++) {
+  for (let step = 0; step < expansions; step++) {
     const original = await request('fixture.expand', { level: 1 });
     await executeCanonical(original, async ({ pages }) => json(await expandWorldFloor(pages, 1, original.attemptId)));
   }
@@ -74,8 +76,29 @@ async function sizes() {
   } finally { db.close(); }
 }
 
+// Read raw records so rejection tests can inspect damaged/stale state without interpreting it.
+async function roleSnapshot() {
+  const read = await readCanonical(async pages => ({
+    floor: await pages.get('world', 'dungeon/1'), roles: await pages.get('world', 'dungeon/1/roles'),
+  }));
+  return { head: read.head, ...read.value, sizes: await sizes() };
+}
+
+async function roleRejections() {
+  const before = await roleSnapshot();
+  const operations = { begin, advance: () => advance(), status: state,
+    lookup: () => readCanonical(pages => roles.loadWorldRoomRole(pages, 1, 'entry')) };
+  const failures = [];
+  for (const [operation, run] of Object.entries(operations)) {
+    let error: string | null = null;
+    try { await run(); } catch (failure) { error = failure instanceof Error ? failure.message : String(failure); }
+    failures.push({ operation, error, after: await roleSnapshot() });
+  }
+  return { before, failures };
+}
+
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5210') throw Error('Isolated role fixture only');
-const api = { seedWorld, request, begin, advance, state, finishRoles, parity, sizes, roles, json,
+const api = { seedWorld, request, begin, advance, state, finishRoles, parity, sizes, roleSnapshot, roleRejections, roles, json,
   executeCanonical, readCanonical, readCanonicalHead, loadFloor };
 declare global { interface Window { canonicalRoles: typeof api } }
 window.canonicalRoles = api;
