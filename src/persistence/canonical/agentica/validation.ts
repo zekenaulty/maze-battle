@@ -22,7 +22,7 @@ const prepared = new WeakMap<PreparedAction, string>();
 export interface ActionLookup { readonly key: string; readonly storageKey: string }
 const lookups = new WeakSet<ActionLookup>();
 export async function prepareActionLookup(key: string): Promise<ActionLookup> {
-  check(typeof key === 'string' && key.length <= 1024, 'invalid action key');
+  check(typeof key === 'string' && key.length <= 2048, 'invalid action key');
   const parts: unknown = JSON.parse(key);
   check(Array.isArray(parts) && parts.length === 4, 'invalid action key');
   for (const part of parts) wireId(part);

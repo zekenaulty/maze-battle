@@ -3,7 +3,8 @@ import type { AgenticaHostOptions } from '../sdk/agentica-host.mjs';
 import type { CanonicalHostPort } from '../../game/CanonicalHostCommand';
 import { readCanonical } from '../../../persistence/canonical/read';
 import { executeCanonical } from '../../../persistence/canonical/transaction';
-import { prepareAction, readAction, reconcileAction, retainPendingAction } from '../../../persistence/canonical/agentica/actions';
+import { prepareAction, readAction, retainPendingAction } from '../../../persistence/canonical/agentica/actions';
+import type { RetainedAction } from '../../../persistence/canonical/agentica/types';
 import { prepareActionLookup, readActionByKey } from '../../../persistence/canonical/agentica/actions.lookup';
 import { equal } from '../../../persistence/canonical/agentica/validation';
 import { check } from '../../../persistence/canonical/validation';
@@ -14,15 +15,23 @@ import { executeGameAction } from './actionExecution';
 export function createGameActionHooks(port: CanonicalHostPort, input: ActionBinding): Pick<AgenticaHostOptions,
   'loadAction' | 'saveAction' | 'onAction' | 'reconcileAction'> {
   const binding = captureBinding(input), fresh = new Set<string>();
+  function sameReservation(retained: RetainedAction) {
+    check(equal(retained.original.publication, binding.publication)
+      && retained.original.effect === (retained.original.action.capabilityId === 'maze.navigate' ? 'writesLocalState' : 'readOnly'),
+    'original action publication or effect changed');
+  }
   async function loadAction(key: string) {
     const lookup = await prepareActionLookup(key);
     return (await readCanonical(pages => readActionByKey(pages, lookup))).value;
   }
   async function saveAction(key: string, value: AgenticaActionRecord) {
     const { action, record } = sdkRecord(key, value), identity = await prepareAction(action);
-    const retained = (await readCanonical(pages => reconcileAction(pages, identity))).value;
+    const retained = (await readCanonical(pages => readAction(pages, identity))).value;
     if (retained || record.status === 'completed') {
-      check(retained && (record.status === 'pending' || equal(retained, record)), 'SDK cannot manufacture a completed host effect');
+      check(retained, 'SDK cannot manufacture a completed host effect');
+      if (record.status === 'pending') sameReservation(retained);
+      else check(retained.result && equal({ fingerprint: retained.original.fingerprint, status: 'completed', result: retained.result }, record),
+        'SDK cannot manufacture a completed host effect');
       return;
     }
     let created = false;
@@ -31,7 +40,8 @@ export function createGameActionHooks(port: CanonicalHostPort, input: ActionBind
       execute: (input, options) => {
         const request = pinDeadline(input, action);
         return executeCanonical(request, async tx => {
-          if (await readAction(tx.pages, identity)) return { reserved: false };
+          const existing = await readAction(tx.pages, identity);
+          if (existing) { sameReservation(existing); return { reserved: false }; }
           const grant = await actionGrant(tx, binding, action);
           const retained = await retainPendingAction(tx, request, identity, binding.publication, grant.capability.effect);
           created = true; return retained.receipt;

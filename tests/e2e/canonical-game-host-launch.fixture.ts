@@ -37,7 +37,8 @@ async function grant(s: GameSession, publication: ProtocolRef) {
 async function effect(s: GameSession, publication: ProtocolRef) {
   const launch = (await readLaunch()).value!, run = launch.run!.value.data.started;
   const action = { ...protocolAction(launch.publication.wireRevision), runId: run.runId, sessionId: run.sessionId,
-    sessionEpoch: run.sessionEpoch, manifestHash: run.manifestHash, capabilityId: 'maze.observe' };
+    sessionEpoch: run.sessionEpoch, manifestHash: run.manifestHash, capabilityId: 'maze.observe',
+    deadlineAt: new Date(Date.now() + 300_000).toISOString() };
   return s.submitHostCommand({ kind: 'fresh', operation: 'fixture.granted-effect', input: {}, execute: (r, options) => executeCanonical(
     { ...r, deadlineAt: Math.min(r.deadlineAt ?? Infinity, Date.parse(action.deadlineAt)) }, async tx => {
       await assertLaunchGrant(tx, launch.grant?.ref ?? { key: 'agentica/launches/launch/grant', id: 'absent' }, action, publication);
