@@ -16,7 +16,7 @@ export interface CanonicalWork {
 }
 
 type Options = { limits?: CanonicalWorkLimits; signal?: AbortSignal };
-type Control = 'stop' | 'takeover' | 'resume';
+type Control = 'stop' | 'takeover' | 'claim' | 'resume';
 
 /** Domain callbacks may await only transaction work, never network/timers. */
 export function executeCanonical(input: CanonicalRequest, work: (tx: CanonicalWork) => Promise<Json>, options: Options = {}) {
@@ -37,12 +37,13 @@ export function operateCanonical(input: CanonicalRequest, action: OperationActio
   }, options, undefined, action);
 }
 
-/** Host-only control entrypoint. Stop/takeover consume reserve at most once before normal admission resumes. */
+/** Explicit host owner grant only. Claim transfers stopped custody on normal quota; only stop/takeover may use recovery reserve. */
 export function controlCanonical(input: CanonicalRequest, action: Control, options: Options = {}) {
   const original = request(input);
-  check(['stop', 'takeover', 'resume'].includes(action) && original.operation === `control.${action}`, 'invalid control action');
+  check(['stop', 'takeover', 'claim', 'resume'].includes(action) && original.operation === `control.${action}`, 'invalid control action');
   check(isObject(original.input) && Object.keys(original.input).join() === 'owner' && validId(original.input.owner), 'invalid control owner');
-  if (action !== 'takeover') check(original.input.owner === original.expected.owner, 'control owner mismatch');
+  if (action === 'stop' || action === 'resume') check(original.input.owner === original.expected.owner, 'control owner mismatch');
+  if (action === 'claim') check(original.input.owner !== original.expected.owner, 'claim requires a new owner');
   return run(original, async () => ({ status: action === 'resume' ? 'ready' : 'stopped' }), options, action);
 }
 
@@ -70,7 +71,7 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     const current = await tx.objectStore('heads').get(schema.gameId); head(current, original.expected); budget.received(jsonBytes(current));
     check(sameFence(current, original.expected), 'stale owner or revision'); deadline(original);
     if (operation !== 'cancel' && operation !== 'acknowledge')
-      check(current.status === (control === 'resume' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
+      check(current.status === (control === 'resume' || control === 'claim' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
     const change = operation ? await prepareOperation(tx, current, original, operation, budget) : undefined;
     const pages = new CanonicalPages(tx, current, budget);
     let state = checkpoint(current.checkpoint), checkpointChanged = false;
