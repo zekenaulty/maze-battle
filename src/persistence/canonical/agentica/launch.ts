@@ -27,7 +27,10 @@ export function executeLaunchCommand(input: CanonicalRequest, options: { signal?
 export async function readLaunch(id?: string) {
   const result = await readCanonical(async pages => {
     const active = id === undefined ? await loadActiveLaunch(pages) : null;
-    if (id === undefined && !active) return null;
+    if (id === undefined && !active) {
+      check(await pages.witness('execution', 'agentica/launches/') === null, 'missing active funded or retained launch');
+      return null;
+    }
     const launch = await loadLaunch(pages, id ?? active!.id);
     check(!active || launch.guard.admissionAttemptId === active.sourceAttemptId, 'active launch admission changed'); return launch;
   });

@@ -21,7 +21,7 @@ export async function retainLaunchAdmission(tx: CanonicalOperationWork, request:
     check(previous.guard.admissionAttemptId === active.sourceAttemptId, 'active launch admission changed');
     check(previous.guard.state === 'acknowledged', 'active launch guard is still funded');
     check(!previous.dispatch || previous.run, 'ambiguous start blocks replacement launch');
-  }
+  } else check(await tx.pages.witness('execution', 'agentica/launches/') === null, 'retained launch has no usable active pointer');
   check(!Object.keys(head.allocations).some(key => key.startsWith('agentica-launch:')), 'funded launch guard has no usable active pointer');
   const publication = await readPublication(pages, binding.publication); assertPublicationCurrent(publication, head);
   check(binding.start.sessionEpoch === String(head.epoch) && binding.start.observation.revision === publication.wireRevision, 'launch publication binding changed');

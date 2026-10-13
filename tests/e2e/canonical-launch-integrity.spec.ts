@@ -36,3 +36,18 @@ test('missing dispatch index and orphan run fail closed; missing active pointer 
   expect(String(r.read)).toContain('missing referenced'); expect(String(r.duplicate)).toContain('missing referenced'); expect(r.after).toEqual(r.before);
   expect(String(r.missing)).toContain('missing active funded'); expect(String(r.admit)).toContain('active pointer'); expect(r.post).toEqual(r.pre);
 });
+
+test('lost active pointer after funded ACK cannot hide an ambiguous dispatched launch', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const c = window.canonicalLaunch; await c.admit(await c.seed()); await c.transition('dispatch');
+    const stopped = await c.stop(); await c.ack(stopped.request.attemptId);
+    await c.executeCanonical(c.command((await c.readCanonicalHead()).head, 'fixture.remove-pointer'), async tx => {
+      await tx.pages.delete('execution', 'agentica/launch/active'); return true;
+    });
+    const next = await c.binding('next'), before = await c.dump();
+    const read = await c.readLaunch().then(() => 'unexpected success', String);
+    const admit = await c.admit(next).then(() => 'unexpected success', String);
+    return { read, admit, before, after: await c.dump() };
+  });
+  expect(r.read).toMatch(/^Error:/); expect(r.admit).toMatch(/^Error:/); expect(r.after).toEqual(r.before);
+});
