@@ -3,6 +3,7 @@
 2026-10-13. Provider-free canonical v9 vertical, not Auto integration qualification.
 Parent `36966a2` merged without discarding this branch's manual-save/claim commits.
 No GameSession, App, Agentica SDK, legacy travel, or whole-GameState adapter edits.
+Follow-up: [atomic host composition and terminal proof](issue-11-navigation-composition.md).
 
 ## Parent API
 

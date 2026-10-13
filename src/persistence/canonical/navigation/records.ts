@@ -26,6 +26,6 @@ export async function loadDestination(pages: Reader, operation: CanonicalOperati
 export async function saveDestination(pages: CanonicalPages, value: DestinationProgress, request: CanonicalRequest) {
   const p = destinationProgress({ ...value, sourceAttemptId: request.attemptId, owner: request.expected.owner, epoch: request.expected.epoch });
   const record = await pages.set('execution', destinationKey(p.operationId), json(p));
-  return json({ operationId: p.operationId, status: p.status, reason: p.reason, sequence: p.sequence,
-    steps: p.steps, replans: p.replans, startedAt: p.startedAt, recordId: record.id, recordWitness: canonicalJson(record) });
+  return { progress: p, result: json({ operationId: p.operationId, status: p.status, reason: p.reason, sequence: p.sequence,
+    steps: p.steps, replans: p.replans, startedAt: p.startedAt, recordId: record.id, recordWitness: canonicalJson(record) }) };
 }

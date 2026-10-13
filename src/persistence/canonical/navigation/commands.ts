@@ -14,18 +14,22 @@ import { NAVIGATION_WORK_LIMITS, type DestinationProgress, type DestinationReaso
 import { destinationBinding } from './validation';
 import { destinationKey, loadDestination, saveDestination } from './records';
 import { knownStep, planDestination } from './planner';
+import { prepareNavigationHost, type NavigationHostHooks } from './host';
 export { createDestinationBinding } from './validation';
+export { readDestinationTerminal, loadDestinationTerminal } from './terminal';
+export type { NavigationHostHooks, NavigationPreparation, NavigationCommit, NavigationHostRefs, NavigationRecordRef, NavigationReceiptRef } from './host';
 
 const stop = (p: DestinationProgress, reason: DestinationReason): DestinationProgress => ({ ...p, route: [], reason,
   status: reason === 'arrived' ? 'arrived' : 'blocked' });
-type Options = { signal?: AbortSignal };
+type Options = { signal?: AbortSignal; host?: NavigationHostHooks };
 /** One local command per fenced commit. Cancel/adopt/ack use operateCanonical directly. */
 export function executeNavigationCommand(input: CanonicalRequest, options: Options = {}) {
-  const request = validateRequest(input), settings = { limits: { ...NAVIGATION_WORK_LIMITS }, ...options };
+  const request = validateRequest(input), settings = { limits: { ...NAVIGATION_WORK_LIMITS }, signal: options.signal }, host = options.host;
   if (request.operation === 'operation.admit') {
     const input = operationInput(request, 'admit'), binding = destinationBinding(input.binding);
     return operateCanonical(request, 'admit', async tx => {
       check(!await tx.pages.get('execution', destinationKey(tx.operation.id)), 'destination already exists');
+      const commitHost = await prepareNavigationHost(tx, tx.operation, request, host);
       const checkpoint = gameCheckpoint(tx.head.checkpoint), startedAt = Date.now();
       let progress: DestinationProgress = { schema: 1, operationId: tx.operation.id, binding, sourceAttemptId: request.attemptId,
         owner: tx.head.owner, epoch: tx.head.epoch, sequence: 0, steps: 0, replans: 0, startedAt,
@@ -37,7 +41,7 @@ export function executeNavigationCommand(input: CanonicalRequest, options: Optio
         else if (limitReached(0, binding.limits.steps)) progress = stop(progress, 'step-limit');
         else progress.route = plan.route.slice(0, binding.limits.steps ?? plan.route.length);
       }
-      return saveDestination(tx.pages, progress, request);
+      return commitHost({ ...await saveDestination(tx.pages, progress, request), checkpoint });
     }, settings);
   }
   if (request.operation === 'operation.settle') {
@@ -45,23 +49,26 @@ export function executeNavigationCommand(input: CanonicalRequest, options: Optio
     return operateCanonical(request, 'settle', async tx => {
       const progress = await loadDestination(tx.pages, tx.operation);
       check(progress.status !== 'running' && input.disposition === (progress.status === 'arrived' ? 'completed' : 'blocked'), 'destination not ready for settlement');
-      return json({ operationId: progress.operationId, status: progress.status, reason: progress.reason, sequence: progress.sequence,
-        steps: progress.steps, replans: progress.replans });
+      const commitHost = await prepareNavigationHost(tx, tx.operation, request, host);
+      return commitHost({ progress, checkpoint: gameCheckpoint(tx.head.checkpoint), result: json({ operationId: progress.operationId,
+        status: progress.status, reason: progress.reason, sequence: progress.sequence, steps: progress.steps, replans: progress.replans }) });
     }, settings);
   }
   check(request.operation === 'navigation.advance', 'invalid navigation command');
   const step = fields(request.input, 'operationId sequence');
   check(validId(step.operationId) && integer(step.sequence), 'invalid destination step');
-  return executeCanonical(request, tx => advance(tx, request, step.operationId as string, step.sequence as number), settings);
+  return executeCanonical(request, tx => advance(tx, request, step.operationId as string, step.sequence as number, host), settings);
 }
 
-async function advance(tx: CanonicalWork, request: CanonicalRequest, id: string, sequence: number): Promise<Json> {
+async function advance(tx: CanonicalWork, request: CanonicalRequest, id: string, sequence: number, host?: NavigationHostHooks): Promise<Json> {
   const operation = await tx.liveOperation(id);
   check(operation?.state === 'admitted', 'destination is not admitted');
   check(operation.owner === tx.head.owner && operation.epoch === tx.head.epoch, 'destination needs explicit adoption');
   let p = await loadDestination(tx.pages, operation);
   check(p.status === 'running' && p.sequence === sequence && integer(sequence + 1), 'destination step changed');
+  const commitHost = await prepareNavigationHost(tx, operation, request, host);
   const before = gameCheckpoint(tx.head.checkpoint), limits = p.binding.limits;
+  let checkpoint = before;
   const invalidated = p.owner !== tx.head.owner || p.epoch !== tx.head.epoch || !same(p.position, before.position);
   p.sequence++; p.position = before.position;
   if (destinationExpired(p, Date.now())) p = stop(p, 'time-limit');
@@ -86,7 +93,9 @@ async function advance(tx: CanonicalWork, request: CanonicalRequest, id: string,
       const legal = await resolveWorldStep(tx.pages, before.position, step.direction);
       if (!legal.moved || !same(legal.position, step.to)) p = stop(p, 'obstructed');
       else {
-        const moved = await commitExplorationCommand(tx, { kind: 'move', direction: step.direction, triggerStairs: false });
+        const moved = await commitExplorationCommand({ ...tx, setCheckpoint: value => {
+          checkpoint = gameCheckpoint(value); tx.setCheckpoint(value);
+        } }, { kind: 'move', direction: step.direction, triggerStairs: false });
         check(isObject(moved), 'invalid movement result');
         if (moved.outcome === 'unavailable') p = stop(p, 'unavailable');
         else {
@@ -97,7 +106,7 @@ async function advance(tx: CanonicalWork, request: CanonicalRequest, id: string,
       }
     }
   }
-  return saveDestination(tx.pages, p, request);
+  return commitHost({ ...await saveDestination(tx.pages, p, request), checkpoint });
 }
 
 /** Cancellation/acknowledgement state comes from the funded kernel ledger, not a second writable status. */
