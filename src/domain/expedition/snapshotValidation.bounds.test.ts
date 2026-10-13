@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { deleteExpedition, loadExpedition, saveExpedition, validateExpeditionRecord } from './expeditionRepository';
-import { storageFixture, testSpace } from '../domain/expedition/storage.testSupport';
-import { addressKey } from '../domain/expedition/address';
-import { opposite } from '../domain/maze/movement';
-import type { Direction } from '../domain/types';
+import { validateExpeditionSnapshot } from './snapshotValidation';
+import { storageFixture, testSpace } from './storage.testSupport';
+import { addressKey } from './address';
+import { opposite } from '../maze/movement';
+import type { Direction } from '../types';
 
 function singleSpace(rows = 1, columns = 1) {
   const record = storageFixture();
@@ -20,13 +20,13 @@ describe('bounded expedition record contracts', () => {
     space.kind = 'passage';
     space.chests = Array.from({ length: 512 }, (_, column) => ({ id: `loot-${column}`, cell: { row: 0, column } }));
     for (let i = 1; i < 24; i++) record.plan.spaces.push(testSpace(`extra-${i}`, 1, 1));
-    expect(() => validateExpeditionRecord(record)).not.toThrow();
+    expect(() => validateExpeditionSnapshot(record)).not.toThrow();
   });
 
   it.each([0, 0xffffffff])('accepts uint32 boundary seed %s', seed => {
     const record = storageFixture();
     record.plan.recipe.seed = record.plan.spaces[0].seed = seed;
-    expect(() => validateExpeditionRecord(record)).not.toThrow();
+    expect(() => validateExpeditionSnapshot(record)).not.toThrow();
   });
 
   it('accepts maximum-length IDs and a 512-character JSON scope identity', () => {
@@ -37,7 +37,7 @@ describe('bounded expedition record contracts', () => {
     record.plan.spaces[0].id = 'a'.repeat(128);
     record.plan.start.spaceId = record.checkpoint.position.spaceId = record.checkpoint.home.spaceId = record.plan.spaces[0].id;
     record.plan.spaces[0].chests = [{ id: 'c'.repeat(128), cell: { row: 0, column: 0 } }];
-    expect(() => validateExpeditionRecord(record)).not.toThrow();
+    expect(() => validateExpeditionSnapshot(record)).not.toThrow();
     expect(record.plan.scopeId).toHaveLength(512);
   });
 
@@ -53,7 +53,7 @@ describe('bounded expedition record contracts', () => {
       record.plan.spaces.push(neighbor);
     }
     center.openings[0].id = 'o'.repeat(128);
-    expect(() => validateExpeditionRecord(record)).not.toThrow();
+    expect(() => validateExpeditionSnapshot(record)).not.toThrow();
   });
 
   it('accepts correctly keyed knowledge observed at or before the checkpoint revision', () => {
@@ -62,7 +62,7 @@ describe('bounded expedition record contracts', () => {
     record.checkpoint.knowledge.cells[addressKey(record.plan.start)].observedAt = 2;
     record.checkpoint.knowledge.openings['a-b'].observedAt = 1;
     record.checkpoint.knowledge.chests['chest-a'].observedAt = 2;
-    expect(() => validateExpeditionRecord(record)).not.toThrow();
+    expect(() => validateExpeditionSnapshot(record)).not.toThrow();
   });
 
   const invalid: [string, (record: ReturnType<typeof storageFixture>) => void, string][] = [
@@ -90,17 +90,17 @@ describe('bounded expedition record contracts', () => {
     const record = storageFixture();
     change(record);
     const before = structuredClone(record);
-    expect(() => validateExpeditionRecord(record)).toThrow(`Invalid expedition: ${error}`);
+    expect(() => validateExpeditionSnapshot(record)).toThrow(`Invalid expedition: ${error}`);
     expect(record).toEqual(before);
   });
 
   it.each([-1, 0.5, 0x100000000, Infinity, NaN])('rejects non-uint32 seed %s at both levels', seed => {
     const record = storageFixture();
     record.plan.recipe.seed = seed;
-    expect(() => validateExpeditionRecord(record)).toThrow('recipe parameters');
+    expect(() => validateExpeditionSnapshot(record)).toThrow('recipe parameters');
     record.plan.recipe.seed = 42;
     record.plan.spaces[0].seed = seed;
-    expect(() => validateExpeditionRecord(record)).toThrow('space dimensions/seed');
+    expect(() => validateExpeditionSnapshot(record)).toThrow('space dimensions/seed');
   });
 
   it.each(['north', 'east', 'south', 'west'] as Direction[])('rejects an interior opening facing %s', direction => {
@@ -109,23 +109,16 @@ describe('bounded expedition record contracts', () => {
     space.rows = space.columns = 3;
     space.openings[0].cell = { row: 1, column: 1 };
     space.openings[0].direction = direction;
-    expect(() => validateExpeditionRecord(record)).toThrow('opening boundary');
+    expect(() => validateExpeditionSnapshot(record)).toThrow('opening boundary');
   });
 
   it.each(['cells', 'openings', 'chests'] as const)('requires exact keys and nonfuture observation revisions for %s', kind => {
     const record = storageFixture();
     const [key, entry] = Object.entries(record.checkpoint.knowledge[kind])[0];
     Object.assign(record.checkpoint.knowledge, { [kind]: { wrong: entry } });
-    expect(() => validateExpeditionRecord(record)).toThrow('knowledge key');
+    expect(() => validateExpeditionSnapshot(record)).toThrow('knowledge key');
     Object.assign(record.checkpoint.knowledge, { [kind]: { [key]: { ...entry, observedAt: 1 } } });
-    expect(() => validateExpeditionRecord(record)).toThrow('knowledge address/time');
+    expect(() => validateExpeditionSnapshot(record)).toThrow('knowledge address/time');
   });
 
-  it('rejects oversized slot IDs before touching IndexedDB', async () => {
-    const { plan, checkpoint } = storageFixture();
-    const slot = 's'.repeat(129);
-    await expect(loadExpedition(slot)).rejects.toThrow('slot id');
-    await expect(saveExpedition(slot, plan, checkpoint, null)).rejects.toThrow('slot id');
-    await expect(deleteExpedition(slot)).rejects.toThrow('slot id');
-  });
 });

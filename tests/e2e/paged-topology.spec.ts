@@ -9,7 +9,7 @@ test('new namespace leaves ordinary and v1 databases byte-for-byte and version i
     const { openDB, setup, api } = window.paged;
     const legacy = [
       { name: 'maze-battle', store: 'saves', value: { untouched: 'ordinary', bytes: [0, 255, 17] } },
-      { name: 'maze-battle-expeditions', store: 'expeditions', value: window.paged.legacyRecord() },
+      { name: 'maze-battle-expeditions', store: 'expeditions', value: { untouched: 'expedition', bytes: [42, 0, 255] } },
     ];
     // Sentinels exist only in this fresh Playwright profile, never the active user's origin.
     for (const { name, store, value } of legacy) {

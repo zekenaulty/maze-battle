@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyExpeditionCommand, createExpeditionCheckpoint } from './commands';
 import { observeExpedition } from './observation';
+import { testGeometry, testSpace } from './storage.testSupport';
 import type { ExpeditionPlan, SpaceGeometry, SpaceSpec } from './types';
 
 const space = (id: string): SpaceSpec => ({ id, kind: 'room', name: id, origin: { row: 0, column: 0 }, rows: 1, columns: 7, seed: 4, openings: [], chests: [] });
@@ -18,6 +19,34 @@ function read(spec: SpaceSpec): SpaceGeometry {
 }
 
 describe('bounded expedition commands', () => {
+  it('applies move, collect and finish without mutating inputs; refusals retain the checkpoint', () => {
+    const room = testSpace('effects', 1, 2);
+    room.chests = [{ id: 'chest-a', cell: { row: 0, column: 1 } }];
+    const localPlan = { ...plan, spaces: [room], start: { spaceId: room.id, row: 0, column: 0 } };
+    let checkpoint = createExpeditionCheckpoint(localPlan, testGeometry);
+    const initial = structuredClone(checkpoint);
+    const refused = applyExpeditionCommand(localPlan, checkpoint, { type: 'collect' }, testGeometry);
+    expect(refused.applied).toBe(false);
+    expect(refused.checkpoint).toBe(checkpoint);
+    expect(checkpoint).toEqual(initial);
+    for (const command of [{ type: 'move', direction: 'east' }, { type: 'collect' },
+      { type: 'move', direction: 'west' }, { type: 'finish' }] as const) {
+      const before = structuredClone({ plan: localPlan, checkpoint, command });
+      const outcome = applyExpeditionCommand(localPlan, checkpoint, command, testGeometry);
+      expect(outcome.applied).toBe(true);
+      expect({ plan: localPlan, checkpoint, command }).toEqual(before);
+      expect(outcome.checkpoint.revision).toBe(checkpoint.revision + 1);
+      expect(outcome.checkpoint.moves - checkpoint.moves).toBe(command.type === 'move' ? 1 : 0);
+      expect(outcome.checkpoint.home).toEqual(checkpoint.home);
+      expect(outcome.checkpoint.openedChestIds.filter(id => !checkpoint.openedChestIds.includes(id)))
+        .toEqual(command.type === 'collect' ? ['chest-a'] : []);
+      expect(checkpoint.openedChestIds.every(id => outcome.checkpoint.openedChestIds.includes(id))).toBe(true);
+      expect(outcome.checkpoint.phase).toBe(command.type === 'finish' ? 'complete' : checkpoint.phase);
+      if (command.type !== 'move') expect(outcome.checkpoint.position).toEqual(checkpoint.position);
+      checkpoint = outcome.checkpoint;
+    }
+  });
+
   it('projects only currently visible facts, not generated rooms, unopened targets or seeds', () => {
     const checkpoint = createExpeditionCheckpoint(plan, read);
     const observation = observeExpedition(checkpoint, a, read(a));

@@ -1,8 +1,7 @@
-import { expeditionTransaction, openExpeditionDatabase, type ExpeditionRecord } from './expeditionDatabase';
-import { addressKey, sameAddress } from '../domain/expedition/address';
-import type { CellAddress, ExpeditionCheckpoint, ExpeditionPlan, SpaceSpec } from '../domain/expedition/types';
-import type { GridPosition } from '../domain/types';
-import { movePosition, opposite } from '../domain/maze/movement';
+import { addressKey, sameAddress } from './address';
+import type { CellAddress, ExpeditionCheckpoint, ExpeditionPlan, SpaceSpec } from './types';
+import type { GridPosition } from '../types';
+import { movePosition, opposite } from '../maze/movement';
 
 const directions = ['north', 'east', 'south', 'west'];
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -21,7 +20,7 @@ function check(condition: unknown, message: string): asserts condition {
 }
 
 /** Validate without repairing identities, regenerating geometry, or replacing loot. */
-export function validateExpeditionRecord(value: unknown): asserts value is ExpeditionRecord {
+export function validateExpeditionSnapshot(value: unknown): asserts value is { plan: ExpeditionPlan; checkpoint: ExpeditionCheckpoint } {
   check(object(value) && object(value.plan) && object(value.checkpoint), 'record');
   const plan = value.plan as unknown as ExpeditionPlan;
   const checkpoint = value.checkpoint as unknown as ExpeditionCheckpoint;
@@ -113,68 +112,4 @@ export function validateExpeditionRecord(value: unknown): asserts value is Exped
       }
     }
   }
-}
-
-// Object insertion order is not part of a persisted record's identity; array order is.
-export function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (object(value)) return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
-  return JSON.stringify(value);
-}
-
-export async function loadExpedition(slotId: string): Promise<ExpeditionRecord | undefined> {
-  check(text(slotId), 'slot id');
-  const db = await openExpeditionDatabase();
-  try {
-    // An existing key with an undefined value is corruption, not an empty slot.
-    const records = await db.getAll('expeditions', slotId, 1);
-    if (records.length === 0) return undefined;
-    const record: unknown = records[0];
-    validateExpeditionRecord(record);
-    return record;
-  } finally {
-    db.close();
-  }
-}
-
-/** null is strictly create-only. Exact numeric-revision retries are no-ops.
- * A changed checkpoint must advance revision (possibly by several commands).
- * A slot's entire plan is immutable; replacement requires explicit deletion.
- */
-export async function saveExpedition(
-  slotId: string, plan: ExpeditionPlan, checkpoint: ExpeditionCheckpoint, expectedRevision: number | null,
-): Promise<void> {
-  check(text(slotId), 'slot id');
-  check(expectedRevision === null || natural(expectedRevision), 'expected revision');
-  // Take ownership before the first await, so a caller cannot change an in-flight write.
-  const record = structuredClone({ plan, checkpoint });
-  validateExpeditionRecord(record);
-  check(expectedRevision === null || expectedRevision <= record.checkpoint.revision, 'revision regression');
-  await expeditionTransaction('readwrite', async tx => {
-    const store = tx.objectStore('expeditions');
-    const records = await store.getAll(slotId, 1);
-    if (records.length === 0) {
-      check(expectedRevision === null, 'revision conflict: slot missing');
-    } else {
-      const current: unknown = records[0];
-      validateExpeditionRecord(current);
-      check(expectedRevision !== null, 'revision conflict: slot exists');
-      check(canonical(current.plan) === canonical(record.plan), 'plan identity changed');
-      if (canonical(current) === canonical(record)) {
-        return;
-      }
-      check(current.checkpoint.revision === expectedRevision && record.checkpoint.revision > expectedRevision,
-        'revision conflict');
-    }
-    check(await tx.objectStore('actionSessions').count(slotId) === 0, 'durable session requires atomic action commit');
-    await store.put(record, slotId);
-  });
-}
-
-export async function deleteExpedition(slotId: string): Promise<void> {
-  check(text(slotId), 'slot id');
-  await expeditionTransaction('readwrite', async tx => {
-    check(await tx.objectStore('actionSessions').count(slotId) === 0, 'durable action history must be retained');
-    await tx.objectStore('expeditions').delete(slotId);
-  });
 }

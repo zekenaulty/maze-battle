@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { validateExpeditionRecord } from './expeditionRepository';
-import { storageFixture } from '../domain/expedition/storage.testSupport';
+import { validateExpeditionSnapshot } from './snapshotValidation';
+import { storageFixture } from './storage.testSupport';
 
 describe('expedition record validation', () => {
   it('accepts lossless records without generating or normalizing anything', () => {
     const record = storageFixture();
     const before = structuredClone(record);
-    validateExpeditionRecord(record);
+    validateExpeditionSnapshot(record);
     expect(record).toEqual(before);
     record.checkpoint.knowledge.openings['a-b'].destination = { spaceId: 'room-b', row: 0, column: 0 };
-    expect(() => validateExpeditionRecord(record)).not.toThrow();
+    expect(() => validateExpeditionSnapshot(record)).not.toThrow();
   });
 
   it.each([null, undefined, 0, [], {}, { plan: null, checkpoint: {} }, { plan: {}, checkpoint: {} }])(
-    'rejects malformed envelopes: %j', value => expect(() => validateExpeditionRecord(value)).toThrow('Invalid expedition'),
+    'rejects malformed envelopes: %j', value => expect(() => validateExpeditionSnapshot(value)).toThrow('Invalid expedition'),
   );
 
   const invalid: [string, (record: ReturnType<typeof storageFixture>) => void][] = [
@@ -67,7 +67,7 @@ describe('expedition record validation', () => {
     const record = storageFixture();
     corrupt(record);
     const before = structuredClone(record);
-    expect(() => validateExpeditionRecord(record)).toThrow('Invalid expedition');
+    expect(() => validateExpeditionSnapshot(record)).toThrow('Invalid expedition');
     expect(record).toEqual(before);
   });
 });

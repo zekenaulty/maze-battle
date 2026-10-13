@@ -1,7 +1,6 @@
 import { openDB } from 'idb';
 import * as api from '../../src/persistence/topologyRepository';
 import { recordBytes } from '../../src/persistence/topology/database';
-import { durableFixture } from '../../src/persistence/expeditionAction.testSupport';
 import { expandTopology } from '../../src/domain/expedition/topology/generation';
 import { MemoryTopology } from '../../src/domain/expedition/topology/memoryTopology';
 import { materializeTopologySpace, resolvedSpaceSpec } from '../../src/domain/expedition/topology/projection';
@@ -9,7 +8,7 @@ import type { TopologyRecipe } from '../../src/domain/expedition/topology/types'
 
 const recipe: TopologyRecipe = { version: 'spaces-v2', worldId: 'paged-world', floorId: 'deep-floor', level: 80, seed: 0 };
 const harness = {
-  api, openDB, recipe, expandTopology, MemoryTopology, materializeTopologySpace, resolvedSpaceSpec, legacyRecord: durableFixture,
+  api, openDB, recipe, expandTopology, MemoryTopology, materializeTopologySpace, resolvedSpaceSpec,
   async setup(slot = 'floor', quotaBytes?: number) { return api.createTopologySlot(slot, recipe, quotaBytes); },
   async next(requestId: string, slot = 'floor') {
     const root = (await api.loadTopologyHeader(slot))!;
