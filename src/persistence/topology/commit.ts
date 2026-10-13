@@ -13,7 +13,7 @@ export async function stageDelta(tx: TopologyTransaction, slot: string, delta: T
     if (frontier.source.socketSequences !== undefined && !frontier.source.socketSequences.includes(frontier.socket.sequence)) throw new Error('Socket missing from source index');
     occupancy.remove({ id: frontier.socket.id, kind: 'reservation', bounds: reservedBounds(frontier.source.space.spec, frontier.socket) });
   } else {
-    await occupancy.fetch(tx, slot, delta.addOccupancy.flatMap(entry => boundsBuckets(entry.bounds)));
+    await occupancy.fetch(bucket => tx.get('buckets', [slot, ...bucket]), delta.addOccupancy.flatMap(entry => boundsBuckets(entry.bounds)));
   }
   for (const entry of delta.addOccupancy) occupancy.add(entry);
   const spaces = new Map<string, TopologySpacePage>();
@@ -44,5 +44,5 @@ export async function stageDelta(tx: TopologyTransaction, slot: string, delta: T
     await tx.put('sockets', [slot, socket.sequence], socket);
   }
   if (delta.resolved) await tx.put('sockets', [slot, delta.resolved.sequence], delta.resolved);
-  await occupancy.stage(tx, slot);
+  await occupancy.stage((bucket, values) => tx.put('buckets', [slot, ...bucket], values.length ? values : undefined));
 }

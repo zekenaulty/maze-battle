@@ -64,9 +64,9 @@ describe('bounded paged topology occupancy', () => {
     const entry: Occupancy = { id: 'crossing', kind: 'space', bounds: { row: 15, column: 0, rows: 2, columns: 1 } };
     const tx = { get: async (_store: string, key: number[]) => key[1] === 0 ? [entry] : [] } as unknown as TopologyTransaction;
     const inconsistent = new PagedOccupancy();
-    await expect(inconsistent.fetch(tx, 'slot', [[0, 0], [1, 0]])).rejects.toThrow(/Inconsistent/);
+    await expect(inconsistent.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), [[0, 0], [1, 0]])).rejects.toThrow(/Inconsistent/);
     const page = new PagedOccupancy();
-    await page.fetch(tx, 'slot', [[0, 0]]);
+    await page.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), [[0, 0]]);
     expect(() => page.occupied({ row: 15, column: 0, rows: 2, columns: 1 })).toThrow(/prefetched/);
     expect(page.occupied({ row: 15, column: 0, rows: 1, columns: 1 })).toBe(true);
     expect(page.occupied({ row: 15, column: 0, rows: 1, columns: 1 }, 'crossing')).toBe(false);
@@ -84,8 +84,8 @@ describe('bounded paged topology occupancy', () => {
     let reads = 0;
     const tx = { get: async () => { reads++; return []; } } as unknown as TopologyTransaction;
     const pages = new PagedOccupancy();
-    await pages.fetch(tx, 'slot', neighborhood({ row: 0, column: 0 }));
-    await expect(pages.fetch(tx, 'slot', [[3, 3]])).rejects.toThrow(/page budget/);
+    await pages.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), neighborhood({ row: 0, column: 0 }));
+    await expect(pages.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), [[3, 3]])).rejects.toThrow(/page budget/);
     expect(reads).toBe(25);
   });
 });

@@ -11,11 +11,12 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 export class PagedOccupancy {
   private readonly pages = new Map<string, Occupancy[]>();
   private readonly dirty = new Set<string>();
-  async fetch(tx: TopologyTransaction, slot: string, buckets: Bucket[]) {
+  async fetch(read: (bucket: Bucket) => Promise<Occupancy[] | undefined>, buckets: Bucket[]) {
     for (const bucket of buckets) {
       if (this.pages.has(key(bucket))) continue;
       if (this.pages.size >= MAX_PREFETCH_BUCKETS) throw new Error('Topology prefetch page budget exceeded');
-      const values = await tx.get('buckets', [slot, ...bucket]) ?? [];
+      const stored = await read(bucket);
+      const values = stored === undefined ? [] : stored;
       validateBucket(bucket, values);
       this.pages.set(key(bucket), values);
     }
@@ -59,10 +60,10 @@ export class PagedOccupancy {
       this.dirty.add(key(bucket));
     }
   }
-  async stage(tx: TopologyTransaction, slot: string) {
+  async stage(write: (bucket: Bucket, values: Occupancy[]) => Promise<unknown>) {
     for (const id of this.dirty) {
       const values = this.pages.get(id)!;
-      await tx.put('buckets', [slot, ...JSON.parse(id) as Bucket], values.length ? values : undefined);
+      await write(JSON.parse(id) as Bucket, values);
     }
   }
 }
@@ -80,7 +81,7 @@ export async function loadFrontier(tx: TopologyTransaction, slot: string, header
   if (socket.status !== 'pending' || spec.kind !== 'room' || socket.source.row !== cell.row || socket.source.column !== cell.column
     || !same(socket.fallback, childBounds(spec, socket.direction, 5, 5, 1))) throw new Error('Invalid canonical frontier');
   const occupancy = new PagedOccupancy();
-  await occupancy.fetch(tx, slot, neighborhood(world(spec, cell)));
+  await occupancy.fetch(bucket => tx.get('buckets', [slot, ...bucket]), neighborhood(world(spec, cell)));
   const reservation = { id: socket.id, kind: 'reservation' as const, bounds: reservedBounds(spec, socket) };
   // Validate the promise without dropping it from the facade used by the generator.
   occupancy.remove(reservation);

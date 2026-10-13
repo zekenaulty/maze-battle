@@ -6,6 +6,7 @@ import { CANONICAL_STORES, type CanonicalHead, type CanonicalRequest, type Json 
 import { storedBytes } from '../../src/persistence/canonical/accounting';
 import { MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES } from '../../src/persistence/canonical/types';
 import { storageProbe } from './storage-probe';
+import * as world from './canonical-world-fixture';
 
 function command(head: CanonicalHead, operation = 'test.change', input: Json = {}, attemptId: string = crypto.randomUUID()): CanonicalRequest {
   return { attemptId, operation, input, expected: transaction.canonicalFence(head), deadlineAt: null };
@@ -44,7 +45,7 @@ async function fillNormalCapacity() {
 }
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5209') throw new Error('Isolated canonical fixture only');
-const api = { ...lifecycle, ...transaction, ...reader, openCanonicalDatabase, command, dump, storageProbe,
+const api = { ...lifecycle, ...transaction, ...reader, openCanonicalDatabase, command, dump, storageProbe, world,
   admitFixtureOperation, fillNormalCapacity, MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES };
 declare global { interface Window { canonical: typeof api } }
 window.canonical = api;

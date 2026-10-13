@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 3,
-2026-10-13. Status: P0 and P1a/P1b storage contracts checked; canonical gameplay
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 4,
+2026-10-13. Status: P0, P1 and P2a structural world storage checked; canonical gameplay
 cutover NOT implemented or qualified. This is the next active engineering slice,
 ahead of further room-map/Agentic Play feature work.
 
@@ -114,8 +114,9 @@ P0 is checked: [integrated recovery evidence](reviews/issue-11-recovery.md) and
 [native before-change baseline](reviews/issue-11-storage-baseline.md). P1a is now
 checked: [kernel evidence and limits](reviews/issue-11-canonical-kernel.md).
 P1b is also checked at the storage boundary:
-[operation-capacity evidence](reviews/issue-11-operation-capacity.md). P2-P5 remain
-unimplemented/unqualified. These storage tests do not change ordinary-game
+[operation-capacity evidence](reviews/issue-11-operation-capacity.md). P2a now has
+[bounded structural world evidence](reviews/issue-11-world-residency.md). P2 is
+partial; P3-P5 remain unimplemented/unqualified. These storage tests do not change ordinary-game
 movement payload scaling or qualify actual Agentica consumers yet.
 
 P1 storage contracts are split as follows:
@@ -128,14 +129,34 @@ P1 storage contracts are split as follows:
   and acknowledgement reservations; explicit adoption after takeover; immutable
   original receipts and current control rows fenced by bounded head allocations.
   Native tests prove the storage contract at capacity, not game-level completion.
-- Then **P2/P3** adopt floor/space/mutation and party/item/quest records through
-  actual game-owned commands. Wire the new opener only at that coherent cutover;
-  do not add a second playable entrypoint, old-state adapter or dual writer.
+- **P2a, checked:** persist pinned modules one bounded expansion at a time, sharing
+  the existing module step and occupancy logic; separate immutable room geometry,
+  ports/connections, frontier/counters, local mutations and reciprocal stairs.
+  Native checks cover generation parity, restart, twelve-floor return, corruption
+  and local resolver costs through 32 generated floors. Not App qualification.
+- **P2b/P3, next:** integrate content roles, floor qualification, chest/encounter
+  definitions and their shared domain effects, bounded render/knowledge residency,
+  portal resource handling and party/item/quest records through actual game-owned
+  commands. The structural stair resolver alone does not implement those effects.
+  Wire the new opener only at that coherent cutover; do not add a second playable
+  entrypoint, old-state adapter or dual writer.
 
 The target database is `maze-battle` version 9 with `meta`, `heads`, `records`,
 `nodes`, `receipts` and `operations`. The opener discards earlier store layouts without reading
 their values. Until P2/P3 adoption, only isolated native fixtures invoke it. The
 existing preview is intentionally not upgraded by importing the kernel.
+
+P2a keys in the world area are `dungeon` (world identity/deepest generated level),
+`dungeon/<level>` (pinned recipe and bounded generation counters), and independent
+`space/<id>`, `ports/<id>`, `connection/<id>`, `join/<id>`, `frontier/<sequence>`,
+`bucket/<row,column>`, `mutation/<space>/<entity>` and `stairs` records beneath
+that level. Space recipes pin `stone-room-v1`; generated links are separate from
+the immutable geometry. A growing room's pending sockets are not openings.
+The space loader reads one room and at most four connections. A doorway resolver
+loads at most its two endpoints; no floor history, room list or full grid is built.
+Generation prefetches at most 25 occupancy bins, independent of retained depth.
+Missing established geometry/endpoints are errors, never new-generation requests.
+These are internal authoritative reads; they are not player/agent observations.
 
 Normal command admission stops before the logical reserve. A host-only Stop or
 takeover fences the old epoch and enters `stopped`; repeated emergency actions
