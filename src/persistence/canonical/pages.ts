@@ -84,6 +84,18 @@ export class CanonicalPages {
 
   get(area: RecordArea, key: string) { return this.operation(() => this.lookup(area, key)); }
 
+  /** Bounded immutable provenance read, at the same roots/revision as record work. */
+  sourceReceipt(attemptId: string) {
+    return this.operation(async () => {
+      check(validId(attemptId), 'invalid source attempt'); this.budget.read();
+      const receipt = await this.tx.objectStore('receipts').get([this.head.gameId, attemptId]);
+      this.budget.received(receipt === undefined ? 0 : jsonBytes(receipt));
+      const source = validateReceipt(receipt, this.head);
+      check(receipt!.attemptId === attemptId && receipt!.afterRevision <= this.head.revision, 'source receipt identity or revision changed');
+      return { receipt: structuredClone(receipt!), source };
+    });
+  }
+
   /** Resolve retained authority through the live execution root and its exact creation receipt. */
   private async snapshotAt(key: string) {
     const row = await this.lookup('execution', key);

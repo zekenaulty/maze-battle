@@ -2,7 +2,7 @@ import { openCanonicalDatabase } from './database';
 import { workBudget } from './budget';
 import { CanonicalPages } from './pages';
 import { accountHead, appendedBytes } from './accounting';
-import { prepareOperation } from './operations';
+import { operationAt, prepareOperation } from './operations';
 import { operationInput, type OperationAction } from './operationValidation';
 import { validateReceipt } from './receipts';
 import { CANONICAL_STORES, type CanonicalHead, type CanonicalOperation, type CanonicalReceipt, type CanonicalRequest, type CanonicalWorkLimits, type Json, type JsonObject } from './types';
@@ -13,6 +13,7 @@ export interface CanonicalWork {
   readonly pages: CanonicalPages;
   setCheckpoint(value: JsonObject): void;
   restoreSnapshot(key: string): Promise<void>;
+  liveOperation(id: string): ReturnType<typeof operationAt>;
 }
 
 type Options = { limits?: CanonicalWorkLimits; signal?: AbortSignal };
@@ -74,10 +75,18 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
       check(current.status === (control === 'resume' || control === 'claim' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
     const change = operation ? await prepareOperation(tx, current, original, operation, budget) : undefined;
     const pages = new CanonicalPages(tx, current, budget);
+    let operationFailed = false, pendingOperations = 0, closed = false;
+    const liveOperation = async (id: string) => {
+      pendingOperations++;
+      try { check(!closed, 'operation view is closed'); return await operationAt(tx, current, id, budget); }
+      catch (error) { operationFailed = true; throw error; }
+      finally { pendingOperations--; }
+    };
     let state = checkpoint(current.checkpoint), checkpointChanged = false;
     const outcome = result(await work({ head: structuredClone(current), pages, operation: change && structuredClone(change.before ?? change.after),
       setCheckpoint: value => { state = checkpoint(value); checkpointChanged = true; },
-      restoreSnapshot: key => pages.restoreSnapshot(key) }));
+      restoreSnapshot: key => pages.restoreSnapshot(key), liveOperation }));
+    closed = true; check(!operationFailed && pendingOperations === 0, 'operation read is not usable');
     const staged = await pages.prepare(), revision = current.revision + 1;
     check(!staged.snapshot || !checkpointChanged && !operation, 'snapshot restore cannot mix checkpoint or operation changes');
     if (staged.snapshot) state = checkpoint(staged.snapshot.checkpoint);
