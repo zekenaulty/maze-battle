@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["canonical-game-map-fixture.tsx", "earned-game-map.spec.ts", "canonical-game-map.config.ts", "canonical-game-map.vite.ts"]
+}

@@ -1,23 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
-import type { Direction, GameState, GridPosition } from '../domain/types';
+import type { Direction, GridPosition } from '../domain/types';
+import type { GameView } from '../services/game/GameView';
 import { AutoThrottleControl } from './AutoThrottleControl';
 import { Controls } from './Controls';
 import type { MazeRenderMode } from './maze/drawMaze';
 import { DEFAULT_MAZE_CAMERA, zoomMazeCamera, type MazeCameraState } from './maze/mazeCamera';
 import { MazeCanvas } from './MazeCanvas';
-import { createPerceivedMazeView, emptyPerceivedMazeView } from '../viewModels/perceivedMaze';
-import { perceptionScope } from '../viewModels/perceptionScope';
+import { canonicalPerceptionScope, createCanonicalMazeView, currentVisibleCell, emptyCanonicalMazeView } from '../viewModels/canonicalPerceivedMaze';
 import { useMazePerception } from '../hooks/useMazePerception';
 import { Dialog } from './Dialog';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
-import { AutoStatus } from './screens/AutoStatus';
 import './screens/screens.css';
-import { chestAtActivePosition } from '../domain/items/chests';
 import { useExploreKeys } from '../hooks/useExploreKeys';
 
 interface ExploreScreenProps {
-  game: GameState;
+  game: GameView;
   status: string;
   onMove: (direction: Direction) => void;
   observationHead?: string;
@@ -48,7 +46,6 @@ export function ExploreScreen({
   game,
   status,
   onMove,
-  observationHead,
   autoActive,
   wavesActive,
   autoThrottleMs,
@@ -73,13 +70,16 @@ export function ExploreScreen({
   const portalCount = portalScrollCount ?? game.inventory.items.reduce((count, item) =>
     item.consumableEffect === 'townPortal' ? count + Math.max(0, Math.floor(item.quantity ?? 1)) : count, 0);
   const isOverview = mazeMode === 'overview';
-  const scope = perceptionScope(game.dungeonLevel, game.maze.active, canvasSize, camera, mazeMode);
+  const currentCell = currentVisibleCell(game);
+  const actor = currentCell?.world;
+  const floor = game.checkpoint.position.level, facing = game.checkpoint.facing;
+  const scope = canonicalPerceptionScope(floor, actor ?? { row: 0, column: 0 }, canvasSize, camera, mazeMode);
   const scopeKey = JSON.stringify(scope);
-  const perception = useMazePerception(game.id, observationHead, scope);
-  const mazeView = useMemo(() => perception.region ? createPerceivedMazeView(perception.region, game.facing)
-    : emptyPerceivedMazeView(scope, game.facing), [perception.region, game.facing, scopeKey]);
+  const perception = useMazePerception(game.snapshot, scope);
+  const mazeView = useMemo(() => perception.region ? createCanonicalMazeView(perception.region, facing)
+    : emptyCanonicalMazeView(scope, facing), [perception.region, facing, scopeKey]);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
-  const chest = chestAtActivePosition(game);
+  const chest = currentCell?.chests.find(cell => !cell.opened);
   const blocked = controlsDisabled || settingsOpen || confirmNew;
   const toggleMap = () => { onStopWalking?.(); setMazeMode(isOverview ? 'camera' : 'overview'); };
   const interact = () => { onStopWalking?.(); if (!blocked && chest) onOpenChest?.(chest.id); };
@@ -88,7 +88,7 @@ export function ExploreScreen({
 
   useEffect(() => {
     setCamera((current) => ({ ...current, mode: 'follow', origin: undefined }));
-  }, [game.id, game.dungeonLevel]);
+  }, [game.id, floor]);
 
   return (
     <main className={`game-screen explore-screen refined-screen ${onDiagnostics ? 'has-diagnostics' : ''} ${onAgenticPlay ? 'has-agentic' : ''}`}>
@@ -96,7 +96,7 @@ export function ExploreScreen({
         <div>
           <h1>Maze Battle</h1>
           <span className="screen-status">
-            Dungeon {game.dungeonLevel} - {status} - {game.maze.active.row + 1}, {game.maze.active.column + 1}
+            Dungeon {floor} - {status}{actor ? ` - ${actor.row}, ${actor.column}` : ''}
           </span>
         </div>
         <nav aria-label="Explore actions" onClickCapture={event => {
@@ -132,7 +132,7 @@ export function ExploreScreen({
           </button>
         </nav>
       </div>
-      <AutoStatus game={game} active={autoActive} />
+      {autoActive && <div className="screen-auto-status" role="status"><strong>Auto active</strong><span>{status}</span></div>}
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''}`}>
         <MazeCanvas
           maze={mazeView.maze}
@@ -140,7 +140,7 @@ export function ExploreScreen({
           facing={mazeView.facing}
           visibility={mazeView.visibility}
           viewport={mazeView.viewport} origin={mazeView.origin}
-          frameKey={`${observationHead ?? ''}:${scopeKey}`}
+          frameKey={`${game.snapshot.generation}:${game.snapshot.gameId}:${game.snapshot.revision}:${game.snapshot.roots.knowledge}:${scopeKey}`}
           pending={perception.pending} onSizeChange={setCanvasSize}
           camera={camera}
           mode={mazeMode}
@@ -171,7 +171,7 @@ export function ExploreScreen({
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
         <div className="screen-settings">
           <label className="compact-toggle">
-            <input type="checkbox" checked={game.randomBattles} onChange={(event) => onRandomBattlesChange(event.currentTarget.checked)} />
+            <input type="checkbox" checked={false} disabled onChange={(event) => onRandomBattlesChange(event.currentTarget.checked)} />
             <span>Encounters</span>
           </label>
           <AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} />

@@ -128,8 +128,8 @@ export function MazeCanvas({ maze, chests, facing, visibility, camera, mode, onC
 
     if (deltaRows !== 0 || deltaColumns !== 0) {
       onCameraChange(drag.origin ? { ...drag.camera, mode: 'manual', origin: {
-        row: Math.max(0, Math.min(Number.MAX_SAFE_INTEGER - area.rows, drag.origin.row + deltaRows)),
-        column: Math.max(0, Math.min(Number.MAX_SAFE_INTEGER - area.columns, drag.origin.column + deltaColumns)),
+        row: Math.max(Number.MIN_SAFE_INTEGER, Math.min(Number.MAX_SAFE_INTEGER - area.rows, drag.origin.row + deltaRows)),
+        column: Math.max(Number.MIN_SAFE_INTEGER, Math.min(Number.MAX_SAFE_INTEGER - area.columns, drag.origin.column + deltaColumns)),
       } } : panMazeCamera(maze, size, drag.camera, deltaRows, deltaColumns));
     }
   };

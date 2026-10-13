@@ -6,6 +6,7 @@ import { KNOWLEDGE_PREFIX, observationKey } from './keys';
 import { observePosition } from './observe';
 import { validateKnowledge } from './evidence';
 import { rememberObservation } from './memory';
+import { indexObservedWorldCells } from './worldIndex';
 import { OBSERVATION_CHUNK_SIZE, VISION_RADIUS, type ObservationHeader } from './types';
 
 /** Position/effects, sight, memory and source receipts share the caller's transaction. */
@@ -29,6 +30,7 @@ export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameC
     actor: structuredClone(checkpoint.position), policy: 'linked-vision-v1', radius: VISION_RADIUS, count: cells.length, chunks };
   const row = await tx.pages.set('knowledge', key, json(header));
   await rememberObservation(tx.pages, cells, { sequence, id: row.id });
+  await indexObservedWorldCells(tx.pages, cells);
   const witness = await tx.pages.witness('knowledge', KNOWLEDGE_PREFIX); check(witness, 'missing observation namespace');
   return { ...checkpoint, knowledge: { sequence, id: row.id, witness } };
 }

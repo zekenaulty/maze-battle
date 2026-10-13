@@ -4,6 +4,7 @@ import { createNewGameState } from '../../domain/gameFactory';
 import { createVendorItem } from '../../domain/items/loot';
 import type { SaveSummary } from '../../domain/types';
 import { ExploreScreen } from '../ExploreScreen';
+import { exploreView } from '../ExploreScreen.test-support';
 import { BattleScreen } from '../BattleScreen';
 import { TownScreen } from '../TownScreen';
 import { SavesDialog } from '../SavesDialog';
@@ -13,6 +14,7 @@ import { canReceiveTownItem } from './townCapacity';
 import { townViewFixture } from './townViewFixture';
 
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Maze" /> }));
+vi.mock('../../hooks/useMazePerception', () => ({ useMazePerception: () => ({ pending: false }) }));
 afterEach(cleanup);
 const noop = () => {};
 const exploreProps = {
@@ -27,7 +29,7 @@ const save: SaveSummary = { slotId: 'manual-one', label: 'Before descent', kind:
 
 describe('exploration controls', () => {
   it('counts stacks and disables the portal at zero without calling the controller', () => {
-    const game = createNewGameState();
+    const game = exploreView();
     game.inventory.items = [{ ...createVendorItem('town-portal'), quantity: 3 }, createVendorItem('town-portal')];
     const onTown = vi.fn();
     const { rerender } = render(<ExploreScreen {...exploreProps} game={game} onTown={onTown} />);
@@ -37,20 +39,19 @@ describe('exploration controls', () => {
     rerender(<ExploreScreen {...exploreProps} game={game} onTown={onTown} />);
     expect(screen.getByRole('button', { name: 'Portal (0)' })).toBeDisabled();
   });
-  it('shows a blocked reason and an immediate auto stop', () => {
-    const game = createNewGameState();
-    game.autopilot = { phase: 'blocked', floor: 1, route: [], stalledTicks: 1, reason: 'No route to guild cache', targetId: 'Guild cache' };
+  it('shows the canonical controller status and an immediate auto stop', () => {
+    const game = exploreView();
     const onAutoToggle = vi.fn();
-    render(<ExploreScreen {...exploreProps} game={game} autoActive onAutoToggle={onAutoToggle} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Auto blocked');
-    expect(screen.getByRole('status')).toHaveTextContent('Objective: Guild cache. No route to guild cache');
+    render(<ExploreScreen {...exploreProps} game={game} status="No known route" autoActive onAutoToggle={onAutoToggle} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Auto active');
+    expect(screen.getByRole('status')).toHaveTextContent('No known route');
     fireEvent.click(screen.getByRole('button', { name: 'Stop Auto' }));
     expect(onAutoToggle).toHaveBeenCalledOnce();
   });
   it('requires confirmation for a new game and exposes diagnostics', async () => {
     const onNewGame = vi.fn();
     const onDiagnostics = vi.fn();
-    render(<ExploreScreen {...exploreProps} game={createNewGameState()} onNewGame={onNewGame} onDiagnostics={onDiagnostics} />);
+    render(<ExploreScreen {...exploreProps} game={exploreView()} onNewGame={onNewGame} onDiagnostics={onDiagnostics} />);
     fireEvent.click(screen.getByRole('button', { name: 'Diagnostics' }));
     expect(onDiagnostics).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Expedition settings' }));
