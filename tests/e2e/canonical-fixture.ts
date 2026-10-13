@@ -9,6 +9,7 @@ import { storageProbe } from './storage-probe';
 import * as world from './canonical-world-fixture';
 import * as roster from './canonical-roster-fixture';
 import * as content from './canonical-content-fixture';
+import * as knowledge from './canonical-knowledge-fixture';
 
 function command(head: CanonicalHead, operation = 'test.change', input: Json = {}, attemptId: string = crypto.randomUUID()): CanonicalRequest {
   return { attemptId, operation, input, expected: transaction.canonicalFence(head), deadlineAt: null };
@@ -47,7 +48,7 @@ async function fillNormalCapacity() {
 }
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5209') throw new Error('Isolated canonical fixture only');
-const api = { ...lifecycle, ...transaction, ...reader, openCanonicalDatabase, command, dump, storageProbe, world, roster, content,
+const api = { ...lifecycle, ...transaction, ...reader, openCanonicalDatabase, command, dump, storageProbe, world, roster, content, knowledge,
   admitFixtureOperation, fillNormalCapacity, MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES };
 declare global { interface Window { canonical: typeof api } }
 window.canonical = api;

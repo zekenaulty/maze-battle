@@ -8,6 +8,8 @@ import { gameCheckpoint, checkpointJson, rosterContext } from './checkpoint';
 import { acceptQuest, claimReward } from '../content/questActions';
 import { openStoredChest } from '../content/openChest';
 import type { ContentCommand } from '../content/types';
+import { recordGameObservation } from '../knowledge/write';
+import { validateKnowledge } from '../knowledge/evidence';
 
 export function contentCommand(value: unknown): ContentCommand {
   const row = fields(value, 'kind', 'chestId contractId questId');
@@ -22,6 +24,7 @@ export function executeContentCommand(request: CanonicalRequest) {
 }
 export async function commitContentCommand(tx: CanonicalWork, input: unknown) {
   const command = contentCommand(input), checkpoint = gameCheckpoint(tx.head.checkpoint), now = new Date().toISOString();
+  await validateKnowledge(tx.pages, checkpoint.knowledge);
   const before = await loadRoster(tx.pages, rosterContext(checkpoint));
   let next = before.state;
   const result: JsonObject = { kind: command.kind, outcome: 'unchanged' };
@@ -35,6 +38,8 @@ export async function commitContentCommand(tx: CanonicalWork, input: unknown) {
   }
   if (next === before.state) return result;
   await saveRoster(tx.pages, before, next);
-  tx.setCheckpoint(checkpointJson({ ...checkpoint, updatedAt: next.updatedAt, activityLog: next.activityLog }));
+  let updated = { ...checkpoint, updatedAt: next.updatedAt, activityLog: next.activityLog };
+  if (command.kind === 'open-chest' && checkpoint.knowledge && checkpoint.mode !== 'town') updated = await recordGameObservation(tx, updated);
+  tx.setCheckpoint(checkpointJson(updated));
   return { ...result, outcome: 'applied' };
 }

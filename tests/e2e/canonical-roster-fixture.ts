@@ -23,7 +23,7 @@ export { loadParty } from '../../src/persistence/canonical/roster/projection';
 export async function seed(mode: GameCheckpoint['mode'] = 'manual', extra: ItemInstance[] = [], quota?: { limitBytes: number; reserveBytes: number }) {
   const now = new Date().toISOString();
   const checkpoint: GameCheckpoint = { schema: 1, kind: 'rpg', mode, position: { level: 1, cell: { spaceId: 'entry', row: 4, column: 4 } },
-    facing: 'south', wave: 1, createdAt: now, updatedAt: now, activityLog: [] };
+    knowledge: null, facing: 'south', wave: 1, createdAt: now, updatedAt: now, activityLog: [] };
   const inventory = createInitialInventory();
   inventory.items = [...inventory.items.map(item => ({ ...item, id: item.baseId })), ...extra];
   const state: RosterState = { ...rosterContext(checkpoint), party: createInitialParty('fixture-world'), inventory,
