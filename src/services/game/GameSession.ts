@@ -44,8 +44,10 @@ export class GameSession {
     const signal = this.lifetime.signal;
     const pending = this.queue.catch(() => {}).then(async () => { this.assert(signal); return work(signal); });
     this.queue = pending.catch(error => {
-      if (signal.aborted || !this.active || this.view.recoveryRequired) return;
-      this.publish({ status: `Action failed: ${error instanceof Error ? error.message : String(error)}`,
+      if (signal.aborted || !this.active) return;
+      const status = this.view.recoveryRequired && !this.view.busy ? this.view.status
+        : `Action failed: ${error instanceof Error ? error.message : String(error)}`;
+      this.publish({ status,
         recoveryRequired: true, busy: false, controlled: false });
       this.lock.release();
     });

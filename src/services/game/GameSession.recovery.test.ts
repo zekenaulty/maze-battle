@@ -151,6 +151,22 @@ describe('canonical GameSession startup and recovery', () => {
     expect(controller.view.game?.id).toBe('reset-game'); expect(controller.view.controlled).toBe(true);
   });
 
+  it('clears busy and releases the reacquired lock after repeated recovery failures', async () => {
+    const { controller } = session(); await controller.start();
+    mocks.exploration.mockRejectedValueOnce(new Error('First failure'));
+    await expect(controller.execute('exploration', { kind: 'look' })).rejects.toThrow('First failure');
+    await controller.flush();
+    for (const attempt of [1, 2]) {
+      mocks.project.mockRejectedValueOnce(new Error(`Recovery failure ${attempt}`));
+      await expect(controller.takeControl()).rejects.toThrow(`Recovery failure ${attempt}`); await controller.flush();
+      expect(controller.view).toMatchObject({ recoveryRequired: true, busy: false, controlled: false,
+        status: `Action failed: Recovery failure ${attempt}` });
+      expect(mocks.lockState.locks[0].held).toBe(false);
+    }
+    await controller.takeControl();
+    expect(controller.view).toMatchObject({ recoveryRequired: false, busy: false, controlled: true });
+  });
+
   it('rejects a projection returned for a different revision instead of publishing mixed snapshots', async () => {
     mocks.project.mockImplementationOnce(async (snapshot: CanonicalHead) => ({ ...projection(snapshot), head: { ...snapshot, revision: snapshot.revision + 1 } }));
     const { controller } = session(); await expect(controller.start()).rejects.toThrow('Game changed during publication');

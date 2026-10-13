@@ -32,7 +32,7 @@ service qualification. No provider calls, new game store, or UI activation.
 
 ## Checked Evidence
 
-`canonical-game-host.config.ts`: **14 native-browser cases passed**, using the
+`canonical-game-host.config.ts`: **17 native-browser cases passed**, using the
 production GameSession and canonical database on isolated port 5234:
 
 - Publication / manual movement ordering, original publication proofs, exact retry,
@@ -45,15 +45,22 @@ production GameSession and canonical database on isolated port 5234:
 - Successful takeover followed by quota-blocked resume still permits cancellation.
   A presence lock alone cannot cancel a foreign owner's work. Reset invalidates
   queued cleanup and old-generation operation targets.
+- Launch admission/announcement/explicit grant compose with the actual game;
+  cancelling the guard or changing the manual observation blocks later effects.
+  These use simulated announcements, not an SDK connection.
 
 The fixture lowers the logical quota with correct head accounting to exercise
 exhaustion; it does not change the production quota policy or claim physical disk
 exhaustion. Native write refusal is a separate injected case.
 
-Focused session/game/Auto units: **32 passed**. Production and host-fixture
-TypeScript pass. The actual-App browser cohort passed **13 cases** after the
-initial queue/abort changes; it predates the separate cleanup-method addition.
-Overlapping reruns are not cumulative test counts.
+Independent review caught a repeated-recovery error path that skipped clearing
+`busy` and releasing the lock when an earlier error was already latched. It is
+fixed, with a new unit regression and an independent native quota repro.
+The session recovery suite now passes **23 tests**. Production and host-fixture
+TypeScript pass. The final actual-App cohort passes **13 cases**, including its
+depth and mobile checks, after cleanup and the repeated-recovery repair.
+Overlapping reruns are not cumulative test counts; the current
+combined evidence is recorded in [launch custody](issue-11-launch-custody.md).
 
 ## Remaining Boundaries
 

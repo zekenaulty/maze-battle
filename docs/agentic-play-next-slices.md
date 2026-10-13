@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 30 amendment, 2026-10-13: owner issue
+Revision 31 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -46,7 +46,12 @@ proofs without mounting an incomplete SDK client. Three independent integrity
 findings are repaired. [Actual-App depth tests](reviews/issue-11-app-depth.md)
 include GameSession publication and map reads through 16 retained qualified
 floors. P4 has [removed unmounted preview UI and extracted shared occupancy](reviews/issue-11-p4-retirement-map.md);
-old stores are not yet fully retired. P3 Agentica lifecycle adoption,
+the standalone expedition writer and legacy-only validators are also now removed.
+[GameSession host submission and funded cleanup](reviews/issue-11-game-host-queue.md)
+share the actual game's queue. [Canonical launch custody](reviews/issue-11-launch-custody.md)
+retains original starts/runs and requires a separate initial grant. These are
+provider-free composition proofs, not an SDK mount or live service evidence.
+Old stores are not yet fully retired. P3 Agentica lifecycle adoption,
 remaining P4 removal and P5 complete qualification remain
 mandatory. This is not Agentica completion.
 

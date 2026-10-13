@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 10,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 11,
 2026-10-13. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -16,6 +16,11 @@ P4 has removed disconnected preview UI and stale route suites; the
 [retirement map](reviews/issue-11-p4-retirement-map.md) identifies remaining writers.
 Canonical publication/action results now compose atomically with that navigation,
 including reviewed corruption/mutation fixes. [Binding evidence and next integration](reviews/issue-11-agentica-records.md).
+The [shared GameSession host queue](reviews/issue-11-game-host-queue.md) and
+[funded launch/initial-grant primitives](reviews/issue-11-launch-custody.md) now
+compose with the actual game under provider-free tests. P4 has removed the
+[standalone expedition writer](reviews/issue-11-expedition-store-closure.md) and
+[its legacy-only snapshot validators](reviews/issue-11-expedition-validator-followup.md).
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
@@ -184,11 +189,16 @@ P1 storage contracts are split as follows:
   cumulative limits, funded cancellation/ACK, explicit adoption and atomic host
   hooks. Protocol record binding is checked on this same transaction
   host; no old session adapter or second playable world is permitted.
-- **P3 Agentica, remaining:** canonical launch/run/event lifecycle, scoped tool
+- **P3 Agentica foundations, checked:** one funded launch, immutable dispatch/run
+  and explicit initial grant; actual GameSession queue, transaction aborts and
+  funded same-owner cleanup. Read/reload grants no execution. Ambiguous starts
+  block replacements even after local cancel/ACK. No SDK mount is claimed.
+- **P3 Agentica, remaining:** canonical event delivery/adoption lifecycle, scoped tool
   projection, SDK delivery/reconciliation and mounted application recovery.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
-- **P4 started:** disconnected preview screens and stale route tests removed.
-  Independent experiment writers and old RPG adapters still require closure.
+- **P4 started:** disconnected preview screens, stale route tests, standalone
+  expedition writer and its legacy-format validators removed. Stream/directed,
+  old launch and old RPG adapters still require closure.
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
   qualification remain mandatory, not inferred from focused passes.
