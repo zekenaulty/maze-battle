@@ -19,12 +19,32 @@ export function validateAction(value: unknown): AgenticaAction {
   return structuredClone(value) as AgenticaAction;
 }
 const prepared = new WeakMap<PreparedAction, string>();
-export async function prepareAction(value: AgenticaAction): Promise<PreparedAction> {
-  const action = validateAction(value), key = actionKey(action), fingerprint = actionFingerprint(action);
+export interface ActionLookup { readonly key: string; readonly storageKey: string }
+const lookups = new WeakSet<ActionLookup>();
+export async function prepareActionLookup(key: string): Promise<ActionLookup> {
+  check(typeof key === 'string' && key.length <= 1024, 'invalid action key');
+  const parts: unknown = JSON.parse(key);
+  check(Array.isArray(parts) && parts.length === 4, 'invalid action key');
+  for (const part of parts) wireId(part);
+  check(canonicalJson(parts) === key, 'noncanonical action key');
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
   const storageKey = `agentica/actions/${Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')}`;
-  const identity = Object.freeze({ key, fingerprint, storageKey, action });
+  const lookup = Object.freeze({ key, storageKey }); lookups.add(lookup); return lookup;
+}
+export function validateActionLookup(lookup: ActionLookup) {
+  check(lookups.has(lookup), 'prepare the action lookup before the transaction');
+}
+/** The digest is prepared before IndexedDB; original input and source proof are still verified on read. */
+export function prepareLookedUpAction(lookup: ActionLookup, value: AgenticaAction): PreparedAction {
+  validateActionLookup(lookup);
+  const action = validateAction(value), key = actionKey(action), fingerprint = actionFingerprint(action);
+  check(key === lookup.key, 'action lookup identity changed');
+  const identity = Object.freeze({ key, fingerprint, storageKey: lookup.storageKey, action });
   prepared.set(identity, canonicalJson(identity)); return identity;
+}
+export async function prepareAction(value: AgenticaAction): Promise<PreparedAction> {
+  const action = validateAction(value);
+  return prepareLookedUpAction(await prepareActionLookup(actionKey(action)), action);
 }
 export function validatePrepared(value: PreparedAction) {
   check(prepared.has(value), 'prepare the exact original action before the transaction');
