@@ -5,7 +5,7 @@ for (const fault of ['forged-ref', 'hidden-world', 'navigation-write', 'overwrit
     const result = await page.evaluate(async fault => {
       const c = window.canonicalNavigation, request = await c.hostPhase('step'), before = await c.dump();
       const error = await c.executeNavigationCommand(request, { host: { prepare: async () => {}, commit: async view => {
-        if (fault === 'forged-ref') return { event: { key: 'not-written', recordId: 'foreign', revision: 1, sourceAttemptId: 'other' } };
+        if (fault === 'forged-ref') return { event: { key: 'not-written', recordId: 'foreign', revision: 1, sourceAttemptId: 'other', recordWitness: '{}' } };
         try {
           if (fault === 'hidden-world') await view.knowledge.get('world', 'dungeon');
           if (fault === 'navigation-write') await view.appendExecution(c.destinationKey(view.operation.id), {});
@@ -21,7 +21,7 @@ for (const fault of ['forged-ref', 'hidden-world', 'navigation-write', 'overwrit
   });
 }
 
-test('an oversized host settlement cannot steal reserved bytes, and cancellation still needs no hook', async ({ page }) => {
+test('an oversized host settlement witness is rejected, and cancellation still needs no hook', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const c = window.canonicalNavigation, request = await c.hostPhase('settle'), before = await c.dump(), host = c.fixtureHost({ padding: 60000 });
     const error = await c.executeNavigationCommand(request, { host: { ...host, commit: async view => {
@@ -33,7 +33,7 @@ test('an oversized host settlement cannot steal reserved bytes, and cancellation
       operationId: id, terminalAttemptId: cancelled.receipt.attemptId }), 'acknowledge');
     return { before, after, error, terminal: (await c.readDestinationTerminal(id)).value };
   });
-  expect(result.error).toContain('exceeds reserved allowance'); expect(result.after).toEqual(result.before);
+  expect(result.error).toContain('12288 bytes'); expect(result.after).toEqual(result.before);
   expect(result.terminal.disposition).toBe('cancelled'); expect(result.terminal.progress.status).toBe('arrived');
 });
 

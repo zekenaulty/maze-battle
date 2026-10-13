@@ -2,6 +2,7 @@ import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs'
 import { canonicalFence, type CanonicalWork } from '../transaction';
 import type { CanonicalRequest, JsonObject } from '../types';
 import { fields } from '../roster/codec';
+import { navigationRecordRef } from '../navigation/host';
 import { check, isObject, jsonBytes, request as validateRequest, sameFence } from '../validation';
 import { equal, reference } from './validation';
 import { MAX_PROOF_BYTES, MAX_SOURCE_REQUEST_BYTES } from './types';
@@ -22,8 +23,17 @@ export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: Pr
   } else {
     record = await pages.get('execution', ref.key); check(record && isObject(record.value), 'missing Agentica source record');
     const { receipt, source } = await pages.sourceReceipt(record.value.sourceAttemptId as string); original = source;
-    check(receipt.afterRevision === record.revision && isObject(receipt.result) && receipt.result.recordId === record.id
-      && receipt.result.recordWitness === canonicalJson(record) && equal(receipt.result.reference, ref), 'Agentica record source changed');
+    check(receipt.afterRevision === record.revision && isObject(receipt.result), 'Agentica record source changed');
+    if (kind === 'agentica-result') check(['standalone', 'navigation'].includes(record.value.proof as string), 'invalid action proof format');
+    if (kind === 'agentica-result' && record.value.proof === 'navigation') {
+      check(['operation.admit', 'navigation.advance', 'operation.settle'].includes(source.operation), 'invalid navigation action source');
+      const host = fields(receipt.result.host, 'actionResult', 'event');
+      check(equal(host.actionResult, navigationRecordRef(record, source.attemptId)), 'navigation action result proof changed');
+    } else {
+      check(!Object.hasOwn(receipt.result, 'host'), 'unexpected navigation action proof');
+      check(receipt.result.recordId === record.id && receipt.result.recordWitness === canonicalJson(record)
+        && equal(receipt.result.reference, ref), 'Agentica record source changed');
+    }
   }
   const row = fields(record.value, `schema kind sourceAttemptId sourceRequest owner epoch ${extra}`);
   check(record.id === ref.id && record.key === ref.key && record.indexes.length === 0 && row.schema === 1 && row.kind === kind, 'Agentica source reference changed');

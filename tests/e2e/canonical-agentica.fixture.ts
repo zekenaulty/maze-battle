@@ -83,6 +83,7 @@ async function takeover() {
 }
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5231') throw Error('Isolated Agentica records fixture only');
 const api = { ...actions, ...publication, ...transaction, ...reader, openCanonicalDatabase, command, seed, dump, publish, pending,
-  complete, read, reconcile, change, takeover, protocolAction, protocolResult, canonicalJson, fingerprint, loadObservation, storageProbe, MIN_TERMINAL_BYTES };
+  complete, read, reconcile, change, takeover, protocolAction, protocolResult, canonicalJson, fingerprint, loadObservation, storageProbe, MIN_TERMINAL_BYTES,
+  navigationFixture: () => import('./canonical-agentica-navigation.fixture') };
 declare global { interface Window { agenticaRecords: typeof api } }
 window.agenticaRecords = api;

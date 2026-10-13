@@ -1,15 +1,16 @@
+import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
 import type { GameCheckpoint } from '../game/checkpoint';
 import type { KnowledgeRead } from '../knowledge/types';
 import type { CanonicalPages } from '../pages';
 import { fields } from '../roster/codec';
 import type { CanonicalWork } from '../transaction';
-import type { CanonicalHead, CanonicalOperation, CanonicalRequest, GameIdentity, Json } from '../types';
-import { check, isObject, recordKey } from '../validation';
+import type { CanonicalHead, CanonicalOperation, CanonicalRecord, CanonicalRequest, GameIdentity, Json } from '../types';
+import { check, isObject, jsonBytes, record, recordKey, result as validateResult, validId } from '../validation';
 import { json, same } from '../world/records';
 import type { DestinationProgress } from './types';
 
 export interface NavigationReceiptRef extends GameIdentity { attemptId: string }
-export interface NavigationRecordRef { key: string; recordId: string; revision: number; sourceAttemptId: string }
+export interface NavigationRecordRef { key: string; recordId: string; revision: number; sourceAttemptId: string; recordWitness: string }
 export interface NavigationHostRefs { actionResult?: NavigationRecordRef; event?: NavigationRecordRef }
 export interface NavigationPreparation {
   readonly head: CanonicalHead;
@@ -20,6 +21,7 @@ export interface NavigationPreparation {
   readonly knowledge: KnowledgeRead;
   getExecution(key: string): ReturnType<CanonicalPages['get']>;
   sourceReceipt: CanonicalPages['sourceReceipt'];
+  readonly savedSnapshot: CanonicalPages['savedSnapshot'];
   liveOperation: CanonicalWork['liveOperation'];
 }
 export interface NavigationCommit extends NavigationPreparation {
@@ -37,6 +39,12 @@ export interface NavigationCommitData { progress: DestinationProgress; checkpoin
 export const navigationReceiptRef = (source: GameIdentity & { attemptId: string }): NavigationReceiptRef => ({
   generation: source.generation, gameId: source.gameId, attemptId: source.attemptId,
 });
+/** Exact immutable record body, including its canonical identity; bounded inside the kernel result limit. */
+export function navigationRecordRef(row: CanonicalRecord, sourceAttemptId: string): NavigationRecordRef {
+  record(row, row.id, row, 'execution', `record/${row.key}`); check(validId(sourceAttemptId), 'invalid navigation source attempt');
+  const ref = { key: row.key, recordId: row.id, revision: row.revision, sourceAttemptId, recordWitness: canonicalJson(row) };
+  jsonBytes(ref, 12 * 1024); return ref;
+}
 
 /** Only executeNavigationCommand opens the reservation-validated transaction. */
 export async function prepareNavigationHost(tx: CanonicalWork, operation: CanonicalOperation, request: CanonicalRequest, hooks?: NavigationHostHooks) {
@@ -57,6 +65,7 @@ export async function prepareNavigationHost(tx: CanonicalWork, operation: Canoni
   const readers = {
     getExecution: (key: string) => access(() => tx.pages.get('execution', key)),
     sourceReceipt: (id: string) => access(() => tx.pages.sourceReceipt(id)),
+    savedSnapshot: (key: string) => access(() => tx.pages.savedSnapshot(key)),
     liveOperation: (id: string) => access(() => tx.liveOperation(id)),
     knowledge: {
       get: (area, key) => access(() => { knowledge(area); return tx.pages.get('knowledge', key); }),
@@ -72,7 +81,7 @@ export async function prepareNavigationHost(tx: CanonicalWork, operation: Canoni
       recordKey(key); check(!key.startsWith('navigation/') && appended.size < 8, 'invalid navigation host record');
       check(!await tx.pages.get('execution', key), 'navigation host record already exists');
       const row = await tx.pages.set('execution', key, value);
-      const ref = { key, recordId: row.id, revision: row.revision, sourceAttemptId: request.attemptId };
+      const ref = navigationRecordRef(row, request.attemptId);
       appended.set(row.id, ref); return structuredClone(ref);
     });
     const refs = await commit({ ...metadata(), ...readers, appendExecution,
@@ -82,6 +91,6 @@ export async function prepareNavigationHost(tx: CanonicalWork, operation: Canoni
     for (const ref of Object.values(exact)) check(isObject(ref) && typeof ref.recordId === 'string'
       && same(ref, appended.get(ref.recordId) ?? null), 'navigation host reference is not from this commit');
     check(isObject(data.result), 'invalid navigation result');
-    return json({ ...data.result, host: exact });
+    return validateResult(json({ ...data.result, host: exact }));
   };
 }
