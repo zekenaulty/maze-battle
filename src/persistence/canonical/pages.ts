@@ -1,8 +1,10 @@
 import { MemoryTree } from '../rpgMemory/tree';
 import { validateNode } from '../rpgMemory/treeTypes';
+import { canonicalJson } from '../../services/agentica/sdk/agentica-host.mjs';
+import { validateReceipt } from './receipts';
 import type { WorkBudget } from './budget';
-import type { CanonicalHead, CanonicalIndexNode, CanonicalRecord, CanonicalWrite, CanonicalRead, Json, RecordArea } from './types';
-import { check, identity, isArea, jsonBytes, record, recordKey, validId } from './validation';
+import type { CanonicalGameSnapshot, CanonicalHead, CanonicalIndexNode, CanonicalRecord, CanonicalWrite, CanonicalRead, Json, RecordArea } from './types';
+import { check, identity, isArea, isObject, jsonBytes, record, recordKey, snapshot as validateSnapshot, validId } from './validation';
 
 /** Immutable records plus snapshot-specific indexes; no historical world is hydrated. */
 export class CanonicalPages {
@@ -15,6 +17,7 @@ export class CanonicalPages {
   private busy = false;
   private failed = false;
   private prepared = false;
+  private restored?: CanonicalGameSnapshot;
   private readonly tx: CanonicalWrite | CanonicalRead;
   private readonly head: CanonicalHead;
   private readonly budget: WorkBudget;
@@ -33,6 +36,7 @@ export class CanonicalPages {
 
   private tree(area: RecordArea) {
     check(isArea(area), 'invalid record area');
+    check(!this.restored || area === 'execution', 'restored areas cannot be mixed with record work');
     let tree = this.trees.get(area);
     if (!tree) {
       tree = new MemoryTree({
@@ -79,6 +83,43 @@ export class CanonicalPages {
   }
 
   get(area: RecordArea, key: string) { return this.operation(() => this.lookup(area, key)); }
+
+  /** Resolve retained authority through the live execution root and its exact creation receipt. */
+  private async snapshotAt(key: string) {
+    const row = await this.lookup('execution', key);
+    check(row && isObject(row.value) && validId(row.value.sourceAttemptId) && isObject(row.value.snapshot), 'missing stored snapshot');
+    const snapshot = row.value.snapshot as unknown as CanonicalGameSnapshot;
+    check(isObject(snapshot.roots) && Object.keys(snapshot.roots).sort().join(',') === 'knowledge,world', 'invalid saved roots');
+    validateSnapshot({ ...snapshot, roots: { ...snapshot.roots, execution: null } }, this.head);
+    this.budget.read();
+    const receipt = await this.tx.objectStore('receipts').get([this.head.gameId, row.value.sourceAttemptId]);
+    this.budget.received(receipt === undefined ? 0 : jsonBytes(receipt));
+    const source = validateReceipt(receipt, this.head);
+    check(receipt!.attemptId === row.value.sourceAttemptId && receipt!.afterRevision === row.revision
+      && receipt!.beforeRevision === snapshot.revision && row.revision <= this.head.revision
+      && isObject(receipt!.result) && receipt!.result.snapshotRecordId === row.id
+      && receipt!.result.snapshotWitness === canonicalJson(row), 'stored snapshot source changed');
+    for (const root of Object.values(snapshot.roots)) if (root !== null) {
+      this.budget.read();
+      const node = await this.tx.objectStore('nodes').get([this.head.gameId, root]);
+      this.budget.received(node === undefined ? 0 : jsonBytes(node));
+      check(node, 'missing snapshot root'); identity(node, this.head); validateNode(node.node, root);
+    }
+    return { record: row, snapshot: structuredClone(snapshot), source };
+  }
+
+  savedSnapshot(key: string) { return this.operation(() => this.snapshotAt(key)); }
+
+  /** Keys, never caller-supplied roots. Execution/custody/accounting are deliberately not restored. */
+  restoreSnapshot(key: string) {
+    return this.operation(async () => {
+      check(this.tx.mode === 'readwrite', 'read-only record view');
+      check(!this.restored && !this.trees.has('world') && !this.trees.has('knowledge'), 'snapshot restore must be isolated');
+      check(this.head.quota.reservations === 0 && this.head.quota.reservedBytes === 0
+        && Object.keys(this.head.allocations).length === 0, 'snapshot restore requires no live allocations');
+      this.restored = (await this.snapshotAt(key)).snapshot;
+    });
+  }
 
   /** Primary-record namespace identity, independent of secondary indexes. */
   witness(area: RecordArea, prefix: string) {
@@ -140,10 +181,10 @@ export class CanonicalPages {
   /** Stages new root paths only; existing nodes/records are never rewritten. */
   async prepare() {
     return this.operation(async () => {
-      const roots = { ...this.head.roots };
+      const roots = { ...this.head.roots, ...this.restored?.roots };
       for (const [area, tree] of this.trees) roots[area] = await tree.flush();
       this.prepared = true;
-      return { roots, records: [...this.records.values()], nodes: [...this.nodes.values()] };
+      return { roots, records: [...this.records.values()], nodes: [...this.nodes.values()], snapshot: this.restored };
     });
   }
 

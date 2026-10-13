@@ -60,6 +60,9 @@ export const CANONICAL_STORES = ['meta', 'heads', 'records', 'nodes', 'receipts'
 export type CanonicalWrite = IDBPTransaction<CanonicalDb, typeof CANONICAL_STORES, 'readwrite'>;
 export type CanonicalRead = IDBPTransaction<CanonicalDb, typeof CANONICAL_STORES, 'readonly'>;
 export type CanonicalSnapshot = Pick<CanonicalHead, 'generation' | 'gameId' | 'revision' | 'roots' | 'checkpoint'>;
+export type CanonicalGameSnapshot = Omit<CanonicalSnapshot, 'roots'> & {
+  roots: Pick<CanonicalHead['roots'], 'world' | 'knowledge'>;
+};
 export interface CanonicalWorkLimits { reads: number; writes: number; bytes: number }
 export interface CanonicalWorkStats { reads: number; writes: number; readBytes: number; writeBytes: number }
 

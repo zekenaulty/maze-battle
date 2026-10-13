@@ -12,6 +12,7 @@ export interface CanonicalWork {
   readonly head: CanonicalHead;
   readonly pages: CanonicalPages;
   setCheckpoint(value: JsonObject): void;
+  restoreSnapshot(key: string): Promise<void>;
 }
 
 type Options = { limits?: CanonicalWorkLimits; signal?: AbortSignal };
@@ -72,10 +73,13 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
       check(current.status === (control === 'resume' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
     const change = operation ? await prepareOperation(tx, current, original, operation, budget) : undefined;
     const pages = new CanonicalPages(tx, current, budget);
-    let state = checkpoint(current.checkpoint);
+    let state = checkpoint(current.checkpoint), checkpointChanged = false;
     const outcome = result(await work({ head: structuredClone(current), pages, operation: change && structuredClone(change.before ?? change.after),
-      setCheckpoint: value => { state = checkpoint(value); } }));
+      setCheckpoint: value => { state = checkpoint(value); checkpointChanged = true; },
+      restoreSnapshot: key => pages.restoreSnapshot(key) }));
     const staged = await pages.prepare(), revision = current.revision + 1;
+    check(!staged.snapshot || !checkpointChanged && !operation, 'snapshot restore cannot mix checkpoint or operation changes');
+    if (staged.snapshot) state = checkpoint(staged.snapshot.checkpoint);
     check(integer(revision), 'revision exhausted');
     const receipt: CanonicalReceipt = { generation: schema.generation, gameId: current.gameId, attemptId: original.attemptId,
       fingerprint: signature, beforeRevision: current.revision, afterRevision: revision, committedAt: new Date().toISOString(), result: outcome };
