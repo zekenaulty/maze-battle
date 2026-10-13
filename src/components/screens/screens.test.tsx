@@ -43,7 +43,7 @@ describe('exploration controls', () => {
     const game = exploreView();
     const onAutoToggle = vi.fn();
     render(<ExploreScreen {...exploreProps} game={game} status="No known route" autoActive onAutoToggle={onAutoToggle} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Auto active');
+    expect(within(screen.getByRole('status')).getByText('Auto', { exact: true })).toBeVisible();
     expect(screen.getByRole('status')).toHaveTextContent('No known route');
     fireEvent.click(screen.getByRole('button', { name: 'Stop Auto' }));
     expect(onAutoToggle).toHaveBeenCalledOnce();

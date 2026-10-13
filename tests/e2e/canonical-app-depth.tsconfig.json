@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "types": ["vite/client", "node"] },
+  "include": ["canonical-app-depth.fixture.ts", "canonical-app-depth.spec.ts"]
+}
