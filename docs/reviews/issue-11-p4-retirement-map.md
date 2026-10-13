@@ -155,3 +155,35 @@ the independent expedition/directed persistence closures; obsolete migration
 acceptance. Biggest later closure: v7 RPG save/travel/Agentica stack, after its
 useful protocol evidence is carried onto canonical transactions. No deletion or
 runtime qualification is claimed by this report-only commit.
+
+## P4 Step 1: Checked UI Retirement
+
+Follow-up implementation on isolated `b60b661` plus this increment, not a newer
+parent tip. The audit above remains a baseline inventory, not the current file list.
+
+- Removed 32 files: all four disconnected preview App roots and private
+  launch/directed UI, their private CSS, `ExpeditionCanvas`, `useDirectedPlay`,
+  diagnostics/simulation UI and export helpers, eleven stale query-route specs,
+  and the exclusive launch-UI test config.
+- Kept the source-archive review's domain/provenance/omission assertions; removed
+  only its retired component render/assertion. Removed stale directed-play globs
+  from three configs; the existing `directed-play.config.ts` now collects only
+  retained standalone directed-navigation tests.
+- Preserved stream-map UI/CSS and fixtures, `useExpedition`/`useStreamExpedition`
+  and their tests, all stores/clients, pure rules/generators, SDK/radix/limits,
+  canonical App/runtime and offline/former-route guards. The independent
+  expedition/directed repository closures are **not retired** in this increment;
+  their durable fixtures and mixed source-archive/runtime review tests remain.
+- Reverse-import and literal-path checks found no remaining code references to
+  deleted files. Remaining query strings are canonical former-route coverage and
+  pure stream-configuration parser tests. README still advertises the old launcher;
+  it is intentionally untouched under the report-only documentation boundary.
+- PASS: `npm run build` (TypeScript and Vite); 1,223 tests in 57 retained affected
+  files, covering directed/expedition rules, independent repositories, expedition
+  services/hooks, stream-map UI, launch units and App's offline boundary.
+- PASS: Playwright **collection only**, no server/browser execution: directed-play
+  config 2 tests, directed-deadline 128, NS6-host 139. Counts overlap. Native E2E
+  behavior was not rerun. `git diff --check` passes.
+- No parent edits, services, provider calls or runtime compatibility added. Stop
+  here at the first coherent checked increment; later store retirement still
+  follows the extraction and protocol-evidence gates above.

@@ -1,6 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DirectedMemory } from '../../components/directed/DirectedMemory';
+import { describe, expect, it, vi } from 'vitest';
 import type { DirectedTransaction, SaveRecord } from '../../persistence/directed/database';
 import { context, contextFromSource } from '../../persistence/directed/journalValidation';
 import { validateLineage } from '../../persistence/directed/lineage';
@@ -17,7 +15,6 @@ import type { PresentedContext } from './types';
 vi.mock('../../persistence/directed/database', async importOriginal => ({
   ...await importOriginal<typeof import('../../persistence/directed/database')>(), slotRange: (slot: string) => ({ slot }),
 }));
-afterEach(cleanup);
 
 function histories() {
   const initial = createDirectedFixture();
@@ -166,7 +163,7 @@ describe('independent source archive integration review at c469f28', () => {
     expect(() => contextFromSource(mislabeled, history.original.knowledge, history.originalSource, 'F1', history.retrieved)).toThrow('envelope mismatch');
   });
 
-  it('does not label a budget-omitted known examination as Uninspected', () => {
+  it('retains omission metadata for a budget-omitted known examination', () => {
     const session: DirectedSession = { version: 'directed-v1', epoch: 0, revision: 0, world: createDirectedWorld(),
       actor: { id: 'P1', position: { spaceId: 'W', row: 0, column: 0 }, perceptionProfile: 'expert' },
       knowledge: emptyDirectedKnowledge('W1', 'P1') };
@@ -179,7 +176,5 @@ describe('independent source archive integration review at c469f28', () => {
     expect(body.feature.value.id).toBe('T');
     expect(body.examination).toBeUndefined();
     expect(body.omissions).toMatchObject({ examinations: 1, causes: { facts: true } });
-    render(<DirectedMemory context={value} busy={false} recall={vi.fn()} loadSource={vi.fn()} />);
-    expect(screen.queryByText('Uninspected', { exact: true })).not.toBeInTheDocument();
   });
 });
