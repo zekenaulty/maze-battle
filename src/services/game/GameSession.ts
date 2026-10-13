@@ -15,6 +15,8 @@ import type { CanonicalHead, CanonicalReceipt, Json, JsonObject } from '../../pe
 import { BrowserSaveLock } from './BrowserSaveLock';
 import type { GameDiagnostic, GameView } from './GameView';
 import { gameRequest } from './canonicalRequests';
+import { captureHostCommand, type CanonicalHostCommand } from './CanonicalHostCommand';
+import { captureHostCleanup, executeHostCleanup, type HostCleanup } from './CanonicalHostRecovery';
 
 export interface GameSessionView {
   game?: GameView; saves: SaveSummary[]; diagnostics: GameDiagnostic[];
@@ -42,7 +44,7 @@ export class GameSession {
     const signal = this.lifetime.signal;
     const pending = this.queue.catch(() => {}).then(async () => { this.assert(signal); return work(signal); });
     this.queue = pending.catch(error => {
-      if (signal.aborted || !this.active) return;
+      if (signal.aborted || !this.active || this.view.recoveryRequired) return;
       this.publish({ status: `Action failed: ${error instanceof Error ? error.message : String(error)}`,
         recoveryRequired: true, busy: false, controlled: false });
       this.lock.release();
@@ -60,7 +62,7 @@ export class GameSession {
   private async prepare(level: number, signal: AbortSignal) {
     for (;;) {
       this.assert(signal);
-      const next = await prepareGameFloor(gameRequest(this.head!, 'game.prepare', { level }));
+      const next = await prepareGameFloor(gameRequest(this.head!, 'game.prepare', { level }), { signal });
       this.assert(signal);
       this.head = next.head ?? (await readCanonicalHead()).head;
       this.assert(signal);
@@ -75,12 +77,13 @@ export class GameSession {
     let head = this.head!;
     if (head.owner !== this.owner) {
       const action = head.status === 'stopped' ? 'claim' : 'takeover';
-      const result = await controlCanonical(gameRequest(head, `control.${action}`, { owner: this.owner }), action);
+      const result = await controlCanonical(gameRequest(head, `control.${action}`, { owner: this.owner }), action, { signal });
       head = result.head ?? (await readCanonicalHead()).head;
+      this.assert(signal); this.head = head;
     }
     this.assert(signal);
     if (head.status === 'stopped') {
-      const result = await controlCanonical(gameRequest(head, 'control.resume', { owner: this.owner }), 'resume');
+      const result = await controlCanonical(gameRequest(head, 'control.resume', { owner: this.owner }), 'resume', { signal });
       head = result.head ?? (await readCanonicalHead()).head;
     }
     this.head = head;
@@ -89,7 +92,7 @@ export class GameSession {
     this.assert(signal);
     const c = gameCheckpoint(this.head!.checkpoint);
     if (c.mode !== 'auto-play' && c.townReturnMode !== 'auto-play') return;
-    const result = await executeSettingsCommand(gameRequest(this.head!, 'settings.command', { kind: 'auto', enabled: false }));
+    const result = await executeSettingsCommand(gameRequest(this.head!, 'settings.command', { kind: 'auto', enabled: false }), { signal });
     this.assert(signal);
     this.head = result.head ?? (await readCanonicalHead()).head;
   }
@@ -109,7 +112,7 @@ export class GameSession {
       if (!checkpoint.knowledge) {
         await this.prepare(checkpoint.position.level, signal);
         this.assert(signal);
-        const look = await executeExplorationCommand(gameRequest(this.head, 'exploration.command', { kind: 'look' }));
+        const look = await executeExplorationCommand(gameRequest(this.head, 'exploration.command', { kind: 'look' }), { signal });
         this.head = look.head ?? (await readCanonicalHead()).head;
       }
       await this.stopSavedAuto(signal);
@@ -142,37 +145,66 @@ export class GameSession {
       if (head.generation !== this.head?.generation || head.revision !== this.head.revision) await this.adopt(head, signal);
     }).finally(() => { this.refreshing = false; });
   };
-  execute = (kind: CommandKind, input: Json): Promise<CanonicalReceipt> => this.owned(async signal => {
-    const original = gameRequest(this.head!, `${kind}.command`, structuredClone(input)), started = performance.now();
-    const result = await handlers[kind](original);
-    this.assert(signal);
-    this.head = result.head ?? (await readCanonicalHead()).head;
-    const needsFloor = (result.receipt.result as JsonObject).needsFloor;
-    if (typeof needsFloor === 'number') {
-      this.publish({ busy: true });
-      await this.prepare(needsFloor, signal);
+  execute = async (kind: CommandKind, input: Json): Promise<CanonicalReceipt> => {
+    const captured = structuredClone(input);
+    return this.owned(async signal => {
+      const original = gameRequest(this.head!, `${kind}.command`, captured), started = performance.now();
+      const result = await handlers[kind](original, { signal });
       this.assert(signal);
-      const stairs = await executeExplorationCommand(gameRequest(this.head, 'exploration.command', { kind: 'stairs', direction: 'down' }));
-      this.head = stairs.head ?? (await readCanonicalHead()).head;
-    }
-    await this.adopt(this.head, signal, kind === 'exploration' || kind === 'settings'
-      || kind === 'auto' && (result.receipt.result as JsonObject).rosterChanged === false);
-    const reason = (result.receipt.result as JsonObject).reason;
-    this.publish({ busy: false, status: kind === 'auto' && typeof reason === 'string' ? reason : 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {
-      revision: result.receipt.afterRevision, action: kind, replayed: result.replayed, elapsedMs: performance.now() - started, stats: result.stats }] });
-    return result.receipt;
-  });
+      this.head = result.head ?? (await readCanonicalHead()).head;
+      const needsFloor = (result.receipt.result as JsonObject).needsFloor;
+      if (typeof needsFloor === 'number') {
+        this.publish({ busy: true });
+        await this.prepare(needsFloor, signal);
+        this.assert(signal);
+        const stairs = await executeExplorationCommand(gameRequest(this.head, 'exploration.command', { kind: 'stairs', direction: 'down' }), { signal });
+        this.head = stairs.head ?? (await readCanonicalHead()).head;
+      }
+      await this.adopt(this.head, signal, kind === 'exploration' || kind === 'settings'
+        || kind === 'auto' && (result.receipt.result as JsonObject).rosterChanged === false);
+      const reason = (result.receipt.result as JsonObject).reason;
+      this.publish({ busy: false, status: kind === 'auto' && typeof reason === 'string' ? reason : 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {
+        revision: result.receipt.afterRevision, action: kind, replayed: result.replayed, elapsedMs: performance.now() - started, stats: result.stats }] });
+      return result.receipt;
+    });
+  };
+  /** Local host integration shares manual/Auto/save serialization. Its domain executor owns grants and validation. */
+  submitHostCommand = async (command: CanonicalHostCommand): Promise<CanonicalReceipt> => {
+    const captured = captureHostCommand(command);
+    return this.owned(async signal => {
+      const original = captured.kind === 'retry' ? captured.request : gameRequest(this.head!, captured.operation, captured.input);
+      const started = performance.now(), result = await captured.execute(original, { signal });
+      this.assert(signal);
+      this.head = result.head ?? (await readCanonicalHead()).head;
+      await this.adopt(this.head, signal);
+      this.publish({ status: result.replayed ? 'Reconciled' : 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {
+        revision: result.receipt.afterRevision, action: original.operation, replayed: result.replayed,
+        elapsedMs: performance.now() - started, stats: result.stats }] });
+      return result.receipt;
+    });
+  };
+  /** Same-owner funded cleanup remains available after normal quota failure, but never resumes play. */
+  cleanupHostOperation = async (command: HostCleanup) => {
+    const captured = captureHostCleanup(command);
+    return this.enqueue(async signal => {
+      const result = await executeHostCleanup(captured, this.owner, this.lock, signal);
+      this.assert(signal); this.head = result.head;
+      if (result.head.status !== 'ready') this.publish({ controlled: false });
+      return { request: result.request, receipt: result.receipt };
+    });
+  };
   private owned<T>(work: (signal: AbortSignal) => Promise<T>) {
     if (!this.view.controlled || this.view.busy || this.view.recoveryRequired) return Promise.reject(new Error('Game control unavailable'));
-    const epoch = this.head!.epoch, gameId = this.head!.gameId;
+    const epoch = this.head!.epoch, gameId = this.head!.gameId, generation = this.head!.generation;
     return this.enqueue(signal => {
-      if (!this.view.controlled || this.head?.epoch !== epoch || this.head.gameId !== gameId) throw new Error('Discarded stale game action');
+      if (!this.view.controlled || this.head?.epoch !== epoch || this.head.gameId !== gameId
+        || this.head.generation !== generation) throw new Error('Discarded stale game action');
       return work(signal);
     });
   }
   private save(input: Json) {
     return this.owned(async signal => {
-      const result = await executeSaveCommand(gameRequest(this.head!, 'save.command', input));
+      const result = await executeSaveCommand(gameRequest(this.head!, 'save.command', input), { signal });
       this.assert(signal); this.head = result.head ?? (await readCanonicalHead()).head;
       if ((input as JsonObject).kind === 'load') await this.stopSavedAuto(signal);
       await this.adopt(this.head, signal);

@@ -10,10 +10,10 @@ import { recordGameObservation } from '../knowledge/write';
 import { validateKnowledge } from '../knowledge/evidence';
 
 /** Host-owned action facade. Provider exposure/authority remains with the game session. */
-export function executeRosterCommand(request: CanonicalRequest) {
+export function executeRosterCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request);
   check(request.operation === 'roster.command', 'invalid roster operation');
-  return executeCanonical(request, tx => commitRosterCommand(tx, request.input));
+  return executeCanonical(request, tx => commitRosterCommand(tx, request.input), options);
 }
 
 export async function commitRosterCommand(tx: CanonicalWork, input: unknown) {

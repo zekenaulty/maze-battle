@@ -57,7 +57,7 @@ export async function listManualSaves(): Promise<SaveSummary[]> {
 }
 
 /** Host-only facade. Exact retries resolve their receipt before inspecting current save/game state. */
-export function executeSaveCommand(request: CanonicalRequest) {
+export function executeSaveCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request);
   check(request.operation === 'save.command', 'invalid save operation');
   const input = command(request.input);
@@ -88,5 +88,5 @@ export function executeSaveCommand(request: CanonicalRequest) {
       await tx.pages.set('execution', CATALOG, { schema: 1, ids: ids.filter(id => id !== input.id) });
     }
     return { kind: input.kind, id: input.id };
-  });
+  }, options);
 }

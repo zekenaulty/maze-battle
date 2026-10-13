@@ -14,6 +14,8 @@ dist-ssr
 .vite-dev.*
 .vite-canonical-app/
 .vite-canonical-game-map/
+.vite-canonical-game-host/
+*.tsbuildinfo
 test-results
 playwright-report
 tests/e2e/directed-storage-cache/

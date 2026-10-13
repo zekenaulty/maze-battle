@@ -18,9 +18,9 @@ export function contentCommand(value: unknown): ContentCommand {
   return value as ContentCommand;
 }
 /** Host-owned facade, shared by future manual/Auto/agent bindings. Not a provider capability grant. */
-export function executeContentCommand(request: CanonicalRequest) {
+export function executeContentCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request); check(request.operation === 'content.command', 'invalid content operation');
-  return executeCanonical(request, tx => commitContentCommand(tx, request.input));
+  return executeCanonical(request, tx => commitContentCommand(tx, request.input), options);
 }
 export async function commitContentCommand(tx: CanonicalWork, input: unknown) {
   const command = contentCommand(input), checkpoint = gameCheckpoint(tx.head.checkpoint), now = new Date().toISOString();

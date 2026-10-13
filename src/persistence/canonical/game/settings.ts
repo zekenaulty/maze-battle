@@ -14,7 +14,7 @@ export async function loadGameSettings(pages: Pick<CanonicalQuery, 'get'>) {
   check(value.schema === 1 && integer(value.autoThrottleMs) && value.autoThrottleMs <= 5000, 'invalid game settings');
   return { autoThrottleMs: value.autoThrottleMs as number, randomBattles: false as const };
 }
-export function executeSettingsCommand(request: CanonicalRequest) {
+export function executeSettingsCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   check(request.operation === 'settings.command', 'invalid settings operation');
   return executeCanonical(request, async tx => {
     const input = fields(request.input, 'kind', 'enabled ms');
@@ -30,5 +30,5 @@ export function executeSettingsCommand(request: CanonicalRequest) {
       await tx.pages.set('world', SETTINGS_KEY, { schema: 1, autoThrottleMs: input.ms as number });
     }
     return { kind: input.kind, outcome: 'applied' };
-  });
+  }, options);
 }

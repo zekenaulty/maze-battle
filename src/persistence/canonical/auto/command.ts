@@ -19,9 +19,9 @@ import { currentAutoRoom, recordAutoCrossing } from './waypoints';
 import { observedDescent, planAutoRoute, retainObjective } from './planner';
 import { AutoBlocked, type AutoState } from './types';
 
-export function executeAutoCommand(request: CanonicalRequest) {
+export function executeAutoCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request); check(request.operation === 'auto.command', 'invalid Auto operation');
-  return executeCanonical(request, tx => commitAutoCommand(tx, request.input, request.attemptId), { limits: { reads: 16384, writes: 1024, bytes: 16 * 1024 * 1024 } });
+  return executeCanonical(request, tx => commitAutoCommand(tx, request.input, request.attemptId), { ...options, limits: { reads: 16384, writes: 1024, bytes: 16 * 1024 * 1024 } });
 }
 
 /** One policy-selected shared action and its progress commit together. No caller-supplied route or effects. */

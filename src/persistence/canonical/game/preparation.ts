@@ -27,9 +27,9 @@ export async function readPreparation(pages: WorldRead, level: number): Promise<
   return phase;
 }
 /** Each receipt advances one bounded module or qualification batch, never a floor-sized transaction. */
-export function prepareGameFloor(request: CanonicalRequest) {
+export function prepareGameFloor(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   check(request.operation === 'game.prepare', 'invalid preparation operation');
-  return executeCanonical(request, tx => commitFloorPreparation(tx, request.input, request.attemptId));
+  return executeCanonical(request, tx => commitFloorPreparation(tx, request.input, request.attemptId), options);
 }
 
 export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, attemptId: string) {

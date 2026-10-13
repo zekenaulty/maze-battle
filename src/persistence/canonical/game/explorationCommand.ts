@@ -24,9 +24,9 @@ export function explorationCommand(input: unknown): ExplorationCommand {
   else check(c.kind === 'stairs' && Object.keys(c).length === 2 && ['up', 'down'].includes(c.direction as string), 'invalid stair command');
   return input as ExplorationCommand;
 }
-export function executeExplorationCommand(request: CanonicalRequest) {
+export function executeExplorationCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request); check(request.operation === 'exploration.command', 'invalid exploration operation');
-  return executeCanonical(request, tx => commitExplorationCommand(tx, request.input));
+  return executeCanonical(request, tx => commitExplorationCommand(tx, request.input), options);
 }
 
 /** Noncombat game commands. Controller choice cannot change movement's interaction policy. */
