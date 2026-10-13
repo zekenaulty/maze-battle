@@ -127,6 +127,6 @@ test('destructive schema upgrade never reads or converts the old SaveSlot', asyn
     const stores = [...db.objectStoreNames]; db.close();
     return { initialized, stores, dump: await c.dump() };
   });
-  expect(result.stores).toEqual(['heads', 'meta', 'nodes', 'receipts', 'records']);
+  expect(result.stores).toEqual(['heads', 'meta', 'nodes', 'operations', 'receipts', 'records']);
   expect(result.dump.content).not.toContain('observationHead'); expect(result.initialized.head.checkpoint).toEqual({ fresh: true });
 });

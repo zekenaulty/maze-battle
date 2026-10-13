@@ -15,7 +15,8 @@ export function accountHead(previous: CanonicalHead | undefined, next: Canonical
   }
   check(Number.isSafeInteger(out.quota.usedBytes) && out.quota.usedBytes >= 0
     && out.quota.usedBytes === base + storedBytes('heads', out.gameId, out), 'invalid byte accounting');
-  check(out.quota.usedBytes <= out.quota.limitBytes - (recovery ? 0 : out.quota.reserveBytes), 'storage quota exhausted');
+  check(Number.isSafeInteger(out.quota.reservedBytes) && out.quota.reservedBytes >= 0, 'invalid reserved byte accounting');
+  check(out.quota.usedBytes + out.quota.reservedBytes <= out.quota.limitBytes - (recovery ? 0 : out.quota.reserveBytes), 'storage quota exhausted');
   return out;
 }
 export function appendedBytes(records: CanonicalRecord[], nodes: CanonicalIndexNode[], receipt?: CanonicalReceipt) {

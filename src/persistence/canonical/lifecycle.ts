@@ -37,7 +37,8 @@ async function create(reset: boolean, owner: string, initial: JsonObject, seed: 
       check(schema.gameId === null, 'game already exists'); generation = schema.generation;
     }
     const current: CanonicalHead = { schema: 1, generation, gameId: crypto.randomUUID(), owner, epoch: 1, revision: 0,
-      status: 'ready', roots: { world: null, knowledge: null, execution: null }, checkpoint: state, quota: { ...quota, usedBytes: 0 } };
+      status: 'ready', roots: { world: null, knowledge: null, execution: null }, checkpoint: state, allocations: {},
+      quota: { ...quota, usedBytes: 0, reservedBytes: 0, reservations: 0 } };
     head(current);
     const pages = new CanonicalPages(tx, current, budget);
     await seed?.(pages);

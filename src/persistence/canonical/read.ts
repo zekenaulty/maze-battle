@@ -1,10 +1,13 @@
 import { openCanonicalDatabase } from './database';
 import { workBudget } from './budget';
 import { CanonicalPages } from './pages';
+import { operationAt } from './operations';
 import { CANONICAL_STORES, type CanonicalHead, type CanonicalSnapshot, type CanonicalWorkLimits, type RecordArea } from './types';
-import { check, head, integer, jsonBytes, marker } from './validation';
+import { check, head, jsonBytes, marker, snapshot as validateSnapshot } from './validation';
 
-export type CanonicalQuery = Pick<CanonicalPages, 'get' | 'scan'>;
+export type CanonicalQuery = Pick<CanonicalPages, 'get' | 'scan'> & {
+  liveOperation(id: string): ReturnType<typeof operationAt>;
+};
 type Options = { snapshot?: CanonicalSnapshot; limits?: CanonicalWorkLimits; signal?: AbortSignal };
 
 export const snapshotOf = (value: CanonicalHead): CanonicalSnapshot => structuredClone({ generation: value.generation,
@@ -26,11 +29,21 @@ export async function readCanonical<T>(query: (pages: CanonicalQuery, snapshot: 
     budget.read();
     const current = await tx.objectStore('heads').get(schema.gameId); head(current, { generation: schema.generation, gameId: schema.gameId });
     budget.received(jsonBytes(current));
-    if (snapshot) check(Object.keys(snapshot).sort().join(',') === 'checkpoint,gameId,generation,revision,roots', 'invalid snapshot fields');
+    if (snapshot) validateSnapshot(snapshot, current);
     const projected = snapshot ? { ...current, ...snapshot } : current;
-    head(projected, current); check(integer(projected.revision) && projected.revision <= current.revision, 'invalid snapshot revision');
     const pages = new CanonicalPages(tx, projected, budget);
-    const view = snapshotOf(projected), value = await query({ get: pages.get.bind(pages), scan: pages.scan.bind(pages) }, structuredClone(view));
+    let operationFailed = false, pendingOperations = 0;
+    const liveOperation = async (id: string) => {
+      pendingOperations++;
+      try {
+        check(!snapshot, 'live operation is unavailable in a historical snapshot');
+        return await operationAt(tx, current, id, budget);
+      }
+      catch (error) { operationFailed = true; throw error; }
+      finally { pendingOperations--; }
+    };
+    const view = snapshotOf(projected), value = await query({ get: pages.get.bind(pages), scan: pages.scan.bind(pages), liveOperation }, structuredClone(view));
+    check(!operationFailed && pendingOperations === 0, 'operation read is not usable');
     pages.finishRead(); budget.alive(); await tx.done;
     return { head: current, snapshot: view, value, stats: budget.snapshot() };
   } catch (error) { abort(); await tx.done.catch(() => {}); budget.alive(); throw error; }

@@ -11,7 +11,8 @@ export interface CanonicalHead extends OwnerFence {
   status: 'ready' | 'stopped';
   roots: Record<RecordArea, string | null>;
   checkpoint: JsonObject;
-  quota: { usedBytes: number; limitBytes: number; reserveBytes: number };
+  allocations: Record<string, { revision: number; bytes: number }>;
+  quota: { usedBytes: number; limitBytes: number; reserveBytes: number; reservedBytes: number; reservations: number };
 }
 export interface CanonicalRecord extends GameIdentity {
   id: string;
@@ -37,6 +38,15 @@ export interface CanonicalReceipt extends GameIdentity {
   committedAt: string;
   result: Json;
 }
+export type OperationDisposition = 'completed' | 'decision' | 'blocked' | 'cancelled';
+export interface CanonicalOperation extends GameIdentity {
+  schema: 1; id: string; binding: JsonObject; admissionAttemptId: string;
+  owner: string; epoch: number; revision: number;
+  state: 'admitted' | 'settled' | 'acknowledged'; terminalBytes: number;
+  terminal?: { attemptId: string; disposition: OperationDisposition };
+  acknowledgementAttemptId?: string;
+  witness: string;
+}
 export interface SchemaMarker { schema: 1; generation: string; gameId: string | null }
 export interface CanonicalDb extends DBSchema {
   meta: { key: 'schema'; value: SchemaMarker };
@@ -44,8 +54,9 @@ export interface CanonicalDb extends DBSchema {
   records: { key: [string, string]; value: CanonicalRecord };
   nodes: { key: [string, string]; value: CanonicalIndexNode };
   receipts: { key: [string, string]; value: CanonicalReceipt };
+  operations: { key: [string, string]; value: CanonicalOperation };
 }
-export const CANONICAL_STORES = ['meta', 'heads', 'records', 'nodes', 'receipts'] as const;
+export const CANONICAL_STORES = ['meta', 'heads', 'records', 'nodes', 'receipts', 'operations'] as const;
 export type CanonicalWrite = IDBPTransaction<CanonicalDb, typeof CANONICAL_STORES, 'readwrite'>;
 export type CanonicalRead = IDBPTransaction<CanonicalDb, typeof CANONICAL_STORES, 'readonly'>;
 export type CanonicalSnapshot = Pick<CanonicalHead, 'generation' | 'gameId' | 'revision' | 'roots' | 'checkpoint'>;
@@ -57,3 +68,7 @@ export const DEFAULT_QUOTA = { limitBytes: 256 * 1024 * 1024, reserveBytes: 8 * 
 export const MAX_RECORD_BYTES = 64 * 1024;
 export const MAX_CHECKPOINT_BYTES = 4096;
 export const MIN_RECOVERY_BYTES = 64 * 1024;
+export const MIN_TERMINAL_BYTES = 128 * 1024;
+export const MAX_TERMINAL_BYTES = 4 * 1024 * 1024;
+export const ACKNOWLEDGEMENT_BYTES = 16 * 1024;
+export const MAX_RESERVATIONS = 16;

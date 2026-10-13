@@ -5,8 +5,8 @@ import { checkpoint, head, jsonBytes, request } from './validation';
 import { DEFAULT_QUOTA, type CanonicalHead, type CanonicalRequest } from './types';
 
 const fixture = (): CanonicalHead => ({ schema: 1, generation: 'generation', gameId: 'game', owner: 'owner', epoch: 1,
-  revision: 0, status: 'ready', roots: { world: null, knowledge: null, execution: null }, checkpoint: { floorId: 'floor-1' },
-  quota: { ...DEFAULT_QUOTA, usedBytes: 0 } });
+  revision: 0, status: 'ready', roots: { world: null, knowledge: null, execution: null }, checkpoint: { floorId: 'floor-1' }, allocations: {},
+  quota: { ...DEFAULT_QUOTA, usedBytes: 0, reservedBytes: 0, reservations: 0 } });
 
 describe('canonical JSON and fences', () => {
   it.each([null, true, false, 0, -0, 1.25, '', 'hello', '\u00e9', '\ud83d\udc80', [], [0], {}, { a: 0 }])('counts exact serialized bytes for %j', value => {
@@ -33,7 +33,8 @@ describe('canonical JSON and fences', () => {
     expect(() => jsonBytes(Object.assign([1], { extra: 2 }))).toThrow();
   });
   it('snapshots requests and rejects nonfinite limits/foreign or malformed heads', () => {
-    const original: CanonicalRequest = { attemptId: 'a', expected: fixture(), operation: 'move', input: { x: 1 }, deadlineAt: null };
+    const { generation, gameId, owner, epoch, revision } = fixture();
+    const original: CanonicalRequest = { attemptId: 'a', expected: { generation, gameId, owner, epoch, revision }, operation: 'move', input: { x: 1 }, deadlineAt: null };
     const copy = request(original); original.expected.owner = 'mutated'; original.input = null;
     expect(copy.expected.owner).toBe('owner'); expect(copy.input).toEqual({ x: 1 });
     expect(() => request({ ...copy, deadlineAt: Infinity })).toThrow();
@@ -52,7 +53,7 @@ describe('canonical logical quota and per-operation bounds', () => {
     expect(first.revision).toBe(0);
   });
   it('preserves recovery reserve and rejects even recovery above the hard logical limit', () => {
-    const initial = fixture(); initial.quota = { usedBytes: 0, limitBytes: 70_000, reserveBytes: 65_536 };
+    const initial = fixture(); initial.quota = { ...initial.quota, usedBytes: 0, limitBytes: 70_000, reserveBytes: 65_536 };
     expect(() => accountHead(undefined, initial, 5000)).toThrow('quota');
     expect(accountHead(undefined, initial, 5000, true).quota.usedBytes).toBeGreaterThan(5000);
     expect(() => accountHead(undefined, initial, 70_000, true)).toThrow('quota');

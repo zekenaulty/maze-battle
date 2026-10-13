@@ -2,7 +2,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 import { CANONICAL_STORES, type CanonicalDb } from './types';
 
 export const CANONICAL_DATABASE = 'maze-battle';
-export const CANONICAL_VERSION = 8;
+export const CANONICAL_VERSION = 9;
 
 /** Cutover opener: old Maze Battle schemas are discarded, never read or converted. */
 export function openCanonicalDatabase(signal?: AbortSignal): Promise<IDBPDatabase<CanonicalDb>> {

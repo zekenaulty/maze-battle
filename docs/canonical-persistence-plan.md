@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 2,
-2026-10-13. Status: P0 and the P1a storage kernel checked; canonical gameplay
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 3,
+2026-10-13. Status: P0 and P1a/P1b storage contracts checked; canonical gameplay
 cutover NOT implemented or qualified. This is the next active engineering slice,
 ahead of further room-map/Agentic Play feature work.
 
@@ -113,25 +113,27 @@ Do not keep a second implementation after consumers are moved.
 P0 is checked: [integrated recovery evidence](reviews/issue-11-recovery.md) and
 [native before-change baseline](reviews/issue-11-storage-baseline.md). P1a is now
 checked: [kernel evidence and limits](reviews/issue-11-canonical-kernel.md).
-P1 is PARTIAL; P2-P5 remain unimplemented/unqualified. Neither P0 nor P1a changes
-ordinary-game movement payload scaling yet.
+P1b is also checked at the storage boundary:
+[operation-capacity evidence](reviews/issue-11-operation-capacity.md). P2-P5 remain
+unimplemented/unqualified. These storage tests do not change ordinary-game
+movement payload scaling or qualify actual Agentica consumers yet.
 
-P1 is split at the real remaining boundary:
+P1 storage contracts are split as follows:
 
 - **P1a, checked:** incompatible schema initialization, immutable record/root
   storage, compact heads, atomic command receipts, snapshot-scoped reads,
   generation/owner/revision fencing, per-operation work limits, logical quotas,
   one bounded Stop/takeover using reserved capacity, and destructive reset.
-- **P1b, next:** durable admission and explicit capacity reservations for
-  already-admitted operation settlement/cancellation. Bind the original attempt,
-  owner epoch, reserved allowance and terminal receipt atomically. The emergency
-  Stop path in P1a is NOT proof that Agentica operations can settle at capacity.
+- **P1b, checked:** durable admission and per-operation settlement/cancellation
+  and acknowledgement reservations; explicit adoption after takeover; immutable
+  original receipts and current control rows fenced by bounded head allocations.
+  Native tests prove the storage contract at capacity, not game-level completion.
 - Then **P2/P3** adopt floor/space/mutation and party/item/quest records through
   actual game-owned commands. Wire the new opener only at that coherent cutover;
   do not add a second playable entrypoint, old-state adapter or dual writer.
 
-The target database is `maze-battle` version 8 with `meta`, `heads`, `records`,
-`nodes` and `receipts`. The opener discards earlier store layouts without reading
+The target database is `maze-battle` version 9 with `meta`, `heads`, `records`,
+`nodes`, `receipts` and `operations`. The opener discards earlier store layouts without reading
 their values. Until P2/P3 adoption, only isolated native fixtures invoke it. The
 existing preview is intentionally not upgraded by importing the kernel.
 
@@ -141,6 +143,18 @@ cannot consume reserve indefinitely. Resume must pass normal admission again.
 Default accounting limits are 256 MiB total / 8 MiB reserve; all history remains
 immutable until explicit reset. These are logical charges, not physical disk
 capacity guarantees. Browser quota errors must still abort every staged effect.
+
+Admission additionally reserves 128 KiB-4 MiB of terminal allowance and 16 KiB
+for acknowledgement, with at most 16 outstanding reservations. Normal commands
+cannot consume these funds. A terminal commit releases only its own allowance;
+its actual retained-byte growth must fit that allowance. Cancellation and
+acknowledgement cannot carry world callbacks and remain available while stopped.
+Completion after takeover requires explicit adoption and normal admission.
+Operation control remains live across historical world reads; loading old world
+roots must never rewind custody. The bounded head allocation map independently
+anchors each funded operation's revision and remaining bytes. Immutable source
+receipts must validate completely before release, including their original inputs.
+Game-level delivery, manual-load cancellation and Agentica bindings remain P3/P5.
 
 Each checked slice is committed/pushed. P1-P4 are a coordinated replacement,
 not permanent transitional adapters or a second runnable game. Do not declare
@@ -165,7 +179,7 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 ## Acceptance Not Yet Met
 
 The existing 2,667-unit/196-native/14-App evidence qualifies the prior build only.
-P0/P1a tests do not establish actual-game depth scaling, retirement of all old
-databases, stream/RPG unification, game-level manual save/load, admitted-operation
-settlement capacity or the full Q matrix.
+P0/P1 tests do not establish actual-game depth scaling, retirement of all old
+databases, stream/RPG unification, game-level manual save/load, real Agentica
+operation settlement at capacity or the full Q matrix.
 These remain mandatory gates for #11, separate from any future live-model trial.

@@ -1,6 +1,6 @@
 import { canonicalJson } from '../../services/agentica/sdk/agentica-host.mjs';
 import { boundedJsonBytes } from './json';
-import { MAX_CHECKPOINT_BYTES, MAX_RECORD_BYTES, MIN_RECOVERY_BYTES, type CanonicalHead, type CanonicalRecord, type CanonicalRequest,
+import { MAX_CHECKPOINT_BYTES, MAX_RECORD_BYTES, MAX_RESERVATIONS, MIN_RECOVERY_BYTES, type CanonicalHead, type CanonicalRecord, type CanonicalRequest, type CanonicalSnapshot,
   type GameIdentity, type Json, type JsonObject, type OwnerFence, type RecordArea, type SchemaMarker } from './types';
 
 export function check(condition: unknown, message: string): asserts condition {
@@ -29,15 +29,33 @@ export function marker(value: SchemaMarker | undefined): asserts value is Schema
 }
 export function head(value: CanonicalHead | undefined, scope?: GameIdentity): asserts value is CanonicalHead {
   check(value && value.schema === 1, 'missing game head');
+  check(Object.keys(value).sort().join(',') === 'allocations,checkpoint,epoch,gameId,generation,owner,quota,revision,roots,schema,status', 'invalid head fields');
   identity(value, scope); fence(value);
   check(value.status === 'ready' || value.status === 'stopped', 'invalid control status');
-  check(value.roots && Object.keys(value.roots).sort().join(',') === 'execution,knowledge,world'
-    && Object.values(value.roots).every(root => root === null || validId(root)), 'invalid root references');
+  roots(value.roots);
   check(isObject(value.checkpoint), 'invalid checkpoint'); jsonBytes(value.checkpoint, MAX_CHECKPOINT_BYTES);
   const q = value.quota;
   check(q && integer(q.usedBytes) && integer(q.limitBytes, 1) && integer(q.reserveBytes, MIN_RECOVERY_BYTES)
-    && q.reserveBytes < q.limitBytes && q.usedBytes <= q.limitBytes, 'invalid quota');
+    && q.reserveBytes < q.limitBytes && integer(q.reservedBytes) && integer(q.reservations) && q.reservations <= MAX_RESERVATIONS
+    && (q.reservations === 0) === (q.reservedBytes === 0)
+    && integer(q.usedBytes + q.reservedBytes) && q.usedBytes + q.reservedBytes <= q.limitBytes, 'invalid quota');
+  check(isObject(value.allocations), 'invalid allocation anchors');
+  const entries = Object.entries(value.allocations);
+  check(entries.length === q.reservations && entries.every(([id, allocation]) => validId(id) && isObject(allocation)
+    && Object.keys(allocation).sort().join(',') === 'bytes,revision' && integer(allocation.revision, 1)
+    && allocation.revision <= value.revision && integer(allocation.bytes, 1))
+    && entries.reduce((sum, [, allocation]) => sum + allocation.bytes, 0) === q.reservedBytes, 'allocation anchors disagree with quota');
   jsonBytes(value);
+}
+function roots(value: CanonicalHead['roots']) {
+  check(value && Object.keys(value).sort().join(',') === 'execution,knowledge,world'
+    && Object.values(value).every(root => root === null || validId(root)), 'invalid root references');
+}
+export function snapshot(value: CanonicalSnapshot, current: CanonicalHead) {
+  jsonBytes(value, 8192); identity(value, current);
+  check(Object.keys(value).sort().join(',') === 'checkpoint,gameId,generation,revision,roots', 'invalid snapshot fields');
+  check(integer(value.revision) && value.revision <= current.revision, 'invalid snapshot revision');
+  roots(value.roots); checkpoint(value.checkpoint);
 }
 export function recordKey(key: string) {
   check(typeof key === 'string' && key.length > 0 && key.length <= 384 && !/[^\x20-\x7e]/.test(key), 'invalid record key');
@@ -52,6 +70,8 @@ export function record(value: CanonicalRecord | undefined, id: string, scope: Ga
 }
 export function request(value: CanonicalRequest): CanonicalRequest {
   jsonBytes(value, 16 * 1024); fence(value.expected);
+  check(Object.keys(value).sort().join(',') === 'attemptId,deadlineAt,expected,input,operation'
+    && Object.keys(value.expected).sort().join(',') === 'epoch,gameId,generation,owner,revision', 'unsupported request fields');
   check(validId(value.attemptId) && validId(value.operation), 'invalid request identity');
   check(value.deadlineAt === null || integer(value.deadlineAt), 'invalid deadline');
   return structuredClone(value);

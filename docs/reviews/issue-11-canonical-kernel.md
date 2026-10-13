@@ -5,6 +5,10 @@ Authority: [issue 11](https://github.com/zekenaulty/maze-battle/issues/11).
 This builds the planned replacement inside the actual game repository, not an
 alternate playable game. The preview still uses its current writer.
 
+Historical P1a evidence at `af0aad2`. The subsequent
+[P1b report](issue-11-operation-capacity.md) covers version 9 and operation
+reservations; the measurements below remain the version-8 P1a results.
+
 ## Implemented Boundary
 
 `src/persistence/canonical/` provides the target `maze-battle` version-8 host:
