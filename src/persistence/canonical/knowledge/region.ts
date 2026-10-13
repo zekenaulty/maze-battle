@@ -14,7 +14,7 @@ export interface KnowledgeRegionScope { floor: number; row: number; column: numb
 export type PerceivedCell = { state: 'visible'; cell: RememberedCell; observation: ObservedCell }
   | { state: 'remembered'; cell: RememberedCell };
 export interface KnowledgeRegion { scope: KnowledgeRegionScope; actor: GridPosition | null; cells: PerceivedCell[] }
-// Physical I/O ceilings, including tree traversal and source receipts. Exhaustion fails closed.
+// Logical record-read ceilings, including tree traversal and source receipts. Exhaustion fails closed.
 // The budget schema requires a positive write cap; readCanonical still opens a read-only transaction.
 export const REGION_WORK_LIMITS: Readonly<CanonicalWorkLimits> = { reads: 16384, writes: 1, bytes: 16 * 1024 * 1024 };
 export function validateRegionScope(s: KnowledgeRegionScope) {

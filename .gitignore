@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .vite-dev.*
+.vite-canonical-app/
 test-results
 playwright-report
 tests/e2e/directed-storage-cache/

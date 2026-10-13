@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { RpgAgenticaClient, type RpgAgenticaView } from '../services/agentica/rpg/client';
-import type { GameSession } from '../services/game/GameSession';
+import type { RpgSessionContract as GameSession } from '../services/agentica/rpg/session';
 import type { RpgAddress } from '../domain/agentic/knowledge/types';
 
 const idle: RpgAgenticaView = { state: 'idle', connected: false, steps: 0, replans: 0 };

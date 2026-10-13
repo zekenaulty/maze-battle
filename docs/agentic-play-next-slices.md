@@ -2,7 +2,7 @@
 
 ## Active Priority: Persistence Replacement
 
-Revision 27 amendment, 2026-10-13: owner issue
+Revision 28 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those
 quoted in the original goal. All pre-existing saves are disposable; no migration
@@ -28,9 +28,15 @@ stair return, accepted visit progress, and exact replay/recovery. Native floor-o
 steps with 1/16 retained floors each write 43 records and about 82 KB of logical
 payload; no historical floor is fetched or rewritten. This is isolated command
 evidence, not physical disk bytes or App-level performance.
-The remaining P2b/P3-P5 gameplay adoption/removal/qualification remains mandatory;
-the preview has not switched writers yet. These are storage
-proofs, not a claim of game-level Agentica completion.
+The [manual playable cutover](reviews/issue-11-playable-cutover.md) now replaces
+the actual App writer with canonical commands and bounded projections. Every
+former query route mounts that App. Six native App tests cover real startup,
+movement, reload, town, checkpoints, failed evidence reset and two-tab custody.
+The earned spatial index adds bounded logical writes: the updated command-level
+1/16-floor samples each write 59 records and about 97 KB, not the earlier 43/82 KB.
+Auto and Agentica remain explicitly unavailable until their controllers adopt
+canonical storage. P3 controller adoption, P4 removal of retired modules/databases,
+and P5 complete qualification remain mandatory. This is not Agentica completion.
 
 Status: D0/D1 and the A1 known-destination vertical qualified at their declared
 bounded levels; A0 mapped. A2 has a checked earned-frontier approach primitive and

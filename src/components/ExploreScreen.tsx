@@ -21,6 +21,7 @@ interface ExploreScreenProps {
   observationHead?: string;
   chests?: GridPosition[];
   autoActive: boolean;
+  autoAvailable?: boolean;
   wavesActive: boolean;
   autoThrottleMs: number;
   onAutoToggle: () => void;
@@ -47,6 +48,7 @@ export function ExploreScreen({
   status,
   onMove,
   autoActive,
+  autoAvailable = true,
   wavesActive,
   autoThrottleMs,
   onAutoToggle,
@@ -102,10 +104,11 @@ export function ExploreScreen({
         <nav aria-label="Explore actions" onClickCapture={event => {
           if (!(event.target instanceof Element && event.target.closest('[data-agentic-control]'))) onStopWalking?.();
         }}>
-          <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}>
+          <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}
+            disabled={!autoAvailable} title={autoAvailable ? undefined : 'Auto is unavailable during the persistence cutover'}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
-          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle}>
+          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled title="Combat is disabled in this qualification build">
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
           {onAgenticPlay && <button className="screen-icon" data-agentic-control type="button" title="Agentic play" aria-label="Agentic play" onClick={onAgenticPlay}>
@@ -178,7 +181,7 @@ export function ExploreScreen({
           <button type="button" onClick={() => { setSettingsOpen(false); setConfirmNew(true); }}>New game</button>
         </div>
       </Dialog>}
-      {confirmNew && <ConfirmActionDialog title="Start a new game?" message="This replaces the current expedition and autosave. Manual saves are kept." confirmLabel="Start new game" onConfirm={onNewGame} onClose={() => setConfirmNew(false)} />}
+      {confirmNew && <ConfirmActionDialog title="Start a new game?" message="This discards this game's current state, manual saves and observation history. This cannot be undone." confirmLabel="Start new game" onConfirm={onNewGame} onClose={() => setConfirmNew(false)} />}
     </main>
   );
 }

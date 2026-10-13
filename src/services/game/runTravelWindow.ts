@@ -1,5 +1,5 @@
 import { integer } from '../../domain/agentic/knowledge/shared';
-import type { GameSession } from './GameSession';
+import type { RpgSessionContract as GameSession } from '../agentica/rpg/session';
 
 /** Routine local work only. Ending a technical window neither renews a grant nor adopts custody. */
 export async function runTravelWindow(session: GameSession, operationId: string,

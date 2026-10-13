@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GameSession } from '../../services/game/GameSession';
+import type { RpgSessionContract } from '../../services/agentica/rpg/session';
 import type { RpgAgenticaOptions, RpgAgenticaView } from '../../services/agentica/rpg/client';
 import { useAgenticPlay } from '../../hooks/useAgenticPlay';
 
@@ -23,10 +23,10 @@ const mocks = vi.hoisted(() => {
 });
 vi.mock('../../services/agentica/rpg/client', () => ({ RpgAgenticaClient: mocks.Client }));
 const target = { floor: 1, row: 0, column: 1 }, url = 'ws://127.0.0.1:5189/api/host';
-let session: GameSession;
+let session: RpgSessionContract;
 beforeEach(() => {
   vi.useFakeTimers(); mocks.instances.length = 0;
-  session = { view: { controlled: true }, flush: vi.fn(async () => {}) } as unknown as GameSession;
+  session = { view: { controlled: true }, flush: vi.fn(async () => {}) } as unknown as RpgSessionContract;
 });
 afterEach(() => { cleanup(); document.body.replaceChildren(); vi.useRealTimers(); });
 const advance = (ms = 150) => act(() => vi.advanceTimersByTimeAsync(ms));

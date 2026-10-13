@@ -1,4 +1,4 @@
-import type { GameSession } from '../../game/GameSession';
+import type { RpgSessionContract as GameSession } from './session';
 import type { RpgLaunch } from '../../../persistence/rpgAgentica/launchRecords';
 import { readRpgHostOperation } from '../../../persistence/rpgAgentica/events';
 import { equivalentHostWire } from '../directed/wire';

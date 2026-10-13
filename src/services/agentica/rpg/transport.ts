@@ -1,7 +1,7 @@
 import { AgenticaHost, type AgenticaMessage, type HostOperationEvent } from '../sdk/agentica-host.mjs';
 import { deferred, fixtureUrl } from '../clientPolicy';
 import { equivalentHostWire } from '../directed/wire';
-import type { GameSession } from '../../game/GameSession';
+import type { RpgSessionContract as GameSession } from './session';
 import { bindRpgRun, readRpgRun } from '../../../persistence/rpgAgentica/runs';
 import { loadRpgAction, saveRpgAction } from '../../../persistence/rpgAgentica/records';
 import { announceRpgLaunch, markRpgLaunch, stopRpgRun, type RpgLaunch } from '../../../persistence/rpgAgentica/launchRecords';

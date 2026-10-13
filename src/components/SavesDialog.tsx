@@ -69,7 +69,7 @@ export function SavesDialog({ saves, onClose, onCreateSave, onLoadSave, onDelete
       </div>
       {confirmation && <ConfirmActionDialog
         title={confirmation.action === 'new' ? 'Start a new game?' : `${confirmation.action === 'load' ? 'Load' : 'Delete'} save?`}
-        message={confirmation.action === 'new' ? 'This replaces the current expedition and autosave. Manual saves are kept.' : confirmation.action === 'load' ? `Load "${confirmation.save.label}"? This replaces the current expedition and autosave.` : `Delete "${confirmation.save.label}"? This cannot be undone.${confirmation.save.kind === 'auto' ? ' The active game continues and may create a new autosave.' : ''}`}
+        message={confirmation.action === 'new' ? "This discards this game's current state, manual saves and observation history. This cannot be undone." : confirmation.action === 'load' ? `Load "${confirmation.save.label}"? This replaces the current expedition and autosave.` : `Delete "${confirmation.save.label}"? This cannot be undone.${confirmation.save.kind === 'auto' ? ' The active game continues and may create a new autosave.' : ''}`}
         confirmLabel={confirmation.action === 'new' ? 'Start new game' : confirmation.action === 'load' ? 'Load save' : 'Delete save'}
         onClose={() => setConfirmation(undefined)}
         onConfirm={async () => {

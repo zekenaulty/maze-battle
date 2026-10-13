@@ -1,10 +1,13 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 7,
-2026-10-13. Status: P0, P1, P2a structural world storage, bounded room-role/quality
-preparation and P3a roster/chest/quest/local exploration commands checked at their storage boundaries; canonical gameplay
-cutover NOT implemented or qualified. This is the next active engineering slice,
-ahead of further room-map/Agentic Play feature work.
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 8,
+2026-10-13. Status: the actual App now uses canonical storage for the checked
+noncombat manual-play vertical, including earned map, movement, roster/town,
+explicit interactions, named checkpoints and load recovery. All former query
+routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
+P3 Auto, canonical Agentica adoption, P4 dead-code/database removal and P5 final
+qualification remain open. Auto and Agentica are unavailable in this intermediate
+preview; this is not complete feature parity or closure of #11.
 
 ## Authority and Supersession
 
@@ -73,8 +76,9 @@ Versioned checkpoints use the existing copy-on-write radix index: three bounded
 roots reference immutable world, knowledge and execution records. P1a proves
 old-root reads and snapshot-scoped pagination after writes/reload without walking
 an overlay chain. Host roots are internal references, never provider capabilities.
-Manual save/load still needs game-level operation cancellation and checkpoint
-validation before it can be exposed on the new schema.
+Named save/load now uses receipt-bound roots and rejects live allocations; it
+never restores custody, quota or execution roots. Agentica's cancellation and
+adoption flow still needs canonical integration before its controls can mount.
 
 ## Transaction Contract
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { GameSession, type GameSessionView } from '../services/game/GameSession';
 
 export function useGameSession() {
-  const [view, setView] = useState<GameSessionView>({ saves: [], status: 'Loading', controlled: false });
+  const [view, setView] = useState<GameSessionView>({ saves: [], diagnostics: [], status: 'Loading', controlled: false });
   const [session] = useState(() => new GameSession(setView));
   useEffect(() => {
     void session.start().catch(() => {});
@@ -21,7 +21,7 @@ export function useGameSession() {
       session.stop();
     };
   }, [session]);
-  return { ...view, controller: session, transition: session.transition, replaceGame: session.replaceGame,
+  return { ...view, controller: session,
     createManualSave: session.createManualSave, loadSave: session.loadSave, removeSave: session.removeSave,
     refreshSaves: session.refreshSaves, flush: session.flush, takeControl: session.takeControl,
     // Reload also retries a failed database-open promise without changing repository caching.

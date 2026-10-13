@@ -1,4 +1,4 @@
-import type { GameSession } from '../../game/GameSession';
+import type { RpgSessionContract as GameSession } from './session';
 import type { RpgAddress } from '../../../domain/agentic/knowledge/types';
 import type { AgenticaStart } from '../contracts';
 import type { HostOperationEvent } from '../sdk/agentica-host.mjs';

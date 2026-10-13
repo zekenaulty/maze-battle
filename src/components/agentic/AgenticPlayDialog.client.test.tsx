@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AgenticPlayDialog } from './AgenticPlayDialog';
 import { RpgAgenticaClient } from '../../services/agentica/rpg/client';
-import type { GameSession } from '../../services/game/GameSession';
+import type { RpgSessionContract } from '../../services/agentica/rpg/session';
 
 const mocks = vi.hoisted(() => ({ read: vi.fn(), recover: vi.fn(async () => undefined) }));
 vi.mock('../../persistence/rpgAgentica/launchRecords', () => ({ readRpgLaunch: mocks.read }));
@@ -16,7 +16,7 @@ vi.mock('../../services/agentica/rpg/transport', () => ({ RpgAgenticaTransport: 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 const endpoint = 'ws://127.0.0.1:5189/api/host', entrance = { floor: 2, row: 0, column: 1 };
 const position = { floor: 2, row: 3, column: 4 };
-const session = { view: { game: { id: 'game' } } } as unknown as GameSession;
+const session = { view: { game: { id: 'game' } } } as unknown as RpgSessionContract;
 
 describe('Agentic dialog retained quest identity', () => {
   it('recovers the selected ID from the private quest binding and keeps its item specification out of the view', async () => {
