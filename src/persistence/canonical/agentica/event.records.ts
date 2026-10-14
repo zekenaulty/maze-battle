@@ -20,6 +20,16 @@ export function validateAcknowledgement(entry: AgenticaOperationEntry, confirmed
 }
 export async function loadOperationEvent(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation,
   sequence: number, reference?: ProtocolRef) {
+  const current = await loadEventRecord(pages, identity, confirmed, sequence, reference);
+  // Validate one predecessor's full evidence, never recursively traverse the event history.
+  if (sequence > 1) {
+    const previous = await loadEventRecord(pages, identity, confirmed, sequence - 1, current.data.previous!);
+    check(previous.row.revision < current.row.revision, 'operation event predecessor revision changed');
+  }
+  return current;
+}
+async function loadEventRecord(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation,
+  sequence: number, reference?: ProtocolRef) {
   const ref = reference && snapshotReference(reference), key = eventKey(identity, sequence), row = await pages.get('execution', key);
   check(row && row.indexes.length === 0 && (!ref || equal(ref, { key, id: row.id })), 'missing or replaced operation event');
   const value = fields(row.value, 'schema kind sourceAttemptId data'), data = snapshotJson(value.data) as unknown as OperationEvent;
@@ -41,8 +51,8 @@ export async function loadOperationEvent(pages: OperationRead, identity: Prepare
     && event.observation.observationId === `event-${source.attemptId}`, 'operation event identity changed');
   if (sequence === 1) check(data.previous === null, 'first event has predecessor');
   else {
-    const prev = snapshotReference(data.previous!), prior = await pages.get('execution', eventKey(identity, sequence - 1));
-    check(prior && equal(prev, { key: prior.key, id: prior.id }), 'operation event predecessor changed');
+    const prev = snapshotReference(data.previous!);
+    check(prev.key === eventKey(identity, sequence - 1), 'operation event predecessor changed');
   }
   return { reference: { key, id: row.id }, data, row, source };
 }

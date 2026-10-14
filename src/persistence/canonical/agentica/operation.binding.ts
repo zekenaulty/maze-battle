@@ -23,7 +23,8 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
     && equal(reserved.publication, binding.publication) && equal(original.original.publication, binding.publication), 'operation original grant changed');
   const grant = await loadLaunchRecord<LaunchGrant>(pages, binding.grant.key, 'agentica-launch-grant', binding.grant); check(grant, 'missing operation grant');
   const launch = await loadLaunch(pages, grant.value.launchId), active = await loadActiveLaunch(pages), run = launch.run!.value.data.started;
-  check(launch.grant && equal(launch.grant.ref, binding.grant) && equal(grant.value.data.publication, binding.publication)
+  // The grant pins the launch's initial publication; each action reserves its own exact publication above.
+  check(launch.grant && equal(launch.grant.ref, binding.grant)
     && identity.action.runId === run.runId && identity.action.sessionId === run.sessionId
     && identity.action.sessionEpoch === run.sessionEpoch && identity.action.manifestHash === run.manifestHash
     && launch.binding.start.capabilities.some(c => c.id === 'maze.navigate' && c.durableHandoff && c.effect === 'writesLocalState'), 'operation launch binding changed');
