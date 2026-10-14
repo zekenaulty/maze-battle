@@ -116,19 +116,24 @@ test('cancelled guard after committed dispatch prevents any start frame', async 
   expect(launch!.run).toBeNull(); expect(launch!.grant).toBeNull();
 });
 
-test('simultaneous transports cannot dispatch the same launch twice', async ({ page }) => {
+test('simultaneous transports preserve the winning attachment without poisoning the shared queue', async ({ page }) => {
   autoAnnounce = true;
-  await page.evaluate(async () => {
-    await window.transportReview.boot(); await Promise.all([window.transportReview.attach(), window.transportReview.attach()]);
-    window.transportReview.begin(0); window.transportReview.begin(1);
+  const attempts = await page.evaluate(async () => {
+    await window.transportReview.boot();
+    const results = await Promise.allSettled([window.transportReview.attach(), window.transportReview.attach()]);
+    window.transportReview.begin(0);
+    return results.map(r => r.status === 'fulfilled' ? 'attached' : String(r.reason));
   });
+  expect(attempts.filter(r => r === 'attached')).toHaveLength(1);
+  expect(attempts.some(r => r.includes('already attached'))).toBe(true);
   await page.waitForFunction(() => window.transportReview.status().starts.every(s => ['attached', 'failed'].includes(s.status)));
   expect(starts()).toHaveLength(1);
   const status = await page.evaluate(() => window.transportReview.status());
   await test.info().attach('simultaneous-outcome', { body: JSON.stringify(status, null, 2), contentType: 'application/json' });
-  expect(status.starts.some(s => s.error?.includes('start already dispatched'))).toBe(true);
+  expect(status.starts).toEqual([{ status: 'attached' }]);
+  expect(status.controlled).toBe(true); expect(status.recoveryRequired).toBe(false);
   expect((await page.evaluate(() => window.transportReview.launch()))!.dispatch).not.toBeNull();
-  const error = await page.evaluate(() => window.transportReview.attach().then(() => 'unexpected', String));
+  const error = await page.evaluate(() => { window.transportReview.close(); return window.transportReview.attach().then(() => 'unexpected', String); });
   expect(error).toContain('requires reconciliation'); expect(starts()).toHaveLength(1);
 });
 

@@ -5,11 +5,11 @@ import { readCanonical } from '../../../persistence/canonical/read';
 import { executeCanonical } from '../../../persistence/canonical/transaction';
 import { prepareAction, readAction, retainPendingAction } from '../../../persistence/canonical/agentica/actions';
 import type { RetainedAction } from '../../../persistence/canonical/agentica/types';
-import { prepareActionLookup, readActionByKey } from '../../../persistence/canonical/agentica/actions.lookup';
 import { equal } from '../../../persistence/canonical/agentica/validation';
 import { check } from '../../../persistence/canonical/validation';
 import { actionGrant, captureBinding, pinDeadline, sdkRecord, unresolved, type ActionBinding } from './actionContract';
 import { executeGameAction } from './actionExecution';
+import { loadGameAction, reconcileGameAction } from './actionRead';
 
 /** Hooks for one published context. New wire revisions need an explicitly renewed publication/binding. */
 export function createGameActionHooks(port: CanonicalHostPort, input: ActionBinding): Pick<AgenticaHostOptions,
@@ -22,10 +22,6 @@ export function createGameActionHooks(port: CanonicalHostPort, input: ActionBind
     check(equal(retained.original.publication, binding.publication)
       && retained.original.effect === (retained.original.action.capabilityId === 'maze.navigate' ? 'writesLocalState' : 'readOnly'),
     'original action publication or effect changed');
-  }
-  async function loadAction(key: string) {
-    const lookup = await prepareActionLookup(key);
-    return (await readCanonical(pages => readActionByKey(pages, lookup))).value;
   }
   async function saveAction(key: string, value: AgenticaActionRecord) {
     const { action, record } = sdkRecord(key, value), identity = await prepareAction(action);
@@ -61,9 +57,5 @@ export function createGameActionHooks(port: CanonicalHostPort, input: ActionBind
     await executeGameAction(host, binding, identity);
     return (await readCanonical(pages => readAction(pages, identity))).value?.result ?? unresolved(identity.action);
   }
-  return { loadAction, saveAction, onAction,
-    async reconcileAction(action) {
-      const identity = await prepareAction(action);
-      return (await readCanonical(pages => readAction(pages, identity))).value?.result ?? null;
-    } };
+  return { loadAction: loadGameAction, saveAction, onAction, reconcileAction: reconcileGameAction };
 }
