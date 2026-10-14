@@ -1,6 +1,7 @@
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { AgenticaHost, actionFingerprint, actionKey, type HostOperationEvent, type AgenticaOperationEntry } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { createGameActionHooks } from '../../src/services/agentica/game/actionHooks';
+import { createGameOperationDriver } from '../../src/services/agentica/game/operationDriver';
 import { flatAddress } from '../../src/services/agentica/game/validation';
 import { prepareAction } from '../../src/persistence/canonical/agentica/actions';
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
@@ -21,6 +22,13 @@ import { bytes, fundLaunch, startGame } from './canonical-agentica-actions.setup
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5242') throw Error('Isolated operation fixture origin required');
 let session: Awaited<ReturnType<typeof startGame>> | undefined;
+let driver: Awaited<ReturnType<typeof createGameOperationDriver>> | undefined;
+async function attachDriver(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding']) {
+  const forbidden = async () => { throw Error('Operation delivery cannot invoke cognition or host actions'); };
+  const sdk = new AgenticaHost({ url: 'ws://127.0.0.1:5242/api/host', onAction: forbidden, loadAction: forbidden, saveAction: forbidden,
+    maxActions: 512 });
+  driver = await createGameOperationDriver(session!, sdk, action, binding);
+}
 async function boot() {
   session = await startGame(); const funded = await fundLaunch(session), launch = (await readLaunch()).value!;
   const sight = session.view.game!.observation!, actor = session.view.game!.checkpoint.position;
@@ -103,11 +111,13 @@ async function sdkProof(entry: AgenticaOperationEntry, event: HostOperationEvent
 }
 const api = { boot, command, confirm, custodyAck, acceptCustody, advance, ack, dump, bytes, prepareAction, operationKey, eventKey, readCanonical, readCanonicalHead, sdkProof, fingerprint,
   executeCanonical, operateCanonical, executeNavigationCommand, retainOperationConfirmation, retainOperationCustodyAck, retainEventAcknowledgement, operationProgressHooks,
+  attachDriver, pulseDriver: () => driver!.pulse(), closeDriver: () => driver!.close(),
+  driverStatus: () => ({ controlled: session!.view.controlled, recoveryRequired: session!.view.recoveryRequired }),
   openCanonicalDatabase, readAgenticaOperation,
   async read(action: AgenticaAction) { return readAgenticaOperation(await prepareAction(action)); },
   async cancel(id: string) { return operateCanonical(await command('operation.cancel', { operationId: id }), 'cancel'); },
   async resume() { session = await startGame(); return (await readCanonicalHead()).head; },
-  stop() { session?.stop(); },
+  stop() { driver?.close(); session?.stop(); },
 };
 declare global { interface Window { canonicalAgenticaOperations: typeof api } }
 window.canonicalAgenticaOperations = api;
