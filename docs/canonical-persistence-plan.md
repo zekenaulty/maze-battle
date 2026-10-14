@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 12,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 13,
 2026-10-13. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -25,6 +25,12 @@ The [scoped perception and SDK action boundary](reviews/issue-11-scoped-action-h
 now uses that same queue, with exact pending/result reconciliation and atomic
 navigation admission. The disconnected [standalone launch journal](reviews/issue-11-standalone-launch-closure.md)
 and [directed-v1 store](reviews/issue-11-directed-v1-store-closure.md) are removed.
+The checked [service custody and progress increment](reviews/issue-11-service-custody.md)
+adds canonical initial transport, ordered events and explicit stopped-owner
+capacity recovery. A retained zero-step probe and exact service ACK gate the first
+step; inventory admission alone is insufficient. Native driver/recovery tests and
+a separate in-process pinned Agentica registry proof pass. Neither is a mounted
+client or live browser-to-service qualification.
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
