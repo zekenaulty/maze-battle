@@ -105,9 +105,10 @@ mounted-controller or paid-provider qualification.
 
 ## Remaining Work
 
-- Derive/deliver funded terminal and cancellation events, then release reserves
-  only after exact remote acknowledgement. Ordinary progress ACK writes must
-  never become a prerequisite for funded Stop/cleanup.
+- Terminal delivery and verified funded navigation ACK are now implemented in
+  the [next checked increment](issue-11-terminal-delivery.md). Ordinary progress
+  ACK writes are not a prerequisite for funded Stop/cleanup. This report's
+  numerical results remain historical evidence for its original build.
 - Reconcile uncertain original starts; explicit ownership transfer, adoption,
   decision/wake and fresh publication binding across subsequent windows.
 - Mount the checked controller in the actual App with usable Stop/takeover.

@@ -4,15 +4,19 @@ test('cancellation projection uses exact retained receipt/sources/usage at quota
   const first = await page.evaluate(async () => {
     const c = window.canonicalNavigation, targets = await c.seed({ limitBytes: 3 * 1024 * 1024, reserveBytes: 128 * 1024 }), id = 'cancel-proof';
     const admission = await c.executeNavigationCommand(c.command((await c.readCanonicalHead()).head, 'operation.admit', { operationId: id,
-      binding: c.json(c.createDestinationBinding(targets.target)), terminalBytes: c.MIN_TERMINAL_BYTES }), { host: c.fixtureHost() });
+      binding: c.json(c.createDestinationBinding(targets.target)), terminalBytes: c.MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' }), { host: c.fixtureHost() });
     const step = await c.executeNavigationCommand(c.command((await c.readCanonicalHead()).head, 'navigation.advance', { operationId: id, sequence: 0 }), { host: c.fixtureHost() });
     await c.fillNormalCapacity(); const before = await c.dump();
     const refused = await c.executeNavigationCommand(c.command((await c.readCanonicalHead()).head, 'navigation.advance', { operationId: id, sequence: 1 }), { host: c.fixtureHost() }).catch(String);
     const after = await c.dump(), cancel = await c.operateCanonical(c.command((await c.readCanonicalHead()).head, 'operation.cancel', { operationId: id }), 'cancel');
     const proofBefore = await c.dump(), terminal = await c.readDestinationTerminal(id), proofAfter = await c.dump();
     await c.controlCanonical(c.command((await c.readCanonicalHead()).head, 'control.takeover', { owner: 'later-owner' }), 'takeover');
-    await c.operateCanonical(c.command((await c.readCanonicalHead()).head, 'operation.acknowledge', { operationId: id,
-      terminalAttemptId: terminal.value.terminal.ref.attemptId }), 'acknowledge');
+    await c.acknowledgeCanonical(c.command((await c.readCanonicalHead()).head, 'operation.acknowledge', { operationId: id,
+      terminalAttemptId: terminal.value.terminal.ref.attemptId, proof: { terminalAttemptId: cancel.receipt.attemptId } }), async (pages, request) => {
+      const input = request.input as { terminalAttemptId: string; proof: { terminalAttemptId: string } };
+      const source = await pages.sourceReceipt(input.terminalAttemptId);
+      if (input.proof.terminalAttemptId !== cancel.receipt.attemptId || !c.same(source.receipt, cancel.receipt)) throw Error('Fixture terminal proof mismatch');
+    });
     return { id, admission, step, before, after, refused, cancel, terminal, proofBefore, proofAfter };
   });
   await page.reload(); await page.waitForFunction(() => !!window.canonicalNavigation);

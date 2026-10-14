@@ -43,6 +43,7 @@ export interface CanonicalOperation extends GameIdentity {
   schema: 1; id: string; binding: JsonObject; admissionAttemptId: string;
   owner: string; epoch: number; revision: number;
   state: 'admitted' | 'settled' | 'acknowledged'; terminalBytes: number;
+  ackPolicy?: 'verified-host';
   terminal?: { attemptId: string; disposition: OperationDisposition };
   acknowledgementAttemptId?: string;
   witness: string;

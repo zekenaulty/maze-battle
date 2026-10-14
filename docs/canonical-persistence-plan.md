@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 13,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 14,
 2026-10-13. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -31,6 +31,11 @@ capacity recovery. A retained zero-step probe and exact service ACK gate the fir
 step; inventory admission alone is insufficient. Native driver/recovery tests and
 a separate in-process pinned Agentica registry proof pass. Neither is a mounted
 client or live browser-to-service qualification.
+The [terminal delivery and verified-ACK increment](reviews/issue-11-terminal-delivery.md)
+now keeps local Stop independent of ordinary storage, delivers exact retained
+event prefixes, reconciles lost replies, and releases navigation reserves only
+after verified remote acceptance. Arrival is a decision, not objective completion.
+P4 also removed the [general stream Agentica writer](reviews/issue-11-p4-general-stream-agentica-retirement.md).
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
@@ -207,12 +212,16 @@ P1 storage contracts are split as follows:
   unchanged SDK offline action dispatch, one-shot reservations, atomic navigation
   admission and exact read-only reconciliation through the actual game queue.
   Hooks are fenced to their original publication and GameSession lifetime.
-- **P3 Agentica, remaining:** canonical transport, event delivery/adoption lifecycle,
-  publication renewal, service custody confirmation and mounted application recovery.
+- **P3 Agentica terminal delivery, checked:** exact retained terminal derivation,
+  bounded prefix delivery, callback-free local Stop, verified funded ACK/retry and
+  decision Stop without cognition. Native SDK/HTTP-fixture and pinned in-process
+  registry evidence are separate; no paired application mount is implied.
+- **P3 Agentica, remaining:** uncertain-start reconciliation, explicit service
+  transfer/adoption, decision/wake, publication renewal and mounted application recovery.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 started:** disconnected preview screens, stale route tests, standalone
   expedition writer and its legacy-format validators, standalone launch journal,
-  and standalone directed-v1 store removed. Stream/directed-stream and old RPG
+  standalone directed-v1 store and general stream Agentica writer removed. Stream/directed-stream and old RPG
   adapters still require closure.
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
@@ -286,6 +295,11 @@ for acknowledgement, with at most 16 outstanding reservations. Normal commands
 cannot consume these funds. A terminal commit releases only its own allowance;
 its actual retained-byte growth must fit that allowance. Cancellation and
 acknowledgement cannot carry world callbacks and remain available while stopped.
+Agent-linked operations pin `verified-host` acknowledgement policy in admission
+and the operation row. Their ACK retains one compact proof in the immutable request,
+verified using bounded execution/source reads only. Generic ACK cannot release
+these reserves. Retry-only reads cannot create an ACK; a failed uncommitted original
+requires its verifier again. Historical receipt validation enforces the same policy.
 Completion after takeover requires explicit adoption and normal admission.
 Operation control remains live across historical world reads; loading old world
 roots must never rewind custody. The bounded head allocation map independently

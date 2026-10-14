@@ -190,9 +190,11 @@ export class GameSession {
     });
   };
   /** Same-owner funded cleanup remains available after normal quota failure, but never resumes play. */
-  cleanupHostOperation = async (command: HostCleanup) => {
+  cleanupHostOperation = async (command: HostCleanup, hostSignal?: AbortSignal) => {
     const captured = captureHostCleanup(command);
+    if (hostSignal && hostSignal !== this.lifetime.signal) throw new Error('Discarded stale cleanup lifetime');
     return this.enqueue(async signal => {
+      if (hostSignal && hostSignal !== signal) throw new Error('Discarded stale cleanup lifetime');
       const result = await executeHostCleanup(captured, this.owner, this.lock, signal);
       this.assert(signal); this.head = result.head;
       if (result.head.status !== 'ready') this.publish({ controlled: false });

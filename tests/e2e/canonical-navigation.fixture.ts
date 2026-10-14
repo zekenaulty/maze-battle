@@ -9,6 +9,7 @@ import type { WorldPosition } from '../../src/persistence/canonical/world/types'
 import type { DestinationLimits } from '../../src/domain/directed/destinationLimits';
 import { destinationKey } from '../../src/persistence/canonical/navigation/records';
 import { fixtureHost, hostPhase } from './canonical-navigation-host.fixture';
+import { acknowledgeCanonical } from '../../src/persistence/canonical/transaction';
 const c = window.manualSaves;
 async function seed(quota?: { limitBytes: number; reserveBytes: number }) {
   await c.roster.seed('manual', [], quota); await content.prepare();
@@ -48,6 +49,6 @@ async function fillNormalCapacity() {
     }); } catch (cause) { if (!String(cause).includes('quota exhausted')) throw cause; break; }
   }
 }
-const api = { ...c, ...navigation, content, knowledge, world, seed, admit, advance, finish, settle, fillNormalCapacity, destinationKey, json, same, fixtureHost, hostPhase };
+const api = { ...c, ...navigation, content, knowledge, world, seed, admit, advance, finish, settle, fillNormalCapacity, destinationKey, json, same, fixtureHost, hostPhase, acknowledgeCanonical };
 declare global { interface Window { canonicalNavigation: typeof api } }
 window.canonicalNavigation = api;

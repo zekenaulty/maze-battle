@@ -6,8 +6,9 @@ import { operationAt, prepareOperation } from './operations';
 import { operationInput, type OperationAction } from './operationValidation';
 import { controlInput, type ControlAction, type ControlIntent } from './controlValidation';
 import { validateReceipt } from './receipts';
+import { verifyAcknowledgement, type AcknowledgementVerifier } from './acknowledgement';
 import { CANONICAL_STORES, type CanonicalHead, type CanonicalOperation, type CanonicalReceipt, type CanonicalRequest, type CanonicalWorkLimits, type Json, type JsonObject } from './types';
-import { check, checkpoint, deadline, fingerprint, head, integer, jsonBytes, marker, request, result, sameFence, validId } from './validation';
+import { check, checkpoint, deadline, fingerprint, head, integer, isObject, jsonBytes, marker, request, result, sameFence, validId } from './validation';
 
 export interface CanonicalWork {
   readonly head: CanonicalHead;
@@ -29,13 +30,28 @@ export interface CanonicalOperationWork extends CanonicalWork { operation: Canon
 /** Host admission/settlement only. Cancellation/acknowledgement cannot carry world mutations. */
 export function operateCanonical(input: CanonicalRequest, action: OperationAction,
   work?: (tx: CanonicalOperationWork) => Promise<Json>, options: Options = {}) {
-  const original = request(input); operationInput(original, action);
+  const original = request(input), args = operationInput(original, action);
+  check(action !== 'acknowledge' || args.proof === undefined, 'verified acknowledgement requires its verifier');
   check(action === 'admit' || action === 'settle' ? typeof work === 'function' : work === undefined, 'invalid operation callback');
   const effect = work ?? (async () => ({ operationId: (original.input as JsonObject).operationId, phase: action }));
   return run(original, tx => {
     check(tx.operation, 'missing operation context');
     return effect({ ...tx, operation: tx.operation });
   }, options, undefined, action);
+}
+
+/** Proof is retained once in the request. Only this read-only verifier may release a verified-host reserve. */
+export function acknowledgeCanonical(input: CanonicalRequest, verify: AcknowledgementVerifier, options: Options = {}) {
+  const original = request(input), args = operationInput(original, 'acknowledge');
+  check(isObject(args.proof) && typeof verify === 'function', 'missing acknowledgement verification');
+  return run(original, async tx => {
+    await verifyAcknowledgement(tx, original, verify);
+    return { operationId: args.operationId, phase: 'acknowledge' };
+  }, options, undefined, 'acknowledge');
+}
+/** Exact committed originals only. A missing receipt cannot turn retry into fresh reserve release. */
+export function replayAcknowledgement(input: CanonicalRequest, options: Options = {}) {
+  return acknowledgeCanonical(input, async () => { throw new Error('Acknowledgement original is not committed; original verification is required.'); }, options);
 }
 
 /** Claim stays stopped. Only an explicit { owner, recovery: true } claim may spend global recovery headroom. */
@@ -83,6 +99,8 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     const outcome = result(await work({ head: structuredClone(current), pages, operation: change && structuredClone(change.before ?? change.after),
       setCheckpoint: value => { state = checkpoint(value); checkpointChanged = true; },
       restoreSnapshot: key => pages.restoreSnapshot(key), liveOperation }));
+    if (operation === 'admit' && isObject(outcome) && isObject(outcome.host) && outcome.host.actionResult !== undefined)
+      check(change?.after.ackPolicy === 'verified-host', 'host-linked operation requires verified acknowledgement policy');
     closed = true; check(!operationFailed && pendingOperations === 0, 'operation read is not usable');
     const staged = await pages.prepare(), revision = current.revision + 1;
     check(!staged.snapshot || !checkpointChanged && !operation, 'snapshot restore cannot mix checkpoint or operation changes');

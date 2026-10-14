@@ -52,7 +52,7 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
       'Destination admitted. Movement awaits service custody confirmation.'), operation: { operationId, summary: 'Navigate to the chosen earned destination.' } };
     });
     return port.submitHostCommand({ kind: 'fresh', operation: 'operation.admit',
-      input: { operationId, binding: json(createDestinationBinding(target)), terminalBytes: MIN_TERMINAL_BYTES },
+      input: { operationId, binding: json(createDestinationBinding(target)), terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' },
       execute: (input, options) => executeNavigationCommand(pinDeadline(input, identity.action), { ...options, host: {
         async prepare(view) {
           await actionGrant({ head: view.head, pages: { get: (_area, key) => view.getExecution(key),

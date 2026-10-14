@@ -34,7 +34,7 @@ export async function host(action: AgenticaAction) {
 export async function admission(target: WorldPosition, id = 'trip') {
   const c = window.agenticaRecords;
   return c.command((await c.readCanonicalHead()).head, 'operation.admit', { operationId: id,
-    binding: json(navigation.createDestinationBinding(target)), terminalBytes: c.MIN_TERMINAL_BYTES });
+    binding: json(navigation.createDestinationBinding(target)), terminalBytes: c.MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' });
 }
 export async function advance(id = 'trip') {
   const c = window.agenticaRecords, state = await navigation.readDestination(id);

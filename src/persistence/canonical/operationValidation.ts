@@ -6,6 +6,7 @@ import { check, identity, integer, isObject, jsonBytes, validId } from './valida
 export type OperationAction = 'admit' | 'settle' | 'cancel' | 'acknowledge' | 'adopt';
 const dispositions: OperationDisposition[] = ['completed', 'decision', 'blocked', 'cancelled'];
 export const terminalAllowance = (bytes: unknown): bytes is number => integer(bytes, MIN_TERMINAL_BYTES) && bytes <= MAX_TERMINAL_BYTES;
+export const MAX_ACK_PROOF_BYTES = 6 * 1024;
 export const sealOperation = (body: Omit<CanonicalOperation, 'witness'>): CanonicalOperation => ({ ...body, witness: canonicalJson(body) });
 export function reservedFor(row: CanonicalOperation) {
   return row.state === 'admitted' ? row.terminalBytes + ACKNOWLEDGEMENT_BYTES : row.state === 'settled' ? ACKNOWLEDGEMENT_BYTES : 0;
@@ -16,15 +17,17 @@ export function operationInput(request: CanonicalRequest, action: OperationActio
   const value = request.input;
   check(isObject(value) && validId(value.operationId), 'invalid operation input');
   const keys = Object.keys(value).sort().join(',');
-  const expected = action === 'admit' ? 'binding,operationId,terminalBytes' : action === 'settle' ? 'disposition,operationId'
-    : action === 'acknowledge' ? 'operationId,terminalAttemptId' : 'operationId';
+  const expected = action === 'admit' ? `${Object.hasOwn(value, 'ackPolicy') ? 'ackPolicy,' : ''}binding,operationId,terminalBytes` : action === 'settle' ? 'disposition,operationId'
+    : action === 'acknowledge' ? `operationId,${Object.hasOwn(value, 'proof') ? 'proof,' : ''}terminalAttemptId` : 'operationId';
   check(keys === expected, 'invalid operation fields');
   if (action === 'admit') {
     check(isObject(value.binding), 'invalid operation binding'); jsonBytes(value.binding, 4096);
     check(terminalAllowance(value.terminalBytes), 'invalid terminal allowance');
+    check(!Object.hasOwn(value, 'ackPolicy') || value.ackPolicy === 'verified-host', 'invalid acknowledgement policy');
   }
   if (action === 'settle') check(dispositions.includes(value.disposition as OperationDisposition) && value.disposition !== 'cancelled', 'invalid settlement disposition');
   if (action === 'acknowledge') check(validId(value.terminalAttemptId), 'invalid terminal attempt');
+  if (action === 'acknowledge' && Object.hasOwn(value, 'proof')) { check(isObject(value.proof), 'invalid acknowledgement proof'); jsonBytes(value.proof, MAX_ACK_PROOF_BYTES); }
   return value;
 }
 
@@ -37,7 +40,8 @@ export function validateOperation(value: CanonicalOperation | undefined, id: str
   const { witness, ...body } = value;
   check(witness === canonicalJson(body), 'operation witness mismatch');
   const baseKeys = 'admissionAttemptId,binding,epoch,gameId,generation,id,owner,revision,schema,state,terminalBytes,witness';
-  const actualKeys = Object.keys(value).filter(k => k !== 'terminal' && k !== 'acknowledgementAttemptId').sort().join(',');
+  const actualKeys = Object.keys(value).filter(k => k !== 'terminal' && k !== 'acknowledgementAttemptId' && k !== 'ackPolicy').sort().join(',');
+  check(!Object.hasOwn(value, 'ackPolicy') || value.ackPolicy === 'verified-host', 'invalid acknowledgement policy');
   check(actualKeys === baseKeys && ['admitted', 'settled', 'acknowledged'].includes(value.state), 'invalid operation state');
   check(value.state === 'admitted' ? value.terminal === undefined : value.terminal && validId(value.terminal.attemptId)
     && dispositions.includes(value.terminal.disposition) && Object.keys(value.terminal).sort().join(',') === 'attemptId,disposition', 'invalid operation terminal');

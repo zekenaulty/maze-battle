@@ -65,13 +65,16 @@ test('normal quota blocks progress ACK but funded navigation and launch cancella
     const cancelled = [];
     for (const operationId of [s.operationId, s.launchGuard]) {
       const cancel = await f.cancel(operationId);
-      const ack = await f.operateCanonical(await f.command('operation.acknowledge', { operationId, terminalAttemptId: cancel.receipt.attemptId }), 'acknowledge');
-      cancelled.push({ cancel, ack });
+      const terminal = operationId === s.operationId ? (await f.terminal(s.action, s.binding))! : null;
+      const ack = terminal ? await f.terminalAck(s.action, s.binding, { ...s.entry, state: 'cancelled', latestEvent: terminal.event })
+        : await f.operateCanonical(await f.command('operation.acknowledge', {
+        operationId, terminalAttemptId: cancel.receipt.attemptId }), 'acknowledge');
+      cancelled.push({ cancel, receipt: ack.receipt });
     }
     return { error, before, after, cancelled, state: (await f.read(s.action)).value };
   });
   expect(String(r.error)).toContain('quota exhausted'); expect(r.after).toBe(r.before);
-  for (const item of r.cancelled) { expect(item.cancel.replayed).toBe(false); expect(item.ack.replayed).toBe(false); }
+  for (const item of r.cancelled) { expect(item.cancel.replayed).toBe(false); expect(item.receipt.result).toMatchObject({ phase: 'acknowledge' }); }
   expect(r.state!.event!.data.event.kind).toBe('progress'); expect(r.state!.acknowledgement).toBeNull();
   expect(r.state!.operation.state).toBe('acknowledged'); expect(r.state!.operation.terminal!.disposition).toBe('cancelled');
 });

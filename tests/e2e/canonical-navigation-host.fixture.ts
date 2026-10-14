@@ -25,7 +25,7 @@ export const fixtureHost = (options: { fail?: boolean; padding?: number; publica
 export async function hostPhase(phase: 'admit' | 'step' | 'settle') {
   const c = window.canonicalNavigation, targets = await c.seed();
   if (phase === 'admit') return c.command((await c.readCanonicalHead()).head, 'operation.admit', { operationId: 'host-trip',
-    binding: c.json(c.createDestinationBinding(targets.adjacent)), terminalBytes: c.MIN_TERMINAL_BYTES });
+    binding: c.json(c.createDestinationBinding(targets.adjacent)), terminalBytes: c.MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' });
   const admission = await c.admit(targets.adjacent);
   if (phase === 'step') return c.command((await c.readCanonicalHead()).head, 'navigation.advance', { operationId: admission.id, sequence: 0 });
   await c.advance(admission.id);

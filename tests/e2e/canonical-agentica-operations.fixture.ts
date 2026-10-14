@@ -2,6 +2,9 @@ import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { AgenticaHost, actionFingerprint, actionKey, type HostOperationEvent, type AgenticaOperationEntry } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { createGameActionHooks } from '../../src/services/agentica/game/actionHooks';
 import { createGameOperationDriver } from '../../src/services/agentica/game/operationDriver';
+import { readAgenticaTerminal } from '../../src/persistence/canonical/agentica/terminal';
+import { terminalAcknowledgement } from '../../src/persistence/canonical/agentica/terminal.ack';
+import { operationSettlementHooks } from '../../src/persistence/canonical/agentica/terminal.settle';
 import { flatAddress } from '../../src/services/agentica/game/validation';
 import { prepareAction } from '../../src/persistence/canonical/agentica/actions';
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
@@ -111,7 +114,17 @@ async function sdkProof(entry: AgenticaOperationEntry, event: HostOperationEvent
 }
 const api = { boot, command, confirm, custodyAck, acceptCustody, advance, ack, dump, bytes, prepareAction, operationKey, eventKey, readCanonical, readCanonicalHead, sdkProof, fingerprint,
   executeCanonical, operateCanonical, executeNavigationCommand, retainOperationConfirmation, retainOperationCustodyAck, retainEventAcknowledgement, operationProgressHooks,
-  attachDriver, pulseDriver: () => driver!.pulse(), closeDriver: () => driver!.close(),
+  attachDriver, pulseDriver: () => driver!.pulse(), closeDriver: () => driver!.close(), cancelDriver: () => driver!.cancel(),
+  async terminal(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding']) { return (await readAgenticaTerminal(await prepareAction(action), binding)).value; },
+  async terminalAck(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding'], entry: AgenticaOperationEntry, stop = false) {
+    const checked = terminalAcknowledgement(await prepareAction(action), binding, entry, stop ? 'stop-decision' : 'signal');
+    return session!.cleanupHostOperation({ kind: 'verified-ack', ...await checked.prepare(), verify: checked.verify });
+  },
+  async settle(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding']) {
+    const identity = await prepareAction(action), state = (await readAgenticaOperation(identity)).value!;
+    return executeNavigationCommand(await command('operation.settle', { operationId: state.operation.id,
+      disposition: state.progress.status === 'arrived' ? 'completed' : 'blocked' }), { host: operationSettlementHooks(identity, binding) });
+  },
   driverStatus: () => ({ controlled: session!.view.controlled, recoveryRequired: session!.view.recoveryRequired }),
   openCanonicalDatabase, readAgenticaOperation,
   async read(action: AgenticaAction) { return readAgenticaOperation(await prepareAction(action)); },

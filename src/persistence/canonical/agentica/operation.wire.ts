@@ -43,7 +43,7 @@ export function equivalentOperationStart(a: unknown, b: AgenticaStart) {
   return equivalentHostWire({ observation: left.observation }, { observation: right.observation }, 'adoption')
     && equal({ ...left, observation: null }, { ...right, observation: null });
 }
-export function operationEntry(input: AgenticaOperationEntry) {
+export function operationEntryShape(input: AgenticaOperationEntry) {
   const entry = snapshotJson(input, MAX_OPERATION_ENTRY_BYTES);
   fields(entry, 'request action admission activeEpoch state usage', 'latestEvent stopDecision wakeRunId wakeAdoption createdAt updatedAt settledUsage');
   const usage = fields(entry.usage, 'steps refinements continuations providerCalls');
@@ -54,6 +54,10 @@ export function operationEntry(input: AgenticaOperationEntry) {
       && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
       && Number.isFinite(Date.parse(value)), 'invalid service operation timestamp');
   }
+  return entry;
+}
+export function operationEntry(input: AgenticaOperationEntry) {
+  const entry = operationEntryShape(input);
   check(entry.state === 'parked' && entry.wakeRunId == null && entry.wakeAdoption == null && entry.stopDecision == null
     && (entry as unknown as ObjectValue).settledUsage == null, 'service operation is not parked in original custody');
   return entry;

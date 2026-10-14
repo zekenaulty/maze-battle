@@ -7,7 +7,7 @@ test('host action/event refs and post-movement evidence commit in the navigation
       await tx.pages.set('execution', 'fixture/publication', c.json({ ...published, world: published.roots.world, knowledge: published.roots.knowledge })); return null;
     });
     const current = (await c.readCanonicalHead()).head, request = c.command(current, 'operation.admit', { operationId: 'composed',
-      binding: c.json(c.createDestinationBinding(targets.adjacent)), terminalBytes: c.MIN_TERMINAL_BYTES });
+      binding: c.json(c.createDestinationBinding(targets.adjacent)), terminalBytes: c.MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' });
     const admission = await c.executeNavigationCommand(request, { host: c.fixtureHost({ publicationKey: 'fixture/publication' }) });
     const active = await c.readDestination('composed');
     const step = await c.executeNavigationCommand(c.command(active.head, 'navigation.advance', { operationId: 'composed', sequence: 0 }), { host: c.fixtureHost() });
@@ -54,7 +54,7 @@ test('prepare can reject a stale retained publication at the current canonical f
     });
     await c.knowledge.act({ kind: 'look' });
     const request = c.command((await c.readCanonicalHead()).head, 'operation.admit', { operationId: 'stale-publication',
-      binding: c.json(c.createDestinationBinding(targets.target)), terminalBytes: c.MIN_TERMINAL_BYTES }), before = await c.dump();
+      binding: c.json(c.createDestinationBinding(targets.target)), terminalBytes: c.MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' }), before = await c.dump();
     const error = await c.executeNavigationCommand(request, { host: c.fixtureHost({ publicationKey: 'fixture/publication' }) }).catch(String);
     return { before, after: await c.dump(), error };
   });

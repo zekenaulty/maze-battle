@@ -98,7 +98,10 @@ test('normal quota can refuse custody ACK while funded Stop and terminal ACK rem
     const unchanged = before === await f.dump(), terminals = [];
     for (const operationId of [s.operationId, s.launchGuard]) {
       const cancelled = await f.cancel(operationId);
-      terminals.push(await f.operateCanonical(await f.command('operation.acknowledge', { operationId, terminalAttemptId: cancelled.receipt.attemptId }), 'acknowledge'));
+      if (operationId === s.operationId) {
+        const terminal = (await f.terminal(s.action, s.binding))!;
+        terminals.push(await f.terminalAck(s.action, s.binding, { ...s.entry, state: 'cancelled', latestEvent: terminal.event }));
+      } else terminals.push(await f.operateCanonical(await f.command('operation.acknowledge', { operationId, terminalAttemptId: cancelled.receipt.attemptId }), 'acknowledge'));
     }
     return { error, unchanged, terminals, state: (await f.read(s.action)).value };
   });

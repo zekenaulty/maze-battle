@@ -6,7 +6,7 @@ import { destinationKey, loadDestination } from './records';
 import { navigationReceiptRef } from './host';
 
 /** Stable terminal inputs only. No current clock, owner observation, outbox write or synthetic event ID. */
-export async function loadDestinationTerminal(pages: CanonicalQuery, id: string) {
+export async function loadDestinationTerminal(pages: Pick<CanonicalQuery, 'get' | 'sourceReceipt' | 'liveOperation'>, id: string) {
   destinationKey(id);
   const operation = await pages.liveOperation(id); check(operation?.terminal, 'destination has no terminal receipt');
   const progress = await loadDestination(pages, operation), disposition = operation.terminal.disposition;

@@ -43,11 +43,11 @@ test('actual GameSession driver waits for service custody, advances, serializes 
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'advanced', sequence: 2 });
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'acknowledged', sequence: 3 });
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'advanced', sequence: 3 });
-  expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'acknowledged', sequence: 4 });
-  expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'needs-terminal-reconciliation', progress: 'arrived' });
+  expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'locally-settled', progress: 'arrived' });
+  expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toMatchObject({ status: 'decision-required', event: { kind: 'decision' } });
   const arrived = (await page.evaluate(action => window.canonicalAgenticaOperations.read(action), seeded.action)).value!;
-  expect(arrived.progress.position).toEqual(seeded.target); expect(arrived.operation.state).toBe('admitted');
-  expect(delivered.map(e => e.sequence)).toEqual([1, 2, 2, 3, 4]);
+  expect(arrived.progress.position).toEqual(seeded.target); expect(arrived.operation.state).toBe('settled');
+  expect(delivered.map(e => e.sequence)).toEqual([1, 2, 2, 3]);
 });
 
 test('HTTP success without exact custody ACK cannot release any movement', async ({ page }) => {

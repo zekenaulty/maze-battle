@@ -29,6 +29,7 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
     && identity.action.sessionEpoch === run.sessionEpoch && identity.action.manifestHash === run.manifestHash
     && launch.binding.start.capabilities.some(c => c.id === 'maze.navigate' && c.durableHandoff && c.effect === 'writesLocalState'), 'operation launch binding changed');
   const operation = await pages.liveOperation(result.operation.operationId); check(operation, 'missing funded navigation operation');
+  check(operation.ackPolicy === 'verified-host', 'operation lacks verified acknowledgement policy');
   const record = await pages.get('execution', original.resultReference!.key), value = record!.value as unknown as ActionResult;
   check(value.proof === 'navigation' && value.sourceAttemptId === operation.admissionAttemptId
     && value.sourceRequest.operation === 'operation.admit', 'operation is not original result admission');

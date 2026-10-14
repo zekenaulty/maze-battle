@@ -39,7 +39,8 @@ export async function prepareOperation(tx: CanonicalWrite, current: CanonicalHea
     check(current.quota.reservations < MAX_RESERVATIONS, 'pending operation limit');
     after = sealOperation({ schema: 1, generation: current.generation, gameId: current.gameId, id,
       binding: input.binding as JsonObject, admissionAttemptId: request.attemptId,
-      owner: current.owner, epoch: current.epoch, revision: current.revision + 1, state: 'admitted', terminalBytes: input.terminalBytes as number });
+      owner: current.owner, epoch: current.epoch, revision: current.revision + 1, state: 'admitted', terminalBytes: input.terminalBytes as number,
+      ...(input.ackPolicy === 'verified-host' ? { ackPolicy: 'verified-host' as const } : {}) });
   } else {
     check(before, 'operation was not admitted');
     const { witness: _witness, ...body } = before;
@@ -47,6 +48,7 @@ export async function prepareOperation(tx: CanonicalWrite, current: CanonicalHea
     if (action === 'settle') check(before.owner === current.owner && before.epoch === current.epoch, 'operation needs explicit adoption');
     if (action === 'adopt') check(before.owner !== current.owner || before.epoch !== current.epoch, 'operation already owned');
     if (action === 'acknowledge') check(input.terminalAttemptId === before.terminal!.attemptId, 'terminal acknowledgement changed');
+    if (action === 'acknowledge') check(before.ackPolicy === 'verified-host' ? isObject(input.proof) : input.proof === undefined, 'operation requires its admitted acknowledgement policy');
     after = sealOperation({ ...body, owner: current.owner, epoch: current.epoch, revision: current.revision + 1,
       ...(action === 'adopt' ? {} : action === 'acknowledge' ? { state: 'acknowledged', acknowledgementAttemptId: request.attemptId }
         : { state: 'settled', terminal: { attemptId: request.attemptId, disposition: action === 'cancel' ? 'cancelled' : input.disposition as OperationDisposition } }) });
@@ -76,8 +78,12 @@ async function requireOriginal(tx: CanonicalRead | CanonicalWrite, current: Cano
     check(receipt.afterRevision <= current.revision, 'operation source revision changed');
     check(original.operation === operation && isObject(original.input) && original.input.operationId === row.id, 'operation source binding changed');
     if (operation === 'operation.admit') check(canonicalJson(original.input.binding) === canonicalJson(row.binding)
-      && original.input.terminalBytes === row.terminalBytes, 'original reservation changed');
+      && original.input.terminalBytes === row.terminalBytes && original.input.ackPolicy === row.ackPolicy, 'original reservation changed');
     if (operation === 'operation.settle') check(original.input.disposition === row.terminal!.disposition, 'terminal disposition changed');
-    if (operation === 'operation.acknowledge') check(original.input.terminalAttemptId === row.terminal!.attemptId, 'terminal acknowledgement changed');
+    if (operation === 'operation.acknowledge') {
+      check(original.input.terminalAttemptId === row.terminal!.attemptId, 'terminal acknowledgement changed');
+      check(row.ackPolicy === 'verified-host' ? isObject(original.input.proof) : original.input.proof === undefined,
+        'operation requires its admitted acknowledgement policy');
+    }
   }
 }
