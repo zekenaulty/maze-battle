@@ -6,8 +6,8 @@ import { admit, command, current, dump, failure, fullNormalQuota } from './custo
 
 const view = (s: GameSession) => ({ controlled: s.view.controlled, recoveryRequired: s.view.recoveryRequired, busy: s.view.busy });
 
-/** Kernel opt-in followed by the existing real-session cleanup path; no GameSession integration is implied. */
-export async function hostCleanup() {
+/** Verify both the kernel opt-in and the actual explicit TakeControl path at normal quota exhaustion. */
+export async function hostCleanup(explicitControl = false) {
   const original = new GameSession(() => {}), replacement = new GameSession(() => {});
   const lock = new BrowserSaveLock(() => {});
   try {
@@ -20,8 +20,12 @@ export async function hostCleanup() {
     const request = command(stopped, 'control.claim', { owner: replacement.owner, recovery: true });
     const deadLifetime = await failure(() => controlCanonical(request, 'claim', { signal: original.hostSignal }));
     const abortedUnchanged = before.content === (await dump()).content;
-    if (!await lock.acquire(false)) throw Error('Fixture recovery presence lock unavailable');
-    try { await controlCanonical(request, 'claim', { signal: replacement.hostSignal }); } finally { lock.release(); }
+    let resumeFailure: string | null = null;
+    if (explicitControl) resumeFailure = await failure(() => replacement.takeControl());
+    else {
+      if (!await lock.acquire(false)) throw Error('Fixture recovery presence lock unavailable');
+      try { await controlCanonical(request, 'claim', { signal: replacement.hostSignal }); } finally { lock.release(); }
+    }
     const claimed = await current(); let replays = true;
     for (const operationId of ids) {
       const target = { generation: claimed.generation, gameId: claimed.gameId, operationId };
@@ -38,7 +42,7 @@ export async function hostCleanup() {
     const deadCleanup = await failure(() => replacement.cleanupHostOperation({ kind: 'cancel', target: {
       generation: claimed.generation, gameId: claimed.gameId, operationId: ids[0],
     } }));
-    return { automatic, automaticUnchanged, failedView, deadLifetime, abortedUnchanged, sameOwner: claimed.owner === replacement.owner,
+    return { automatic, automaticUnchanged, failedView, deadLifetime, abortedUnchanged, resumeFailure, sameOwner: claimed.owner === replacement.owner,
       claimed, replays, final, finalView, operations, gameplay, deadCleanup, accounted: (await dump()).bytes === final.quota.usedBytes };
   } finally { original.stop(); replacement.stop(); lock.release(); }
 }

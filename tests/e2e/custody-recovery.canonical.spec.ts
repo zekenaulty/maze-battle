@@ -66,12 +66,13 @@ for (const point of ['receipt', 'head', 'abort'] as const) test(`claim ${point} 
   expect(r.unchanged).toBe(true); expect(r.replayed).toBe(true); expect(r.sameReceipt).toBe(true); expect(r.replayUnchanged).toBe(true);
 });
 
-test('new active GameSession can fund cleanup after explicit kernel claim, without resuming readonly UI', async ({ page }) => {
-  const r = await page.evaluate(() => window.custodyRecovery.hostCleanup());
+for (const explicit of [false, true]) test(`new GameSession funds cleanup through ${explicit ? 'TakeControl' : 'kernel claim'} without resuming play`, async ({ page }) => {
+  const r = await page.evaluate(explicit => window.custodyRecovery.hostCleanup(explicit), explicit);
   expect(r.automatic).toContain('storage quota exhausted'); expect(r.automaticUnchanged).toBe(true);
   expect(r.failedView).toEqual({ controlled: false, recoveryRequired: true, busy: false });
   expect(r.deadLifetime).toContain('AbortError'); expect(r.abortedUnchanged).toBe(true); expect(r.sameOwner).toBe(true);
   expect(r.claimed.status).toBe('stopped'); expect(r.replays).toBe(true);
+  if (explicit) expect(r.resumeFailure).toContain('storage quota exhausted'); else expect(r.resumeFailure).toBeNull();
   expect(r.finalView).toEqual(r.failedView); expect(r.final.status).toBe('stopped'); expect(r.final.roots).toEqual(r.claimed.roots);
   expect(r.final.quota.reservations).toBe(0); expect(r.final.quota.reservedBytes).toBe(0);
   expect(r.operations).toEqual(Array(16).fill('acknowledged')); expect(r.accounted).toBe(true);

@@ -75,12 +75,13 @@ export class GameSession {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
-  private async claim(signal: AbortSignal) {
+  private async claim(signal: AbortSignal, recovery = false) {
     this.assert(signal);
     let head = this.head!;
     if (head.owner !== this.owner) {
       const action = head.status === 'stopped' ? 'claim' : 'takeover';
-      const result = await controlCanonical(gameRequest(head, `control.${action}`, { owner: this.owner }), action, { signal });
+      const result = await controlCanonical(gameRequest(head, `control.${action}`,
+        { owner: this.owner, ...(action === 'claim' && recovery ? { recovery: true } : {}) }), action, { signal });
       head = result.head ?? (await readCanonicalHead()).head;
       this.assert(signal); this.head = head;
     }
@@ -110,7 +111,7 @@ export class GameSession {
     } else this.head = (await readCanonicalHead()).head;
     this.assert(signal);
     if (acquired || (!this.lock.supported && (steal || this.head.owner === this.owner))) {
-      await this.claim(signal);
+      await this.claim(signal, steal);
       const checkpoint = gameCheckpoint(this.head.checkpoint);
       if (!checkpoint.knowledge) {
         await this.prepare(checkpoint.position.level, signal);
