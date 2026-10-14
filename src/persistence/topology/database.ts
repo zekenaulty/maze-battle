@@ -1,8 +1,6 @@
 import { openDB, type DBSchema, type IDBPTransaction, type StoreKey, type StoreNames, type StoreValue } from 'idb';
 import { TOPOLOGY_DATABASE, type TopologyRecords, type TopologyRoot } from './types';
 import type { StreamActionReceipt, StreamCheckpoint, StreamControl, StreamKnowledgePage } from '../../domain/expedition/streaming/types';
-import type { AgenticaGameBinding } from '../../services/agentica/contracts';
-import type { StoredAgenticaAction } from '../agenticaRecords';
 import type { DirectedStreamHead, StoredDirectedStreamOperation } from '../directedStreamTypes';
 import type { DirectedAgenticaBinding } from '../../services/agentica/directed/contracts';
 import type { DirectedHostAction, DirectedHostOperation, DirectedHostEvent } from '../directedAgentica/types';
@@ -19,8 +17,6 @@ export interface TopologyDatabase extends DBSchema {
   streamKnowledge: { key: [string, string]; value: StreamKnowledgePage };
   streamControls: { key: [string]; value: StreamControl };
   streamActions: { key: [string, string]; value: StreamActionReceipt };
-  agenticaRuns: { key: [string, string]; value: AgenticaGameBinding };
-  agenticaActions: { key: [string, string]; value: StoredAgenticaAction };
   directedStreamHeads: { key: [string]; value: DirectedStreamHead };
   directedStreamOperations: { key: [string, string]; value: StoredDirectedStreamOperation };
   directedAgenticaRuns: { key: [string, string]; value: DirectedAgenticaBinding };
@@ -29,7 +25,7 @@ export interface TopologyDatabase extends DBSchema {
   directedAgenticaEvents: { key: [string, string, number]; value: DirectedHostEvent };
 }
 export const TOPOLOGY_STORES = ['roots', 'spaces', 'sockets', 'buckets', 'receipts',
-  'streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions', 'agenticaRuns', 'agenticaActions',
+  'streamCheckpoints', 'streamKnowledge', 'streamControls', 'streamActions',
   'directedStreamHeads', 'directedStreamOperations', 'directedAgenticaRuns', 'directedAgenticaActions',
   'directedAgenticaOperations', 'directedAgenticaEvents'] as const;
 export const TOPOLOGY_DATABASE_VERSION = 5;

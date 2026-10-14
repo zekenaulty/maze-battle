@@ -193,7 +193,7 @@ async function snapshot(root) {
 
 test('CLI emits JSON, does not import fixture code, and leaves both trees byte-identical', async t => {
   const paths = await fixture(t);
-  await put(paths.mazeSource, 'scripts/agentica-fixture-provider.mjs', 'throw new Error("MUST NOT EXECUTE");\n');
+  await put(paths.mazeSource, 'scripts/ns6-paired-provider.mjs', 'throw new Error("MUST NOT EXECUTE");\n');
   const before = [await snapshot(paths.agenticaSource), await snapshot(paths.mazeSource)];
   const child = spawnSync(process.execPath, [script, '--agentica-source', paths.agenticaSource, '--maze-source', paths.mazeSource], {
     encoding: 'utf8', windowsHide: true, timeout: 15000,

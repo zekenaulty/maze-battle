@@ -39,11 +39,11 @@ export const PROOF_FILES = Object.freeze({
     'browser-tests/service-integration.test.mjs',
   ],
   maze: [
-    'scripts/agentica-proof-host.mjs',
-    'scripts/agentica-fixture-provider.mjs',
+    'scripts/ns6-paired-host.mjs',
+    'scripts/ns6-paired-provider.mjs',
     'scripts/agentica-fixture-context.mjs',
-    'tests/e2e/agentica-proving.spec.ts',
-    'tests/e2e/agentica-takeover.spec.ts',
+    'tests/e2e/ns6-paired.config.ts',
+    'tests/e2e/ns6-paired.spec.ts',
     'docs/evidence/agentica-fixture-2026-10-09.json',
   ],
 });
