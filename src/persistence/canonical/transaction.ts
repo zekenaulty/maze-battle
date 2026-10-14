@@ -4,9 +4,10 @@ import { CanonicalPages } from './pages';
 import { accountHead, appendedBytes } from './accounting';
 import { operationAt, prepareOperation } from './operations';
 import { operationInput, type OperationAction } from './operationValidation';
+import { controlInput, type ControlAction, type ControlIntent } from './controlValidation';
 import { validateReceipt } from './receipts';
 import { CANONICAL_STORES, type CanonicalHead, type CanonicalOperation, type CanonicalReceipt, type CanonicalRequest, type CanonicalWorkLimits, type Json, type JsonObject } from './types';
-import { check, checkpoint, deadline, fingerprint, head, integer, isObject, jsonBytes, marker, request, result, sameFence, validId } from './validation';
+import { check, checkpoint, deadline, fingerprint, head, integer, jsonBytes, marker, request, result, sameFence, validId } from './validation';
 
 export interface CanonicalWork {
   readonly head: CanonicalHead;
@@ -17,7 +18,6 @@ export interface CanonicalWork {
 }
 
 type Options = { limits?: CanonicalWorkLimits; signal?: AbortSignal };
-type Control = 'stop' | 'takeover' | 'claim' | 'resume';
 
 /** Domain callbacks may await only transaction work, never network/timers. */
 export function executeCanonical(input: CanonicalRequest, work: (tx: CanonicalWork) => Promise<Json>, options: Options = {}) {
@@ -38,17 +38,14 @@ export function operateCanonical(input: CanonicalRequest, action: OperationActio
   }, options, undefined, action);
 }
 
-/** Explicit host owner grant only. Claim transfers stopped custody on normal quota; only stop/takeover may use recovery reserve. */
-export function controlCanonical(input: CanonicalRequest, action: Control, options: Options = {}) {
+/** Claim stays stopped. Only an explicit { owner, recovery: true } claim may spend global recovery headroom. */
+export function controlCanonical(input: CanonicalRequest, action: ControlAction, options: Options = {}) {
   const original = request(input);
-  check(['stop', 'takeover', 'claim', 'resume'].includes(action) && original.operation === `control.${action}`, 'invalid control action');
-  check(isObject(original.input) && Object.keys(original.input).join() === 'owner' && validId(original.input.owner), 'invalid control owner');
-  if (action === 'stop' || action === 'resume') check(original.input.owner === original.expected.owner, 'control owner mismatch');
-  if (action === 'claim') check(original.input.owner !== original.expected.owner, 'claim requires a new owner');
-  return run(original, async () => ({ status: action === 'resume' ? 'ready' : 'stopped' }), options, action);
+  const intent = controlInput(original, action);
+  return run(original, async () => ({ status: action === 'resume' ? 'ready' : 'stopped' }), options, intent);
 }
 
-async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operation?: CanonicalOperation }) => Promise<Json>, options: Options, control?: Control, operation?: OperationAction) {
+async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operation?: CanonicalOperation }) => Promise<Json>, options: Options, control?: ControlIntent, operation?: OperationAction) {
   const signal = options.signal, original = request(input), signature = fingerprint(original), budget = workBudget(options.limits, signal);
   budget.alive();
   const db = await openCanonicalDatabase(signal), tx = db.transaction(CANONICAL_STORES, 'readwrite', { durability: 'strict' });
@@ -72,7 +69,7 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     const current = await tx.objectStore('heads').get(schema.gameId); head(current, original.expected); budget.received(jsonBytes(current));
     check(sameFence(current, original.expected), 'stale owner or revision'); deadline(original);
     if (operation !== 'cancel' && operation !== 'acknowledge')
-      check(current.status === (control === 'resume' || control === 'claim' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
+      check(current.status === (control?.action === 'resume' || control?.action === 'claim' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
     const change = operation ? await prepareOperation(tx, current, original, operation, budget) : undefined;
     const pages = new CanonicalPages(tx, current, budget);
     let operationFailed = false, pendingOperations = 0, closed = false;
@@ -93,13 +90,13 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     check(integer(revision), 'revision exhausted');
     const receipt: CanonicalReceipt = { generation: schema.generation, gameId: current.gameId, attemptId: original.attemptId,
       fingerprint: signature, beforeRevision: current.revision, afterRevision: revision, committedAt: new Date().toISOString(), result: outcome };
-    const controlled = control ? { status: control === 'resume' ? 'ready' as const : 'stopped' as const,
-      owner: (original.input as JsonObject).owner as string, epoch: current.epoch + 1 } : {};
+    const controlled = control ? { status: control.action === 'resume' ? 'ready' as const : 'stopped' as const,
+      owner: control.owner, epoch: current.epoch + 1 } : {};
     check(!control || integer(current.epoch + 1, 1), 'owner epoch exhausted');
     const next = accountHead(current, { ...current, ...controlled, revision, checkpoint: state, roots: staged.roots,
       quota: change?.quota ?? current.quota, allocations: change?.allocations ?? current.allocations },
       appendedBytes(staged.records, staged.nodes, receipt) + (change?.chargedBytes ?? 0),
-      control === 'stop' || control === 'takeover' || !!change?.released);
+      !!control?.recovery || !!change?.released);
     if (change?.released) check(next.quota.usedBytes - current.quota.usedBytes <= change.released, 'operation exceeds reserved allowance');
     head(next);
     budget.write(jsonBytes(receipt)); budget.write(jsonBytes(next));
