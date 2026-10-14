@@ -4,26 +4,30 @@ using Agentica.Lab.Web.Contracts;
 using Agentica.Lab.Web.Runtime;
 using static ProbeSupport;
 
-Require(args.Length == 1, "Pass one new isolated output directory.");
+Require(args.Length == 1 || args is [_, "--stop-decision-only"], "Pass one new isolated output directory and optional --stop-decision-only.");
+var stopDecisionOnly = args.Length == 2;
 var output = Path.GetFullPath(args[0]);
 Require(!Directory.Exists(output), "Probe output already exists; use a fresh directory, never a service ledger.");
 var assemblies = VerifyAssemblies(Path.Combine(AppContext.BaseDirectory, "pin.json"));
 Directory.CreateDirectory(output);
-var cases = new[] { Run(Path.Combine(output, "pending"), false), Run(Path.Combine(output, "unresolved-result"), true) };
-var mismatchedAdmission = RejectChangedAdmission(Path.Combine(output, "mismatched-admission"));
-var terminals = (from kind in new[] { "completed", "cancelled", "blocked" }
+var cases = stopDecisionOnly ? [] : new[] { Run(Path.Combine(output, "pending"), false), Run(Path.Combine(output, "unresolved-result"), true) };
+var mismatchedAdmission = stopDecisionOnly ? null : RejectChangedAdmission(Path.Combine(output, "mismatched-admission"));
+var terminals = stopDecisionOnly ? [] : (from kind in new[] { "completed", "cancelled", "blocked" }
     from exhausted in new[] { false, true }
     select TerminalProbe.Run(Path.Combine(output, kind + (exhausted ? "-exhausted" : "")), kind, exhausted)).ToArray();
-var usageBoundary = TerminalProbe.UsageBoundary(Path.Combine(output, "usage-boundary"));
-var activeEpoch = TerminalProbe.ActiveEpoch(Path.Combine(output, "active-epoch"));
-var cancellationFlush = (from progress in new[] { false, true }
+var usageBoundary = stopDecisionOnly ? null : TerminalProbe.UsageBoundary(Path.Combine(output, "usage-boundary"));
+var activeEpoch = stopDecisionOnly ? null : TerminalProbe.ActiveEpoch(Path.Combine(output, "active-epoch"));
+var cancellationFlush = stopDecisionOnly ? [] : (from progress in new[] { false, true }
     from delivered in new[] { false, true }
     select CancellationFlushProbe.Run(Path.Combine(output, "flush-" + (progress ? "progress" : "probe") + (delivered ? "-delivered" : "-unsent")),
         progress, delivered)).ToArray();
-var arrival = CancellationFlushProbe.Arrival(Path.Combine(output, "arrival-decision"));
-var evidence = new { status = "PASS", boundary = "real HostRunRegistry.ApplyOperationEvent / private CheckAdmission via public API",
+var arrival = stopDecisionOnly ? null : CancellationFlushProbe.Arrival(Path.Combine(output, "arrival-decision"));
+var stoppedDecisions = new[] { false, true }.Select(exhausted =>
+    StopDecisionProbe.Run(Path.Combine(output, exhausted ? "stopped-decision-exhausted" : "stopped-decision"), exhausted)).ToArray();
+var evidence = new { status = "PASS", scope = stopDecisionOnly ? "StopDecision only" : "full probe suite",
+    boundary = "real HostRunRegistry.ApplyOperationEvent / StopDecision / private CheckAdmission via public APIs",
     transport = "in-process registry; no HTTP, SDK connection, server, browser, planner or provider", assemblies, cases, mismatchedAdmission,
-    terminals, usageBoundary, activeEpoch, cancellationFlush, arrival };
+    terminals, usageBoundary, activeEpoch, cancellationFlush, arrival, stoppedDecisions };
 var proof = JsonSerializer.Serialize(evidence, new JsonSerializerOptions(HostProtocol.Json) { WriteIndented = true });
 File.WriteAllText(Path.Combine(output, "proof.json"), proof);
 Console.WriteLine(proof);

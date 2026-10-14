@@ -1,5 +1,6 @@
 param(
-    [Parameter(Mandatory = $true)][string]$AgenticaRoot
+    [Parameter(Mandatory = $true)][string]$AgenticaRoot,
+    [switch]$StopDecisionOnly
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path -LiteralPath $AgenticaRoot).Path
@@ -26,7 +27,9 @@ try {
     & dotnet build $project --configuration Release --output $built --disable-build-servers `
         "-p:AgenticaBin=$bin" "-p:BaseIntermediateOutputPath=$obj" "-p:RestoreConfigFile=$config" '-p:UseSharedCompilation=false'
     if ($LASTEXITCODE -ne 0) { throw 'Probe build failed.' }
-    & dotnet (Join-Path $built 'AgenticaCustodyProbe.dll') (Join-Path $output 'evidence')
+    $probeArguments = @((Join-Path $output 'evidence'))
+    if ($StopDecisionOnly) { $probeArguments += '--stop-decision-only' }
+    & dotnet (Join-Path $built 'AgenticaCustodyProbe.dll') @probeArguments
     if ($LASTEXITCODE -ne 0) { throw 'Custody handshake probe failed.' }
 } finally { Pop-Location }
 Write-Output "Proof: $(Join-Path $output 'evidence/proof.json')"

@@ -83,6 +83,8 @@ All line references below refer to the exact pinned Agentica source, under
 Source-only additional boundary: registry lines 53-54 refuse cancellation while
 a claimed live wake is nonterminal (`session.busy`). This probe does not claim to
 qualify stopping or reconciling an executing wake, adoption, or StopDecision.
+The later [StopDecision proof](STOP-DECISION-PROOF.md) closes only the parked,
+never-woken decision-suppression gap; executing wake/adoption remains outside scope.
 
 ## Limits
 

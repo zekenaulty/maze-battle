@@ -21,6 +21,10 @@ The script never builds or edits Agentica. NuGet sources are cleared; only the
 local .NET/ASP.NET reference packs and prebuilt assemblies are needed.
 No existing fixture or service process is required.
 
+Append `-StopDecisionOnly` to the command above to run only the two successful
+StopDecision/restart groups. The evidence explicitly labels this narrower scope;
+the default invocation continues to run the complete suite.
+
 Build output, isolated durable stores, and `evidence/proof.json` go to a new
 `test-results/agentica-service-custody/<random-id>/` directory on every invocation.
 Existing ledger directories are never reused or deleted.
@@ -84,6 +88,14 @@ that relabeling arrival as `completed` without completion evidence rejects. It
 does not call a successful wake or provider. The natural `completed` case supplies
 synthetic objective proof only to qualify that protocol shape; Maze should emit it
 only after actual objective proof, never from arrival alone.
+
+`StopDecisionProbe.cs` suppresses the original arrival decision through the real
+registry, discards its reply and reopens every store twice. It checks exact
+`latestEvent` and `stopDecision`, `state: cancelled`, unchanged original lineage
+and service usage, no successor custody, and byte-identical stores on replay.
+Available/exhausted budget variants reject altered decision payloads, IDs and
+epochs. These groups never call Wake, start a run, or invoke a planner/provider.
+See [checked StopDecision proof](STOP-DECISION-PROOF.md).
 
 See [checked terminal evidence and host requirements](TERMINAL-PROOF.md) for exact
 source lines, output identity, observed codes and limits. The original admission
