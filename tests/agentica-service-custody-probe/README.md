@@ -25,7 +25,7 @@ Build output, isolated durable stores, and `evidence/proof.json` go to a new
 `test-results/agentica-service-custody/<random-id>/` directory on every invocation.
 Existing ledger directories are never reused or deleted.
 
-## Assertions
+## Admission Assertions
 
 - Reserve the original action in both durable stores; `operations.Admit` retains
   its applied admission while action custody is still pending or explicitly unresolved.
@@ -40,13 +40,55 @@ Existing ledger directories are never reused or deleted.
 - No host run exists and neither planner creation nor provider discovery is invoked.
   Both planner-factory entrypoints throw if called; no network client is constructed.
 
-This is direct pinned-service/runtime API evidence, not browser/HTTP pairing or
-mounted-controller qualification. The only synthetic inputs are the bounded
-protocol request, admission and zero-move event. No model is called and no Maze
-gameplay, new observation, wake, adoption, completion or terminal ACK is claimed.
-
 The parent handshake must persist this sequence-1 event identity and exact body
 before delivery, retry only that original event after `session.unresolved`, and
 wait for its accepted response before movement. The first subsequent movement
 event must use sequence 2. A parked inventory entry alone does not prove that
 the separate action-custody settlement has finished.
+
+## Terminal Assertions
+
+`TerminalFixture.cs` creates isolated real stores/registry instances, admits and
+settles the original, sends the sequence-1 handshake, then sends nonzero progress
+at sequence 2 with a new observation. These are synthetic host protocol inputs,
+not Maze engine movement. `TerminalProbe.cs` and `TerminalGuards.cs` assert:
+
+- `completed`, `blocked` and `cancelled` at sequence 3, each with available and exhausted
+  service cognition budgets; progress and terminal events never create a run.
+- Exact progress and terminal replay retain the original response and operation
+  ledger bytes. Older event replay, changed bodies under the same key, replacement
+  terminal identities, post-terminal progress and wake attempts reject.
+- Dropping the terminal return value and reopening all stores/registry retains
+  the exact original terminal in read-only inventory. Its original event retries
+  successfully. Later unresolved custody blocks retry, but not inventory; settling
+  that unrelated original permits the same terminal to replay again.
+- Wrong original host/session/action/operation, wrong active epoch, invalid
+  sequence/observation/completion and non-object/oversized usage reject without
+  changing any store file. A transfer retires the original epoch; cancellation
+  binds the active epoch while preserving the original action/admission.
+- Host usage is distinct from service cognitive usage. A deliberate negative
+  host counter in an object is accepted by the service: this characterizes its
+  structural-only check, not valid Maze evidence. The host must validate counters.
+
+`CancellationFlushProbe.cs` covers retained probe/progress that either has not
+reached the service or was delivered without a persisted local ACK. It confirms
+the exact retained event, then cancels at the next sequence with no fixture ACK
+write and no new progress. After a dropped terminal reply, inventory and exact
+terminal retry succeed; re-flushing the old event instead fails `operation.event_stale`.
+The persisted fixture delivery envelope stays byte-identical and unACKed throughout.
+This demonstrates service compatibility, not the canonical host's Stop/ACK implementation.
+
+Arrival at a known destination is a host `decision`, not objective completion.
+The arrival probe asserts that the ordinary event API requires the wake path and
+that relabeling arrival as `completed` without completion evidence rejects. It
+does not call a successful wake or provider. The natural `completed` case supplies
+synthetic objective proof only to qualify that protocol shape; Maze should emit it
+only after actual objective proof, never from arrival alone.
+
+See [checked terminal evidence and host requirements](TERMINAL-PROOF.md) for exact
+source lines, output identity, observed codes and limits. The original admission
+proof remains in [PROOF.md](PROOF.md).
+
+This is direct pinned-service/runtime API evidence, not browser/HTTP pairing or
+mounted-controller qualification. No model, real gameplay, running wake/adoption,
+wire authentication or canonical local reserve-release/ACK transaction is tested.

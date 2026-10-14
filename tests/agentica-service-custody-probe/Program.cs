@@ -11,8 +11,19 @@ var assemblies = VerifyAssemblies(Path.Combine(AppContext.BaseDirectory, "pin.js
 Directory.CreateDirectory(output);
 var cases = new[] { Run(Path.Combine(output, "pending"), false), Run(Path.Combine(output, "unresolved-result"), true) };
 var mismatchedAdmission = RejectChangedAdmission(Path.Combine(output, "mismatched-admission"));
+var terminals = (from kind in new[] { "completed", "cancelled", "blocked" }
+    from exhausted in new[] { false, true }
+    select TerminalProbe.Run(Path.Combine(output, kind + (exhausted ? "-exhausted" : "")), kind, exhausted)).ToArray();
+var usageBoundary = TerminalProbe.UsageBoundary(Path.Combine(output, "usage-boundary"));
+var activeEpoch = TerminalProbe.ActiveEpoch(Path.Combine(output, "active-epoch"));
+var cancellationFlush = (from progress in new[] { false, true }
+    from delivered in new[] { false, true }
+    select CancellationFlushProbe.Run(Path.Combine(output, "flush-" + (progress ? "progress" : "probe") + (delivered ? "-delivered" : "-unsent")),
+        progress, delivered)).ToArray();
+var arrival = CancellationFlushProbe.Arrival(Path.Combine(output, "arrival-decision"));
 var evidence = new { status = "PASS", boundary = "real HostRunRegistry.ApplyOperationEvent / private CheckAdmission via public API",
-    transport = "in-process registry; no HTTP, SDK connection, server, browser, planner or provider", assemblies, cases, mismatchedAdmission };
+    transport = "in-process registry; no HTTP, SDK connection, server, browser, planner or provider", assemblies, cases, mismatchedAdmission,
+    terminals, usageBoundary, activeEpoch, cancellationFlush, arrival };
 var proof = JsonSerializer.Serialize(evidence, new JsonSerializerOptions(HostProtocol.Json) { WriteIndented = true });
 File.WriteAllText(Path.Combine(output, "proof.json"), proof);
 Console.WriteLine(proof);
