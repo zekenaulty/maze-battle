@@ -1,17 +1,21 @@
 import { test, expect } from './canonical-agentica-operations.test';
 
-for (const phase of ['confirmation', 'event', 'ack'] as const) for (const store of ['records', 'nodes', 'receipts', 'heads']) {
+for (const phase of ['confirmation', 'custody', 'event', 'ack'] as const) for (const store of ['records', 'nodes', 'receipts', 'heads']) {
   test(`${phase} ${store} write failure rolls back all stores and original attempt retries`, async ({ page }) => {
     const r = await page.evaluate(async ({ phase, store }) => {
       const f = window.canonicalAgenticaOperations, s = await f.boot(), identity = await f.prepareAction(s.action);
       if (phase !== 'confirmation') await f.confirm(s.action, s.binding, s.entry);
+      if (phase === 'event' || phase === 'ack') await f.acceptCustody(s.action, s.entry);
       if (phase === 'ack') await f.advance(s.action);
-      const state = (await f.read(s.action)).value, entry = phase === 'ack' ? { ...s.entry, latestEvent: state!.event!.data.event } : s.entry;
-      const request = await f.command(phase === 'confirmation' ? 'agentica.operation.confirm' : phase === 'event' ? 'navigation.advance' : 'agentica.operation.ack',
+      const state = (await f.read(s.action)).value, entry = phase === 'custody' ? { ...s.entry, latestEvent: state!.confirmation.data.probe }
+        : phase === 'ack' ? { ...s.entry, latestEvent: state!.event!.data.event } : s.entry;
+      const request = await f.command(phase === 'confirmation' ? 'agentica.operation.confirm' : phase === 'event' ? 'navigation.advance'
+        : phase === 'custody' ? 'agentica.operation.custody' : 'agentica.operation.ack',
         phase === 'confirmation' ? { action: identity.storageKey, binding: s.binding, entry }
+          : phase === 'custody' ? { action: identity.storageKey, confirmation: state!.confirmation.reference, entry }
           : phase === 'event' ? { operationId: s.operationId, sequence: 0 } : { action: identity.storageKey, event: state!.event!.reference, entry });
       const run = () => phase === 'confirmation' ? f.confirm(s.action, s.binding, entry, request) : phase === 'event'
-        ? f.advance(s.action, undefined, request) : f.ack(s.action, entry, undefined, request);
+        ? f.advance(s.action, undefined, request) : phase === 'custody' ? f.custodyAck(s.action, entry, undefined, request) : f.ack(s.action, entry, undefined, request);
       const before = await f.dump(), add = IDBObjectStore.prototype.add, put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.add = function(...args) { if (this.name === store) throw new DOMException('Injected', 'QuotaExceededError'); return add.apply(this, args); };
       IDBObjectStore.prototype.put = function(...args) { if (this.name === store) throw new DOMException('Injected', 'QuotaExceededError'); return put.apply(this, args); };
@@ -26,12 +30,14 @@ for (const phase of ['confirmation', 'event', 'ack'] as const) for (const store 
   });
 }
 
-for (const target of ['confirmation', 'event', 'ack'] as const) for (const damage of ['missing-record', 'missing-receipt', 'witness', 'source-input']) {
+for (const target of ['confirmation', 'custody', 'event', 'ack'] as const) for (const damage of ['missing-record', 'missing-receipt', 'witness', 'source-input']) {
   test(`${target} ${damage} fails closed during read and next advance`, async ({ page }) => {
     const r = await page.evaluate(async ({ target, damage }) => {
       const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+      await f.acceptCustody(s.action, s.entry);
       const moved = await f.advance(s.action), saved = await f.ack(s.action, { ...s.entry, latestEvent: moved.state!.event!.data.event });
-      const state = saved.state!, ref = target === 'confirmation' ? state.confirmation.reference : target === 'event' ? state.event!.reference : state.acknowledgement!.reference;
+      const state = saved.state!, ref = target === 'confirmation' ? state.confirmation.reference : target === 'custody' ? state.custodyAck!.reference
+        : target === 'event' ? state.event!.reference : state.acknowledgement!.reference;
       const head = (await f.readCanonicalHead()).head, db = await f.openCanonicalDatabase(), row = (await db.get('records', [head.gameId, ref.id]))!;
       const attempt = (row.value as { sourceAttemptId: string }).sourceAttemptId, receipt = (await db.get('receipts', [head.gameId, attempt]))!;
       if (damage === 'missing-record') await db.delete('records', [head.gameId, row.id]);
@@ -51,6 +57,7 @@ for (const target of ['confirmation', 'event', 'ack'] as const) for (const damag
 test('normal quota blocks progress ACK but funded navigation and launch cancellation/ACK remain usable', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+    await f.acceptCustody(s.action, s.entry);
     const moved = await f.advance(s.action), head = (await f.readCanonicalHead()).head, db = await f.openCanonicalDatabase();
     head.quota.limitBytes = head.quota.usedBytes + head.quota.reserveBytes + head.quota.reservedBytes;
     await db.put('heads', head, head.gameId); db.close(); const before = await f.dump();

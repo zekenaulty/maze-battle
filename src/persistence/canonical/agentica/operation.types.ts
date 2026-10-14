@@ -6,9 +6,11 @@ export type OperationRead = Pick<CanonicalQuery, 'get' | 'savedSnapshot' | 'sour
 export interface OperationBinding { grant: ProtocolRef; publication: ProtocolRef }
 export interface OperationConfirmation {
   binding: OperationBinding; original: ProtocolRef; result: ProtocolRef; operationId: string;
-  entry: AgenticaOperationEntry;
+  entry: AgenticaOperationEntry; probe: HostOperationEvent;
 }
-export interface OperationEvent { confirmation: ProtocolRef; previous: ProtocolRef | null; event: HostOperationEvent }
+export interface OperationCustodyAck { confirmation: ProtocolRef; entry: AgenticaOperationEntry }
+export type OperationPredecessor = { kind: 'custody-probe' | 'progress'; reference: ProtocolRef };
+export interface OperationEvent { confirmation: ProtocolRef; custody: ProtocolRef; previous: OperationPredecessor; event: HostOperationEvent }
 export interface EventAcknowledgement { event: ProtocolRef; entry: AgenticaOperationEntry }
 export const MAX_OPERATION_ENTRY_BYTES = 10 * 1024;
 export const MAX_EVENT_BYTES = 4096;

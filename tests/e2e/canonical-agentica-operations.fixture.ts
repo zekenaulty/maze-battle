@@ -4,7 +4,7 @@ import { createGameActionHooks } from '../../src/services/agentica/game/actionHo
 import { flatAddress } from '../../src/services/agentica/game/validation';
 import { prepareAction } from '../../src/persistence/canonical/agentica/actions';
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
-import { readAgenticaOperation, retainOperationConfirmation, operationProgressHooks, retainEventAcknowledgement } from '../../src/persistence/canonical/agentica/operation';
+import { readAgenticaOperation, retainOperationConfirmation, retainOperationCustodyAck, operationProgressHooks, retainEventAcknowledgement } from '../../src/persistence/canonical/agentica/operation';
 import { operationKey } from '../../src/persistence/canonical/agentica/operation.records';
 import { eventKey } from '../../src/persistence/canonical/agentica/event.records';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
@@ -65,6 +65,18 @@ async function advance(action: AgenticaAction, ref?: ProtocolRef, retry?: Canoni
   const outcome = await executeNavigationCommand(request, { host: wrap ? wrap(host) : host });
   return { request, outcome, state: (await readAgenticaOperation(identity)).value };
 }
+async function custodyAck(action: AgenticaAction, entry: AgenticaOperationEntry, ref?: ProtocolRef, retry?: CanonicalRequest) {
+  const identity = await prepareAction(action), confirmation = ref ?? (await readAgenticaOperation(identity)).value!.confirmation.reference;
+  const request = retry ?? await command('agentica.operation.custody', { action: identity.storageKey, confirmation, entry });
+  const outcome = await executeCanonical(request, async tx => (await retainOperationCustodyAck(tx, request, identity, confirmation, entry)).receipt);
+  return { request, outcome, state: (await readAgenticaOperation(identity)).value };
+}
+// Explicit in-memory service acceptance for core tests, never automatic in confirm or advance.
+async function acceptCustody(action: AgenticaAction, entry: AgenticaOperationEntry) {
+  const confirmed = (await readAgenticaOperation(await prepareAction(action))).value!;
+  const remote = await sdkProof(entry, confirmed.confirmation.data.probe);
+  return custodyAck(action, remote.result, confirmed.confirmation.reference);
+}
 async function ack(action: AgenticaAction, entry: AgenticaOperationEntry, ref?: ProtocolRef, retry?: CanonicalRequest) {
   const identity = await prepareAction(action), event = ref ?? (await readAgenticaOperation(identity)).value!.event!.reference;
   const request = retry ?? await command('agentica.operation.ack', { action: identity.storageKey, event, entry });
@@ -76,7 +88,7 @@ async function dump() {
   try { for (const name of CANONICAL_STORES) result.push([name, await tx.objectStore(name).getAllKeys(), await tx.objectStore(name).getAll()]);
     await tx.done; return JSON.stringify(result); } finally { db.close(); }
 }
-async function sdkProof(entry: AgenticaOperationEntry, event: HostOperationEvent) {
+async function sdkProof(entry: AgenticaOperationEntry, event: HostOperationEvent, status = 200) {
   const forbidden = async () => { throw Error('No actions during validation'); };
   const host = new AgenticaHost({ url: 'ws://127.0.0.1:5242/offline-only', onAction: forbidden, loadAction: forbidden, saveAction: forbidden });
   const checked = (host as unknown as { _operationEntry(e: AgenticaOperationEntry, h: string, s: string): AgenticaOperationEntry })
@@ -84,12 +96,13 @@ async function sdkProof(entry: AgenticaOperationEntry, event: HostOperationEvent
   let sent: unknown;
   // SDK validation and serialization only: this in-memory function cannot access a network.
   const result = await host.signalOperation(event, { fetchImpl: async (_url, options) => {
-    sent = JSON.parse(options!.body as string); return new Response(JSON.stringify({ ...entry, latestEvent: sent }), { status: 200 });
+    sent = JSON.parse(options!.body as string); return new Response(JSON.stringify(status === 200 ? { ...entry, latestEvent: sent }
+      : { code: 'operation.admission_unsettled', message: 'Original action custody is unresolved.' }), { status });
   } });
   return { checked, sent, result };
 }
-const api = { boot, command, confirm, advance, ack, dump, bytes, prepareAction, operationKey, eventKey, readCanonical, readCanonicalHead, sdkProof, fingerprint,
-  executeCanonical, operateCanonical, executeNavigationCommand, retainOperationConfirmation, retainEventAcknowledgement, operationProgressHooks,
+const api = { boot, command, confirm, custodyAck, acceptCustody, advance, ack, dump, bytes, prepareAction, operationKey, eventKey, readCanonical, readCanonicalHead, sdkProof, fingerprint,
+  executeCanonical, operateCanonical, executeNavigationCommand, retainOperationConfirmation, retainOperationCustodyAck, retainEventAcknowledgement, operationProgressHooks,
   openCanonicalDatabase, readAgenticaOperation,
   async read(action: AgenticaAction) { return readAgenticaOperation(await prepareAction(action)); },
   async cancel(id: string) { return operateCanonical(await command('operation.cancel', { operationId: id }), 'cancel'); },

@@ -14,6 +14,7 @@ test('actual SDK accepts original admission and staged event offline; typed serv
     wire.admission.observation.observedAt = wire.admission.observation.observedAt.replace('Z', '0000+00:00');
     Object.assign(wire, { createdAt: '2026-10-13T01:00:00.0000000+00:00', updatedAt: '2026-10-13T01:00:01.0000000+00:00', latestEvent: null, wakeRunId: null });
     await f.confirm(s.action, s.binding, wire);
+    await f.acceptCustody(s.action, wire);
     const first = await f.advance(s.action), proof = await f.sdkProof(wire, first.state!.event!.data.event);
     wire.latestEvent = structuredClone(first.state!.event!.data.event);
     wire.latestEvent.completion = null; wire.latestEvent.nextSessionEpoch = null; wire.latestEvent.observation.facts = null;
@@ -46,6 +47,7 @@ test('confirmation snapshots mutable identity, entry, binding and request before
 test('ACK snapshots remote latest event and refs; hook metadata mutations cannot corrupt event provenance', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+    await f.acceptCustody(s.action, s.entry);
     const first = await f.advance(s.action, undefined, undefined, inner => ({
       async prepare(view) {
         const work = inner.prepare(view); await Promise.resolve();
@@ -72,6 +74,7 @@ test('ACK snapshots remote latest event and refs; hook metadata mutations cannot
 test('expired original SDK deadline does not silently expire already confirmed local custody', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+    await f.acceptCustody(s.action, s.entry);
     const now = Date.now; Date.now = () => Date.parse(s.action.deadlineAt) + 1;
     try { return await f.advance(s.action); } finally { Date.now = now; }
   });

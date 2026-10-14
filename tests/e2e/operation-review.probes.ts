@@ -11,7 +11,7 @@ import { loadAgenticaOperation } from '../../src/persistence/canonical/agentica/
 
 export async function newPublication() {
   const f = window.canonicalAgenticaOperations, s = await f.boot();
-  await f.confirm(s.action, s.binding, s.entry); await f.advance(s.action);
+  await f.confirm(s.action, s.binding, s.entry); await f.acceptCustody(s.action, s.entry); await f.advance(s.action);
   await f.cancel(s.operationId);
   const request = await f.command('agentica.publish', {});
   let publication: ProtocolRef | undefined;
@@ -38,6 +38,7 @@ export async function newPublication() {
   const wrongUnchanged = before === await f.dump();
   const confirmation = await f.confirm(action, binding, entry).then(() => 'accepted', String);
   const retained = (await f.read(action)).value;
+  if (retained) await f.acceptCustody(action, entry);
   const moved = retained ? (await f.advance(action)).state : null;
   return { oldPublication: s.binding.publication, publication, admission: admission.disposition,
     operation: admission.operation.operationId, confirmation, wrongPublication, wrongUnchanged,
@@ -47,6 +48,7 @@ export async function newPublication() {
 
 export async function predecessor(damage: 'receipt' | 'body' | 'record' | 'witness' | 'source') {
   const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+  await f.acceptCustody(s.action, s.entry);
   const first = await f.advance(s.action); await f.ack(s.action, { ...s.entry, latestEvent: first.state!.event!.data.event });
   const second = await f.advance(s.action); await f.ack(s.action, { ...s.entry, latestEvent: second.state!.event!.data.event });
   const head = (await f.readCanonicalHead()).head, db = await f.openCanonicalDatabase();
@@ -76,6 +78,7 @@ export async function predecessor(damage: 'receipt' | 'body' | 'record' | 'witne
 
 export async function boundedPredecessor() {
   const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+  await f.acceptCustody(s.action, s.entry);
   for (let i = 0; i < 3; i++) {
     const step = await f.advance(s.action); await f.ack(s.action, { ...s.entry, latestEvent: step.state!.event!.data.event });
   }
@@ -88,6 +91,7 @@ export async function boundedPredecessor() {
 
 export async function changedActiveEpoch() {
   const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+  await f.acceptCustody(s.action, s.entry);
   const first = await f.advance(s.action), before = await f.dump();
   const result = await f.ack(s.action, { ...s.entry, activeEpoch: 'foreign', latestEvent: first.state!.event!.data.event }).then(() => 'accepted', String);
   return { result, unchanged: before === await f.dump() };

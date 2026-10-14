@@ -7,6 +7,7 @@ test('original parked confirmation gates real movement; ordered progress and exa
     const unconfirmed = await f.executeNavigationCommand(request, { host: f.operationProgressHooks(identity, { key: f.operationKey(identity), id: crypto.randomUUID() }) }).catch(String);
     const afterFailure = await f.dump(), confirmed = await f.confirm(seeded.action, seeded.binding, seeded.entry);
     const duplicate = await f.confirm(seeded.action, seeded.binding, seeded.entry, confirmed.request);
+    await f.acceptCustody(seeded.action, seeded.entry);
     const first = await f.advance(seeded.action), beforeAck = await f.dump(), withheld = await f.advance(seeded.action).catch(String), afterWithheld = await f.dump();
     const replay = await f.advance(seeded.action, undefined, first.request), afterReplay = await f.dump();
     const remote = { ...seeded.entry, latestEvent: first.state!.event!.data.event };
@@ -19,14 +20,16 @@ test('original parked confirmation gates real movement; ordered progress and exa
   expect(r.confirmed.state!.progress.steps).toBe(0); expect(r.duplicate.outcome.replayed).toBe(true);
   expect(r.first.state!.progress).toMatchObject({ steps: 1, sequence: 1 });
   expect(r.first.outcome.head!.roots.knowledge).not.toEqual(r.confirmed.outcome.head!.roots.knowledge);
-  expect(r.first.state!.event!.data.event).toMatchObject({ kind: 'progress', sequence: 1, actionId: r.seeded.action.actionId,
+  expect(r.first.state!.event!.data.event).toMatchObject({ kind: 'progress', sequence: 2, actionId: r.seeded.action.actionId,
     operationId: r.seeded.operationId, observation: { revision: r.first.outcome.receipt.afterRevision, data: { navigation: { steps: 1, status: 'running' } } } });
-  expect(r.first.state!.event!.data.previous).toBeNull(); expect(r.first.state!.acknowledgement).toBeNull();
+  expect(r.first.state!.event!.data.previous).toEqual({ kind: 'custody-probe', reference: r.confirmed.state!.confirmation.reference });
+  expect(r.first.state!.acknowledgement).toBeNull();
   expect(String(r.withheld)).toContain('not acknowledged'); expect(r.afterWithheld).toBe(r.beforeAck);
   expect(r.replay.outcome.replayed).toBe(true); expect(r.replay.state).toEqual(r.first.state); expect(r.afterReplay).toBe(r.beforeAck);
   expect(r.ack.state!.acknowledgement!.data.entry.latestEvent).toEqual(r.first.state!.event!.data.event);
   expect(r.second.state!.progress).toMatchObject({ steps: 2, sequence: 2 });
-  expect(r.second.state!.event!.data.previous).toEqual(r.first.state!.event!.reference); expect(r.second.state!.acknowledgement).toBeNull();
+  expect(r.second.state!.event!.data.previous).toEqual({ kind: 'progress', reference: r.first.state!.event!.reference });
+  expect(r.second.state!.acknowledgement).toBeNull();
   expect(r.duplicateAck.outcome.replayed).toBe(true); expect(r.duplicateAck.state).toEqual(r.second.state);
   expect(r.sizes.event).toBeLessThanOrEqual(4096); expect(r.sizes.result).toBeLessThanOrEqual(16384);
   console.log(`Operation UTF-8 bytes: ${JSON.stringify(r.sizes)}`);
@@ -55,6 +58,7 @@ for (const changed of ['missing', 'summary', 'sequence', 'revision', 'epoch', 'a
   test(`ACK refuses ${changed} remote latestEvent without fresh rewrite`, async ({ page }) => {
     const r = await page.evaluate(async changed => {
       const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+      await f.acceptCustody(s.action, s.entry);
       const first = await f.advance(s.action), entry = { ...s.entry, latestEvent: structuredClone(first.state!.event!.data.event) };
       if (changed === 'missing') delete (entry as { latestEvent?: unknown }).latestEvent;
       if (changed === 'summary') entry.latestEvent.summary += ' changed';
@@ -74,6 +78,7 @@ for (const changed of ['missing', 'summary', 'sequence', 'revision', 'epoch', 'a
 for (const kind of ['launch', 'navigation', 'takeover'] as const) test(`${kind} change fences the next advance`, async ({ page }) => {
   const r = await page.evaluate(async kind => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+    await f.acceptCustody(s.action, s.entry);
     if (kind === 'takeover') { f.stop(); await f.resume(); } else await f.cancel(kind === 'launch' ? s.launchGuard : s.operationId);
     const before = await f.dump(), error = await f.advance(s.action).catch(String);
     return { before, after: await f.dump(), error, state: (await f.read(s.action)).value };
@@ -84,6 +89,7 @@ for (const kind of ['launch', 'navigation', 'takeover'] as const) test(`${kind} 
 test('reload/takeover reads original event without executing pending delivery or adopting navigation', async ({ page }) => {
   const original = await page.evaluate(async () => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(); await f.confirm(s.action, s.binding, s.entry);
+    await f.acceptCustody(s.action, s.entry);
     const state = (await f.advance(s.action)).state; f.stop(); return { s, state };
   });
   await page.reload(); await page.waitForFunction(() => !!window.canonicalAgenticaOperations);

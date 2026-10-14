@@ -4,8 +4,9 @@ import type { CanonicalRequest, Json } from '../types';
 import { check, jsonBytes, request as validateRequest } from '../validation';
 import { assertOperationCustody } from './operation.binding';
 import { loadOperationConfirmation } from './operation.confirmation';
+import { loadOperationCustodyAck } from './operation.custody';
 import { eventKey, loadEventAcknowledgement, loadOperationEvent } from './event.records';
-import { MAX_EVENT_BYTES, type OperationEvent, type OperationRead } from './operation.types';
+import { MAX_EVENT_BYTES, type OperationEvent, type OperationPredecessor, type OperationRead } from './operation.types';
 import type { PreparedAction, ProtocolRef } from './types';
 import { equal, snapshotJson, snapshotPrepared, snapshotReference } from './validation';
 
@@ -17,7 +18,7 @@ function reader(view: NavigationPreparation): OperationRead {
 /** Only navigation.advance. Admission uses navigationActionHooks instead. Arrived/blocked progress does not settle the kernel operation. */
 export function operationProgressHooks(input: PreparedAction, inputConfirmation: ProtocolRef): NavigationHostHooks {
   const identity = snapshotPrepared(input), confirmation = snapshotReference(inputConfirmation);
-  let prepared: { request: CanonicalRequest; sequence: number; previous: ProtocolRef | null; hostId: string } | undefined;
+  let prepared: { request: CanonicalRequest; sequence: number; previous: OperationPredecessor; custody: ProtocolRef; hostId: string } | undefined;
   return {
     async prepare(view) {
       prepared = undefined;
@@ -27,14 +28,15 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
       check(request.operation === 'navigation.advance' && equal(request.input, { operationId: confirmed.data.operationId, sequence })
         && equal(operation, bound.operation), 'progress command differs from confirmed operation');
       assertOperationCustody(head, bound);
-      let previous: ProtocolRef | null = null;
+      const custody = await loadOperationCustodyAck(pages, identity, confirmation); check(custody, 'custody probe is not acknowledged');
+      let previous: OperationPredecessor = { kind: 'custody-probe', reference: confirmation };
       if (sequence > 0) {
         const event = await loadOperationEvent(pages, identity, confirmed, sequence);
         check(event.source.attemptId === bound.progress.sourceAttemptId, 'latest progress lacks its original event');
         check(await loadEventAcknowledgement(pages, identity, confirmed, event), 'previous event is not acknowledged');
-        previous = event.reference;
+        previous = { kind: 'progress', reference: event.reference };
       }
-      prepared = { request, sequence, previous, hostId: bound.launch.binding.start.hostId };
+      prepared = { request, sequence, previous, custody: custody.reference, hostId: bound.launch.binding.start.hostId };
     },
     async commit(view) {
       const request = validateRequest(view.request), head = snapshotJson(view.head), p = snapshotJson(view.progress), cp = snapshotJson(view.checkpoint);
@@ -43,9 +45,9 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
         && p.operationId === view.operation.id && equal(p.position, cp.position), 'event was not prepared for this progress');
       await validateKnowledge(view.knowledge, cp.knowledge);
       const sight = cp.knowledge ? await loadObservation(view.knowledge, { sequence: cp.knowledge.sequence, id: cp.knowledge.id }) : null;
-      const data: OperationEvent = { confirmation, previous: ready.previous, event: {
+      const data: OperationEvent = { confirmation, custody: ready.custody, previous: ready.previous, event: {
         hostId: ready.hostId, sessionId: identity.action.sessionId, sessionEpoch: identity.action.sessionEpoch,
-        actionId: identity.action.actionId, operationId: p.operationId, sequence: p.sequence, eventId: request.attemptId, kind: 'progress',
+        actionId: identity.action.actionId, operationId: p.operationId, sequence: p.sequence + 1, eventId: request.attemptId, kind: 'progress',
         observation: { observationId: `event-${request.attemptId}`, revision: head.revision + 1,
           observedAt: sight?.header.observedAt ?? cp.updatedAt, data: {
             scope: 'actor', actor: { level: cp.position.level, ...cp.position.cell, facing: cp.facing, mode: cp.mode },
