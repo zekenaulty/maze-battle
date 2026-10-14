@@ -1,0 +1,9 @@
+{
+  "commit": "d65fb5b7a5d4895921f8854054215b1d6279852e",
+  "configuration": "Release/net10.0",
+  "assemblies": {
+    "Agentica.Lab.Web.dll": "11455a4d12ada5bf175d8bd080f5dc7e4946340541a6c75d00742f6ebdedee2b",
+    "Agentica.dll": "e82a68e9716d5b87462172f548a83123afb78972010492babde68610d11171ce",
+    "Agentica.Clients.dll": "716f1f1cbda7022203c678b5c38123c3aef9b0481bdf090c63526c67d8f49b26"
+  }
+}
