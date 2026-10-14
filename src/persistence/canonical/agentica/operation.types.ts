@@ -1,0 +1,14 @@
+import type { AgenticaOperationEntry, HostOperationEvent } from '../../../services/agentica/sdk/agentica-host.mjs';
+import type { CanonicalQuery } from '../read';
+import type { ProtocolRef } from './types';
+
+export type OperationRead = Pick<CanonicalQuery, 'get' | 'savedSnapshot' | 'sourceReceipt' | 'liveOperation'>;
+export interface OperationBinding { grant: ProtocolRef; publication: ProtocolRef }
+export interface OperationConfirmation {
+  binding: OperationBinding; original: ProtocolRef; result: ProtocolRef; operationId: string;
+  entry: AgenticaOperationEntry;
+}
+export interface OperationEvent { confirmation: ProtocolRef; previous: ProtocolRef | null; event: HostOperationEvent }
+export interface EventAcknowledgement { event: ProtocolRef; entry: AgenticaOperationEntry }
+export const MAX_OPERATION_ENTRY_BYTES = 10 * 1024;
+export const MAX_EVENT_BYTES = 4096;
