@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 16,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 17,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -36,18 +36,21 @@ now keeps local Stop independent of ordinary storage, delivers exact retained
 event prefixes, reconciles lost replies, and releases navigation reserves only
 after verified remote acceptance. Arrival is a decision, not objective completion.
 P4 also removed the [general stream Agentica writer](reviews/issue-11-p4-general-stream-agentica-retirement.md).
-The [uncertain-start Stop increment](reviews/issue-11-uncertain-start-stop.md)
-adds read-only positive run discovery and funded explicit cancellation through
-the actual GameSession. It never grants, resumes, ACKs or replaces an uncertain
-start. Service snapshots cannot establish full-request equivalence or durable
-absence; complete start reconciliation remains open. P4 additionally removed the
+The earlier [uncertain-start Stop increment](reviews/issue-11-uncertain-start-stop.md)
+established local cancellation without treating run inventories as full-request
+admission or proof of absence. Its partial discovery path is now superseded by
+the durable contract below, not retained as a fallback. P4 additionally removed the
 [directed stream Agentica writer](reviews/issue-11-p4-directed-agentica-retirement.md)
 and its four obsolete store registrations.
 The separate Agentica [durable initial-start contract](https://github.com/zekenaulty/Agentica/blob/602f15a/docs/durable-host-starts.md)
 now provides pre-execution admission, exact original-request lookup and explicit
-Stop settlement. It has provider-free service/SDK proof; Maze has not yet adopted
-it in its canonical launch/controller, so full host start recovery remains open.
-[Qualification and exact next work](reviews/issue-11-durable-start-service.md).
+Stop settlement. Its provider-free service/SDK proof is recorded in the
+[prerequisite report](reviews/issue-11-durable-start-service.md).
+The [canonical durable-start adoption](reviews/issue-11-canonical-start-recovery.md)
+now replaces partial run-inventory discovery with the exact retained dispatch
+attempt, validated full-request admission, resolved settings and funded verified
+Stop settlement. Unit/native and real-service browser checks pass; this does not mount the client or
+complete transfer/adoption, decision/wake or publication renewal.
 P4 has also removed the [remaining stream/topology writer closure](reviews/issue-11-p4-stream-store-closure.md),
 including eleven stores and 118 obsolete source/test files.
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
@@ -221,7 +224,7 @@ P1 storage contracts are split as follows:
 - **P3 Agentica foundations, checked:** one funded launch, immutable dispatch/run
   and explicit initial grant; actual GameSession queue, transaction aborts and
   funded same-owner cleanup. Read/reload grants no execution. Ambiguous starts
-  block replacements even after local cancel/ACK. No SDK mount is claimed.
+  block replacements; local cancellation alone cannot release them. No SDK mount is claimed.
 - **P3 scoped SDK actions, checked:** earned actor/room/map/cell projections,
   unchanged SDK offline action dispatch, one-shot reservations, atomic navigation
   admission and exact read-only reconciliation through the actual game queue.
@@ -230,9 +233,12 @@ P1 storage contracts are split as follows:
   bounded prefix delivery, callback-free local Stop, verified funded ACK/retry and
   decision Stop without cognition. Native SDK/HTTP-fixture and pinned in-process
   registry evidence are separate; no paired application mount is implied.
-- **P3 Agentica, remaining:** adopt durable full-start admission/reconciliation in
-  the canonical host (the service/SDK primitive is checked separately), explicit service
-  transfer/adoption, decision/wake, publication renewal and mounted application recovery.
+- **P3 durable initial start, checked:** exact pre-send canonical dispatch,
+  full-request service validation, compact frozen admission and funded Stop/ACK.
+  Lost replies, service restart and full logical quota have real-service/browser
+  proof; missing service evidence remains UNKNOWN and blocks replacement.
+- **P3 Agentica, remaining:** explicit service transfer/adoption, decision/wake,
+  publication renewal and mounted application recovery, including granted runs.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 started:** disconnected preview screens, stale route tests, standalone
   expedition writer and its legacy-format validators, standalone launch journal,
