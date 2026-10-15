@@ -59,7 +59,8 @@ test.afterEach(async ({ page }, info) => {
   await info.attach('real-service-requests.json', { body: JSON.stringify({ starts, actions, results, incoming, incomingBytes, network, errors, proofBefore, proof }, null, 2), contentType: 'application/json' });
   if (!scripted) { expect(actions).toEqual([]); expect(results).toEqual([]); }
   expect(errors).toEqual([]);
-  expect(proof).toMatchObject({ source: '602f15ac24a60faee8665cb165cb2d7c761c9eed', paidProviderCalls: 0 });
+  expect(incomingBytes.filter(frame => frame.bytes > 64 * 1024)).toEqual([]);
+  expect(proof).toMatchObject({ source: 'a1f00ac142a4e38cec2ff175849c67afd6ea17f0', paidProviderCalls: 0 });
   expect(proof.cancelled).toBe(proof.entered);
 });
 async function serviceProof(): Promise<ServiceProof> {
@@ -190,16 +191,12 @@ test('native inspect/observe results have unique identities, exact retry, and bo
     const error = state.messages.find(m => m.type === 'error');
     return error ? { error: error.payload } : state.messages.some(m => m.type === 'operation.parked') ? 'parked' : 'pending';
   }, { timeout: 15_000 }).toBe('parked');
+  await expect.poll(async () => (await page.evaluate(() => window.canonicalStartService.readScript()))
+    .messages.some(message => message.type === 'outcome')).toBe(true);
   const state = await page.evaluate(() => window.canonicalStartService.readScript());
   expect(state.messages.filter(m => m.type === 'error')).toEqual([]);
-  // 602f15a can send an outcome over the transport's 64 KiB bound after parking.
-  // Preserve/report that separate limitation; never exempt an action or parked frame.
-  const oversized = incomingBytes.filter(frame => frame.bytes > 64 * 1024);
-  expect(oversized.every(frame => frame.type === 'outcome' && frame.bytes <= 262144)).toBe(true);
-  for (const status of state.statuses.filter(s => s.state.endsWith('.error'))) {
-    expect(oversized.length).toBeGreaterThan(0);
-    expect(status).toEqual({ state: 'protocol.error', detail: 'Incoming message is too large or is not text.' });
-  }
+  expect(incomingBytes.filter(frame => frame.bytes > 64 * 1024)).toEqual([]);
+  expect(state.statuses.filter(s => s.state.endsWith('.error'))).toEqual([]);
   expect(starts).toHaveLength(1); expect(actions).toHaveLength(4); expect(results).toHaveLength(5);
   expect(state.actions.map(a => a.capabilityId)).toEqual(['maze.inspect', 'maze.inspect', 'maze.observe', 'maze.navigate']);
   expect(state.actions[0].arguments).toEqual({ scope: 'map' });
