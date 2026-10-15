@@ -2,7 +2,8 @@ export const serviceOrigin: string;
 export function fixtureEnvironment(): Record<string, string>;
 export interface ServiceProof {
   source: string; processId: number; created: number; entered: number; cancelled: number;
-  paidProviderCalls: number; emittedActions: number;
+  scriptedCreated: number; scriptedCreateCalls: number; scriptedRefineCalls: number; scriptedStepsPlanned: number;
+  paidProviderCalls: number; paidProviderCallsEvidence: string;
 }
 export class ServiceProcess {
   constructor(dll: string | undefined, storage: string | undefined, log: string | undefined);

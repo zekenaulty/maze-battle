@@ -1,5 +1,5 @@
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,7 +38,18 @@ const assemblies = Object.fromEntries(['StartServiceFixture.dll', 'Agentica.Lab.
   .map(name => [name, createHash('sha256').update(readFileSync(path.join(path.dirname(dll), name))).digest('hex')]));
 const command = ['node_modules/@playwright/test/cli.js', 'test', '--config', 'tests/e2e/canonical-start-service.config.ts',
   '--workers=1', '--retries=0', '--trace=on', '--output', path.join(output, 'browser')];
+const productionPath = 'src/services/agentica/game/actionContract.ts';
+const fixtureFiles = [
+  ...readdirSync(folder).filter(name => /\.(cs|csproj|mjs|mts|Config)$/.test(name)).map(name => 'tests/agentica-start-service/' + name),
+  ...readdirSync(path.join(maze, 'tests/e2e')).filter(name => name.startsWith('canonical-start-service.') && !name.endsWith('.md'))
+    .map(name => 'tests/e2e/' + name),
+];
+const fixtureSourceSha256 = Object.fromEntries(fixtureFiles.sort().map(file =>
+  [file, createHash('sha256').update(readFileSync(path.join(maze, file))).digest('hex')]));
 const metadata = { mazeCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: maze, encoding: 'utf8' }).trim(),
+  fixtureSourceSha256,
+  actionContractSha256: createHash('sha256').update(readFileSync(path.join(maze, productionPath))).digest('hex'),
+  actionContractDiff: execFileSync('git', ['diff', '--', productionPath], { cwd: maze, encoding: 'utf8' }),
   agenticaCommit: pin, sdk: version, repositorySdkPin: '10.0.302', pinProof: false, sdkSourceSha256, assemblies, temp, output,
   build: { cwd: temp, args: build }, browser: { cwd: maze, args: command } };
 writeFileSync(path.join(output, 'provenance.json'), JSON.stringify(metadata, null, 2));

@@ -21,8 +21,9 @@ app.Use(async (context, next) =>
         context.Response.StatusCode = 403;
         return;
     }
-    var path = context.Request.Path.Value;
-    if (path is not ("/api/health" or "/api/host" or "/api/starts" or "/api/starts/stop" or "/fixture/proof"))
+    var route = context.Request.Method + " " + context.Request.Path.Value;
+    if (route is not ("GET /api/health" or "GET /api/host" or "GET /api/starts" or "POST /api/starts/stop" or "GET /fixture/proof"
+        or "GET /api/operations" or "POST /api/operations/events" or "GET /api/recovery"))
     {
         context.Response.StatusCode = 403;
         return;
@@ -34,6 +35,7 @@ app.MapGet("/fixture/proof", () => new
     source = "602f15ac24a60faee8665cb165cb2d7c761c9eed",
     processId = Environment.ProcessId,
     factory.Created, factory.Entered, factory.Cancelled,
-    paidProviderCalls = 0, emittedActions = 0
+    factory.ScriptedCreated, factory.ScriptedCreateCalls, factory.ScriptedRefineCalls, factory.ScriptedStepsPlanned,
+    paidProviderCalls = 0, paidProviderCallsEvidence = "by-construction: injected offline planners only; not billing telemetry"
 });
 await app.RunAsync();

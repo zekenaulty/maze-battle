@@ -1,11 +1,13 @@
 # Canonical durable-start service proof
 
-Fixture-only native browser integration. No production files or existing fixtures
-are changed. This is not a parallel game, live-provider test, or full App cohort.
+Fixture-only native browser integration, retaining the original five start tests.
+No production changes are included in the fixture commit. This is not a parallel
+game, live-provider test, or full App cohort.
 
 ## Sources and prerequisites
 
-- Maze base: `b809a814f4406a0d59cdc1c09e94490360d71f3a`.
+- Maze observation-regression base: `7fe5f4a`, merged into the isolated SDK
+  worktree at `f4988a6eb243d7f2cbd7ae4a60ff99da188b3d7c`.
 - Agentica: clean `602f15ac24a60faee8665cb165cb2d7c761c9eed` at an explicit
   external root; the launcher refuses another revision or a dirty source tree.
 - The actual vendored SDK must equal the pinned service SDK, ignoring CRLF.
@@ -22,7 +24,7 @@ are changed. This is not a parallel game, live-provider test, or full App cohort
 Run in the isolated Maze worktree; both ports must be unused:
 
 ```powershell
-Set-Location C:/Users/Zythis/.codex/worktrees/canonical-start-service/maze-battle
+Set-Location C:/Users/Zythis/.codex/worktrees/maze-durable-sdk/maze-battle
 node node_modules/typescript/bin/tsc -p tests/e2e/canonical-start-service.tsconfig.json --noEmit
 node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-start-admission/Agentica
 ```
@@ -39,17 +41,22 @@ node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-star
 ```
 
 `provenance.json` records the exact expanded commands/cwds, source versions,
-selected SDK, normalized SDK source hash, and built assembly hashes. Results,
+selected SDK, normalized SDK source hash, fixture source hashes, built assembly
+hashes, and the exact `actionContract.ts` working-tree hash/diff. Results,
 request/frame attachments, traces, and the service log are retained under
 `test-results/maze-start-service-*`; service storage/builds remain under the
 matching fresh TEMP directory. Neither is deleted by this launcher.
 
 ## Isolation and real boundaries
 
-The real `LabWebApplication.Create` receives a strictly injected wait-only
+The real `LabWebApplication.Create` receives a strictly injected offline
 `ILabPlannerFactory`, isolated storage, and a provider configuration whose
-environment reader throws. The planner rejects all other provider/model names,
-waits cancellably, and cannot return a plan or invoke a provider. Child processes
+environment reader throws. Only provider `fixture` and models `wait-only` and
+`observation-sequence` are accepted. The first waits cancellably; the second
+emits a closed four-action script from the actual earned planner context:
+initial actor -> inspect map -> inspect room -> observe -> navigate to an adjacent
+earned cell. Both the destination and its edge must occur in the returned room
+projection; no coordinates are invented. Neither implementation can invoke a provider. Child processes
 inherit only an explicit OS/runtime environment whitelist, not provider variables.
 Vite has environment-file loading disabled; the host uses an empty TEMP content
 root and Production environment. No secrets/configuration are copied.
@@ -62,9 +69,24 @@ reload retains that test's database. No user database or cache is reset. Ports
 
 Production `GameSession`, `prepareGameLaunch`, `createGameTransport`, SDK,
 `createLaunchRecovery`, GET discovery, POST Stop, and funded verified ACK all run
-unmodified. Only Vite's development client is replaced with empty JavaScript to
+through their real paths. The observation regression also uses the production
+action hooks and operation driver, with a temporary production fix only for the
+before/after qualification described below. Only Vite's development client is replaced with empty JavaScript to
 remove its unrelated HMR WebSocket. Service responses and SDK frames are real;
 unexpected browser origins/messages fail the test.
+
+The script wraps SDK callbacks only to record actual requests/results and wait
+for an exact-original retry ACK before navigation. The retry loads/reconciles
+the canonical original and sends it through the SDK's runtime `request` method;
+no request, result, service response, or admission is fabricated. Both action
+result frames must carry identical payloads and the real service must answer
+`duplicate: true`. The action callback remains single-execution.
+
+The fixture's service allowlist adds only operation GET/event POST and recovery
+GET to the existing start routes. No wake, decision adoption, provider route,
+or new browser origin is enabled. The operation driver confirms the real parked
+admission, delivers its custody probe, performs one bounded arrival pulse, and
+cancels/ACKs through the real service before settling the initial start.
 
 The loss injection awaits the **real correlated `startDurable` reply**, then throws
 at the SDK integration boundary. It is not a TCP reply-drop simulation. Local
@@ -84,15 +106,39 @@ launch admission, without sending a replacement remote start.
    and local Stop, without remote POST, ACK, grant, or replacement admission.
 5. Missing key (400), invalid key (409), and foreign accepted-request hash (409);
    rejection leaves the original remote admission unchanged.
+6. Native map/room/actor query observations and navigation admission have four
+   distinct stable action-derived IDs, separate from the original publication.
+   Original data/source, observation time, readonly revision and retained result
+   bytes are preserved. Exact retry is idempotent; service custody is resolved
+   and the operation is parked and explicitly custody-confirmed.
 
-Planner counters prove entry and cancellable completion; incoming action frames
-must remain zero. The fixture's `paidProviderCalls: 0` is by construction, not a
-billing measurement. Real service usage can count the injected planning entry as
-`providerCalls`; that does not mean a model/network provider was called. This
-cohort does not qualify action execution, paid providers, every transport/crash
-interleaving, physical storage failure, or the unavailable .NET SDK pin.
+`created` counts factory instances; `entered`/`cancelled` count wait-only entries
+and cancellations. The separate `scriptedCreated`, `scriptedCreateCalls`,
+`scriptedRefineCalls` and `scriptedStepsPlanned` counters describe the closed
+script, not emitted actions. Native browser frames independently prove four
+action deliveries and five result sends (one exact retry). The original five
+tests still require zero action frames. The script requires one create call and
+three query refinements, with no further planner entry during custody, local
+arrival, cancellation or ACK. Service usage separately reports `steps: 4`,
+`refinements: 3`, `continuations: 0`, `providerCalls: 0`; the offline script emits
+no provider stream events. **Paid provider calls are zero by construction**, not
+billing telemetry. The adjacent-cell target proves one bounded local movement,
+not arbitrary multi-cell travel.
+Paid providers, successor/wake, publication renewal, every transport/crash
+interleaving, physical storage failure and the unavailable .NET SDK pin remain
+outside this proof.
 
-## Recorded result (2026-10-15)
+Known separate transport limitation: the pinned service can send an approximately
+110 KiB final `outcome` after `operation.parked`; Maze currently sets the SDK
+receive bound to 64 KiB. Native frame byte counts and SDK `protocol.error` remain
+in the evidence. This focused regression permits only that oversized terminal
+outcome (bounded by the service's 262144-byte limit), never oversized action or
+parked frames or other SDK errors. The action results, duplicate ACK, parked
+admission, HTTP custody probe and terminal settlement are still real. No fixture
+override increases the production SDK bound or edits/drops service messages.
+The current narrow launch contract does not expose recent-history limits.
+
+## Original five-case result (2026-10-15)
 
 - Fixture TypeScript: PASS.
 - Fixture and real referenced service build: PASS, 0 warnings/errors (12.72s).
@@ -106,3 +152,37 @@ interleaving, physical storage failure, or the unavailable .NET SDK pin.
 - No production regression found. Earlier failures were fixture setup/typecheck
   issues and an unexpected Vite HMR socket, corrected within these new files.
   The prior complete five-case run also passed; failed-run artifacts are retained.
+
+## Observation regression result (2026-10-15)
+
+- Fixture TypeScript and production TypeScript: PASS.
+- Actual pinned service builds: PASS, zero warnings/errors, SDK 10.0.401 from
+  TEMP with the repository SDK-pin limitation above.
+- Final unpatched run: **5 passed, 1 expected failure**, 29.3s. The native map
+  result reused the initial actor ID with different data; the service returned
+  `message.invalid`, no second action was dispatched, and no operation parked.
+  Evidence: `test-results/maze-start-service-K3qSN3/`.
+- Patched run: **6 passed**, 17.1s, zero retries/skips. Evidence:
+  `test-results/maze-start-service-JdqH29/`.
+- All fixture source hashes match between those two runs. The sole temporary
+  production change was the returned observation in `actionContract.ts`:
+
+  ```ts
+  observation: { ...structuredClone(observation), observationId: `observation-${identity.storageKey.slice(-64)}` }
+  ```
+
+  That patch was removed before committing these tests. The regression requires
+  the parent's equivalent production fix; it intentionally fails the old code.
+- Four native actions, five native result sends, four unique action observation
+  IDs plus the initial ID; exact original retry accepted as a duplicate.
+- Real parked admission and custody-probe sequence 1; progress sequence 2 proves
+  one local step and arrival. Cancelled sequence 3, operation verified ACK, real
+  durable-start Stop and launch verified ACK all completed without another
+  planner invocation. Service usage: 4 steps, 3 refinements, 0 continuations,
+  0 provider calls; fixture counters: 1 create call and 3 refinements.
+- The separate oversized terminal outcome was **112793 wire bytes**. Its SDK
+  protocol-error status remains recorded; this is not an all-transport PASS.
+- Earlier fixture failures (planner-frame casing, counter expectations,
+  current-cell immediate settlement, and using ungranted recovery for a granted
+  launch) were corrected without service/production changes. Port-conflict
+  bootstrap failures and all failed-run artifacts remain retained.

@@ -5,15 +5,24 @@ import type {} from './canonical-start-service.fixture';
 
 const browserOrigin = 'http://127.0.0.1:5258';
 const service = new ServiceProcess(process.env.MAZE_START_SERVICE_DLL, process.env.MAZE_START_SERVICE_STORAGE, process.env.MAZE_START_SERVICE_LOG);
-let starts: unknown[], actions: unknown[], errors: string[], network: { method: string; url: string; body?: unknown }[];
+let starts: unknown[], actions: unknown[], results: unknown[], errors: string[], network: { method: string; url: string; body?: unknown }[];
+let scripted: boolean;
+let proofBefore: ServiceProof;
+let incoming: unknown[];
+let incomingBytes: { type: string; bytes: number }[];
 test.beforeAll(async () => { await service.start(); });
 test.afterAll(async () => { await service.stop(); });
 test.beforeEach(async ({ page, context }) => {
-  starts = []; actions = []; errors = []; network = [];
+  starts = []; actions = []; results = []; errors = []; network = []; scripted = false;
+  incoming = []; incomingBytes = [];
+  proofBefore = await serviceProof();
   page.on('pageerror', error => errors.push(error.message));
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
     if (![browserOrigin, serviceOrigin].includes(url.origin)) throw Error('Unexpected external request: ' + url.origin);
+    if (url.origin === serviceOrigin && !['GET /api/starts', 'POST /api/starts/stop', 'GET /api/operations',
+      'POST /api/operations/events', 'GET /api/recovery'].includes(request.method() + ' ' + url.pathname))
+      throw Error('Unexpected service request: ' + request.method() + ' ' + url.pathname);
     if (url.origin === browserOrigin && url.pathname === '/@vite/client')
       return route.fulfill({ contentType: 'application/javascript', body: '' });
     if (url.origin === serviceOrigin) network.push({ method: request.method(), url: request.url(),
@@ -25,10 +34,14 @@ test.beforeEach(async ({ page, context }) => {
     socket.on('framesent', event => {
       const frame = JSON.parse(String(event.payload));
       if (frame.type === 'start.durable') starts.push(frame.payload);
+      else if (scripted && frame.type === 'action.result') results.push(frame);
       else throw Error('Unexpected SDK message: ' + frame.type);
     });
     socket.on('framereceived', event => {
       const frame = JSON.parse(String(event.payload));
+      if (incoming.length >= 256) throw Error('Native frame bound exceeded');
+      incoming.push(frame);
+      incomingBytes.push({ type: frame.type, bytes: Buffer.byteLength(event.payload) });
       if (frame.type === 'action.request' || frame.type === 'action.reconcile') actions.push(frame);
     });
   });
@@ -37,11 +50,16 @@ test.beforeEach(async ({ page, context }) => {
   await page.evaluate(() => window.canonicalStartService.boot());
 });
 test.afterEach(async ({ page }, info) => {
+  if (scripted) {
+    const state = await page.evaluate(() => window.canonicalStartService.readScript()).catch(error => ({ error: String(error) }));
+    await info.attach('native-observation-sequence.json', { body: JSON.stringify(state, null, 2), contentType: 'application/json' });
+  }
   await page.evaluate(() => window.canonicalStartService.stop()).catch(() => {});
   const proof = await serviceProof();
-  await info.attach('real-service-requests.json', { body: JSON.stringify({ starts, actions, network, errors, proof }, null, 2), contentType: 'application/json' });
-  expect(actions).toEqual([]); expect(errors).toEqual([]);
-  expect(proof).toMatchObject({ source: '602f15ac24a60faee8665cb165cb2d7c761c9eed', paidProviderCalls: 0, emittedActions: 0 });
+  await info.attach('real-service-requests.json', { body: JSON.stringify({ starts, actions, results, incoming, incomingBytes, network, errors, proofBefore, proof }, null, 2), contentType: 'application/json' });
+  if (!scripted) { expect(actions).toEqual([]); expect(results).toEqual([]); }
+  expect(errors).toEqual([]);
+  expect(proof).toMatchObject({ source: '602f15ac24a60faee8665cb165cb2d7c761c9eed', paidProviderCalls: 0 });
   expect(proof.cancelled).toBe(proof.entered);
 });
 async function serviceProof(): Promise<ServiceProof> {
@@ -161,4 +179,83 @@ test('real start lookup rejects missing/invalid keys; a foreign Stop reference c
   expect(responses).toEqual({ missing: 400, invalid: 409, foreign: 409 });
   expect(await lookup(page, original.key)).toEqual(before);
   await settle(page); expect(starts).toHaveLength(1);
+});
+
+test('native inspect/observe results have unique identities, exact retry, and bounded navigation custody without paid calls', async ({ page }) => {
+  scripted = true;
+  await page.evaluate(() => window.canonicalStartService.startScript());
+  // Include native errors in a bounded wait so the old-code failure records the real collision, not just a timeout.
+  await expect.poll(async () => {
+    const state = await page.evaluate(() => window.canonicalStartService.readScript());
+    const error = state.messages.find(m => m.type === 'error');
+    return error ? { error: error.payload } : state.messages.some(m => m.type === 'operation.parked') ? 'parked' : 'pending';
+  }, { timeout: 15_000 }).toBe('parked');
+  const state = await page.evaluate(() => window.canonicalStartService.readScript());
+  expect(state.messages.filter(m => m.type === 'error')).toEqual([]);
+  // 602f15a can send an outcome over the transport's 64 KiB bound after parking.
+  // Preserve/report that separate limitation; never exempt an action or parked frame.
+  const oversized = incomingBytes.filter(frame => frame.bytes > 64 * 1024);
+  expect(oversized.every(frame => frame.type === 'outcome' && frame.bytes <= 262144)).toBe(true);
+  for (const status of state.statuses.filter(s => s.state.endsWith('.error'))) {
+    expect(oversized.length).toBeGreaterThan(0);
+    expect(status).toEqual({ state: 'protocol.error', detail: 'Incoming message is too large or is not text.' });
+  }
+  expect(starts).toHaveLength(1); expect(actions).toHaveLength(4); expect(results).toHaveLength(5);
+  expect(state.actions.map(a => a.capabilityId)).toEqual(['maze.inspect', 'maze.inspect', 'maze.observe', 'maze.navigate']);
+  expect(state.actions[0].arguments).toEqual({ scope: 'map' });
+  const actor = state.initial.data.actor as { level: number; spaceId: string; row: number; column: number };
+  const here = { level: actor.level, spaceId: actor.spaceId, row: actor.row, column: actor.column };
+  const target = state.actions[3].arguments;
+  expect(state.actions[1].arguments).toEqual({ scope: 'room', ...here });
+  expect(target).not.toEqual(here);
+  expect(state.results.map(r => r.disposition)).toEqual(['applied', 'applied', 'applied', 'applied']);
+  expect(state.results.map(r => r.observation!.data.scope)).toEqual(['map', 'room', 'actor', 'actor']);
+  const cells = state.results[1].observation!.data.cells as { at: typeof here; edges: Record<string, { target: typeof here }> }[];
+  expect(cells).toEqual(expect.arrayContaining([expect.objectContaining({ at: target })]));
+  const actorCell = cells.find(cell => JSON.stringify(cell.at) === JSON.stringify(here))!;
+  expect(actorCell).toBeTruthy();
+  expect(Object.values(actorCell.edges)).toEqual(expect.arrayContaining([expect.objectContaining({ target })]));
+  expect(state.results[2].observation!.data).toEqual(state.initial.data);
+  expect(new Set([state.initial.observationId, ...state.results.map(r => r.observation!.observationId)]).size).toBe(5);
+  for (const [index, result] of state.results.entries()) {
+    expect(result.observation!.observationId).toBe('observation-' + state.originals[index]!.reference.key.slice(-64));
+    expect(result.observation!.observedAt).toBe(state.initial.observedAt);
+    expect(state.originals[index]!.result).toEqual(result);
+    expect(state.actions[index].expectedRevision).toBe(state.initial.revision);
+    if (index < 3) expect([result.beforeRevision, result.afterRevision, result.observation!.revision])
+      .toEqual([state.initial.revision, state.initial.revision, state.initial.revision]);
+  }
+  expect(state.results[3].afterRevision).toBeGreaterThan(state.initial.revision);
+  expect(state.results[3].observation!.revision).toBe(state.results[3].afterRevision);
+  expect(state.results[3].observation!.data.source).toEqual(state.initial.data.source);
+  expect(state.retry).toMatchObject({ response: { type: 'action.accepted', payload: { duplicate: true } },
+    original: state.results[0], reconciled: state.results[0], after: { status: 'completed', result: state.results[0] } });
+  const retryFrames = (results as { payload: { actionId: string } }[]).filter(r => r.payload.actionId === state.actions[0].actionId);
+  expect(retryFrames).toHaveLength(2); expect(retryFrames[0].payload).toEqual(retryFrames[1].payload);
+  const beforePulse = await serviceProof();
+  expect(beforePulse.scriptedCreated - proofBefore.scriptedCreated).toBe(1);
+  expect(beforePulse.scriptedCreateCalls - proofBefore.scriptedCreateCalls).toBe(1);
+  expect(beforePulse.scriptedRefineCalls - proofBefore.scriptedRefineCalls).toBe(3);
+  expect(beforePulse.scriptedStepsPlanned - proofBefore.scriptedStepsPlanned).toBe(4);
+  const confirmation = await page.evaluate(() => window.canonicalStartService.pulseScript());
+  expect(confirmation.result.status).toBe('confirmed');
+  expect(confirmation.state!.confirmation.data.entry).toMatchObject({ state: 'parked',
+    usage: { providerCalls: 0, steps: 4, refinements: 3, continuations: 0 } });
+  const custody = await page.evaluate(() => window.canonicalStartService.pulseScript());
+  expect(custody.result.status).toBe('custody-confirmed'); expect(custody.state!.custodyAck).toBeTruthy();
+  expect(custody.state!.progress.sequence).toBe(0);
+  const advanced = await page.evaluate(() => window.canonicalStartService.pulseScript());
+  expect(advanced.result.status).toBe('advanced'); expect(advanced.state!.progress.status).toBe('arrived');
+  expect(await serviceProof()).toEqual(beforePulse);
+  const unresolved = await page.evaluate(async ({ origin, sessionId }) => {
+    const response = await fetch(origin + '/api/recovery?' + new URLSearchParams({ hostId: 'maze-battle', sessionId }));
+    if (!response.ok) throw Error('Recovery lookup failed'); return response.json();
+  }, { origin: serviceOrigin, sessionId: state.started.sessionId });
+  expect(unresolved).toEqual([]);
+  await page.evaluate(() => window.canonicalStartService.cancelScript());
+  await expect.poll(async () => (await page.evaluate(() => window.canonicalStartService.pulseScript())).result.status)
+    .toBe('terminal-acknowledged');
+  await expect.poll(async () => (await page.evaluate(() => window.canonicalStartService.stopScriptStart())).settled).toBe(true);
+  expect((await page.evaluate(() => window.canonicalStartService.snapshot())).launch!.guard.state).toBe('acknowledged');
+  expect(await serviceProof()).toEqual(beforePulse);
 });

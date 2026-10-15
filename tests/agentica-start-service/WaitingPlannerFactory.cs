@@ -7,16 +7,29 @@ namespace Maze.StartServiceFixture;
 
 internal sealed class WaitingPlannerFactory : ILabPlannerFactory
 {
-    private int _created, _entered, _cancelled;
+    private int _created, _entered, _cancelled, _scriptedCreated, _scriptedCreateCalls, _scriptedRefineCalls, _scriptedStepsPlanned;
     public int Created => Volatile.Read(ref _created);
     public int Entered => Volatile.Read(ref _entered);
     public int Cancelled => Volatile.Read(ref _cancelled);
-    public IReadOnlyList<ProviderMetadata> GetProviders() => [new("fixture", "wait-only", true, null, "cancellable-fixture")];
+    public int ScriptedCreated => Volatile.Read(ref _scriptedCreated);
+    public int ScriptedCreateCalls => Volatile.Read(ref _scriptedCreateCalls);
+    public int ScriptedRefineCalls => Volatile.Read(ref _scriptedRefineCalls);
+    public int ScriptedStepsPlanned => Volatile.Read(ref _scriptedStepsPlanned);
+    public IReadOnlyList<ProviderMetadata> GetProviders() => [new("fixture", "wait-only", true, null, "cancellable-or-scripted-offline-fixture")];
     public IWorkflowPlanner Create(ProviderSettings settings, Action<LlmStreamEvent> onStreamEvent)
     {
-        if (settings.Provider != "fixture" || settings.Model != "wait-only")
-            throw new InvalidOperationException("Only the wait-only fixture planner is permitted.");
+        if (settings.Provider != "fixture" || settings.Model is not ("wait-only" or "observation-sequence"))
+            throw new InvalidOperationException("Only the two explicit offline fixture planners are permitted.");
         Interlocked.Increment(ref _created);
+        if (settings.Model == "observation-sequence")
+        {
+            Interlocked.Increment(ref _scriptedCreated);
+            return new ObservationSequencePlanner(refinement =>
+            {
+                if (refinement) Interlocked.Increment(ref _scriptedRefineCalls);
+                else Interlocked.Increment(ref _scriptedCreateCalls);
+            }, () => Interlocked.Increment(ref _scriptedStepsPlanned));
+        }
         return new WaitingPlanner(this);
     }
     private sealed class WaitingPlanner(WaitingPlannerFactory owner) : IWorkflowPlanner

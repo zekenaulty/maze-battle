@@ -6,11 +6,13 @@ import { createLaunchRecovery } from '../../src/services/agentica/game/launchRec
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
 import { readCanonicalHead } from '../../src/persistence/canonical/read';
 import { openCanonicalDatabase } from '../../src/persistence/canonical/database';
+import { startObservationSequence } from './canonical-start-service.actions';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
 let session: GameSession;
 let client: Awaited<ReturnType<typeof createGameTransport>> | undefined;
 let recovery: Awaited<ReturnType<typeof createLaunchRecovery>> | undefined;
+let scripted: Awaited<ReturnType<typeof startObservationSequence>> | undefined;
 let cleanupKinds: string[] = [], receivedReply: unknown;
 const options = (): GameLaunchOptions => ({
   endpoint: 'ws://127.0.0.1:5259/api/host', objectiveId: crypto.randomUUID(),
@@ -55,6 +57,11 @@ async function recover(mode: 'inspect' | 'stop') {
   return recovery[mode]();
 }
 const api = { boot, loseStart, snapshot, recover,
+  async startScript() { scripted = await startObservationSequence(session); return scripted.started; },
+  readScript: () => scripted!.read(),
+  pulseScript: () => scripted!.pulse(),
+  cancelScript: () => scripted!.cancel(),
+  stopScriptStart: () => scripted!.stopStart(),
   async freshAdmission() {
     recovery?.close(); recovery = undefined;
     return prepareGameLaunch(session, options());
@@ -70,7 +77,7 @@ const api = { boot, loseStart, snapshot, recover,
     try { await session.execute('settings', { kind: 'throttle', ms: 100 }); } catch (error) { refusal = String(error); }
     return { refusal, view: session.view, head: (await readCanonicalHead()).head };
   },
-  stop() { recovery?.close(); client?.close(); session?.stop(); },
+  stop() { scripted?.close(); recovery?.close(); client?.close(); session?.stop(); },
 };
 window.addEventListener('pagehide', () => api.stop());
 declare global { interface Window { canonicalStartService: typeof api } }
