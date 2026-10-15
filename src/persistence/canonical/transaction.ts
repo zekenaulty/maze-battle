@@ -1,6 +1,6 @@
 import { openCanonicalDatabase } from './database';
 import { workBudget } from './budget';
-import { CanonicalPages } from './pages';
+import { CanonicalPages, type SnapshotValidator } from './pages';
 import { accountHead, appendedBytes } from './accounting';
 import { operationAt, prepareOperation } from './operations';
 import { operationInput, type OperationAction } from './operationValidation';
@@ -14,7 +14,7 @@ export interface CanonicalWork {
   readonly head: CanonicalHead;
   readonly pages: CanonicalPages;
   setCheckpoint(value: JsonObject): void;
-  restoreSnapshot(key: string): Promise<void>;
+  restoreSnapshot(key: string, validate?: SnapshotValidator): Promise<void>;
   liveOperation(id: string): ReturnType<typeof operationAt>;
 }
 
@@ -98,7 +98,7 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     let state = checkpoint(current.checkpoint), checkpointChanged = false;
     const outcome = result(await work({ head: structuredClone(current), pages, operation: change && structuredClone(change.before ?? change.after),
       setCheckpoint: value => { state = checkpoint(value); checkpointChanged = true; },
-      restoreSnapshot: key => pages.restoreSnapshot(key), liveOperation }));
+      restoreSnapshot: (key, validate) => pages.restoreSnapshot(key, validate), liveOperation }));
     if (operation === 'admit' && isObject(outcome) && isObject(outcome.host) && outcome.host.actionResult !== undefined)
       check(change?.after.ackPolicy === 'verified-host', 'host-linked operation requires verified acknowledgement policy');
     closed = true; check(!operationFailed && pendingOperations === 0, 'operation read is not usable');

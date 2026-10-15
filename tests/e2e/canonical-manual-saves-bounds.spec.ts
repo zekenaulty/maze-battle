@@ -3,7 +3,8 @@ import { expect, test } from './canonical-manual-saves.test';
 test('native save I/O stays bounded after 1024 retained world records; only execution metadata is added', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const c = window.manualSaves; await c.seed();
-    const small = await c.create(); await c.act({ kind: 'delete', id: small.id });
+    const small = await c.create(), smallLoad = await c.act({ kind: 'load', id: small.id });
+    await c.act({ kind: 'delete', id: small.id });
     for (let batch = 0; batch < 32; batch++) await c.executeCanonical(c.command((await c.readCanonicalHead()).head, 'fixture.history'), async tx => {
       for (let i = 0; i < 32; i++) await tx.pages.set('world', `history/${batch * 32 + i}`, { payload: 'w'.repeat(1024) });
       return batch;
@@ -13,11 +14,13 @@ test('native save I/O stays bounded after 1024 retained world records; only exec
     const load = await c.act({ kind: 'load', id: large.id }), io = probe.finish();
     const afterDb = await c.openCanonicalDatabase(), after = await afterDb.getAll('records'); afterDb.close();
     const ids = new Set(before.map(r => r.id));
-    return { small: small.outcome.stats, large: large.outcome.stats, load: load.outcome.stats, io, list,
+    return { small: small.outcome.stats, smallLoad: smallLoad.outcome.stats, large: large.outcome.stats, load: load.outcome.stats, io, list,
       added: after.filter(r => !ids.has(r.id)), kept: after.filter(r => ids.has(r.id)).length, original: before.length };
   });
   expect(result.large.reads).toBeLessThan(result.small.reads + 16);
   expect(result.large.writeBytes).toBeLessThan(result.small.writeBytes + 4096);
+  expect(result.load.reads).toBeLessThan(result.smallLoad.reads + 16);
+  expect(result.load.readBytes).toBeLessThan(result.smallLoad.readBytes + 16384);
   expect(result.load.writeBytes).toBeLessThan(4096); expect(result.load.writes).toBe(2);
   expect(result.added).toHaveLength(2); expect(result.added.every(r => r.area === 'execution')).toBe(true);
   expect(JSON.stringify(result.added).length).toBeLessThan(8192); expect(result.kept).toBe(result.original);

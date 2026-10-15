@@ -8,8 +8,10 @@ import { encodeRoster, fields, timestamp } from '../roster/codec';
 import { loadParty } from '../roster/projection';
 import { validateKnowledge } from '../knowledge/evidence';
 import { gameCheckpoint } from './checkpoint';
+import { projectGameSnapshot } from './projection';
+import { MAX_MANUAL_SAVES, ManualSaveLimitError } from './saveLimits';
 
-export const MAX_MANUAL_SAVES = 16;
+export { MAX_MANUAL_SAVES } from './saveLimits';
 export const MAX_SAVE_LABEL = 80;
 const CATALOG = 'manual-saves/catalog';
 const saveKey = (id: string) => `manual-saves/snapshot/${id}`;
@@ -66,7 +68,8 @@ export function executeSaveCommand(request: CanonicalRequest, options: { signal?
     if (input.kind === 'create') {
       check(tx.head.quota.reservations === 0 && tx.head.quota.reservedBytes === 0
         && Object.keys(tx.head.allocations).length === 0, 'save creation requires no live allocations');
-      check(ids.length < MAX_MANUAL_SAVES && !ids.includes(request.attemptId), 'manual save limit reached');
+      check(!ids.includes(request.attemptId), 'duplicate manual save attempt');
+      if (ids.length === MAX_MANUAL_SAVES) throw new ManualSaveLimitError();
       const checkpoint = gameCheckpoint(tx.head.checkpoint);
       await validateKnowledge(tx.pages, checkpoint.knowledge);
       const party = await loadParty(tx.pages);
@@ -82,7 +85,7 @@ export function executeSaveCommand(request: CanonicalRequest, options: { signal?
     }
     check(ids.includes(input.id), 'manual save not found');
     await saved(tx.pages, input.id);
-    if (input.kind === 'load') await tx.restoreSnapshot(saveKey(input.id));
+    if (input.kind === 'load') await tx.restoreSnapshot(saveKey(input.id), projectGameSnapshot);
     else {
       await tx.pages.delete('execution', saveKey(input.id));
       await tx.pages.set('execution', CATALOG, { schema: 1, ids: ids.filter(id => id !== input.id) });

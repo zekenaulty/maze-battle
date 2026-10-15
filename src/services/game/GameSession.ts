@@ -11,6 +11,7 @@ import { executeContentCommand } from '../../persistence/canonical/game/contentC
 import { executeSettingsCommand } from '../../persistence/canonical/game/settings';
 import { executeAutoCommand } from '../../persistence/canonical/auto/command';
 import { executeSaveCommand, listManualSaves } from '../../persistence/canonical/game/manualSaves';
+import { ManualSaveLimitError } from '../../persistence/canonical/game/saveLimits';
 import type { CanonicalHead, CanonicalReceipt, Json, JsonObject } from '../../persistence/canonical/types';
 import { BrowserSaveLock } from './BrowserSaveLock';
 import type { GameDiagnostic, GameView } from './GameView';
@@ -210,15 +211,25 @@ export class GameSession {
       return work(signal);
     });
   }
-  private save(input: Json) {
-    return this.owned(async signal => {
-      const result = await executeSaveCommand(gameRequest(this.head!, 'save.command', input), { signal });
+  private async save(input: Json) {
+    const refusal = await this.owned(async signal => {
+      let result: Awaited<ReturnType<typeof executeSaveCommand>>;
+      try { result = await executeSaveCommand(gameRequest(this.head!, 'save.command', input), { signal }); }
+      catch (error) {
+        if (!(error instanceof ManualSaveLimitError) || (input as JsonObject).kind !== 'create') throw error;
+        this.assert(signal);
+        const saves = await listManualSaves(); this.assert(signal);
+        this.publish({ saves, status: error.message });
+        return error;
+      }
       this.assert(signal); this.head = result.head ?? (await readCanonicalHead()).head;
       if ((input as JsonObject).kind === 'load') await this.stopSavedAuto(signal);
       await this.adopt(this.head, signal);
       const saves = await listManualSaves(); this.assert(signal);
       this.publish({ saves, status: 'Saved' });
     });
+    // Report capacity to the caller without poisoning the serialized writer queue.
+    if (refusal) throw refusal;
   }
   createManualSave = () => this.save({ kind: 'create', label: new Date().toLocaleString() });
   loadSave = (id: string) => this.save({ kind: 'load', id });

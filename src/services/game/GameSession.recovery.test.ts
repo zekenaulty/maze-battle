@@ -6,6 +6,7 @@ import type { CanonicalHead, CanonicalRequest, Json, JsonObject } from '../../pe
 import { checkpointJson, gameCheckpoint } from '../../persistence/canonical/game/checkpoint';
 import { earnedCell, knowledgeFixture } from '../../persistence/canonical/knowledge/region.test-support';
 import { exploreView } from '../../components/ExploreScreen.test-support';
+import { ManualSaveLimitError } from '../../persistence/canonical/game/saveLimits';
 
 const mocks = vi.hoisted(() => {
   const lockState = { supported: true, available: true, locks: [] as Lock[] };
@@ -235,6 +236,34 @@ describe('canonical command queue and revocation', () => {
       { kind: 'create', label: expect.any(String) }, { kind: 'load', id: 'snapshot-17' }, { kind: 'delete', id: 'snapshot-18' },
     ]);
     expect(mocks.listSaves).toHaveBeenCalledTimes(4); expect(controller.view.status).toBe('Saved');
+  });
+
+  it('keeps control and queued deletion usable after the exact manual save capacity refusal', async () => {
+    const { controller } = session(); await controller.start(); const before = cloneHead();
+    mocks.save.mockRejectedValueOnce(new ManualSaveLimitError());
+    await expect(controller.createManualSave()).rejects.toBeInstanceOf(ManualSaveLimitError);
+    await controller.flush();
+    expect(head).toEqual(before);
+    expect(controller.view).toMatchObject({ controlled: true, recoveryRequired: false, busy: false });
+    expect(mocks.lockState.locks[0].held).toBe(true);
+    await controller.removeSave('old-camp');
+    expect(mocks.save.mock.calls.at(-1)?.[0].input).toEqual({ kind: 'delete', id: 'old-camp' });
+    expect(controller.view.controlled).toBe(true);
+  });
+
+  it.each(['Quota exhausted', 'Invalid save catalog', 'Manual save limit reached (untyped)'])('still latches save failure: %s', async message => {
+    const { controller } = session(); await controller.start(); mocks.save.mockRejectedValueOnce(new Error(message));
+    await expect(controller.createManualSave()).rejects.toThrow(message); await controller.flush();
+    expect(controller.view).toMatchObject({ controlled: false, recoveryRequired: true });
+    expect(mocks.lockState.locks[0].held).toBe(false);
+    await expect(controller.removeSave('old-camp')).rejects.toThrow('Game control unavailable');
+  });
+
+  it('does not hide catalog corruption while refreshing a capacity refusal', async () => {
+    const { controller } = session(); await controller.start();
+    mocks.save.mockRejectedValueOnce(new ManualSaveLimitError()); mocks.listSaves.mockRejectedValueOnce(new Error('Invalid save witness'));
+    await expect(controller.createManualSave()).rejects.toThrow('Invalid save witness'); await controller.flush();
+    expect(controller.view).toMatchObject({ controlled: false, recoveryRequired: true });
   });
 
   it.each(['auto-play', 'town'] as const)('normalizes a loaded %s Auto checkpoint before making it playable', async mode => {

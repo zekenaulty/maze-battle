@@ -12,6 +12,9 @@ import { storageProbe } from './storage-probe';
 import { recordGameObservation } from '../../src/persistence/canonical/knowledge/write';
 import { validateKnowledge, loadObservation } from '../../src/persistence/canonical/knowledge/evidence';
 import { prepare as prepareWorld } from './canonical-content-fixture';
+import { DEFAULT_SETTINGS, SETTINGS_KEY, executeSettingsCommand } from '../../src/persistence/canonical/game/settings';
+import { projectGame, projectGameSnapshot } from '../../src/persistence/canonical/game/projection';
+import { GameSession } from '../../src/services/game/GameSession';
 
 async function dump() {
   const db = await openCanonicalDatabase();
@@ -31,6 +34,7 @@ async function change(value = 1) {
     await tx.pages.set('world', 'fixture/world', value);
     await tx.pages.set('knowledge', 'fixture/knowledge', value);
     await tx.pages.set('execution', 'fixture/execution', value);
+    if (!await tx.pages.get('world', SETTINGS_KEY)) await tx.pages.set('world', SETTINGS_KEY, DEFAULT_SETTINGS);
     tx.setCheckpoint({ ...tx.head.checkpoint, wave: value + 1 }); return value;
   });
 }
@@ -42,6 +46,7 @@ async function act(input: Json) {
 async function create(label = 'Camp') { const result = await act({ kind: 'create', label }); return { ...result, id: result.request.attemptId }; }
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5222') throw Error('Isolated manual save fixture only');
 const api = { ...saves, ...lifecycle, ...transaction, ...reader, roster, command, openCanonicalDatabase, dump, change, seed, act, create,
-  MIN_TERMINAL_BYTES, canonicalJson, storageProbe, recordGameObservation, validateKnowledge, loadObservation, prepareWorld };
+  MIN_TERMINAL_BYTES, canonicalJson, storageProbe, recordGameObservation, validateKnowledge, loadObservation, prepareWorld,
+  SETTINGS_KEY, executeSettingsCommand, projectGame, projectGameSnapshot, GameSession };
 declare global { interface Window { manualSaves: typeof api } }
 window.manualSaves = api;

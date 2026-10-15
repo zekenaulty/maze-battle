@@ -3,8 +3,11 @@ import { validateNode } from '../rpgMemory/treeTypes';
 import { canonicalJson } from '../../services/agentica/sdk/agentica-host.mjs';
 import { validateReceipt } from './receipts';
 import type { WorkBudget } from './budget';
-import type { CanonicalGameSnapshot, CanonicalHead, CanonicalIndexNode, CanonicalRecord, CanonicalWrite, CanonicalRead, Json, RecordArea } from './types';
+import type { CanonicalGameSnapshot, CanonicalHead, CanonicalIndexNode, CanonicalRecord, CanonicalSnapshot, CanonicalWrite, CanonicalRead, Json, RecordArea } from './types';
 import { check, identity, isArea, isObject, jsonBytes, record, recordKey, snapshot as validateSnapshot, validId } from './validation';
+
+export type SnapshotValidator = (pages: Pick<CanonicalPages, 'get' | 'scan' | 'witness'>,
+  snapshot: CanonicalSnapshot) => Promise<unknown>;
 
 /** Immutable records plus snapshot-specific indexes; no historical world is hydrated. */
 export class CanonicalPages {
@@ -123,13 +126,24 @@ export class CanonicalPages {
   savedSnapshot(key: string) { return this.operation(() => this.snapshotAt(key)); }
 
   /** Keys, never caller-supplied roots. Execution/custody/accounting are deliberately not restored. */
-  restoreSnapshot(key: string) {
+  restoreSnapshot(key: string, validate?: SnapshotValidator) {
     return this.operation(async () => {
       check(this.tx.mode === 'readwrite', 'read-only record view');
       check(!this.restored && !this.trees.has('world') && !this.trees.has('knowledge'), 'snapshot restore must be isolated');
       check(this.head.quota.reservations === 0 && this.head.quota.reservedBytes === 0
         && Object.keys(this.head.allocations).length === 0, 'snapshot restore requires no live allocations');
-      this.restored = (await this.snapshotAt(key)).snapshot;
+      const snapshot = (await this.snapshotAt(key)).snapshot;
+      if (validate) {
+        // Candidate reads share this transaction and budget without exposing mutations.
+        const view = { ...snapshot, roots: { ...snapshot.roots, execution: null } };
+        const candidate = new CanonicalPages(this.tx, { ...this.head, ...view }, this.budget);
+        try {
+          await validate({ get: candidate.get.bind(candidate), scan: candidate.scan.bind(candidate),
+            witness: candidate.witness.bind(candidate) }, structuredClone(view));
+          check(!candidate.failed && !candidate.busy, 'snapshot validation is not usable');
+        } finally { candidate.prepared = true; }
+      }
+      this.restored = snapshot;
     });
   }
 

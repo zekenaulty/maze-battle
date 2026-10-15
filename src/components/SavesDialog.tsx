@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Download, Save, Trash2 } from 'lucide-react';
 import type { SaveSummary } from '../domain/types';
+import { MAX_MANUAL_SAVES } from '../persistence/canonical/game/saveLimits';
 import { Dialog } from './Dialog';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
 import './screens/saves.css';
@@ -32,14 +33,17 @@ export function SavesDialog({ saves, onClose, onCreateSave, onLoadSave, onDelete
     finally { pending.current = false; setBusy(false); }
   }
   const sorted = [...saves].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const manualCount = saves.filter(save => save.kind === 'manual').length;
+  const full = manualCount >= MAX_MANUAL_SAVES;
   return (
     <Dialog title="Saves" onClose={onClose} closeDisabled={busy}>
       <div className="screen-saves" aria-busy={busy}>
       <div className="dialog-actions">
-        <button type="button" disabled={busy || readOnly} onClick={() => void createSave()}>
+        <button type="button" disabled={busy || readOnly || full} aria-describedby="manual-save-capacity" onClick={() => void createSave()}>
           <Save size={16} aria-hidden="true" /> {busy ? 'Saving...' : 'New save'}
         </button>
         {onNewGame && <button type="button" disabled={busy || readOnly} onClick={() => setConfirmation({ action: 'new' })}>New game</button>}
+        <p id="manual-save-capacity">{manualCount} / {MAX_MANUAL_SAVES} manual saves{full ? '. Limit reached.' : ''}</p>
         {message && <p role="status">{message}</p>}
         {error && <p role="alert">{error}</p>}
       </div>
