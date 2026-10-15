@@ -2,7 +2,7 @@ import { seedCompletedController } from './canonical-decision-controller.setup';
 import { controllerState } from './canonical-decision-controller.state';
 import { DecisionRemote } from './canonical-decision-controller.remote';
 import { DecisionSdkFixture } from './canonical-decision-controller.sdk';
-import { dump, fillQuota } from './canonical-decision-ack.storage';
+import { dump, fillQuota, changeSource } from './canonical-decision-ack.storage';
 import { publishGamePublication } from '../../src/services/agentica/game/publication';
 import { createGameDecisionController } from '../../src/services/agentica/game/decisionController';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
@@ -18,9 +18,10 @@ import type { TransferSeed } from './canonical-operation-transfer.setup';
 import type { RemoteSnapshot } from './canonical-decision-controller.remote';
 import type { AgenticaOperationEntry } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { holdNextCanonicalRead } from './canonical-decision-controller.read-barrier';
-import { moveControllerSuccessor } from './canonical-decision-controller.navigation';
+import { moveControllerSuccessor, completeControllerSuccessor } from './canonical-decision-controller.navigation';
 import { createControllerRootRecovery } from './canonical-decision-controller.root';
 import type { CanonicalRequest } from '../../src/persistence/canonical/types';
+import { controllerFunding, deleteControllerEvidence, retainControllerClaim } from './canonical-decision-controller.evidence';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5266') throw Error('Isolated decision controller fixture only');
 let seeded: { session: GameSession; seed: TransferSeed; started: LaunchStarted; entry: AgenticaOperationEntry }, sdk: DecisionSdkFixture;
@@ -63,6 +64,8 @@ const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), 
   acknowledge: () => controller.acknowledge(), close: () => controller.close(),
   rootEntry: (reason?: 'stopped' | 'interrupted') => root.entry(reason), rootState: () => root.state(),
   stopRoot: () => root.stop(), acknowledgeRoot: (entry: unknown, retry?: CanonicalRequest) => root.acknowledge(entry, retry),
+  funding: (childId?: string) => controllerFunding(seeded.seed, childId), replaceSource: changeSource, deleteEvidence: deleteControllerEvidence,
+  retainRemoteClaim: () => retainControllerClaim(port, seeded.seed, sdk.remote.snapshot()),
   acknowledgePrevious: () => controllers.at(-2)!.acknowledge(),
   begin, job: (id: number) => jobs.result(id), wait: (id: number) => jobs.wait(id),
   hold: (point: BarrierPoint) => sdk.barriers.hold(point), entered: (point: BarrierPoint) => sdk.barriers.entered(point),
@@ -71,6 +74,7 @@ const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), 
   disconnect: () => sdk.options.at(-1)!.onStatus?.({ state: 'disconnected' }),
   draft: () => draftSuccessor(seeded.session, seeded.seed, sdk), retained: retainedAction,
   moveSuccessor: (action: AgenticaAction) => moveControllerSuccessor(seeded.session, seeded.seed, sdk, action),
+  completeSuccessor: (action: AgenticaAction) => completeControllerSuccessor(seeded.session, seeded.seed, sdk, action),
   replay: (forged = false) => completedReplay(sdk, seeded.seed.action, forged),
   hostCalls: () => structuredClone(port.calls),
   failNext: (stage: 'grant' | 'cleanup') => { port.failNextStage = stage; },
