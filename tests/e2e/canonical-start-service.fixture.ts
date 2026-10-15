@@ -9,6 +9,7 @@ import { openCanonicalDatabase } from '../../src/persistence/canonical/database'
 import { startObservationSequence } from './canonical-start-service.actions';
 import { attachServiceTransfer } from './canonical-start-service.transfer';
 import { startDecisionSequence, type DecisionScriptMode } from './canonical-start-service.decision-script';
+import { attachDecisionController } from './canonical-start-service.decision-control';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
 let session: GameSession;
@@ -17,6 +18,7 @@ let recovery: Awaited<ReturnType<typeof createLaunchRecovery>> | undefined;
 let scripted: Awaited<ReturnType<typeof startObservationSequence>> | undefined;
 let transferred: Awaited<ReturnType<typeof attachServiceTransfer>> | undefined;
 let decision: Awaited<ReturnType<typeof startDecisionSequence>> | undefined;
+let controller: Awaited<ReturnType<typeof attachDecisionController>> | undefined;
 let cleanupKinds: string[] = [], receivedReply: unknown;
 const options = (): GameLaunchOptions => ({
   endpoint: 'ws://127.0.0.1:5259/api/host', objectiveId: crypto.randomUUID(),
@@ -63,6 +65,12 @@ async function recover(mode: 'inspect' | 'stop') {
 const api = { boot, loseStart, snapshot, recover,
   async startDecision(mode: DecisionScriptMode) { decision = await startDecisionSequence(session, mode); return decision.started; },
   readDecision: () => decision!.read(), pulseDecisionNavigation: () => decision!.pulseNavigation(),
+  async attachDecisionController() { controller?.close(); controller = await attachDecisionController(session, decision!); },
+  prepareDecision: () => controller!.prepare(), pulseDecision: () => controller!.pulse(),
+  acknowledgeDecision: () => controller!.acknowledge(), cancelDecision: () => controller!.cancel(),
+  readDecisionController: () => controller!.read(), remoteDecision: () => controller!.remote(),
+  pulseDecisionSuccessor: () => controller!.pulseNavigation(), cancelDecisionSuccessor: () => controller!.cancelNavigation(),
+  stopDecisionRoot: () => controller!.stopRoot(), loseDecisionReply: () => decision!.capture.loseNextReply(),
   async attachTransfer(action: Parameters<typeof attachServiceTransfer>[1], binding: Parameters<typeof attachServiceTransfer>[2]) {
     transferred = await attachServiceTransfer(session, action, binding);
   },
@@ -89,7 +97,7 @@ const api = { boot, loseStart, snapshot, recover,
     try { await session.execute('settings', { kind: 'throttle', ms: 100 }); } catch (error) { refusal = String(error); }
     return { refusal, view: session.view, head: (await readCanonicalHead()).head };
   },
-  stop() { decision?.close(); transferred?.close(); scripted?.close(); recovery?.close(); client?.close(); session?.stop(); },
+  stop() { controller?.close(); decision?.close(); transferred?.close(); scripted?.close(); recovery?.close(); client?.close(); session?.stop(); },
 };
 window.addEventListener('pagehide', () => api.stop());
 declare global { interface Window { canonicalStartService: typeof api } }

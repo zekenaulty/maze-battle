@@ -1,4 +1,6 @@
 import { test as base, expect } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { ServiceProcess, serviceOrigin, type ServiceProof } from '../agentica-start-service/service.mjs';
 import type { AgenticaMessage } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import type {} from './canonical-start-service.fixture';
@@ -57,6 +59,11 @@ export const test = base.extend<{ wire: DecisionWire }>({ wire: [async ({ page, 
     await page.evaluate(() => window.canonicalStartService.stop()).catch(() => {});
     await Promise.all(pending);
     await info.attach('native-decision-service-proof.json', { body: JSON.stringify({ wire, state, proof: await serviceProof() }, null, 2), contentType: 'application/json' });
+    const names = ['decisionController', 'decisionChannel', 'decisionState', 'decisionCommit', 'decisionCleanup',
+      'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared'];
+    const hashes = Object.fromEntries(names.map(name => [name, createHash('sha256')
+      .update(readFileSync(`src/services/agentica/game/${name}.ts`)).digest('hex')]));
+    await info.attach('runtime-source-sha256.json', { body: JSON.stringify(hashes, null, 2), contentType: 'application/json' });
   }
   expect(wire.errors).toEqual([]); expect(wire.console).toEqual([]);
   expect(wire.responses.filter(response => response.status >= 400), 'No unexpected HTTP refusal').toEqual([]);

@@ -24,7 +24,7 @@ export async function startDecisionSequence(session: GameSession, mode: Decision
     const found = capture.read().actions.find(a => a.window === 'initial' && a.action.capabilityId === 'maze.navigate');
     if (!found) throw Error('No real initial navigation action received'); return found.action;
   };
-  return { started, binding, capture, action,
+  return { started, binding, capture, action, launchId: launch.launchId,
     async read() {
       const log = capture.read();
       return { started, binding, ...log, ...await decisionState(launch.launchId, binding, log) };
@@ -35,6 +35,7 @@ export async function startDecisionSequence(session: GameSession, mode: Decision
     },
     publication: () => publishGamePublication(session),
     detachNavigation() { driver?.close(); driver = undefined; },
+    closeInitialTransport() { transport.close(); },
     close() { driver?.close(); transport.close(); capture.close(); },
   };
 }

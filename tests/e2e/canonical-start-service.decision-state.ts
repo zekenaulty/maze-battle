@@ -17,13 +17,14 @@ export async function decisionState(launchId: string, binding: OperationBinding,
   const index = log.actions.findIndex(item => item.window === 'initial' && item.action.capabilityId === 'maze.navigate');
   const admitted = index >= 0 && log.results.some(item => item.result.actionId === identities[index].action.actionId && item.result.operation);
   const identity = admitted ? identities[index] : null;
+  const originals = [];
+  for (const action of identities) originals.push((await readCanonical(pages => readAction(pages, action))).value);
   const records = (await readCanonical(async pages => ({
-    originals: await Promise.all(identities.map(action => readAction(pages, action))),
     selection: await readPublicationSelection(pages, launchId),
     intent: identity ? await loadDecisionIntent(pages, identity) : null,
     claim: identity ? await loadDecisionClaim(pages, identity) : null,
   }))).value;
-  return { ...records, head: (await readCanonicalHead()).head, launch: (await readLaunch(launchId)).value,
+  return { ...records, originals, head: (await readCanonicalHead()).head, launch: (await readLaunch(launchId)).value,
     operation: identity ? (await readAgenticaOperation(identity)).value : null,
     terminal: identity ? (await readAgenticaTerminal(identity, binding)).value : null };
 }
