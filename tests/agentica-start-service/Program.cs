@@ -32,7 +32,7 @@ app.Use(async (context, next) =>
 });
 app.MapGet("/fixture/proof", () => new
 {
-    source = "a1f00ac142a4e38cec2ff175849c67afd6ea17f0",
+    source = "577a214d020ba35ba3188761da6a114b978516b7",
     processId = Environment.ProcessId,
     factory.Created, factory.Entered, factory.Cancelled,
     factory.ScriptedCreated, factory.ScriptedCreateCalls, factory.ScriptedRefineCalls, factory.ScriptedStepsPlanned,

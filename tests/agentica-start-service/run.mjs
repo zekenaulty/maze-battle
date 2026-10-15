@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { fixtureEnvironment } from './service.mjs';
 
-const pin = 'a1f00ac142a4e38cec2ff175849c67afd6ea17f0';
+const pin = '577a214d020ba35ba3188761da6a114b978516b7';
 if (process.argv.length !== 4 || process.argv[2] !== '--agentica-root') throw Error('Usage: node run.mjs --agentica-root ABSOLUTE_ROOT');
 const external = process.argv[3];
 if (!path.isAbsolute(external)) throw Error('Agentica root must be absolute');

@@ -8,7 +8,7 @@ game, live-provider test, or full App cohort.
 
 - Maze observation-regression base: `7fe5f4a`, merged into the isolated SDK
   worktree at `f4988a6eb243d7f2cbd7ae4a60ff99da188b3d7c`.
-- Agentica: clean `a1f00ac142a4e38cec2ff175849c67afd6ea17f0` at an explicit
+- Agentica: clean `577a214d020ba35ba3188761da6a114b978516b7` at an explicit
   external root; the launcher refuses another revision or a dirty source tree.
 - The actual vendored SDK must equal the pinned service SDK, ignoring CRLF.
   Normalized SHA-256: `46d88c25bda57ee1371fc05209445f321dd3183e52f71a12abce221094a5a9dd`.
@@ -24,9 +24,9 @@ game, live-provider test, or full App cohort.
 Run in the isolated Maze worktree; both ports must be unused:
 
 ```powershell
-Set-Location C:/Users/Zythis/.codex/worktrees/dungeon-d0/maze-battle
+Set-Location C:/Users/Zythis/.codex/worktrees/canonical-start-service/maze-battle
 node node_modules/typescript/bin/tsc -p tests/e2e/canonical-start-service.tsconfig.json --noEmit
-node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-compact-outcome/Agentica
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-wake-replay/Agentica
 ```
 
 The launcher builds the new C# project with explicit `-p:AgenticaRoot=...`,
@@ -142,6 +142,31 @@ HTTP audit evidence remains intact. Every native frame must fit Maze's unchanged
 script must record zero SDK errors. There is no oversized-outcome exemption,
 transport-bound override or fixture message editing.
 The current narrow launch contract does not expose recent-history limits.
+
+## Wake/replay service requalification (2026-10-15)
+
+- Parent `245274a` merged into the isolated branch at `d779c0b`; only the fixture
+  source pin, reported source, matching assertion and this documentation changed.
+  No Maze adapter/core or test behavior changes. Runtime fixture hashes in the
+  provenance identify the tested pin edits on that merge commit.
+- Clean Agentica `577a214d020ba35ba3188761da6a114b978516b7` at
+  `C:/Users/Zythis/.codex/worktrees/maze-wake-replay/Agentica`; the vendored SDK
+  still matches the normalized digest above.
+- Fixture TypeScript PASS. Real service/fixture build PASS, zero warnings/errors
+  (12.47s). **7/7 native PASS**, 21.1s, one worker, zero retries/skips/flaky cases.
+- Evidence in the isolated Maze worktree: `test-results/maze-start-service-2W9Orm/`.
+  It retains exact commands, source/assembly hashes, requests, frames and traces.
+- All 125 received frames fit 64 KiB (largest 7,442 bytes), with no exemptions or
+  SDK/page errors. Console contains only the expected three 404s, one 400 and two
+  409s from the negative cases; no service warning/error log entries were found.
+- Transfer still requires exact service ACK, both adoption receipts and authority
+  before movement. Planner counters remain one create/three refinements/four
+  planned steps through transfer, movement and funded terminal settlement.
+  Provider calls remain zero by construction. Ports 5258/5259 were released;
+  isolated storage/evidence were retained and the Agentica source stayed clean.
+- This requalifies only the existing start/navigation/transfer cases against the
+  newer service boundary. **No decision, wake or successor replay proof** is
+  claimed. .NET 10.0.401 was selected from TEMP, not the unavailable 10.0.302 pin.
 
 ## Integrated bounded-frame result (2026-10-15)
 
