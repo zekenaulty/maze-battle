@@ -25,6 +25,7 @@ export async function retainLaunchTransition(tx: CanonicalWork, input: Canonical
     assertPublicationCurrent(current.publication, head);
     state.dispatch = await writer.put(launchKey(id, 'dispatch'), 'agentica-launch-dispatch', id, { admissionAttemptId: current.guard.admissionAttemptId });
   } else if (action === 'announce') {
+    check(current.guard.state !== 'acknowledged' || current.run, 'settled launch cannot acquire a late run record');
     check(current.dispatch, 'start dispatch was not retained'); const dispatch = snapshotReference(args.dispatch as never);
     const started = launchStarted(args.started as unknown as LaunchStarted, current.binding.start);
     const admission = validateLaunchAdmission(args.admission, current.binding.start, current.dispatch.source.attemptId);
