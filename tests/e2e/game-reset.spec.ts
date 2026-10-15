@@ -1,85 +1,60 @@
 import { expect, test } from '@playwright/test';
+import { discardedMarker, retiredSchemas, seedRetiredSchema } from './game-reset-fixtures';
 
-test.beforeEach(async ({ page }) => {
-  await page.goto('/tests/e2e/pr1-custody-fixture.html');
-  await page.waitForFunction(() => !!window.ordinaryCustody);
+test.beforeEach(async ({ page, baseURL }) => {
+  await page.route('**/*', route => new URL(route.request().url()).origin === baseURL ? route.continue() : route.abort());
+  await page.route('**/reset-fixture', route => route.fulfill({ contentType: 'text/html', body: '<title>Disposable reset fixture</title>' }));
+  await page.goto('/reset-fixture');
 });
 
-for (const corruption of ['history', 'control']) test(`reset bypasses corrupt ${corruption} in native IndexedDB`, async ({ page }) => {
-  const result = await page.evaluate(async corruption => {
-    const { resetGame } = await import('/src/persistence/gameReset.ts');
-    const { readRpgHistory } = await import('/src/persistence/observationArchive.ts');
-    const h = window.ordinaryCustody, old = await resetGame(), db = await h.repository.getDatabase();
-    const slot = (await db.get('saves', 'auto'))!;
-    if (corruption === 'history') await db.put('saves', { ...slot, observationHead: 'missing-corrupt-head' });
-    else await db.put('meta', { key: 'control:auto', value: '{' });
-    const loadErrors: string[] = [];
-    for (const takeover of [false, true]) {
-      try { await h.custody.claimGame('reader', takeover); } catch (error) { loadErrors.push(String(error)); }
-    }
-    const next = await resetGame();
-    const counts = await Promise.all([...db.objectStoreNames].map(async name => [name, await db.count(name)]));
-    return { oldOwner: old.control.owner, oldId: old.game.id, next, loadErrors, counts,
-      current: await h.custody.readGameControl(), history: await readRpgHistory() };
-  }, corruption);
-  expect(result.loadErrors).toHaveLength(2);
-  expect(result.next.control.owner).not.toBe(result.oldOwner);
-  expect(result.next.game.id).not.toBe(result.oldId);
-  expect(result.current).toEqual(result.next);
-  expect(result.history.records).toHaveLength(1);
-  expect(result.history.records[0]).toMatchObject({ depth: 1, ancestors: [], gameId: result.next.game.id });
-  for (const [name, count] of result.counts) {
-    expect(count).toBe(['saves', 'meta', 'observations', 'telemetry'].includes(String(name)) ? 1 : 0);
-  }
-});
-
-for (const store of ['observations', 'saves', 'telemetry']) test(`native reset rolls back every store on ${store} failure`, async ({ page }) => {
-  const result = await page.evaluate(async store => {
-    const { resetGame } = await import('/src/persistence/gameReset.ts');
-    const h = window.ordinaryCustody;
-    await resetGame();
-    const db = await h.repository.getDatabase();
-    const tx = db.transaction([...db.objectStoreNames], 'readwrite');
-    for (const name of db.objectStoreNames) {
-      const table = tx.objectStore(name);
-      await table.put({ [String(table.keyPath)]: 'sentinel' } as never);
-    }
-    await tx.done;
-    const snapshot = async () => JSON.stringify(await Promise.all([...db.objectStoreNames].map(async name => [name, await db.getAll(name)])));
-    const before = await snapshot(), put = IDBObjectStore.prototype.put, add = IDBObjectStore.prototype.add;
-    IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === store) throw new DOMException('Injected quota', 'QuotaExceededError');
-      return put.apply(this, args);
-    };
-    IDBObjectStore.prototype.add = function (...args) {
-      if (this.name === store) throw new DOMException('Injected quota', 'QuotaExceededError');
-      return add.apply(this, args);
-    };
-    let error = '';
-    try { await resetGame(); } catch (cause) { error = String(cause); }
-    finally { IDBObjectStore.prototype.put = put; IDBObjectStore.prototype.add = add; }
-    return { before, after: await snapshot(), error };
-  }, store);
-  expect(result.error).toContain('QuotaExceededError');
-  expect(result.after).toBe(result.before);
-});
-
-test('reset fences a stale writer queued behind the native reset transaction', async ({ page }) => {
+for (const fixture of retiredSchemas) test(`discards schema ${fixture.version} / ${fixture.envelope} without reading or migrating it`, async ({ page }) => {
+  await page.evaluate(seedRetiredSchema, fixture);
   const result = await page.evaluate(async () => {
-    const { resetGame } = await import('/src/persistence/gameReset.ts');
-    const h = window.ordinaryCustody, old = await resetGame(), db = await h.repository.getDatabase();
-    const hold = db.transaction(['meta', 'saves'], 'readwrite');
-    let release = false;
-    const pending = (async () => { while (!release) await hold.objectStore('meta').get('control:auto'); await hold.done; })();
-    const resetting = resetGame();
-    let invoked = false;
-    const stale = h.custody.updateOwnedGame(old.control, game => { invoked = true; return game; }).catch(error => String(error));
-    await new Promise(resolve => setTimeout(resolve, 20));
-    release = true;
-    await pending;
-    return { next: await resetting, stale: await stale, invoked, current: await h.custody.readGameControl() };
+    const unrelated = await new Promise<IDBDatabase>((resolve, reject) => {
+      const open = indexedDB.open('unrelated-app', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('data');
+      open.onerror = () => reject(open.error); open.onsuccess = () => resolve(open.result);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = unrelated.transaction('data', 'readwrite'); tx.objectStore('data').put('keep', 'sentinel');
+      tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error);
+    });
+    const forbiddenReads: string[] = [];
+    const methods = ['get', 'getAll', 'getKey', 'getAllKeys', 'count', 'openCursor', 'openKeyCursor'] as const;
+    const restorers = methods.map(method => {
+      const descriptor = Object.getOwnPropertyDescriptor(IDBObjectStore.prototype, method)!;
+      Object.defineProperty(IDBObjectStore.prototype, method, { ...descriptor, value: function (this: IDBObjectStore, ...args: unknown[]) {
+        if (this.transaction.db.name === 'maze-battle'
+          && (this.transaction.db.version < 9 || this.transaction.mode === 'versionchange')) {
+          forbiddenReads.push(this.name + '.' + method); throw Error('Old-schema read during reset');
+        }
+        return descriptor.value.apply(this, args);
+      } });
+      return () => Object.defineProperty(IDBObjectStore.prototype, method, descriptor);
+    });
+    try {
+      const lifecyclePath = '/src/persistence/canonical/lifecycle.ts', databasePath = '/src/persistence/canonical/database.ts';
+      const { initializeCanonical } = await import(/* @vite-ignore */ lifecyclePath) as typeof import('../../src/persistence/canonical/lifecycle');
+      const { openCanonicalDatabase } = await import(/* @vite-ignore */ databasePath) as typeof import('../../src/persistence/canonical/database');
+      const fresh = await initializeCanonical('fresh-owner', { fresh: true });
+      const db = await openCanonicalDatabase();
+      const names = [...db.objectStoreNames], version = db.version;
+      const tx = db.transaction(names, 'readonly');
+      const rows = await Promise.all(names.map(async name => [name, await tx.objectStore(name).getAll()]));
+      await tx.done; db.close();
+      const sentinel = await new Promise(resolve => {
+        const read = unrelated.transaction('data').objectStore('data').get('sentinel');
+        read.onsuccess = () => resolve(read.result);
+      });
+      return { fresh: fresh.head, names, version, rows: JSON.stringify(rows), forbiddenReads, sentinel };
+    } finally { restorers.forEach(restore => restore()); unrelated.close(); }
   });
-  expect(result.invoked).toBe(false);
-  expect(result.stale).toContain('Another tab');
-  expect(result.current).toEqual(result.next);
+  expect(result.version).toBe(9);
+  expect(result.names).toEqual(['heads', 'meta', 'nodes', 'operations', 'receipts', 'records']);
+  expect(result.rows).not.toContain(discardedMarker);
+  expect(result.fresh).toMatchObject({ owner: 'fresh-owner', revision: 1, checkpoint: { fresh: true },
+    roots: { world: null, knowledge: null, execution: null } });
+  expect(result.fresh.gameId).not.toBe(discardedMarker);
+  expect(result.forbiddenReads).toEqual([]);
+  expect(result.sentinel).toBe('keep');
 });

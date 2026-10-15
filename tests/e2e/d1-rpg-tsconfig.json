@@ -1,4 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "include": ["d1-rpg-*.ts", "d1-rpg-*.tsx"]
-}

@@ -13,7 +13,6 @@ vi.mock('./hooks/useCanonicalMovement', () => ({ useCanonicalMovement: (...args:
 vi.mock('./hooks/useGameCommands', () => ({ useGameCommands: () => ({}) }));
 vi.mock('./hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: state.cancel, message: '' }) }));
 vi.mock('./components/ExploreScreen', () => ({ ExploreScreen: () => <div>Canonical expedition</div> }));
-vi.mock('./hooks/useAgenticPlay', () => { throw Error('Recovery must not import the retired provider hook'); });
 
 beforeEach(() => {
   vi.clearAllMocks();

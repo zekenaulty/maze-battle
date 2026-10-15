@@ -14,10 +14,6 @@ vi.mock('../../hooks/useGameCommands', () => ({ useGameCommands: () => ({}) }));
 vi.mock('../../hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: state.cancel, message: '' }) }));
 vi.mock('../../hooks/useMazePerception', () => ({ useMazePerception: () => ({ pending: false }) }));
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Dungeon map" /> }));
-// These factories run only if the production App imports a retired activation path.
-vi.mock('../../hooks/useAgenticPlay', () => { throw Error('Canonical App imported retired Agentic hook'); });
-vi.mock('../../services/agentica/rpg/client', () => { throw Error('Canonical App imported retired Agentic client'); });
-vi.mock('./AgenticPlayDialog', () => { throw Error('Canonical App imported provider activation dialog'); });
 
 beforeEach(() => {
   vi.clearAllMocks();
