@@ -140,6 +140,11 @@ or Agentica availability claim).
 
 ## Remaining Boundary
 
+Update: the two Stop/discharge gaps below are now closed by the separately
+qualified [verified-root discharge slice](issue-11-decision-root-stop.md).
+They describe the boundary at `36adb63`, not the current implementation.
+Cross-epoch decision/reload qualification and App mounting remain open.
+
 Do not mount or declare Agentica available merely because the controller exists.
 Before App mounting, close two explicit recovery gaps:
 

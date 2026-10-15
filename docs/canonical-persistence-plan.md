@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 21,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 22,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -75,8 +75,13 @@ now binds the retained intent, exact wake/adopt, correlated claim and selected
 successor grant through the actual GameSession. Eleven provider-free real-service
 cases pass, including successor navigation, fast settlement, exact lost-reply
 replay and process-restart refusal. Funded granted-root Stop has a separate native
-cohort. Stop before claim, Stop after child admission but before predecessor ACK,
-and actual cross-epoch decision/reload proof still require bounded follow-through.
+cohort. The [verified-root decision discharge](reviews/issue-11-decision-root-stop.md)
+now closes Stop before claim and Stop after child admission but before predecessor
+ACK, without creating missing claims or successor authority. Thirteen actual
+service cases and 83 native controller cases pass. Historical ACKs stay immutable;
+only proven uncommitted stale proofs may be rebuilt. Actual cross-epoch
+decision/reload qualification remains next. A retained old-owner intention is
+recovery-only after takeover, not silently continued or replaced.
 The SDK client is not mounted. Remaining P3 recovery and application integration,
 plus P5 final qualification, remain open. Agentica remains unavailable
 in this intermediate preview; this is not complete feature parity or closure of #11.
