@@ -28,7 +28,7 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
   let entry = operationEntryShape(matches[0]);
   const priorEpoch = terminal.transfer?.data.event.sessionEpoch;
   check(entry.activeEpoch === event.sessionEpoch || entry.activeEpoch === priorEpoch, 'terminal service epoch changed');
-  validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result, entry.activeEpoch);
+  validateOperationEntry(entry, bound.start, identity.action, bound.result, entry.activeEpoch);
   if (terminal.confirmed) check(equal(entry.usage, terminal.confirmed.data.entry.usage), 'terminal admission usage changed');
   const delivery = stoppedDecision ? 'stop-decision' as const : 'signal' as const;
   if (!(entry.latestEvent && equivalentOperationWire(entry.latestEvent, event, 'event'))) {
@@ -50,7 +50,7 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
       : await sdk.signalOperation(next, { fetchImpl: network });
     signal.throwIfAborted();
     if (next !== event) {
-      const accepted = operationEntry(remote); validateOperationEntry(accepted, bound.launch.acceptedStart, identity.action, bound.result, next.nextSessionEpoch ?? next.sessionEpoch);
+      const accepted = operationEntry(remote); validateOperationEntry(accepted, bound.start, identity.action, bound.result, next.nextSessionEpoch ?? next.sessionEpoch);
       check(equal(accepted.usage, entry.usage) && accepted.latestEvent
         && equivalentOperationWire(accepted.latestEvent, next, 'event'), 'service did not acknowledge retained predecessor');
       return { status: 'terminal-prefix-delivered' as const, sequence: next.sequence };

@@ -4,7 +4,7 @@ import type { CanonicalWork } from '../transaction';
 import type { CanonicalRequest } from '../types';
 import { check } from '../validation';
 import { launchPages } from './launch.records';
-import { assertOperationCustody, captureOperationBinding, loadOperationBinding } from './operation.binding';
+import { assertBoundAction, assertOperationCustody, captureOperationBinding, loadOperationBinding, type BoundOperation } from './operation.binding';
 import { loadOperationRecord, operationKey, operationRequest, writeOperationRecord } from './operation.records';
 import { operationEntry, validateOperationEntry } from './operation.wire';
 import { operationCustodyProbe } from './operation.probe';
@@ -12,14 +12,15 @@ import type { OperationBinding, OperationConfirmation, OperationRead } from './o
 import type { PreparedAction, ProtocolRef, ProtocolWrite } from './types';
 import { equal, snapshotPrepared, snapshotReference } from './validation';
 
-export async function loadOperationConfirmation(pages: OperationRead, input: PreparedAction, reference?: ProtocolRef) {
+export async function loadOperationConfirmation(pages: OperationRead, input: PreparedAction, reference?: ProtocolRef, context?: BoundOperation) {
   const identity = snapshotPrepared(input), ref = reference && snapshotReference(reference);
   const record = await loadOperationRecord<OperationConfirmation>(pages, operationKey(identity), 'agentica-operation-confirmation', ref);
   if (!record) return null;
   const data = record.data;
   fields(data, 'binding original result operationId entry probe'); fields(data.binding, 'grant publication');
-  const bound = await loadOperationBinding(pages, identity, data.binding), entry = operationEntry(data.entry);
-  validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result);
+  const bound = context ?? await loadOperationBinding(pages, identity, data.binding), entry = operationEntry(data.entry);
+  assertBoundAction(bound, identity, data.binding);
+  validateOperationEntry(entry, bound.start, identity.action, bound.result);
   check(entry.latestEvent == null && equal(data.original, bound.original.reference) && equal(data.result, bound.original.resultReference)
     && data.operationId === bound.operation.id, 'operation confirmation original changed');
   check(record.source.operation === 'agentica.operation.confirm' && equal(record.source.input,
@@ -42,7 +43,7 @@ export async function retainOperationConfirmation(tx: CanonicalWork, input: Cano
     return { reference: previous.reference, receipt: { reference: { ...previous.reference } } };
   }
   const bound = await loadOperationBinding(pages, identity, binding);
-  validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result);
+  validateOperationEntry(entry, bound.start, identity.action, bound.result);
   check(entry.latestEvent == null && bound.progress.sequence === 0, 'service confirmation must precede local progress');
   assertOperationCustody(tx.head, bound);
   const data: OperationConfirmation = { binding, original: bound.original.reference, result: bound.original.resultReference!, operationId: bound.operation.id, entry,

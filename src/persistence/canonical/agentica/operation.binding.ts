@@ -4,15 +4,15 @@ import { fields } from '../roster/codec';
 import type { CanonicalHead } from '../types';
 import { check } from '../validation';
 import { readAction } from './actions';
-import { loadLaunch, loadActiveLaunch } from './launch.read';
-import { loadLaunchRecord } from './launch.records';
-import type { LaunchGrant } from './launch.types';
+import { loadActiveLaunch } from './launch.read';
+import { loadRunGrant } from './run-grant.read';
+import type { RunGrant } from './run-grant.types';
 import { equal, snapshotPrepared, snapshotReference } from './validation';
 import type { ActionResult, PreparedAction } from './types';
 import type { OperationBinding, OperationRead } from './operation.types';
 
 export const captureOperationBinding = (b: OperationBinding): OperationBinding => ({ grant: snapshotReference(b.grant), publication: snapshotReference(b.publication) });
-export async function loadOperationBinding(pages: OperationRead, input: PreparedAction, inputBinding: OperationBinding) {
+export async function loadOperationBinding(pages: OperationRead, input: PreparedAction, inputBinding: OperationBinding, certificate?: RunGrant) {
   const identity = snapshotPrepared(input), binding = captureOperationBinding(inputBinding);
   const original = await readAction(pages, identity), result = original?.result;
   check(original && result?.operation && result.disposition === 'applied' && !result.completion
@@ -21,10 +21,10 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
   check(original.original.sourceRequest.operation === 'agentica.action.reserve'
     && reserved.action === identity.storageKey && equal(reserved.grant, binding.grant)
     && equal(reserved.publication, binding.publication) && equal(original.original.publication, binding.publication), 'operation original grant changed');
-  const grant = await loadLaunchRecord<LaunchGrant>(pages, binding.grant.key, 'agentica-launch-grant', binding.grant); check(grant, 'missing operation grant');
-  const launch = await loadLaunch(pages, grant.value.launchId), active = await loadActiveLaunch(pages), run = launch.run!.value.data.started;
+  const certified = certificate ?? await loadRunGrant(pages, binding.grant), grant = certified.record;
+  const { launch, start } = certified, active = await loadActiveLaunch(pages), run = certified.started;
   // The grant pins the launch's initial publication; each action reserves its own exact publication above.
-  check(launch.grant && equal(launch.grant.ref, binding.grant)
+  check(equal(grant.ref, binding.grant)
     && identity.action.runId === run.runId && identity.action.sessionId === run.sessionId
     && identity.action.sessionEpoch === run.sessionEpoch && identity.action.manifestHash === run.manifestHash
     && launch.binding.start.capabilities.some(c => c.id === 'maze.navigate' && c.durableHandoff && c.effect === 'writesLocalState'), 'operation launch binding changed');
@@ -36,7 +36,13 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
   const args = fields(identity.action.arguments, 'level spaceId row column'), target = destinationBinding(operation.binding).target;
   check(equal({ level: target.level, ...target.cell }, args), 'operation target differs from original action');
   const progress = await loadDestination(pages, operation);
-  return { binding, original, result, grant, launch, active, operation, progress };
+  return { binding, original, result, grant, launch, start, active, operation, progress };
+}
+export type BoundOperation = Awaited<ReturnType<typeof loadOperationBinding>>;
+export function assertBoundAction(bound: BoundOperation, identity: PreparedAction, binding: OperationBinding) {
+  check(bound.original.reference.key === identity.storageKey && equal(bound.original.original.action, identity.action)
+    && bound.original.original.key === identity.key && bound.original.original.fingerprint === identity.fingerprint
+    && equal(bound.binding, binding) && equal(bound.grant.ref, binding.grant), 'operation context identity changed');
 }
 /** Initial publication freshness and action deadline do not govern an already admitted local operation. */
 export function assertOperationCustody(head: CanonicalHead, bound: Awaited<ReturnType<typeof loadOperationBinding>>) {

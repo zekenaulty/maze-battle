@@ -62,7 +62,7 @@ export async function createGameOperationTransfer(port: CanonicalHostPort, sdk: 
         check(entry.latestEvent && (equivalentOperationWire(entry.latestEvent, event, 'event')
           || equivalentOperationWire(entry.latestEvent, transfer.data.previous, 'event')), 'service transfer predecessor changed');
         const epoch = equivalentOperationWire(entry.latestEvent, event, 'event') ? event.nextSessionEpoch! : event.sessionEpoch;
-        validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result, epoch);
+        validateOperationEntry(entry, bound.start, identity.action, bound.result, epoch);
         check(equal(entry.usage, confirmed.data.entry.usage), 'transfer usage changed');
         const remote = await sdk.signalOperation(structuredClone(event), { fetchImpl: network }); gate.signal.throwIfAborted();
         await gate.port.submitHostCommand({ kind: 'fresh', operation: 'agentica.operation.transfer-ack', input: json({ action: identity.storageKey, intent, entry: remote }),

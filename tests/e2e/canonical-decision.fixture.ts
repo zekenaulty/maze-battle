@@ -18,6 +18,10 @@ import { canonicalJson, type AgenticaOperationEntry } from '../../src/services/a
 import { seedTransfer, type TransferSeed } from './canonical-operation-transfer.setup';
 import { startGame } from './canonical-agentica-actions.setup';
 import { advanceNavigation, confirmNavigation, settleNavigation } from './canonical-decision.setup';
+import { draftNavigationWindow, seedNavigationWindow, type NavigationWindowSource } from './canonical-decision-window';
+import { decisionReadCosts } from './canonical-decision-cost';
+import { grantWindow, windowGrant, adoptWindowGuard, replayWindow } from './canonical-decision-grant';
+import { seedRenewedPublicationWindow, deleteDecisionEvidence } from './canonical-decision-deletion';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5262') throw Error('Isolated decision fixture only');
 let session: Awaited<ReturnType<typeof startGame>>, seed: TransferSeed;
@@ -28,14 +32,15 @@ async function submit(operation: string, input: Json, work: (tx: CanonicalWork, 
     requests.set(operation, structuredClone(r)); writers.set(operation, work); return executeCanonical(r, tx => work(tx, r), options);
   } });
 }
-async function boot() {
-  ({ session, seed } = await seedTransfer()); await confirmNavigation(session, seed); return seed;
+async function boot(renewPublication = false) {
+  ({ session, seed } = renewPublication ? await seedRenewedPublicationWindow() : await seedTransfer());
+  await confirmNavigation(session, seed); return seed;
 }
-async function state() {
-  const identity = await prepareAction(seed.action), launch = (await readLaunch()).value!;
+async function state(original = seed) {
+  const identity = await prepareAction(original.action), launch = (await readLaunch()).value!;
   const intent = (await readCanonical(p => loadDecisionIntent(p, identity))).value;
   const claim = (await readCanonical(p => loadDecisionClaim(p, identity))).value;
-  const terminal = (await readAgenticaTerminal(identity, seed.binding)).value;
+  const terminal = (await readAgenticaTerminal(identity, original.binding)).value;
   return { head: (await readCanonicalHead()).head, launch,
     selection: (await readCanonical(p => readPublicationSelection(p, launch.binding.launchId))).value,
     operation: (await readAgenticaOperation(identity)).value,
@@ -100,6 +105,16 @@ async function corrupt(stage: 'intent' | 'claim', kind: 'record' | 'receipt' | '
   } finally { db.close(); }
 }
 const api = { boot, state, prepare, proof, claim, replay, retry, gate, dump, corrupt,
+  deleteEvidence: deleteDecisionEvidence,
+  grant: () => grantWindow(session, seed),
+  grantReplay: (original = seed) => grantWindow(session, original, true),
+  readGrant: (original = seed) => windowGrant(original),
+  adoptGuard: (exact = true) => adoptWindowGuard(session, seed, exact),
+  replayWindow: (original: TransferSeed) => replayWindow(session, original),
+  readCosts: (original = seed) => decisionReadCosts(original),
+  draftWindow: (source: NavigationWindowSource) => draftNavigationWindow(session, source),
+  seedWindow: async (source: NavigationWindowSource) => { seed = await seedNavigationWindow(session, source, seed.launchGuard); return seed; },
+  confirm: (request = seed.entry.request) => confirmNavigation(session, { ...seed, entry: { ...seed.entry, request } }),
   bind: (original: TransferSeed) => { seed = structuredClone(original); },
   startOwner: async () => { session = await startGame(); return (await readCanonicalHead()).head; },
   stop: () => session?.stop(), publish: () => publishGamePublication(session),

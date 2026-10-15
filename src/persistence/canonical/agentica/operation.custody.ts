@@ -4,7 +4,7 @@ import type { CanonicalWork } from '../transaction';
 import type { CanonicalRequest } from '../types';
 import { check } from '../validation';
 import { launchPages } from './launch.records';
-import { assertOperationCustody } from './operation.binding';
+import { assertBoundAction, assertOperationCustody } from './operation.binding';
 import { loadOperationConfirmation } from './operation.confirmation';
 import { loadOperationRecord, operationKey, operationRequest, writeOperationRecord } from './operation.records';
 import { equivalentOperationWire, operationEntry, validateOperationEntry } from './operation.wire';
@@ -14,14 +14,16 @@ import { equal, snapshotPrepared, snapshotReference } from './validation';
 
 type Confirmed = NonNullable<Awaited<ReturnType<typeof loadOperationConfirmation>>>;
 function validateCustodyEntry(entry: AgenticaOperationEntry, confirmed: Confirmed) {
-  validateOperationEntry(entry, confirmed.bound.launch.acceptedStart, confirmed.bound.original.original.action, confirmed.bound.result);
+  validateOperationEntry(entry, confirmed.bound.start, confirmed.bound.original.original.action, confirmed.bound.result);
   check(equal(entry.usage, confirmed.data.entry.usage) && entry.latestEvent != null
     && equivalentOperationWire(entry.latestEvent, confirmed.data.probe, 'event'), 'service did not acknowledge exact custody probe');
 }
 /** Historical delivery evidence only; this never authorizes a new owner or revalidates initial publication freshness. */
-export async function loadOperationCustodyAck(pages: OperationRead, input: PreparedAction, inputConfirmation: ProtocolRef) {
+export async function loadOperationCustodyAck(pages: OperationRead, input: PreparedAction, inputConfirmation: ProtocolRef, context?: Confirmed) {
   const identity = snapshotPrepared(input), ref = snapshotReference(inputConfirmation);
-  const confirmed = await loadOperationConfirmation(pages, identity, ref); check(confirmed, 'missing service confirmation');
+  const confirmed = context ?? await loadOperationConfirmation(pages, identity, ref); check(confirmed, 'missing service confirmation');
+  check(equal(confirmed.reference, ref), 'custody confirmation context changed');
+  assertBoundAction(confirmed.bound, identity, confirmed.data.binding);
   const ack = await loadOperationRecord<OperationCustodyAck>(pages, operationKey(identity, 'custody'), 'agentica-operation-custody');
   if (!ack) { check(confirmed.bound.progress.sequence === 0, 'progress lacks custody acknowledgement'); return null; }
   fields(ack.data, 'confirmation entry'); const entry = operationEntry(ack.data.entry);

@@ -6,7 +6,8 @@ import { captureOperationBinding } from './operation.binding';
 import { loadOperationRecord, operationKey } from './operation.records';
 import type { OperationBinding, OperationRead } from './operation.types';
 import { readPublication } from './publication';
-import { loadAgenticaTerminal } from './terminal';
+import { loadAgenticaTerminalBase } from './terminal.base';
+import type { BoundOperation } from './operation.binding';
 import type { PreparedAction, ProtocolRef, Publication } from './types';
 import { equal, snapshotPrepared } from './validation';
 
@@ -16,7 +17,7 @@ export interface DecisionIntent {
 }
 export const decisionKey = (identity: PreparedAction) => operationKey(identity, 'decision');
 
-function decisionObservation(publication: Publication, attemptId: string): HostOperationEvent['observation'] {
+export function decisionObservation(publication: Publication, attemptId: string): HostOperationEvent['observation'] {
   const cp = gameCheckpoint(publication.snapshot.checkpoint);
   const observationId = `decision-${attemptId}`; check(validId(observationId), 'invalid decision observation identity');
   return { observationId, revision: publication.wireRevision, observedAt: cp.updatedAt,
@@ -35,13 +36,13 @@ export function decisionAdoption(publication: Publication, event: HostOperationE
 }
 
 /** Read-only original intention. A reload does not adopt, refresh perception, or create another wake. */
-export async function loadDecisionIntent(pages: OperationRead, input: PreparedAction) {
+export async function loadDecisionIntent(pages: OperationRead, input: PreparedAction, context?: BoundOperation) {
   const identity = snapshotPrepared(input);
   const record = await loadOperationRecord<DecisionIntent>(pages, decisionKey(identity), 'agentica-decision-intent');
   if (!record) return null;
   const d = record.data; fields(d, 'binding confirmation publication terminalAttemptId event adoption');
   jsonBytes(d, 6 * 1024); const binding = captureOperationBinding(d.binding);
-  const terminal = await loadAgenticaTerminal(pages, identity, binding);
+  const terminal = await loadAgenticaTerminalBase(pages, identity, binding, context);
   check(terminal?.event.kind === 'decision' && terminal.confirmed && terminal.terminal.disposition === 'completed',
     'decision requires completed retained navigation');
   check(record.source.operation === 'agentica.operation.decision' && equal(record.source.input,

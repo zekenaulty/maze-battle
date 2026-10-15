@@ -16,13 +16,13 @@ export function eventKey(identity: PreparedAction, sequence: number, ack = false
   check(integer(sequence, 1), 'invalid operation event sequence'); return operationKey(identity, `${ack ? 'acks' : 'events'}/${sequence}`);
 }
 export function validateAcknowledgement(entry: AgenticaOperationEntry, confirmed: ConfirmedOperation, event: OperationEvent) {
-  validateOperationEntry(entry, confirmed.bound.launch.acceptedStart, confirmed.bound.original.original.action, confirmed.bound.result, event.event.sessionEpoch);
+  validateOperationEntry(entry, confirmed.bound.start, confirmed.bound.original.original.action, confirmed.bound.result, event.event.sessionEpoch);
   check(equal(entry.usage, confirmed.data.entry.usage) && entry.latestEvent != null
     && equivalentOperationWire(entry.latestEvent, event.event, 'event'), 'service did not acknowledge exact latest event');
 }
 export async function loadOperationEvent(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation,
   sequence: number, reference?: ProtocolRef) {
-  const custody = await loadOperationCustodyAck(pages, identity, confirmed.reference); check(custody, 'missing custody acknowledgement');
+  const custody = await loadOperationCustodyAck(pages, identity, confirmed.reference, confirmed); check(custody, 'missing custody acknowledgement');
   const current = await loadEventRecord(pages, identity, confirmed, custody, sequence, reference);
   // Validate one predecessor's full evidence, never recursively traverse the event history.
   if (sequence > 1 && current.data.previous.kind === 'progress') {

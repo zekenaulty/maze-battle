@@ -25,7 +25,7 @@ function fixture(adopt = false) {
   const event = decisionEvent(publication, terminal, 'intention'), adoption = decisionAdoption(publication, terminal, 'intention');
   const started = launchStartedFixture({ ...start, sessionEpoch: String(head.epoch) }, 'successor');
   const decision = { reference: { key: 'intent', id: 'record' }, identity: { action }, data: { event, adoption },
-    terminal: { bound: { launch: { acceptedStart: start }, result: admission }, confirmed: { data: { entry: { usage } } } },
+    terminal: { bound: { start, result: admission }, confirmed: { data: { entry: { usage } } } },
   } as unknown as RetainedDecision;
   const entry: AgenticaOperationEntry = { request: start, action, admission, activeEpoch: String(head.epoch), state: 'waking',
     usage, latestEvent: event, wakeRunId: started.runId, ...(adoption ? { wakeAdoption: adoption } : {}) };

@@ -75,7 +75,7 @@ export async function loadTransfer(pages: OperationRead, identity: PreparedActio
 export type RetainedTransfer = NonNullable<Awaited<ReturnType<typeof loadTransfer>>>;
 export function validateTransferAck(entry: AgenticaOperationEntry, confirmed: ConfirmedOperation, transfer: RetainedTransfer) {
   operationEntry(entry);
-  validateOperationEntry(entry, confirmed.bound.launch.acceptedStart, confirmed.bound.original.original.action, confirmed.bound.result, transfer.data.event.nextSessionEpoch);
+  validateOperationEntry(entry, confirmed.bound.start, confirmed.bound.original.original.action, confirmed.bound.result, transfer.data.event.nextSessionEpoch);
   check(equal(entry.usage, confirmed.data.entry.usage) && entry.latestEvent
     && equivalentOperationWire(entry.latestEvent, transfer.data.event, 'event'), 'service did not acknowledge exact transfer');
 }

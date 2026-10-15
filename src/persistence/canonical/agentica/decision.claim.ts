@@ -27,8 +27,8 @@ function sameAdoption(remote: AgenticaOperationEntry['wakeAdoption'], expected: 
 export function validateDecisionClaim(decision: RetainedDecision, startedInput: LaunchStarted, remote: AgenticaOperationEntry) {
   const { terminal, data } = decision, entry = operationEntryShape(remote);
   const epoch = data.adoption?.nextSessionEpoch ?? data.event.sessionEpoch;
-  const started = launchStarted(startedInput, { ...terminal.bound.launch.acceptedStart, sessionEpoch: epoch });
-  validateOperationEntry(entry, terminal.bound.launch.acceptedStart, decision.identity.action, terminal.bound.result, epoch);
+  const started = launchStarted(startedInput, { ...terminal.bound.start, sessionEpoch: epoch });
+  validateOperationEntry(entry, terminal.bound.start, decision.identity.action, terminal.bound.result, epoch);
   check(['waking', 'continued', 'completed', 'blocked', 'cancelled'].includes(entry.state) && entry.wakeRunId === started.runId
     && started.runId !== decision.identity.action.runId && started.manifestHash === decision.identity.action.manifestHash
     && entry.latestEvent && equivalentOperationWire(entry.latestEvent, data.event, 'event')
