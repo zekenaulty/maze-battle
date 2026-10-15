@@ -13,6 +13,7 @@ import { startDecisionSequence, type DecisionScriptMode } from './canonical-star
 import { attachDecisionController } from './canonical-start-service.decision-control';
 import { decisionStopEvidence } from './canonical-start-service.decision-evidence';
 import { restoreDecisionSequence } from './canonical-start-service.decision-restore';
+import { attachNavigationCleanup } from './canonical-start-service.navigation-cleanup';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
 let session: GameSession;
@@ -22,6 +23,7 @@ let scripted: Awaited<ReturnType<typeof startObservationSequence>> | undefined;
 let transferred: Awaited<ReturnType<typeof attachServiceTransfer>> | undefined;
 let decision: Awaited<ReturnType<typeof startDecisionSequence>> | undefined;
 let restoredDecision: Awaited<ReturnType<typeof restoreDecisionSequence>> | undefined;
+let navigationCleanup: Awaited<ReturnType<typeof attachNavigationCleanup>> | undefined;
 let controller: Awaited<ReturnType<typeof attachDecisionController>> | undefined;
 let cleanupKinds: string[] = [], receivedReply: unknown;
 const decisionSource = () => {
@@ -74,6 +76,9 @@ async function recover(mode: 'inspect' | 'stop') {
 const api = { boot, loseStart, snapshot, recover,
   async startDecision(mode: DecisionScriptMode) { decision = await startDecisionSequence(session, mode); return decision.started; },
   async restoreDecision(reference: ProtocolRef) { restoredDecision = await restoreDecisionSequence(session, reference); },
+  async attachNavigationCleanup(reference: ProtocolRef) { navigationCleanup = await attachNavigationCleanup(session, reference); },
+  cancelRetainedNavigation: () => navigationCleanup!.cancel(), deliverRetainedNavigation: () => navigationCleanup!.pulse(),
+  readRetainedNavigation: () => navigationCleanup!.read(),
   readDecision: () => decisionSource().read(), pulseDecisionNavigation: () => decision!.pulseNavigation(),
   readDecisionStopEvidence: () => decisionStopEvidence(decisionSource()),
   async readDecisionGuardAdoption() {
@@ -118,7 +123,7 @@ const api = { boot, loseStart, snapshot, recover,
     try { await session.execute('settings', { kind: 'throttle', ms: 100 }); } catch (error) { refusal = String(error); }
     return { refusal, view: session.view, head: (await readCanonicalHead()).head };
   },
-  stop() { controller?.close(); restoredDecision?.close(); decision?.close(); transferred?.close(); scripted?.close(); recovery?.close(); client?.close(); session?.stop(); },
+  stop() { navigationCleanup?.close(); controller?.close(); restoredDecision?.close(); decision?.close(); transferred?.close(); scripted?.close(); recovery?.close(); client?.close(); session?.stop(); },
 };
 window.addEventListener('pagehide', () => api.stop());
 declare global { interface Window { canonicalStartService: typeof api } }

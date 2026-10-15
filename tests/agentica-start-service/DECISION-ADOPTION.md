@@ -57,7 +57,79 @@ The 64 KiB frame limit has no exemption. Ports 5258/5259 were released afterward
 The unchanged runner uses .NET 10.0.401 from TEMP: this is not repository SDK
 10.0.302 pin proof. No provider, service-source, runner, package or user-data edits.
 
-This increment does not yet qualify lost-adopt reply replay or reload after an
-intention, claim or grant. An existing old-owner intention is immutable and
-must not be silently reused. No automatic recovery, full-start durability,
-live-provider behavior or objective completion is claimed.
+The first increment qualified only this positive path. The follow-up below adds
+lost-adopt replay and post-intention/claim/grant reload refusals. An existing
+old-owner intention remains immutable and must not be silently reused.
+
+## Replay And Historical Cleanup
+
+Four additional cases use the same exact service and unmodified planners:
+
+1. Discard a real correlated adopt reply after its fast terminal successor
+   finishes. Reconstruct the controller in the same GameSession/ownership, send
+   the exact retained event/adoption again, and claim the same run. Reconnect and
+   replay do not create a planner, action, grant or guard adoption. Compare all
+   immutable run bindings; retain the actual replay reply, including its current
+   service snapshot metadata. Root Stop and navigation ACK settle explicitly.
+2. Fully reload after the adoption intention, before any wake/adopt. Refuse old
+   intention reuse before opening a socket. Root Stop remains pending while the
+   original navigation is parked. An HTTP-only operation driver delivers the
+   retained prefix and suppresses the original decision, then root Stop settles.
+3. Fully reload after an actual adopted, fast-terminal successor claim, before
+   guard adoption or grant. Refuse continuation; explicit root recovery and
+   `decision-root-stop` discharge the original navigation without a new grant.
+4. Fully reload after successor grant and actual navigation child admission,
+   before predecessor ACK or any child driver confirmation/movement. Refuse
+   continuation; root Stop remains pending until separately reconstructed child
+   cancellation/ACK. Then root Stop and predecessor `decision-root-stop` ACK
+   settle. No StopDecision is sent to the continued parent.
+
+The two reloads in each refusal test are actual browser navigations with new
+GameSession owner/epoch values. Only canonical record locators cross reload.
+`retained-navigation.ts` is a fixture-only bounded canonical reader shared by
+decision reconstruction and historical driver cleanup, not a store or journal.
+Cleanup requires explicit local cancellation and never connects a socket,
+transfers authority, executes an action or fabricates an ACK. The tests check
+unchanged checkpoint/original evidence, exact reservation discharge, immutable
+intention/claim/grant, write-free final retries, unchanged planner counters, and
+no new start, wake, adoption or resume after the refusal reload.
+
+Exact service contract references at the pin above:
+`HostRunRegistry.cs:49` reuses the retained run only for an exact original event
+and adoption; `HostOperationStore.cs:203` checks duplicate event/adoption identity;
+`:415` binds first successor custody to the original event plus a separately
+scoped new observation/epoch. `HostOperationStore.cs:247` forbids stopping a
+continued parent with an admitted child. `HostRunRegistry.Starts.cs:54` requires
+terminal session runs and no unresolved action/operation custody before root ACK.
+These paths are under `Agentica.Lab.Web/Runtime/` in the exact service checkout.
+
+## Final Qualification
+
+The same TypeScript, launcher and diff-check commands above passed. Final native
+result: **18/18 PASS**, zero skips/retries/flaky cases, 115.298017 seconds.
+Evidence: `test-results/maze-start-service-uY6TR4/`; all recorded fixture hashes
+match final executable sources. C# build: 12.41 seconds, zero warnings/errors.
+Production, SDK, C# fixture host, runner and provider factory are unchanged.
+The clean service pin and .NET 10.0.401 / not-10.0.302 qualification limit remain.
+
+All five new cases and all eleven decision cases have zero console warnings or
+errors, page errors, SDK errors or HTTP refusals. Only the existing service-restart
+negative case receives its expected `operation.wake_interrupted` wire error.
+Across all eighteen cases: zero page errors/paid provider calls, 1,020 received
+frames, maximum 7,442 bytes, no 64 KiB exemption. Full trace inspection found only
+the six expected original negative-API resource errors: three 404s for UNKNOWN,
+one 400 for an invalid key, and two 409s for foreign Stop references. Ports
+5258/5259 were released; Agentica remained clean at the exact pin.
+
+Diagnostic run `maze-start-service-hd7x59/` is retained: 17 PASS / 1 FAIL. Its
+lost-adopt test incorrectly required the entire reply snapshot to stay byte-equal
+while status, outcome and updatedAt legitimately advanced. The corrected test
+requires unchanged run/manifest/host/session/epoch/scope/perspective/objective
+bindings and the actual replay reply in the claim. No payload normalization,
+service shim, production change or error exemption was introduced.
+
+Limits: the claim-only reload and lost-reply cases use a fast terminal successor,
+not an actively pending ungranted action. No App mount, automatic old-intent
+continuation, service-process restart of an adoption, live-provider execution,
+full-start durability or objective completion is claimed. Existing service
+restart tests remain separate; root settlement stays interrupted/usage-unknown.
