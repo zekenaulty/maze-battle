@@ -19,7 +19,7 @@ for (const state of ['continued', 'completed', 'blocked', 'cancelled'] as const)
   });
 }
 
-test('Stop during the wake reply barrier cancels the funded local guard before explicit remote Stop', async ({ page }) => {
+test('Stop during wake without a correlated claim stops remote once but retains funded ACK custody', async ({ page }) => {
   const jobs = await page.evaluate(async () => {
     const c = window.canonicalDecisionController; await c.boot(); await c.create(); await c.prepare(await c.publish());
     await c.pulse(); c.hold('wake:after'); const pulse = c.begin('pulse'); await c.entered('wake:after');
@@ -32,17 +32,36 @@ test('Stop during the wake reply barrier cancels the funded local guard before e
   }, jobs);
   expect(stopped.save.status).toBe('rejected');
   expect(stopped.state.launch.guard).toMatchObject({ state: 'settled', terminal: { disposition: 'cancelled' } });
-  expect(stopped.state.grant).toBeNull(); expect(stopped.retained).toBeNull();
+  expect(stopped.state.claim).toBeNull(); expect(stopped.state.grant).toBeNull(); expect(stopped.retained).toBeNull();
   expect(stopped.calls.some(c => c.method === 'stop-decision')).toBe(false);
   const recovered = await page.evaluate(async jobs => {
-    const c = window.canonicalDecisionController; c.release('wake:after'); const pulse = await c.wait(jobs.pulse);
-    const ack = await c.acknowledge(); return { pulse, ack, state: await c.state(), calls: c.calls(), remote: c.remote() };
+    const c = window.canonicalDecisionController, before = await c.dump();
+    c.release('wake:after'); const pulse = await c.wait(jobs.pulse);
+    const ack = await c.wait(c.begin('ack')), retry = await c.wait(c.begin('ack'));
+    const save = await c.wait(c.begin('save', jobs.action)), action = await c.wait(c.begin('action', jobs.action));
+    return { pulse, ack, retry, save, action, unchanged: before === await c.dump(), retained: await c.retained(jobs.action),
+      state: await c.state(), control: c.control(), calls: c.calls(), hostCalls: c.hostCalls(), remote: c.remote() };
   }, jobs);
-  expect(recovered.state.grant).toBeNull();
+  expect(recovered.ack).toMatchObject({ status: 'rejected', error: expect.stringContaining('claim') });
+  expect(recovered.retry).toMatchObject({ status: 'rejected', error: expect.stringContaining('claim') });
+  expect(recovered.unchanged).toBe(true); expect(recovered.state.claim).toBeNull(); expect(recovered.state.grant).toBeNull();
   expect(recovered.state.launch.guard).toMatchObject({ state: 'settled', terminal: { disposition: 'cancelled' } });
-  expect(recovered.state.operation.state).toBe('acknowledged');
+  expect(recovered.state.launch.guard.acknowledgementAttemptId).toBeUndefined();
+  expect(recovered.state.operation).toEqual(stopped.state.operation); expect(recovered.state.operation.state).toBe('settled');
+  expect(recovered.state.acknowledgement).toBeNull();
+  for (const operation of [recovered.state.launch.guard, recovered.state.operation]) {
+    expect(recovered.state.head.allocations[operation.id]).toEqual(stopped.state.head.allocations[operation.id]);
+    expect(recovered.state.head.allocations[operation.id].bytes).toBeGreaterThan(0);
+  }
+  expect(recovered.save.status).toBe('rejected'); expect(recovered.action.status).toBe('rejected');
+  expect(recovered.retained).toBeNull(); expect(recovered.control.binding).toBeNull();
+  expect(recovered.hostCalls.filter(c => c.operation.startsWith('cleanup.')).map(c => c.operation)).toEqual(['cleanup.cancel']);
+  expect(recovered.hostCalls.some(c => c.operation === 'agentica.action.reserve')).toBe(false);
   expect(recovered.remote.activations).toBe(1);
-  expect(recovered.calls.find(c => c.method === 'stop-decision')!.observed).toMatchObject({ guard: { terminal: { disposition: 'cancelled' } } });
+  const stops = recovered.calls.filter(c => c.method === 'stop-decision'); expect(stops).toHaveLength(1);
+  expect(stops[0].input).toEqual(recovered.state.intent!.data.event);
+  expect(stops[0].observed).toMatchObject({ guard: { state: 'settled', terminal: { disposition: 'cancelled' } }, operation: { state: 'settled' } });
+  expect(recovered.remote.entry).toMatchObject({ state: 'cancelled', stopDecision: recovered.state.intent!.data.event });
 });
 
 test('terminal after attachment fences fresh effects while preserving actual-entry ACK', async ({ page }) => {
