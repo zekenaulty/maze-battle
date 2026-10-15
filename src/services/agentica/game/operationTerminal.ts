@@ -26,7 +26,7 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
   check(matches.length <= 1, 'ambiguous terminal service custody');
   if (!matches.length) return { status: 'awaiting-service' as const };
   let entry = operationEntryShape(matches[0]);
-  validateOperationEntry(entry, bound.launch.binding.start, identity.action, bound.result);
+  validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result);
   if (terminal.confirmed) check(equal(entry.usage, terminal.confirmed.data.entry.usage), 'terminal admission usage changed');
   const delivery = stoppedDecision ? 'stop-decision' as const : 'signal' as const;
   if (!(entry.latestEvent && equivalentOperationWire(entry.latestEvent, event, 'event'))) {
@@ -44,7 +44,7 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
       : await sdk.signalOperation(next, { fetchImpl: network });
     signal.throwIfAborted();
     if (next !== event) {
-      const accepted = operationEntry(remote); validateOperationEntry(accepted, bound.launch.binding.start, identity.action, bound.result);
+      const accepted = operationEntry(remote); validateOperationEntry(accepted, bound.launch.acceptedStart, identity.action, bound.result);
       check(equal(accepted.usage, entry.usage) && accepted.latestEvent
         && equivalentOperationWire(accepted.latestEvent, next, 'event'), 'service did not acknowledge retained predecessor');
       return { status: 'terminal-prefix-delivered' as const, sequence: next.sequence };

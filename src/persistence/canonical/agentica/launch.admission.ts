@@ -12,6 +12,7 @@ import { ACTIVE_LAUNCH_KEY } from './launch.types';
 export async function retainLaunchAdmission(tx: CanonicalOperationWork, request: CanonicalRequest) {
   const head = snapshotJson(tx.head), writer = launchWriter(tx, request), input = operationInput(request, 'admit');
   const binding = launchBinding(input.binding), id = binding.launchId, pages = launchPages(tx);
+  check(input.ackPolicy === 'verified-host', 'launch requires verified service settlement');
   check(input.operationId === launchGuardId(id) && tx.operation.id === input.operationId
     && tx.operation.admissionAttemptId === request.attemptId && equal(tx.operation.binding, binding), 'launch guard identity changed');
   check(binding.start.sessionId === launchSessionId(head.gameId, id), 'launch session must bind this game and launch');
@@ -20,7 +21,6 @@ export async function retainLaunchAdmission(tx: CanonicalOperationWork, request:
     const previous = await loadLaunch(pages, active.id);
     check(previous.guard.admissionAttemptId === active.sourceAttemptId, 'active launch admission changed');
     check(previous.guard.state === 'acknowledged', 'active launch guard is still funded');
-    check(!previous.dispatch || previous.run, 'ambiguous start blocks replacement launch');
   } else check(await tx.pages.witness('execution', 'agentica/launches/') === null, 'retained launch has no usable active pointer');
   check(!Object.keys(head.allocations).some(key => key.startsWith('agentica-launch:')), 'funded launch guard has no usable active pointer');
   const publication = await readPublication(pages, binding.publication); assertPublicationCurrent(publication, head);

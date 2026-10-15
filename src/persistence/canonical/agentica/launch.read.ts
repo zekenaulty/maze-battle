@@ -5,6 +5,8 @@ import { readPublication } from './publication';
 import { loadLaunchRecord } from './launch.records';
 import { launchBinding, launchGuardId, launchKey, launchSessionId } from './launch.validation';
 import { launchStarted } from './launch.wire';
+import { validateLaunchAdmission, acceptedLaunchStart } from './launch.service';
+import { validateLaunchAckHistory } from './launch.ack-proof';
 import { ACTIVE_LAUNCH_KEY, type LaunchDispatch, type LaunchGrant, type LaunchRead, type LaunchRun, type LaunchState } from './launch.types';
 
 export async function loadActiveLaunch(pages: LaunchRead) {
@@ -13,12 +15,13 @@ export async function loadActiveLaunch(pages: LaunchRead) {
   const data = fields(pointer.value.data, 'launchId'), source = pointer.source;
   launchGuardId(data.launchId as string);
   check(pointer.value.launchId === data.launchId && source.operation === 'operation.admit', 'active launch source changed');
-  const binding = launchBinding(fields(source.input, 'operationId binding terminalBytes').binding);
+  const binding = launchBinding(fields(source.input, 'operationId binding terminalBytes ackPolicy').binding);
   check(binding.launchId === data.launchId, 'active launch binding changed');
   return { id: data.launchId as string, sourceAttemptId: source.attemptId };
 }
 export async function loadLaunch(pages: LaunchRead, id: string) {
   const guard = await pages.liveOperation(launchGuardId(id)); check(guard, 'missing launch guard');
+  check(guard.ackPolicy === 'verified-host', 'launch requires verified acknowledgement policy');
   const binding = launchBinding(guard.binding);
   check(binding.launchId === id && binding.start.sessionId === launchSessionId(guard.gameId, id), 'launch guard binding changed');
   const admission = await pages.sourceReceipt(guard.admissionAttemptId);
@@ -38,7 +41,9 @@ export async function loadLaunch(pages: LaunchRead, id: string) {
       && dispatch.row.revision > admission.receipt.afterRevision, 'dispatch original custody changed');
   }
   if (run) {
-    fields(run.value.data, 'dispatch started'); reference(run.value.data.dispatch); launchStarted(run.value.data.started, binding.start);
+    fields(run.value.data, 'dispatch started admission'); reference(run.value.data.dispatch); launchStarted(run.value.data.started, binding.start);
+    const a = validateLaunchAdmission(run.value.data.admission, binding.start, dispatch!.source.attemptId);
+    check(a.runId === run.value.data.started.runId && a.manifestHash === run.value.data.started.manifestHash, 'retained run admission changed');
     check(run.value.launchId === id && equal(run.value.data.dispatch, dispatch!.ref) && run.source.operation === 'agentica.launch.announce'
       && equal(run.source.input, { launchId: id, ...run.value.data }) && run.row.revision > dispatch!.row.revision, 'run source changed');
   }
@@ -56,5 +61,7 @@ export async function loadLaunch(pages: LaunchRead, id: string) {
   check(binding.start.observation.revision === publication.wireRevision && binding.start.sessionEpoch === String(publication.epoch)
     && publication.owner === admission.source.expected.owner && publication.epoch === admission.source.expected.epoch
     && publication.snapshot.revision <= admission.source.expected.revision, 'launch publication binding changed');
-  return { binding, guard, state, dispatch, run, grant, publication };
+  const launch = { binding, guard, state, dispatch, run, grant, publication,
+    acceptedStart: run ? acceptedLaunchStart(binding.start, run.value.data.admission) : binding.start };
+  await validateLaunchAckHistory(pages, launch); return launch;
 }

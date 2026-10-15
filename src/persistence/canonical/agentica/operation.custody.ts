@@ -14,7 +14,7 @@ import { equal, snapshotPrepared, snapshotReference } from './validation';
 
 type Confirmed = NonNullable<Awaited<ReturnType<typeof loadOperationConfirmation>>>;
 function validateCustodyEntry(entry: AgenticaOperationEntry, confirmed: Confirmed) {
-  validateOperationEntry(entry, confirmed.bound.launch.binding.start, confirmed.bound.original.original.action, confirmed.bound.result);
+  validateOperationEntry(entry, confirmed.bound.launch.acceptedStart, confirmed.bound.original.original.action, confirmed.bound.result);
   check(equal(entry.usage, confirmed.data.entry.usage) && entry.latestEvent != null
     && equivalentOperationWire(entry.latestEvent, confirmed.data.probe, 'event'), 'service did not acknowledge exact custody probe');
 }

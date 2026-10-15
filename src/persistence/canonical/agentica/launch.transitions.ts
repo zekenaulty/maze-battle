@@ -8,13 +8,14 @@ import { loadActiveLaunch, loadLaunch } from './launch.read';
 import { launchPages, launchWriter } from './launch.records';
 import { launchKey } from './launch.validation';
 import { launchStarted } from './launch.wire';
+import { validateLaunchAdmission } from './launch.service';
 import type { LaunchStarted } from './launch.types';
 
 export async function retainLaunchTransition(tx: CanonicalWork, input: CanonicalRequest) {
   const request = validateRequest(input), head = snapshotJson(tx.head), writer = launchWriter(tx, request), pages = launchPages(tx);
   check(['agentica.launch.dispatch', 'agentica.launch.announce', 'agentica.launch.grant'].includes(request.operation), 'invalid launch transition');
   const action = request.operation.slice('agentica.launch.'.length);
-  const args = fields(request.input, action === 'dispatch' ? 'launchId' : action === 'announce' ? 'launchId dispatch started' : 'launchId run publication');
+  const args = fields(request.input, action === 'dispatch' ? 'launchId' : action === 'announce' ? 'launchId dispatch started admission' : 'launchId run publication');
   const id = args.launchId as string, current = await loadLaunch(pages, id), state = structuredClone(current.state.value.data);
   const active = await loadActiveLaunch(pages);
   check(active?.id === id && active.sourceAttemptId === current.guard.admissionAttemptId, 'launch is not active');
@@ -26,9 +27,11 @@ export async function retainLaunchTransition(tx: CanonicalWork, input: Canonical
   } else if (action === 'announce') {
     check(current.dispatch, 'start dispatch was not retained'); const dispatch = snapshotReference(args.dispatch as never);
     const started = launchStarted(args.started as unknown as LaunchStarted, current.binding.start);
+    const admission = validateLaunchAdmission(args.admission, current.binding.start, current.dispatch.source.attemptId);
+    check(admission.runId === started.runId && admission.manifestHash === started.manifestHash, 'run admission differs from announcement');
     check(equal(dispatch, current.dispatch.ref), 'announcement dispatch changed');
-    if (current.run) { check(equal(current.run.value.data.started, started), 'original run announcement changed'); return { reference: { ...current.run.ref } }; }
-    state.run = await writer.put(launchKey(id, 'run'), 'agentica-launch-run', id, { dispatch, started });
+    if (current.run) { check(equal(current.run.value.data, { dispatch, started, admission }), 'original run announcement changed'); return { reference: { ...current.run.ref } }; }
+    state.run = await writer.put(launchKey(id, 'run'), 'agentica-launch-run', id, { dispatch, started, admission });
   } else {
     const run = snapshotReference(args.run as never), publication = snapshotReference(args.publication as never);
     check(current.run && equal(run, current.run.ref) && equal(publication, current.binding.publication), 'grant run or publication changed');

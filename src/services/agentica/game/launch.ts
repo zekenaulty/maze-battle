@@ -31,7 +31,7 @@ export async function prepareGameLaunch(port: CanonicalHostPort, input: GameLaun
   }, { signal });
   const binding = createLaunchBinding({ launchId, endpoint: config.endpoint, publication, start });
   await port.submitHostCommand({ kind: 'fresh', signal, operation: 'operation.admit',
-    input: { operationId: launchGuardId(launchId), binding, terminalBytes: MIN_TERMINAL_BYTES }, execute: executeLaunchCommand });
+    input: { operationId: launchGuardId(launchId), binding, terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' }, execute: executeLaunchCommand });
   signal.throwIfAborted();
   return { launchId, publication, start };
 }

@@ -17,7 +17,7 @@ type Terminal = NonNullable<Awaited<ReturnType<typeof loadAgenticaTerminal>>>;
 /** Validate full service identity; compact evidence points back to originals rather than copying them again. */
 function acknowledgement(terminal: Terminal, entry: AgenticaOperationEntry, delivery: TerminalDelivery): JsonObject {
   const { bound, identity, event } = terminal, remote = operationEntryShape(entry);
-  validateOperationEntry(remote, bound.launch.binding.start, identity.action, bound.result);
+  validateOperationEntry(remote, bound.launch.acceptedStart, identity.action, bound.result);
   check(bound.operation.ackPolicy === 'verified-host', 'operation lacks verified acknowledgement policy');
   check(remote.wakeRunId == null && remote.wakeAdoption == null && (!('settledUsage' in remote) || remote.settledUsage == null),
     'terminal acknowledgement has successor custody');

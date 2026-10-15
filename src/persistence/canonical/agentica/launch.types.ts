@@ -3,6 +3,7 @@ import type { AgenticaStarted } from '../../../services/agentica/sdk/agentica-ho
 import type { CanonicalQuery } from '../read';
 import type { CanonicalHead, CanonicalRecord, CanonicalRequest } from '../types';
 import type { ProtocolRead, ProtocolRef } from './types';
+import type { LaunchAdmission } from './launch.service';
 
 export const MAX_LAUNCH_START_BYTES = 3072;
 export const ACTIVE_LAUNCH_KEY = 'agentica/launch/active';
@@ -15,7 +16,7 @@ export interface LaunchStarted extends AgenticaStarted {
 }
 export interface LaunchState { dispatch: ProtocolRef | null; run: ProtocolRef | null; grant: ProtocolRef | null }
 export interface LaunchDispatch { admissionAttemptId: string }
-export interface LaunchRun { dispatch: ProtocolRef; started: LaunchStarted }
+export interface LaunchRun { dispatch: ProtocolRef; started: LaunchStarted; admission: LaunchAdmission }
 export interface LaunchGrant { run: ProtocolRef; publication: ProtocolRef; owner: string; epoch: number; guardRevision: number }
 export type LaunchRead = Pick<CanonicalQuery, 'get' | 'sourceReceipt' | 'savedSnapshot' | 'liveOperation'>;
 export interface LaunchGrantContext { readonly head: CanonicalHead; readonly pages: ProtocolRead; liveOperation: LaunchRead['liveOperation'] }

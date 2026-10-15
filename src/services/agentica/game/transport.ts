@@ -2,6 +2,7 @@ import { AgenticaHost, type AgenticaHostOptions } from '../sdk/agentica-host.mjs
 import type { CanonicalHostPort } from '../../game/CanonicalHostCommand';
 import { readLaunch, executeLaunchCommand } from '../../../persistence/canonical/agentica/launch';
 import { launchStarted } from '../../../persistence/canonical/agentica/launch.wire';
+import { captureLaunchAdmission } from '../../../persistence/canonical/agentica/launch.service';
 import { assertPublicationCurrent } from '../../../persistence/canonical/agentica/publication';
 import type { LaunchStarted } from '../../../persistence/canonical/agentica/launch.types';
 import { check } from '../../../persistence/canonical/validation';
@@ -9,9 +10,10 @@ import { json } from '../../../persistence/canonical/world/records';
 import { createGameActionHooks } from './actionHooks';
 import { loadGameAction, reconcileGameAction } from './actionRead';
 import { claimTransportAttachment, deferred, transportGate } from './transportGate';
+import { mazeManifestDigest } from './manifestDigest';
 
 type Hooks = ReturnType<typeof createGameActionHooks>;
-export type GameSdk = Pick<AgenticaHost, 'connect' | 'start' | 'close'>;
+export type GameSdk = Pick<AgenticaHost, 'connect' | 'startDurable' | 'close'>;
 export type GameSdkFactory = (options: AgenticaHostOptions) => GameSdk;
 export type TransportPhase = 'prepared' | 'connecting' | 'dispatching' | 'starting' | 'granting' | 'attached' | 'closed';
 
@@ -45,7 +47,7 @@ export async function createGameTransport(port: CanonicalHostPort, launchId: str
       if (!['started', 'error'].includes(message.type)
         || message.type === 'started' && message.runId !== undefined && message.runId !== message.payload.runId) { close(); return; }
       if (message.type === 'started') {
-        try { observedRunId = launchStarted(message.payload, launch.binding.start).runId; }
+        try { const { startAdmission: _, ...started } = message.payload; observedRunId = launchStarted(started, launch.binding.start).runId; }
         catch { close(); }
       }
     },
@@ -65,11 +67,17 @@ export async function createGameTransport(port: CanonicalHostPort, launchId: str
       assertPublicationCurrent(dispatched.publication, current.head);
       phase = 'starting';
       // Only the correlated SDK promise is eligible. Unsolicited message callbacks cannot grant custody.
-      const announcement = launchStarted(await sdk!.start(structuredClone(launch.binding.start)) as LaunchStarted, launch.binding.start);
+      const { startAdmission, ...reply } = await sdk!.startDurable({ attemptId: dispatched.dispatch.source.attemptId,
+        request: structuredClone(launch.binding.start) });
+      const announcement = launchStarted(reply as LaunchStarted, launch.binding.start);
+      const remote = captureLaunchAdmission(startAdmission, launch.binding.start, dispatched.dispatch.source.attemptId);
+      check(!remote.stopRequested && remote.terminal === null && remote.admission.runId === announcement.runId
+        && remote.admission.manifestHash === announcement.manifestHash
+        && announcement.manifestHash === await mazeManifestDigest(launch.binding.start.capabilities), 'start admission is not eligible for an initial grant');
       observedRunId = announcement.runId;
       gate.signal.throwIfAborted(); phase = 'granting';
       await gate.port.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.announce',
-        input: { launchId, dispatch: { ...dispatched.dispatch.ref }, started: json(announcement) }, execute: executeLaunchCommand });
+        input: { launchId, dispatch: { ...dispatched.dispatch.ref }, started: json(announcement), admission: json(remote.admission) }, execute: executeLaunchCommand });
       const announced = (await readLaunch(launchId)).value!;
       gate.signal.throwIfAborted(); check(announced.run, 'missing retained announcement');
       await gate.port.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.grant',
