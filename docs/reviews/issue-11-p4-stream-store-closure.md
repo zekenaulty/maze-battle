@@ -248,3 +248,21 @@ this report makes no durable full-start recovery claim.
 
 Evidence is local unit/build/static only. No provider/service calls, browser or
 live integration qualification, DB/cache cleanup, parent edits, push or deployment.
+
+## Integrated Follow-Up
+
+The parent integrated the exact patch as `c94643e` and pushed it to
+`codex/agentic-game-a1`. A subsequent isolated actual-App browser run against the
+same source tree passed **13/13 cases** in 109.83 seconds, one worker, zero
+retries/skips/failures. Command:
+
+```text
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-app.config.ts --workers=1 --retries=0 --trace=on --output test-results/p4-canonical-app-9d22011-native-1
+```
+
+Covered ordinary manual play, Auto, saves/load, recovery/custody, desktop/mobile
+rendering and depth-local I/O. All 6,013 trace network entries stayed on isolated
+port 5223. No uncaught page errors; one favicon 404, one Canvas2D readback warning
+and a server NO_COLOR/FORCE_COLOR warning were observed. This is not Agentica or
+two-dungeon qualification. Fresh browser contexts were used and the test server
+stopped afterward; the user's 5198 preview/database was untouched.

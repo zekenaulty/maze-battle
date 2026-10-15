@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 15,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 16,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -43,6 +43,13 @@ start. Service snapshots cannot establish full-request equivalence or durable
 absence; complete start reconciliation remains open. P4 additionally removed the
 [directed stream Agentica writer](reviews/issue-11-p4-directed-agentica-retirement.md)
 and its four obsolete store registrations.
+The separate Agentica [durable initial-start contract](https://github.com/zekenaulty/Agentica/blob/602f15a/docs/durable-host-starts.md)
+now provides pre-execution admission, exact original-request lookup and explicit
+Stop settlement. It has provider-free service/SDK proof; Maze has not yet adopted
+it in its canonical launch/controller, so full host start recovery remains open.
+[Qualification and exact next work](reviews/issue-11-durable-start-service.md).
+P4 has also removed the [remaining stream/topology writer closure](reviews/issue-11-p4-stream-store-closure.md),
+including eleven stores and 118 obsolete source/test files.
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
@@ -223,14 +230,15 @@ P1 storage contracts are split as follows:
   bounded prefix delivery, callback-free local Stop, verified funded ACK/retry and
   decision Stop without cognition. Native SDK/HTTP-fixture and pinned in-process
   registry evidence are separate; no paired application mount is implied.
-- **P3 Agentica, remaining:** durable full-start admission/reconciliation (positive
-  discovery and explicit Stop are checked, not complete reconciliation), explicit service
+- **P3 Agentica, remaining:** adopt durable full-start admission/reconciliation in
+  the canonical host (the service/SDK primitive is checked separately), explicit service
   transfer/adoption, decision/wake, publication renewal and mounted application recovery.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 started:** disconnected preview screens, stale route tests, standalone
   expedition writer and its legacy-format validators, standalone launch journal,
-  standalone directed-v1 store and general stream Agentica writer removed. Stream/directed-stream and old RPG
-  adapters still require closure.
+  standalone directed-v1 store, general/directed stream Agentica writers and the
+  remaining stream/directed-stream/topology stores removed. The old RPG writer
+  and its proof adapters still require closure.
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
   qualification remain mandatory, not inferred from focused passes.
