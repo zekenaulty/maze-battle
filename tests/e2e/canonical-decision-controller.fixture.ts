@@ -19,10 +19,13 @@ import type { RemoteSnapshot } from './canonical-decision-controller.remote';
 import type { AgenticaOperationEntry } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { holdNextCanonicalRead } from './canonical-decision-controller.read-barrier';
 import { moveControllerSuccessor } from './canonical-decision-controller.navigation';
+import { createControllerRootRecovery } from './canonical-decision-controller.root';
+import type { CanonicalRequest } from '../../src/persistence/canonical/types';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5266') throw Error('Isolated decision controller fixture only');
 let seeded: { session: GameSession; seed: TransferSeed; started: LaunchStarted; entry: AgenticaOperationEntry }, sdk: DecisionSdkFixture;
 let port: ControllerPort, controller: Awaited<ReturnType<typeof createGameDecisionController>>;
+let root: ReturnType<typeof createControllerRootRecovery>;
 const jobs = new ControllerJobs();
 const controllers: Awaited<ReturnType<typeof createGameDecisionController>>[] = [];
 let restoreReadBarrier = () => {};
@@ -38,6 +41,7 @@ function initialize(remote: RemoteSnapshot) {
         selection: state.selection, guard: state.launch.guard, operation: state.operation };
     });
   port = new ControllerPort(seeded.session, sdk.barriers);
+  root = createControllerRootRecovery(port, seeded.seed.launchGuard);
 }
 function control() { return { phase: controller.phase, binding: controller.binding ?? null }; }
 async function create() {
@@ -57,6 +61,8 @@ function begin(command: 'pulse' | 'ack' | 'cancel' | 'save' | 'action', input?: 
 const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), publish: () => publishGamePublication(seeded.session),
   create, control, prepare: (publication: ProtocolRef) => controller.prepare(publication), pulse: () => controller.pulse(),
   acknowledge: () => controller.acknowledge(), close: () => controller.close(),
+  rootEntry: (reason?: 'stopped' | 'interrupted') => root.entry(reason), rootState: () => root.state(),
+  stopRoot: () => root.stop(), acknowledgeRoot: (entry: unknown, retry?: CanonicalRequest) => root.acknowledge(entry, retry),
   acknowledgePrevious: () => controllers.at(-2)!.acknowledge(),
   begin, job: (id: number) => jobs.result(id), wait: (id: number) => jobs.wait(id),
   hold: (point: BarrierPoint) => sdk.barriers.hold(point), entered: (point: BarrierPoint) => sdk.barriers.entered(point),
