@@ -17,11 +17,15 @@ import { GameSession } from '../../src/services/game/GameSession';
 import type { TransferSeed } from './canonical-operation-transfer.setup';
 import type { RemoteSnapshot } from './canonical-decision-controller.remote';
 import type { AgenticaOperationEntry } from '../../src/services/agentica/sdk/agentica-host.mjs';
+import { holdNextCanonicalRead } from './canonical-decision-controller.read-barrier';
+import { moveControllerSuccessor } from './canonical-decision-controller.navigation';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5266') throw Error('Isolated decision controller fixture only');
 let seeded: { session: GameSession; seed: TransferSeed; started: LaunchStarted; entry: AgenticaOperationEntry }, sdk: DecisionSdkFixture;
 let port: ControllerPort, controller: Awaited<ReturnType<typeof createGameDecisionController>>;
 const jobs = new ControllerJobs();
+const controllers: Awaited<ReturnType<typeof createGameDecisionController>>[] = [];
+let restoreReadBarrier = () => {};
 async function boot() {
   seeded = await seedCompletedController();
   initialize({ entry: seeded.entry, started: seeded.started, wakeIdentity: null, activations: 0 }); return seeded.seed;
@@ -38,7 +42,7 @@ function initialize(remote: RemoteSnapshot) {
 function control() { return { phase: controller.phase, binding: controller.binding ?? null }; }
 async function create() {
   controller = await createGameDecisionController(port, seeded.seed.action, seeded.seed.binding, { factory: sdk.factory,
-    fetchImpl: async () => { throw Error('Unexpected real controller HTTP'); } }); return control();
+    fetchImpl: async () => { throw Error('Unexpected real controller HTTP'); } }); controllers.push(controller); return control();
 }
 function begin(command: 'pulse' | 'ack' | 'cancel' | 'save' | 'action', input?: AgenticaAction) {
   const action = input && structuredClone(input);
@@ -53,10 +57,14 @@ function begin(command: 'pulse' | 'ack' | 'cancel' | 'save' | 'action', input?: 
 const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), publish: () => publishGamePublication(seeded.session),
   create, control, prepare: (publication: ProtocolRef) => controller.prepare(publication), pulse: () => controller.pulse(),
   acknowledge: () => controller.acknowledge(), close: () => controller.close(),
+  acknowledgePrevious: () => controllers.at(-2)!.acknowledge(),
   begin, job: (id: number) => jobs.result(id), wait: (id: number) => jobs.wait(id),
   hold: (point: BarrierPoint) => sdk.barriers.hold(point), entered: (point: BarrierPoint) => sdk.barriers.entered(point),
   release: (point: BarrierPoint) => sdk.barriers.release(point),
+  holdPrewakeRead: () => { restoreReadBarrier = holdNextCanonicalRead(sdk.barriers); },
+  disconnect: () => sdk.options.at(-1)!.onStatus?.({ state: 'disconnected' }),
   draft: () => draftSuccessor(seeded.session, seeded.seed, sdk), retained: retainedAction,
+  moveSuccessor: (action: AgenticaAction) => moveControllerSuccessor(seeded.session, seeded.seed, sdk, action),
   replay: (forged = false) => completedReplay(sdk, seeded.seed.action, forged),
   hostCalls: () => structuredClone(port.calls),
   failNext: (stage: 'grant' | 'cleanup') => { port.failNextStage = stage; },
@@ -70,6 +78,7 @@ const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), 
     if (kind === 'event') sdk.remote.entry.latestEvent!.summary += ' changed';
     if (kind === 'action') sdk.remote.entry.action.actionId = crypto.randomUUID();
   },
+  replaceRemoteEntry: (entry: AgenticaOperationEntry) => { sdk.remote.entry = structuredClone(entry); },
   changeWorld: () => seeded.session.execute('settings', { kind: 'throttle', ms: 700 }),
   endLifetime: () => seeded.session.stop(),
   snapshot: () => JSON.stringify({ seed: seeded.seed, remote: sdk.remote.snapshot() }),
@@ -83,6 +92,6 @@ const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), 
   settle: (state: SettledState) => sdk.remote.settle(state),
   emitTerminal: () => sdk.emit({ protocolVersion: 1, type: 'outcome', runId: sdk.remote.started.runId, payload: { status: sdk.remote.entry.state } }),
   remote: () => sdk.remote.snapshot(), calls: () => structuredClone(sdk.calls),
-  stop: () => { controller?.close(); sdk?.barriers.releaseAll(); seeded?.session.stop(); } };
+  stop: () => { restoreReadBarrier(); for (const item of controllers) item.close(); sdk?.barriers.releaseAll(); seeded?.session.stop(); } };
 declare global { interface Window { canonicalDecisionController: typeof api } }
 window.canonicalDecisionController = api;

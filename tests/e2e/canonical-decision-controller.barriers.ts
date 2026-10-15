@@ -5,7 +5,7 @@ function deferred() {
 }
 export type RemoteMethod = 'connect' | 'list' | 'signal' | 'wake' | 'adopt' | 'stop-decision';
 export type HostStage = 'intent' | 'claim' | 'grant' | 'reserve' | 'cleanup';
-export type BarrierPoint = `${RemoteMethod | HostStage}:${'before' | 'after'}`;
+export type BarrierPoint = `${RemoteMethod | HostStage | 'prewake-read'}:${'before' | 'after'}`;
 
 /** Explicit entry/release promises, never sleeps or fake IndexedDB transaction scheduling. */
 export class ControllerBarriers {
