@@ -11,6 +11,7 @@ import { loadGameAction, reconcileGameAction } from '../../src/services/agentica
 import { readLaunch, executeLaunchCommand } from '../../src/persistence/canonical/agentica/launch';
 import { readCanonicalHead } from '../../src/persistence/canonical/read';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
+import { launchProofFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import { earnedTargets } from './canonical-agentica-actions.setup';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5244') throw Error('Isolated transport fixture origin required');
@@ -54,19 +55,22 @@ const api = { boot, attach, begin, loadGameAction, reconcileGameAction,
     recovery ??= await createLaunchRecovery(port, (await readLaunch()).value!.binding.launchId);
     return recovery[mode]();
   },
-  async mutateDiscovery(runId: string) {
+  async mutateInspection(runId: string) {
     recovery ??= await createLaunchRecovery(port, (await readLaunch()).value!.binding.launchId);
     const result = await recovery.inspect();
-    if (result.status === 'identified') result.run.runId = runId;
+    function mutate(value: unknown) {
+      if (!value || typeof value !== 'object') return;
+      if ('runId' in value) Reflect.set(value, 'runId', runId);
+      Object.values(value).forEach(mutate);
+    }
+    mutate(result);
   },
   async expectedManifest() { return mazeManifestDigest((await readLaunch()).value!.binding.start.capabilities); },
   async retainAnnouncement(runId: string) {
-    const l = (await readLaunch()).value!, s = l.binding.start;
+    const l = (await readLaunch()).value!;
     await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.announce', execute: executeLaunchCommand,
-      input: { launchId: l.binding.launchId, dispatch: { ...l.dispatch!.ref }, started: {
-        runId, hostId: s.hostId, sessionId: s.sessionId, sessionEpoch: s.sessionEpoch, scopeId: s.scopeId,
-        perspectiveId: s.perspectiveId, objectiveId: s.objectiveId, manifestHash: await mazeManifestDigest(s.capabilities),
-      } } });
+      input: { launchId: l.binding.launchId, dispatch: { ...l.dispatch!.ref },
+        ...launchProofFixture(l.binding.start, l.dispatch!.source.attemptId, runId, await mazeManifestDigest(l.binding.start.capabilities)) } });
   },
   closeRecovery() { recovery?.close(); recovery = undefined; },
   async fillQuota() {

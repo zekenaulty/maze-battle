@@ -10,6 +10,10 @@ test('funded admission, dispatch and announcement need a separate explicit initi
     return { binding, admission, prepared, denied, before, after, allowed, state };
   });
   expect(first.prepared.guard.state).toBe('admitted'); expect(first.prepared.state.value.data).toEqual({ dispatch: null, run: null, grant: null });
+  expect(first.prepared.guard.ackPolicy).toBe('verified-host');
+  expect(first.state.run!.value.data.admission.attemptId).toBe(first.state.dispatch!.source.attemptId);
+  expect(first.state.run!.value.data.admission).not.toHaveProperty('originalRequest');
+  expect(first.state.run!.value.data.admission).not.toHaveProperty('acceptedRequest');
   expect(String(first.denied)).toContain('missing referenced launch record'); expect(first.after).toEqual(first.before);
   expect(first.allowed.receipt.result).toBe(true); expect(first.state.binding).toEqual(first.binding);
   expect(first.state.guard.terminalBytes).toBe(128 * 1024);
@@ -30,17 +34,18 @@ test('all exact lifecycle receipts replay after takeover, cancellation and ackno
   for (let i = 0; i < r.stages.length; i++) { expect(r.replayed[i].replayed).toBe(true); expect(r.replayed[i].receipt).toEqual(r.stages[i].outcome.receipt); expect(r.replayed[i].stats.writes).toBe(0); }
 });
 
-test('ambiguous dispatch blocks retries and replacements even after local cancel/ACK, until original announcement reconciles', async ({ page }) => {
+test('ambiguous dispatch blocks replacement after local Stop until terminal service proof supports ACK', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const c = window.canonicalLaunch; await c.admit(await c.seed()); const dispatch = await c.transition('dispatch');
     const before = await c.dump(), retry = await c.transition('dispatch').catch(String), unchanged = await c.dump();
-    const exact = await c.executeLaunchCommand(dispatch.request), stopped = await c.stop(); await c.ack(stopped.request.attemptId);
+    const exact = await c.executeLaunchCommand(dispatch.request), stopped = await c.stop();
+    const unverified = await c.ack(stopped.request.attemptId, null).catch(String);
     const next = await c.binding('next'), preAdmission = await c.dump(), blocked = await c.admit(next).catch(String), postAdmission = await c.dump();
-    await c.announce(); await c.admit(next);
-    return { before, unchanged, retry, exact, preAdmission, postAdmission, blocked, active: (await c.readLaunch()).value, original: (await c.readLaunch('launch')).value };
+    await c.ack(stopped.request.attemptId); await c.admit(next);
+    return { before, unchanged, retry, exact, unverified, preAdmission, postAdmission, blocked, active: (await c.readLaunch()).value, original: (await c.readLaunch('launch')).value };
   });
   expect(String(r.retry)).toContain('already dispatched'); expect(r.unchanged).toEqual(r.before); expect(r.exact.replayed).toBe(true);
-  expect(String(r.blocked)).toContain('ambiguous start'); expect(r.postAdmission).toEqual(r.preAdmission);
+  expect(String(r.unverified)).toMatch(/^Error:/); expect(String(r.blocked)).toContain('still funded'); expect(r.postAdmission).toEqual(r.preAdmission);
   expect(r.active!.binding.launchId).toBe('next'); expect(r.original!.guard.state).toBe('acknowledged'); expect(r.original!.grant).toBeNull();
 });
 

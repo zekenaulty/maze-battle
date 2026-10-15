@@ -37,7 +37,7 @@ test('missing dispatch index and orphan run fail closed; missing active pointer 
   expect(String(r.missing)).toContain('missing active funded'); expect(String(r.admit)).toContain('active pointer'); expect(r.post).toEqual(r.pre);
 });
 
-test('lost active pointer after funded ACK cannot hide an ambiguous dispatched launch', async ({ page }) => {
+test('lost active pointer after verified ACK cannot hide retained launch lineage', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const c = window.canonicalLaunch; await c.admit(await c.seed()); await c.transition('dispatch');
     const stopped = await c.stop(); await c.ack(stopped.request.attemptId);

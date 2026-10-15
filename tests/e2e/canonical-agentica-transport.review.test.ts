@@ -1,7 +1,8 @@
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import type {} from './canonical-agentica-transport.review.fixture';
-import type { AgenticaAction, AgenticaStart } from '../../src/services/agentica/contracts';
+import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import type { AgenticaMessage } from '../../src/services/agentica/sdk/agentica-host.mjs';
+import { durableStarted, durableSubmission } from './canonical-agentica-transport.wire';
 
 const origin = 'http://127.0.0.1:5243', path = '/tests/e2e/canonical-agentica-transport.html';
 let sockets: WebSocketRoute[], incoming: { socket: WebSocketRoute; message: AgenticaMessage }[], external: string[], errors: string[];
@@ -20,10 +21,10 @@ test.beforeEach(async ({ page, context }) => {
   await context.routeWebSocket('**/*', socket => {
     if (socket.url() !== 'ws://127.0.0.1:5243/api/host') { external.push(socket.url()); socket.close(); return; }
     sockets.push(socket);
-    socket.onMessage(text => {
+    socket.onMessage(async text => {
       const message = JSON.parse(String(text)) as AgenticaMessage;
       incoming.push({ socket, message });
-      if (autoAnnounce && message.type === 'start') socket.send(JSON.stringify(announcement(message)));
+      if (autoAnnounce && message.type === 'start.durable') socket.send(JSON.stringify(await announcement(message)));
     });
   });
   await open(page);
@@ -34,19 +35,17 @@ test.afterEach(async ({ page }) => {
 });
 async function open(page: Page) { await page.goto(path); await page.waitForFunction(() => !!window.transportReview); }
 function announcement(message: AgenticaMessage) {
-  const input = message.payload as AgenticaStart;
-  return { protocolVersion: 1, type: 'started', requestId: message.requestId, runId: 'review-run', payload: {
-    hostId: input.hostId, sessionId: input.sessionId, sessionEpoch: input.sessionEpoch, scopeId: input.scopeId,
-    perspectiveId: input.perspectiveId, objectiveId: input.objectiveId, runId: 'review-run', manifestHash: `sha256:${'a'.repeat(64)}` } };
+  return durableStarted(message, 'review-run');
 }
-function navigate(start: AgenticaMessage, args: AgenticaAction['arguments']): AgenticaAction {
-  const input = start.payload as AgenticaStart;
+async function navigate(start: AgenticaMessage, args: AgenticaAction['arguments']): Promise<AgenticaAction> {
+  const input = durableSubmission(start).request;
+  const { payload } = await durableStarted(start, 'review-run');
   return { actionId: 'review-action', runId: 'review-run', runnerRunId: 'review-runner', stepId: 'review-step',
-    sessionId: input.sessionId, sessionEpoch: input.sessionEpoch, manifestHash: `sha256:${'a'.repeat(64)}`,
+    sessionId: input.sessionId, sessionEpoch: input.sessionEpoch, manifestHash: payload.manifestHash,
     capabilityId: 'maze.navigate', arguments: args, expectedRevision: input.observation.revision,
     deadlineAt: new Date(Date.now() + 120_000).toISOString() };
 }
-const starts = () => incoming.filter(row => row.message.type === 'start');
+const starts = () => incoming.filter(row => row.message.type === 'start.durable');
 async function attached(page: Page) {
   autoAnnounce = true;
   const boot = await page.evaluate(async () => {

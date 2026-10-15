@@ -1,5 +1,7 @@
 import * as launch from '../../src/persistence/canonical/agentica/launch';
 import * as terminal from '../../src/persistence/canonical/agentica/launch.terminal';
+import { launchAcknowledgement } from '../../src/persistence/canonical/agentica/launch.ack';
+import { captureLaunchAdmission } from '../../src/persistence/canonical/agentica/launch.service';
 import * as publication from '../../src/persistence/canonical/agentica/publication';
 import * as transaction from '../../src/persistence/canonical/transaction';
 import * as read from '../../src/persistence/canonical/read';
@@ -8,7 +10,8 @@ import { openCanonicalDatabase } from '../../src/persistence/canonical/database'
 import { CANONICAL_STORES, MIN_TERMINAL_BYTES, type CanonicalHead, type CanonicalRequest, type Json, type JsonObject } from '../../src/persistence/canonical/types';
 import { storedBytes } from '../../src/persistence/canonical/accounting';
 import { protocolAction, protocolHead } from '../../src/persistence/canonical/agentica/types.test-support';
-import { launchStartFixture, launchStartedFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
+import { launchStartFixture, launchStartedFixture, launchEntryFixture, launchProofFixture, launchTerminalFixture,
+  type LaunchEntryFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import { canonicalJson } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { fingerprint } from '../../src/persistence/canonical/validation';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
@@ -32,7 +35,7 @@ async function binding(id: string) {
 }
 async function admit(binding: JsonObject) {
   const request = command((await read.readCanonicalHead()).head, 'operation.admit', {
-    operationId: launch.launchGuardId(binding.launchId as string), binding, terminalBytes: MIN_TERMINAL_BYTES,
+    operationId: launch.launchGuardId(binding.launchId as string), binding, terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host',
   });
   return { request, outcome: await launch.executeLaunchCommand(request) };
 }
@@ -42,7 +45,8 @@ async function transition(operation: 'dispatch' | 'announce' | 'grant', id = 'la
 }
 async function announce() {
   const current = (await launch.readLaunch('launch')).value!;
-  return transition('announce', 'launch', { dispatch: { ...current.dispatch!.ref }, started: launchStartedFixture(current.binding.start) as unknown as JsonObject });
+  return transition('announce', 'launch', { dispatch: { ...current.dispatch!.ref },
+    ...launchProofFixture(current.binding.start, current.dispatch!.source.attemptId) });
 }
 async function grant() {
   const current = (await launch.readLaunch('launch')).value!;
@@ -64,9 +68,16 @@ async function stop() {
   const request = command((await read.readCanonicalHead()).head, 'operation.cancel', { operationId: launch.launchGuardId('launch') });
   return { request, outcome: await transaction.operateCanonical(request, 'cancel') };
 }
-async function ack(terminalAttemptId: string) {
-  const request = command((await read.readCanonicalHead()).head, 'operation.acknowledge', { operationId: launch.launchGuardId('launch'), terminalAttemptId });
-  return { request, outcome: await transaction.operateCanonical(request, 'acknowledge') };
+async function terminalEntry() {
+  const current = (await launch.readLaunch('launch')).value!;
+  return current.dispatch ? launchTerminalFixture(launchEntryFixture(current.binding.start, current.dispatch.source.attemptId)) : null;
+}
+async function ack(terminalAttemptId: string, entry?: LaunchEntryFixture | null) {
+  const verification = launchAcknowledgement('launch', entry === undefined ? await terminalEntry() : entry);
+  const proof = await verification.prepare();
+  const request = command((await read.readCanonicalHead()).head, 'operation.acknowledge', {
+    operationId: launch.launchGuardId('launch'), terminalAttemptId, proof: proof.proof });
+  return { request, outcome: await transaction.acknowledgeCanonical(request, verification.verify) };
 }
 async function takeover() {
   await transaction.controlCanonical(command((await read.readCanonicalHead()).head, 'control.takeover', { owner: 'successor' }), 'takeover');
@@ -88,6 +99,7 @@ async function fillNormalCapacity() {
 }
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5234') throw Error('Isolated canonical launch fixture only');
 const api = { ...launch, ...terminal, ...transaction, ...read, ...publication, openCanonicalDatabase, command, seed, binding, admit, transition,
-  announce, grant, ready, gate, stop, ack, takeover, dump, fillNormalCapacity, publish, canonicalJson, fingerprint, launchStartedFixture, protocolAction };
+  announce, grant, ready, gate, stop, ack, terminalEntry, launchAcknowledgement, captureLaunchAdmission, takeover, dump, fillNormalCapacity, publish, canonicalJson, fingerprint,
+  launchStartedFixture, launchEntryFixture, launchProofFixture, launchTerminalFixture, protocolAction };
 declare global { interface Window { canonicalLaunch: typeof api } }
 window.canonicalLaunch = api;

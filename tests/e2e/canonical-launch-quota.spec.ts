@@ -16,14 +16,16 @@ test('funded Stop and ACK need no ordinary launch write at exhausted normal quot
   expect(r.final.head.quota.usedBytes).toBe(r.dump.bytes);
 });
 
-test('ambiguous start remains ambiguous at quota, but local cancellation and acknowledgement are funded', async ({ page }) => {
+test('terminal service proof can fund ACK at quota without an ordinary announcement write', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const c = window.canonicalLaunch; await c.admit(await c.seed()); await c.transition('dispatch'); await c.fillNormalCapacity();
     const before = await c.dump(), announcement = await c.announce().catch(String), after = await c.dump();
-    const stop = await c.stop(); await c.ack(stop.request.attemptId);
-    return { before, after, announcement, retained: (await c.readLaunch()).value, terminal: (await c.readLaunchTerminal('launch')).value };
+    const stop = await c.stop(), unverified = await c.ack(stop.request.attemptId, null).catch(String);
+    const pending = (await c.readLaunch()).value!.guard; await c.ack(stop.request.attemptId);
+    return { before, after, announcement, unverified, pending, retained: (await c.readLaunch()).value, terminal: (await c.readLaunchTerminal('launch')).value };
   });
   expect(String(r.announcement)).toContain('quota exhausted'); expect(r.after).toEqual(r.before);
+  expect(String(r.unverified)).toMatch(/^Error:/); expect(r.pending.state).toBe('settled');
   expect(r.retained!.dispatch).not.toBeNull(); expect(r.retained!.run).toBeNull(); expect(r.retained!.guard.state).toBe('acknowledged');
   expect(r.terminal.terminal.source.operation).toBe('operation.cancel');
 });
@@ -36,9 +38,9 @@ for (const stage of ['admit', 'dispatch', 'announce', 'grant'] as const) for (co
       if (stage === 'announce' || stage === 'grant') await c.transition('dispatch');
       if (stage === 'grant') await c.announce();
       const current = stage === 'admit' ? null : (await c.readLaunch()).value!, head = (await c.readCanonicalHead()).head;
-      const request = stage === 'admit' ? c.command(head, 'operation.admit', { operationId: c.launchGuardId('launch'), binding, terminalBytes: 128 * 1024 })
+      const request = stage === 'admit' ? c.command(head, 'operation.admit', { operationId: c.launchGuardId('launch'), binding, terminalBytes: 128 * 1024, ackPolicy: 'verified-host' })
         : c.command(head, `agentica.launch.${stage}`, { launchId: 'launch', ...(stage === 'dispatch' ? {} : stage === 'announce'
-          ? { dispatch: { ...current!.dispatch!.ref }, started: c.launchStartedFixture(current!.binding.start) as never }
+          ? { dispatch: { ...current!.dispatch!.ref }, ...c.launchProofFixture(current!.binding.start, current!.dispatch!.source.attemptId) }
           : { run: { ...current!.run!.ref }, publication: { ...current!.binding.publication } }) });
       const before = await c.dump(), add = IDBObjectStore.prototype.add, put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.add = function(...args) { if (this.name === store) throw new DOMException('Injected', 'QuotaExceededError'); return add.apply(this, args); };

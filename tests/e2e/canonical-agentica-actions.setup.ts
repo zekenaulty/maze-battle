@@ -3,10 +3,9 @@ import { readCanonical, readCanonicalHead } from '../../src/persistence/canonica
 import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { retainPublication } from '../../src/persistence/canonical/agentica/publication';
 import { createLaunchBinding, executeLaunchCommand, launchGuardId, launchSessionId, readLaunch } from '../../src/persistence/canonical/agentica/launch';
-import { launchStartFixture, launchStartedFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
+import { launchStartFixture, launchProofFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import { MIN_TERMINAL_BYTES, type JsonObject } from '../../src/persistence/canonical/types';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
-import { json } from '../../src/persistence/canonical/world/records';
 import { observeMaze } from '../../src/services/agentica/game/observation';
 import { mazeCapabilities } from '../../src/services/agentica/game/capabilities';
 import { flatAddress } from '../../src/services/agentica/game/validation';
@@ -29,13 +28,13 @@ export async function fundLaunch(session: GameSession) {
     observation, capabilities: mazeCapabilities() };
   const binding = createLaunchBinding({ launchId, endpoint: 'ws://127.0.0.1:5236/offline-only', publication, start });
   await session.submitHostCommand({ kind: 'fresh', operation: 'operation.admit',
-    input: { operationId: launchGuardId(launchId), binding, terminalBytes: MIN_TERMINAL_BYTES }, execute: executeLaunchCommand });
+    input: { operationId: launchGuardId(launchId), binding, terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' }, execute: executeLaunchCommand });
   await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.dispatch', input: { launchId }, execute: executeLaunchCommand });
   const dispatched = (await readLaunch()).value!;
   // Only a retained started fixture, never SDK start/connect or a service/provider call.
-  const started = { ...launchStartedFixture(start), runId: crypto.randomUUID() };
+  const proof = launchProofFixture(start, dispatched.dispatch!.source.attemptId, crypto.randomUUID());
   await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.announce',
-    input: { launchId, dispatch: { ...dispatched.dispatch!.ref }, started: json(started) }, execute: executeLaunchCommand });
+    input: { launchId, dispatch: { ...dispatched.dispatch!.ref }, ...proof }, execute: executeLaunchCommand });
   const announced = (await readLaunch()).value!;
   await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.grant',
     input: { launchId, run: { ...announced.run!.ref }, publication: { ...publication } }, execute: executeLaunchCommand });

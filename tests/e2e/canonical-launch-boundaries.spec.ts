@@ -7,8 +7,9 @@ for (const phase of ['admit', 'announce'] as const) test(`${phase} snapshots all
     if (phase === 'announce') { await c.admit(binding); await c.transition('dispatch'); }
     const current = phase === 'announce' ? (await c.readLaunch()).value! : null;
     const head = (await c.readCanonicalHead()).head;
-    const request = phase === 'admit' ? c.command(head, 'operation.admit', { operationId: c.launchGuardId('launch'), binding, terminalBytes: 128 * 1024 })
-      : c.command(head, 'agentica.launch.announce', { launchId: 'launch', dispatch: { ...current!.dispatch!.ref }, started: c.launchStartedFixture(current!.binding.start) as never });
+    const request = phase === 'admit' ? c.command(head, 'operation.admit', { operationId: c.launchGuardId('launch'), binding, terminalBytes: 128 * 1024, ackPolicy: 'verified-host' })
+      : c.command(head, 'agentica.launch.announce', { launchId: 'launch', dispatch: { ...current!.dispatch!.ref },
+        ...c.launchProofFixture(current!.binding.start, current!.dispatch!.source.attemptId) });
     const original = structuredClone(request);
     if (phase === 'admit') await c.operateCanonical(request, 'admit', async tx => {
       const work = c.retainLaunchAdmission(tx, request);
@@ -17,6 +18,7 @@ for (const phase of ['admit', 'announce'] as const) test(`${phase} snapshots all
     else await c.executeCanonical(request, async tx => {
       const work = c.retainLaunchTransition(tx, request);
       ((request.input as JsonObject).started as JsonObject).runId = 'changed'; ((request.input as JsonObject).dispatch as JsonObject).id = 'changed';
+      ((request.input as JsonObject).admission as JsonObject).acceptedRequestHash = `sha256:${'d'.repeat(64)}`;
       request.expected.owner = 'changed'; tx.head.owner = 'changed'; return work;
     });
     const read = await c.readLaunch();

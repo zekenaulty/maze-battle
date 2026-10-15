@@ -10,12 +10,12 @@ import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { prepareAction, readAction } from '../../src/persistence/canonical/agentica/actions';
 import { retainPublication } from '../../src/persistence/canonical/agentica/publication';
 import { createLaunchBinding, executeLaunchCommand, launchGuardId, launchSessionId, readLaunch } from '../../src/persistence/canonical/agentica/launch';
-import { launchStartFixture, launchStartedFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
+import { launchStartFixture, launchProofFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
 import { DIRECTIONS } from '../../src/persistence/canonical/knowledge/types';
 import { destinationKey } from '../../src/persistence/canonical/navigation/records';
 import { MIN_TERMINAL_BYTES, type JsonObject } from '../../src/persistence/canonical/types';
-import { json, same } from '../../src/persistence/canonical/world/records';
+import { same } from '../../src/persistence/canonical/world/records';
 
 export type Capability = 'maze.observe' | 'maze.navigate';
 export const pending = (action: AgenticaAction): AgenticaActionRecord => ({ fingerprint: actionFingerprint(action), status: 'pending' });
@@ -45,13 +45,13 @@ export async function setup(capability: Capability = 'maze.navigate') {
     start.capabilities = mazeCapabilities().filter(cap => cap.id === capability);
     const launch = createLaunchBinding({ launchId: 'guard-fixture', endpoint: 'ws://127.0.0.1:5000/host', publication, start });
     await session.submitHostCommand({ kind: 'fresh', operation: 'operation.admit',
-      input: { operationId: launchGuardId('guard-fixture'), binding: launch, terminalBytes: MIN_TERMINAL_BYTES }, execute: executeLaunchCommand });
+      input: { operationId: launchGuardId('guard-fixture'), binding: launch, terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' }, execute: executeLaunchCommand });
     await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.dispatch', input: { launchId: 'guard-fixture' }, execute: executeLaunchCommand });
     const dispatched = (await readLaunch()).value!;
     // Wire announcement only: this fixture never connects the SDK or a provider.
-    const started = launchStartedFixture(start);
+    const proof = launchProofFixture(start, dispatched.dispatch!.source.attemptId), { started } = proof;
     await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.announce',
-      input: { launchId: 'guard-fixture', dispatch: { ...dispatched.dispatch!.ref }, started: json(started) }, execute: executeLaunchCommand });
+      input: { launchId: 'guard-fixture', dispatch: { ...dispatched.dispatch!.ref }, ...proof }, execute: executeLaunchCommand });
     const announced = (await readLaunch()).value!;
     await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.grant',
       input: { launchId: 'guard-fixture', run: { ...announced.run!.ref }, publication: { ...publication } }, execute: executeLaunchCommand });

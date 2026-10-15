@@ -3,11 +3,10 @@ import { readCanonical, readCanonicalHead } from '../../src/persistence/canonica
 import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { retainPublication } from '../../src/persistence/canonical/agentica/publication';
 import { assertLaunchGrant, createLaunchBinding, executeLaunchCommand, launchGuardId, launchSessionId, readLaunch } from '../../src/persistence/canonical/agentica/launch';
-import { launchStartFixture, launchStartedFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
+import { launchStartFixture, launchProofFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import { protocolAction } from '../../src/persistence/canonical/agentica/types.test-support';
 import { MIN_TERMINAL_BYTES, type JsonObject } from '../../src/persistence/canonical/types';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
-import { json } from '../../src/persistence/canonical/world/records';
 
 async function start() {
   const s = new GameSession(() => {}); await s.start();
@@ -21,12 +20,12 @@ async function start() {
     observedAt: s.view.game!.observation!.header.observedAt, data: { position: { ...s.view.game!.checkpoint.position } } };
   const binding = createLaunchBinding({ launchId: 'launch', endpoint: 'ws://127.0.0.1:5000/host', start, publication });
   await s.submitHostCommand({ kind: 'fresh', operation: 'operation.admit',
-    input: { operationId: launchGuardId('launch'), binding, terminalBytes: MIN_TERMINAL_BYTES }, execute: executeLaunchCommand });
+    input: { operationId: launchGuardId('launch'), binding, terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' }, execute: executeLaunchCommand });
   await s.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.dispatch', input: { launchId: 'launch' }, execute: executeLaunchCommand });
   const launch = (await readLaunch()).value!;
   // Simulate a service announcement only. No SDK transport or provider is called.
   await s.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.announce',
-    input: { launchId: 'launch', dispatch: { ...launch.dispatch!.ref }, started: json(launchStartedFixture(start)) }, execute: executeLaunchCommand });
+    input: { launchId: 'launch', dispatch: { ...launch.dispatch!.ref }, ...launchProofFixture(start, launch.dispatch!.source.attemptId) }, execute: executeLaunchCommand });
   return { s, publication, target: { gameId: head.gameId, generation: head.generation, operationId: launchGuardId('launch') } };
 }
 async function grant(s: GameSession, publication: ProtocolRef) {
