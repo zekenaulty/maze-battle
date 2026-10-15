@@ -64,10 +64,12 @@ test('SDK observe and scoped inspect preserve earned sources and fit 4 KiB witho
   for (const { action, reply, size, record } of result.results) {
     expect(reply.disposition).toBe('applied'); expect(size).toBeLessThanOrEqual(4096);
     expect(reply.beforeRevision).toBe(action.expectedRevision); expect(reply.afterRevision).toBe(action.expectedRevision);
-    expect(reply.observation).toMatchObject({ observationId: result.fixture.publication.id,
-      observedAt: result.fixture.start.observation.observedAt });
+    expect(reply.observation!.observationId).not.toBe(result.fixture.publication.id);
+    expect(reply.observation).toMatchObject({ observedAt: result.fixture.start.observation.observedAt });
+    expect(record.value!.original.publication).toEqual(result.fixture.publication);
     expect(record.value!.result).toEqual(reply); expect(record.proof!.row.value).toHaveProperty('proof', 'standalone');
   }
+  expect(new Set(result.results.map(r => r.reply.observation!.observationId)).size).toBe(4);
   const cell = result.results[1].reply.observation!.data;
   expect(cell).toMatchObject({ scope: 'cell', cell: { at: result.fixture.actor, world: result.fixture.cell.world,
     state: 'visible', source: { id: result.fixture.source.id } }, sources: [{ id: result.fixture.source.id }] });
@@ -111,7 +113,8 @@ test('SDK navigation retains exact target and admission receipt but performs no 
   expect(proof.receipt.result).toMatchObject({ host: { actionResult: { key: proof.row.key, recordId: proof.row.id,
     revision: proof.row.revision, sourceAttemptId: proof.source.attemptId, recordWitness: canonicalJson(proof.row) } } });
   expect(result.record.value!.result).toEqual(result.reply);
-  expect(result.reply.observation).toMatchObject({ observationId: result.fixture.publication.id,
+  expect(result.reply.observation!.observationId).not.toBe(result.fixture.publication.id);
+  expect(result.reply.observation).toMatchObject({
     observedAt: result.fixture.start.observation.observedAt, data: { source: result.fixture.start.observation.data.source,
       revisionContext: { kind: 'navigation-admission', publicationRevision: result.action.expectedRevision,
         commitRevision: proof.receipt.afterRevision } } });
@@ -192,7 +195,8 @@ for (const kind of ['unknown-room', 'unknown-cell', 'negative-local', 'oversized
     expect(result.trace.statuses).toEqual([]); expect(result.trace.invocations).toBe(1);
     expect(result.reply.disposition).toBe('refused'); expect(result.reply.operation).toBeUndefined();
     expect(result.reply.afterRevision).toBe(result.reply.beforeRevision); expect(result.size).toBeLessThanOrEqual(4096);
-    expect(result.reply.observation).toEqual(result.fixture.start.observation);
+    expect(result.reply.observation!.observationId).not.toBe(result.fixture.publication.id);
+    expect(result.reply.observation).toEqual({ ...result.fixture.start.observation, observationId: result.reply.observation!.observationId });
     expect(result.retained.value!.result).toEqual(result.reply); expect(result.duplicate).toEqual(result.reply);
     expect(result.head.checkpoint).toEqual(result.fixture.head.checkpoint);
     expect(result.head.allocations).toEqual(result.fixture.head.allocations); expect(result.after).toEqual(result.head);
@@ -238,10 +242,14 @@ test('room continuation retains sources and foreign-publication cursor receives 
   });
   expect(result.trace.statuses).toEqual([]); expect(result.trace.invocations).toBe(3);
   for (const reply of [result.first, result.next]) {
-    expect(reply.disposition).toBe('applied'); expect(reply.observation).toMatchObject({ observationId: result.fixture.publication.id,
+    expect(reply.disposition).toBe('applied'); expect(reply.observation!.observationId).not.toBe(result.fixture.publication.id);
+    expect(reply.observation).toMatchObject({
       revision: result.fixture.start.observation.revision, observedAt: result.fixture.start.observation.observedAt });
   }
-  expect(result.refusal.disposition).toBe('refused'); expect(result.refusal.observation).toEqual(result.fixture.start.observation);
+  expect(new Set([result.fixture.start.observation, result.first.observation!, result.next.observation!,
+    result.refusal.observation!].map(o => o.observationId)).size).toBe(4);
+  expect(result.refusal.disposition).toBe('refused');
+  expect(result.refusal.observation).toEqual({ ...result.fixture.start.observation, observationId: result.refusal.observation!.observationId });
   for (const size of result.sizes) expect(size).toBeLessThanOrEqual(4096);
   expect(result.head.checkpoint).toEqual(result.fixture.head.checkpoint);
 });

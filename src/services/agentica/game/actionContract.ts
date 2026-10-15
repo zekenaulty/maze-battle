@@ -34,7 +34,9 @@ export function actionResult(identity: PreparedAction, observation: AgenticaObse
   const a = identity.action;
   return { actionId: a.actionId, sessionId: a.sessionId, sessionEpoch: a.sessionEpoch, disposition,
     beforeRevision: a.expectedRevision, afterRevision: observation.revision,
-    evidenceId: `result-${identity.storageKey.slice(-64)}`, summary, observation };
+    evidenceId: `result-${identity.storageKey.slice(-64)}`, summary,
+    // A publication can yield different scoped views. Each retained action owns its exact observation.
+    observation: { ...structuredClone(observation), observationId: `observation-${identity.storageKey.slice(-64)}` } };
 }
 export function unresolved(action: AgenticaAction): AgenticaResult {
   return { actionId: action.actionId, sessionId: action.sessionId, sessionEpoch: action.sessionEpoch, disposition: 'unresolved',
