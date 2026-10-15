@@ -12,7 +12,7 @@ export function counterDelta(after: ServiceProof, before: ServiceProof) {
 export const scriptedWindow = { instances: 1, createCalls: 1, refineCalls: 3, stepsPlanned: 4, emptyPlans: 0 };
 export const absentWindow = { instances: 0, createCalls: 0, refineCalls: 0, stepsPlanned: 0, emptyPlans: 0 };
 
-export async function initialDecision(page: Page, mode: DecisionScriptMode = 'navigation') {
+export async function completeInitialDecision(page: Page, mode: DecisionScriptMode = 'navigation') {
   const before = await serviceProof();
   await page.evaluate(mode => window.canonicalStartService.startDecision(mode), mode);
   await expect.poll(async () => (await page.evaluate(() => window.canonicalStartService.readDecision())).messages
@@ -24,6 +24,11 @@ export async function initialDecision(page: Page, mode: DecisionScriptMode = 'na
   expect(original.terminal!.event.kind).toBe('decision');
   expect(original.launch!.binding.start.limits!.maxPlanContinuations).toBe(1);
   expect(counterDelta(await serviceProof(), before)).toEqual({ created: 1, initial: scriptedWindow, successor: absentWindow });
+  return { before, original };
+}
+
+export async function initialDecision(page: Page, mode: DecisionScriptMode = 'navigation') {
+  const { before, original } = await completeInitialDecision(page, mode);
   await page.evaluate(() => window.canonicalStartService.attachDecisionController());
   const prepared = await page.evaluate(() => window.canonicalStartService.prepareDecision());
   const retained = await page.evaluate(() => window.canonicalStartService.readDecision());

@@ -1,4 +1,4 @@
-import { AgenticaHost, type AgenticaHostOptions, type AgenticaMessage, type HostOperationEvent,
+import { AgenticaHost, type AgenticaHostOptions, type AgenticaMessage, type HostOperationEvent, type HostDecisionAdoption,
   type AgenticaStarted } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import type { AgenticaAction, AgenticaResult } from '../../src/services/agentica/contracts';
 
@@ -7,6 +7,7 @@ export function decisionSdkCapture() {
   const actions: { window: string; action: AgenticaAction }[] = [], results: { window: string; result: AgenticaResult }[] = [];
   const messages: { window: string; message: AgenticaMessage }[] = [], statuses: { window: string; state: string; detail?: unknown }[] = [];
   const wakes: HostOperationEvent[] = [], replies: AgenticaStarted[] = [];
+  const adoptions: { event: HostOperationEvent; adoption: HostDecisionAdoption }[] = [];
   const clients: AgenticaHost[] = [];
   let loseReplies = 0, awaitOutcome = false;
   const listeners = new Set<(message: AgenticaMessage) => void>();
@@ -36,23 +37,28 @@ export function decisionSdkCapture() {
         },
         onStatus(status) { statuses.push({ window, ...structuredClone(status) }); config.onStatus?.(status); },
       });
-      const wake = sdk.wakeOperation.bind(sdk);
-      sdk.wakeOperation = async event => {
-        wakes.push(structuredClone(event));
-        const reply = await wake(event); replies.push(structuredClone(reply));
+      async function received(reply: AgenticaStarted) {
+        replies.push(structuredClone(reply));
         if (awaitOutcome) { awaitOutcome = false; await outcome(reply.runId); }
         if (loseReplies > 0) {
           loseReplies--; sdk.close();
           throw Error('Fixture discarded the real correlated decision-wake reply.');
         }
         return reply;
+      }
+      const wake = sdk.wakeOperation.bind(sdk), adopt = sdk.adoptDecision.bind(sdk);
+      sdk.wakeOperation = async event => {
+        wakes.push(structuredClone(event)); return received(await wake(event));
+      };
+      sdk.adoptDecision = async (event, adoption) => {
+        adoptions.push(structuredClone({ event, adoption })); return received(await adopt(event, adoption));
       };
       clients.push(sdk); return sdk;
     };
   }
   return { factory, loseNextReply: () => { loseReplies = 1; }, afterOutcome: () => { awaitOutcome = true; },
     latest: () => clients.at(-1)!,
-    read: () => structuredClone({ actions, results, messages, statuses, wakes, replies }),
+    read: () => structuredClone({ actions, results, messages, statuses, wakes, adoptions, replies }),
     close: () => { for (const client of clients) client.close(); },
   };
 }

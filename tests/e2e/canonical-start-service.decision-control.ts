@@ -7,8 +7,10 @@ import { readAgenticaOperation } from '../../src/persistence/canonical/agentica/
 import { readAgenticaTerminal } from '../../src/persistence/canonical/agentica/terminal';
 import type { startDecisionSequence } from './canonical-start-service.decision-script';
 
-export async function attachDecisionController(session: GameSession, script: Awaited<ReturnType<typeof startDecisionSequence>>) {
-  script.detachNavigation(); script.closeInitialTransport();
+export type DecisionAttachment = Pick<Awaited<ReturnType<typeof startDecisionSequence>>,
+  'action' | 'binding' | 'capture' | 'started' | 'publication'> & { launchId: string };
+
+export async function attachDecisionController(session: GameSession, script: DecisionAttachment) {
   const controller = await createGameDecisionController(session, script.action(), script.binding,
     { factory: script.capture.factory('successor') });
   const sdk = script.capture.latest();
