@@ -6,6 +6,7 @@ import type { ProtocolRef } from './types';
 import { loadActiveLaunch, loadLaunch } from './launch.read';
 import { launchPages, loadLaunchRecord } from './launch.records';
 import type { LaunchGrant, LaunchGrantContext } from './launch.types';
+import { assertPublicationSelected } from './publication-selection';
 
 /** Pair with the effect and pin its deadline on the kernel request. Domain argument/target legality remains caller-owned. */
 export async function assertLaunchGrant(tx: LaunchGrantContext, ref: ProtocolRef, action: AgenticaAction, publicationRef: ProtocolRef) {
@@ -20,6 +21,7 @@ export async function assertLaunchGrant(tx: LaunchGrantContext, ref: ProtocolRef
   check(action.runId === run.runId && action.manifestHash === run.manifestHash && action.sessionId === run.sessionId
     && action.sessionEpoch === run.sessionEpoch, 'action is outside launch grant');
   const capability = launch.binding.start.capabilities.find(c => c.id === action.capabilityId); check(capability, 'action capability is not granted');
+  await assertPublicationSelected({ head, pages }, launch.binding.launchId, ref, publicationRef);
   const publication = await readPublication(pages, publicationRef); assertPublicationCurrent(publication, head);
   check(publication.epoch === grant.epoch && action.expectedRevision === publication.wireRevision, 'action publication changed');
   check(Date.now() < Date.parse(action.deadlineAt), 'action is outside launch grant');

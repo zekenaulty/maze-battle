@@ -66,6 +66,9 @@ test('world changes stale the old publication; a new earned publication does not
     const before = await c.dump(), stale = await c.gate().catch(String), after = await c.dump(), pub = await c.publish(), run = original.run!.value.data.started;
     const action = { ...c.protocolAction(pub.head.revision), runId: run.runId, sessionId: run.sessionId, sessionEpoch: run.sessionEpoch,
       manifestHash: run.manifestHash, capabilityId: 'maze.observe', deadlineAt: '2099-01-01T00:00:00.000Z' };
+    const selected = (await c.readCanonical(p => c.readPublicationSelection(p, 'launch'))).value!;
+    await c.executePublicationRenewal(c.command((await c.readCanonicalHead()).head, 'agentica.publication.renew',
+      { launchId: 'launch', grant: { ...original.grant!.ref }, publication: { ...pub.ref }, previousSelection: { ...selected.ref } }));
     await c.executeCanonical(c.command((await c.readCanonicalHead()).head, 'fixture.current'), async tx => {
       await c.assertLaunchGrant(tx, original.grant!.ref, action, pub.ref); return true;
     });

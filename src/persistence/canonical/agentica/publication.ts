@@ -28,7 +28,7 @@ export async function readPublication(pages: ProtocolRead, ref: ProtocolRef): Pr
   check(equal(value.observation, gameCheckpoint(value.snapshot.checkpoint).knowledge), 'publication observation source changed');
   return value;
 }
-/** Execution bookkeeping is irrelevant; custody, checkpoint and earned/world roots are not. */
+/** State equivalence only. Grant authority also requires explicit publication selection. */
 export function assertPublicationCurrent(publication: Publication, head: CanonicalHead) {
   const snapshot = publication.snapshot;
   check(head.status === 'ready' && head.generation === snapshot.generation && head.gameId === snapshot.gameId

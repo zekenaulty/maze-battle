@@ -3,6 +3,8 @@ import * as terminal from '../../src/persistence/canonical/agentica/launch.termi
 import { launchAcknowledgement } from '../../src/persistence/canonical/agentica/launch.ack';
 import { captureLaunchAdmission } from '../../src/persistence/canonical/agentica/launch.service';
 import * as publication from '../../src/persistence/canonical/agentica/publication';
+import * as selection from '../../src/persistence/canonical/agentica/publication-selection';
+import { launchWriter } from '../../src/persistence/canonical/agentica/launch.records';
 import * as transaction from '../../src/persistence/canonical/transaction';
 import * as read from '../../src/persistence/canonical/read';
 import { initializeCanonical } from '../../src/persistence/canonical/lifecycle';
@@ -98,7 +100,7 @@ async function fillNormalCapacity() {
   } throw Error('Did not reach quota');
 }
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5234') throw Error('Isolated canonical launch fixture only');
-const api = { ...launch, ...terminal, ...transaction, ...read, ...publication, openCanonicalDatabase, command, seed, binding, admit, transition,
+const api = { ...launch, ...terminal, ...transaction, ...read, ...publication, ...selection, launchWriter, openCanonicalDatabase, command, seed, binding, admit, transition,
   announce, grant, ready, gate, stop, ack, terminalEntry, launchAcknowledgement, captureLaunchAdmission, takeover, dump, fillNormalCapacity, publish, canonicalJson, fingerprint,
   launchStartedFixture, launchEntryFixture, launchProofFixture, launchTerminalFixture, protocolAction };
 declare global { interface Window { canonicalLaunch: typeof api } }

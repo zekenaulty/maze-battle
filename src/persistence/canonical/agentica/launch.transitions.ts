@@ -10,6 +10,7 @@ import { launchKey } from './launch.validation';
 import { launchStarted } from './launch.wire';
 import { validateLaunchAdmission } from './launch.service';
 import type { LaunchStarted } from './launch.types';
+import { readPublicationSelection, retainPublicationSelection } from './publication-selection';
 
 export async function retainLaunchTransition(tx: CanonicalWork, input: CanonicalRequest) {
   const request = validateRequest(input), head = snapshotJson(tx.head), writer = launchWriter(tx, request), pages = launchPages(tx);
@@ -39,9 +40,14 @@ export async function retainLaunchTransition(tx: CanonicalWork, input: Canonical
     check(current.guard.state === 'admitted' && current.guard.owner === head.owner && current.guard.epoch === head.epoch
       && current.binding.start.sessionEpoch === String(head.epoch), 'launch requires explicit protocol adoption');
     assertPublicationCurrent(current.publication, head);
-    if (current.grant) return { reference: { ...current.grant.ref } };
+    if (current.grant) {
+      check(await readPublicationSelection(pages, id), 'missing publication selection');
+      return { reference: { ...current.grant.ref } };
+    }
     state.grant = await writer.put(launchKey(id, 'grant'), 'agentica-launch-grant', id,
       { run, publication, owner: head.owner, epoch: head.epoch, guardRevision: current.guard.revision });
+    await retainPublicationSelection({ ...tx, head }, request,
+      { launchId: id, grant: state.grant, publication, previousSelection: null }, writer);
   }
   await writer.put(launchKey(id), 'agentica-launch-state', id, state, true); return writer.receipt();
 }
