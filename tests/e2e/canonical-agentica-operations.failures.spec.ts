@@ -67,8 +67,7 @@ test('normal quota blocks progress ACK but funded navigation and launch cancella
       const cancel = await f.cancel(operationId);
       const terminal = operationId === s.operationId ? (await f.terminal(s.action, s.binding))! : null;
       const ack = terminal ? await f.terminalAck(s.action, s.binding, { ...s.entry, state: 'cancelled', latestEvent: terminal.event })
-        : await f.operateCanonical(await f.command('operation.acknowledge', {
-        operationId, terminalAttemptId: cancel.receipt.attemptId }), 'acknowledge');
+        : await f.launchAck();
       cancelled.push({ cancel, receipt: ack.receipt });
     }
     return { error, before, after, cancelled, state: (await f.read(s.action)).value };

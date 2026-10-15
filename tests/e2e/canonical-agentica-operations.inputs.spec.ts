@@ -3,7 +3,8 @@ import { test, expect } from './canonical-agentica-operations.test';
 test('actual SDK accepts original admission and staged event offline; typed service serialization is retained exactly', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(), wire = JSON.parse(JSON.stringify(s.entry));
-    Object.assign(wire.request.provider, { model: null, thinkingEffort: null, includeThoughtSummaries: false, geminiApi: null, thinkingEffortResolved: true });
+    wire.request.provider.model ??= null;
+    Object.assign(wire.request.provider, { thinkingEffort: null, includeThoughtSummaries: false, geminiApi: null, thinkingEffortResolved: true });
     Object.assign(wire.request.limits, { maxRecentObservations: 6, maxRecentReceipts: 6 });
     wire.request.observation.facts = null;
     for (const capability of wire.request.capabilities) {
@@ -27,6 +28,18 @@ test('actual SDK accepts original admission and staged event offline; typed serv
   expect(r.ack.state!.acknowledgement!.data.entry).toEqual(r.wire);
   expect(r.duplicate.state!.acknowledgement).toEqual(r.ack.state!.acknowledgement);
   expect(r.duplicate.state!.event).toEqual(r.first.state!.event);
+});
+
+test('operation custody cannot discard the model frozen by durable start acceptance', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const f = window.canonicalAgenticaOperations, s = await f.boot(), unresolved = structuredClone(s.entry);
+    delete unresolved.request.provider!.model;
+    const before = await f.dump(), error = await f.confirm(s.action, s.binding, unresolved).then(() => 'accepted', String);
+    const unchanged = before === await f.dump(), confirmed = await f.confirm(s.action, s.binding, s.entry);
+    return { error, unchanged, request: confirmed.state!.confirmation.data.entry.request };
+  });
+  expect(r.error).toContain('service operation differs'); expect(r.unchanged).toBe(true);
+  expect(r.request.provider!.model).toBe('offline-model');
 });
 
 test('confirmation snapshots mutable identity, entry, binding and request before awaiting transaction reads', async ({ page }) => {

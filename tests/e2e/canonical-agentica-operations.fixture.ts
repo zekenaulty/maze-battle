@@ -8,6 +8,8 @@ import { operationSettlementHooks } from '../../src/persistence/canonical/agenti
 import { flatAddress } from '../../src/services/agentica/game/validation';
 import { prepareAction } from '../../src/persistence/canonical/agentica/actions';
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
+import { launchAcknowledgement } from '../../src/persistence/canonical/agentica/launch.ack';
+import { launchEntryFixture, launchTerminalFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import { readAgenticaOperation, retainOperationConfirmation, retainOperationCustodyAck, operationProgressHooks, retainEventAcknowledgement } from '../../src/persistence/canonical/agentica/operation';
 import { operationKey } from '../../src/persistence/canonical/agentica/operation.records';
 import { eventKey } from '../../src/persistence/canonical/agentica/event.records';
@@ -53,7 +55,7 @@ async function boot() {
   await hooks.saveAction!(actionKey(action), { fingerprint: actionFingerprint(action), status: 'pending' });
   const admission = await hooks.onAction!(action);
   if (!admission.operation) throw Error(JSON.stringify(admission));
-  const entry: AgenticaOperationEntry = { request: funded.start, action, admission, activeEpoch: action.sessionEpoch,
+  const entry: AgenticaOperationEntry = { request: structuredClone(launch.acceptedStart), action, admission, activeEpoch: action.sessionEpoch,
     state: 'parked', usage: { steps: 1, refinements: 0, continuations: 0, providerCalls: 1 } };
   return { action, binding, entry, operationId: admission.operation.operationId, launchGuard: launch.guard.id, target, actor };
 }
@@ -118,6 +120,12 @@ const api = { boot, command, confirm, custodyAck, acceptCustody, advance, ack, d
   async terminal(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding']) { return (await readAgenticaTerminal(await prepareAction(action), binding)).value; },
   async terminalAck(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding'], entry: AgenticaOperationEntry, stop = false) {
     const checked = terminalAcknowledgement(await prepareAction(action), binding, entry, stop ? 'stop-decision' : 'signal');
+    return session!.cleanupHostOperation({ kind: 'verified-ack', ...await checked.prepare(), verify: checked.verify });
+  },
+  async launchAck() {
+    const launch = (await readLaunch()).value!, run = launch.run!.value.data.started;
+    const entry = launchEntryFixture(launch.binding.start, launch.dispatch!.source.attemptId, run.runId, run.manifestHash);
+    const checked = launchAcknowledgement(launch.binding.launchId, launchTerminalFixture(entry));
     return session!.cleanupHostOperation({ kind: 'verified-ack', ...await checked.prepare(), verify: checked.verify });
   },
   async settle(action: AgenticaAction, binding: Awaited<ReturnType<typeof boot>>['binding']) {
