@@ -10,6 +10,13 @@ describe('bounded Agentica protocol validation', () => {
   it.each([undefined, NaN, Infinity, new Map(), { value: undefined }, { callback: () => 0 }])('rejects non-JSON values', value => {
     expect(() => boundedJson(value)).toThrow();
   });
+  it('accepts only plain object prototypes, including nested values', () => {
+    expect(boundedJson({ nested: { value: 1 } })).toBe('{"nested":{"value":1}}');
+    for (const value of [Object.create(null), Object.create({ value: 1 }), new Date(0)]) {
+      expect(() => boundedJson(value)).toThrow(/non-JSON/);
+      expect(() => boundedJson({ nested: value })).toThrow(/non-JSON/);
+    }
+  });
   it('bounds cumulative text, keys, depth, collection work and UTF-8 bytes', () => {
     for (const value of [{ a: 'x'.repeat(50), b: 'y'.repeat(50) }, { ['k'.repeat(101)]: 0 }, '\u2713'.repeat(34)]) {
       expect(() => boundedJson(value, 100)).toThrow();

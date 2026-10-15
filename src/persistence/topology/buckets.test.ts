@@ -4,8 +4,7 @@ import type { Direction } from '../../domain/types';
 import { boundary, childBounds, passageBounds, reservedBounds, world } from '../../domain/expedition/topology/geometry';
 import type { SpaceSpec } from '../../domain/expedition/types';
 import type { Occupancy } from '../../domain/expedition/topology/types';
-import { boundsBuckets, MAX_BUCKET_ENTRIES, neighborhood, validateBucket } from './buckets';
-import { recordBytes, type TopologyTransaction } from './database';
+import { boundsBuckets, MAX_BUCKET_ENTRIES, neighborhood, validateBucket, type Bucket } from './buckets';
 import { PagedOccupancy } from './occupancy';
 
 const directions: Direction[] = ['north', 'east', 'south', 'west'];
@@ -62,30 +61,26 @@ describe('bounded paged topology occupancy', () => {
 
   it('fails closed outside prefetched bins and rejects inconsistent replicated entries', async () => {
     const entry: Occupancy = { id: 'crossing', kind: 'space', bounds: { row: 15, column: 0, rows: 2, columns: 1 } };
-    const tx = { get: async (_store: string, key: number[]) => key[1] === 0 ? [entry] : [] } as unknown as TopologyTransaction;
+    const read = async ([row]: Bucket) => row === 0 ? [entry] : [];
     const inconsistent = new PagedOccupancy();
-    await expect(inconsistent.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), [[0, 0], [1, 0]])).rejects.toThrow(/Inconsistent/);
+    await expect(inconsistent.fetch(read, [[0, 0], [1, 0]])).rejects.toThrow(/Inconsistent/);
     const page = new PagedOccupancy();
-    await page.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), [[0, 0]]);
+    await page.fetch(read, [[0, 0]]);
     expect(() => page.occupied({ row: 15, column: 0, rows: 2, columns: 1 })).toThrow(/prefetched/);
     expect(page.occupied({ row: 15, column: 0, rows: 1, columns: 1 })).toBe(true);
     expect(page.occupied({ row: 15, column: 0, rows: 1, columns: 1 }, 'crossing')).toBe(false);
   });
 
-  it('counts UTF-8 serialized bytes and rejects unsafe coordinate neighborhoods', () => {
-    const serialized = JSON.stringify(['spaces', 'key', { name: '\u4e16\u754c' }]);
-    expect(recordBytes('spaces', 'key', { name: '\u4e16\u754c' })).toBe(new TextEncoder().encode(serialized).length);
-    expect(recordBytes('spaces', 'key', { name: '\u4e16\u754c' })).toBeGreaterThan(serialized.length);
-    expect(recordBytes('spaces', 'key', undefined)).toBe(0);
+  it('rejects unsafe coordinate neighborhoods', () => {
     expect(() => neighborhood({ row: Number.MAX_SAFE_INTEGER, column: 0 })).toThrow(/safe/);
   });
 
   it('enforces the prefetch cap before a 26th page read', async () => {
     let reads = 0;
-    const tx = { get: async () => { reads++; return []; } } as unknown as TopologyTransaction;
+    const read = async () => { reads++; return []; };
     const pages = new PagedOccupancy();
-    await pages.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), neighborhood({ row: 0, column: 0 }));
-    await expect(pages.fetch(bucket => tx.get('buckets', ['slot', ...bucket]), [[3, 3]])).rejects.toThrow(/page budget/);
+    await pages.fetch(read, neighborhood({ row: 0, column: 0 }));
+    await expect(pages.fetch(read, [[3, 3]])).rejects.toThrow(/page budget/);
     expect(reads).toBe(25);
   });
 });

@@ -1,5 +1,7 @@
 import { canonicalJson } from '../services/agentica/sdk/agentica-host.mjs';
-import { object } from './streamValidation';
+
+const object = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype;
 
 export function agenticaCheck(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Agentica persistence: ${message}`);
