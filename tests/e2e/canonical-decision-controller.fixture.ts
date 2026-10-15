@@ -68,6 +68,7 @@ const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), 
   replay: (forged = false) => completedReplay(sdk, seeded.seed.action, forged),
   hostCalls: () => structuredClone(port.calls),
   failNext: (stage: 'grant' | 'cleanup') => { port.failNextStage = stage; },
+  loseCleanupReply: () => { port.loseNextCleanupReply = true; },
   configure(input: { fastState?: SettledState; loseWakeReply?: boolean; replyPatch?: Partial<LaunchStarted>; unavailable?: boolean }) {
     Object.assign(sdk.remote, structuredClone(input));
   },

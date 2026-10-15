@@ -17,7 +17,9 @@ export async function controllerState(seed: TransferSeed) {
   })).value;
   const launch = terminal.bound.launch;
   const selection = (await readCanonical(p => readPublicationSelection(p, launch.binding.launchId))).value;
-  return { head: result.head, launch, selection, grant,
+  const ackId = terminal.bound.operation.acknowledgementAttemptId;
+  const acknowledgement = ackId ? (await readCanonical(p => p.sourceReceipt(ackId))).value : null;
+  return { head: result.head, launch, selection, grant, acknowledgement,
     operation: terminal.bound.operation, progress: terminal.bound.progress, terminal: terminal.event,
     prefix: { probe: terminal.probe, previous: terminal.previous, predecessor: terminal.predecessor },
     intent: intent && { reference: intent.reference, data: intent.data, source: intent.source, row: intent.row },

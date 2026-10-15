@@ -3,10 +3,11 @@ import { captureHostCommand, type CanonicalHostPort } from '../../src/services/g
 import { HostCleanupError, type CanonicalRecoveryPort } from '../../src/services/game/CanonicalHostRecovery';
 import { ControllerBarriers, type HostStage } from './canonical-decision-controller.barriers';
 import { failRootWrite } from './canonical-decision-controller.fault';
+import type { CanonicalRequest } from '../../src/persistence/canonical/types';
 
 const stages: Record<string, HostStage> = { 'agentica.operation.decision': 'intent',
   'agentica.operation.decision-claim': 'claim', 'agentica.decision.grant': 'grant', 'agentica.action.reserve': 'reserve' };
-export interface HostCall { operation: string; input: unknown; receipt?: unknown; failedRequest?: unknown }
+export interface HostCall { operation: string; input: unknown; receipt?: unknown; failedRequest?: CanonicalRequest }
 
 /** Instrument the actual session queue; never emulate a canonical write or grant. */
 export class ControllerPort implements CanonicalHostPort, CanonicalRecoveryPort {
@@ -14,6 +15,7 @@ export class ControllerPort implements CanonicalHostPort, CanonicalRecoveryPort 
   readonly session: GameSession;
   readonly barriers: ControllerBarriers;
   failNextStage: 'grant' | 'cleanup' | null = null;
+  loseNextCleanupReply = false;
   constructor(session: GameSession, barriers: ControllerBarriers) { this.session = session; this.barriers = barriers; }
   get hostSignal() { return this.session.hostSignal; }
   submitHostCommand: CanonicalHostPort['submitHostCommand'] = async input => {
@@ -35,7 +37,12 @@ export class ControllerPort implements CanonicalHostPort, CanonicalRecoveryPort 
       const fail = this.failNextStage === 'cleanup'; if (fail) this.failNextStage = null;
       const result = await (fail ? failRootWrite(() => this.session.cleanupHostOperation(command, signal))
         : this.session.cleanupHostOperation(command, signal)); call.receipt = structuredClone(result);
-      await this.barriers.hit('cleanup:after'); return result;
+      await this.barriers.hit('cleanup:after');
+      if (this.loseNextCleanupReply) {
+        this.loseNextCleanupReply = false;
+        throw new HostCleanupError(result.request, Error('Fixture lost cleanup reply after native commit'));
+      }
+      return result;
     } catch (error) {
       if (error instanceof HostCleanupError) call.failedRequest = structuredClone(error.request);
       throw error;
