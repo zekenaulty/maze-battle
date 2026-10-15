@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 17,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 18,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -12,8 +12,10 @@ Retained known-destination execution and atomic host hooks are checked separatel
 from the unmounted Agentica client. [Navigation proof](reviews/issue-11-navigation-composition.md).
 Actual-App depth-local movement is now measured through 16 retained qualified
 floors. [Method and limitations](reviews/issue-11-app-depth.md).
-P4 has removed disconnected preview UI and stale route suites; the
-[retirement map](reviews/issue-11-p4-retirement-map.md) identifies remaining writers.
+P4 has removed the alternate production writers and disconnected preview UI.
+The [retirement map](reviews/issue-11-p4-retirement-map.md) records the earlier
+inventory; [final RPG writer retirement](reviews/issue-11-rpg-writer-retirement.md)
+closes its remaining source dependency tree without preserving old formats.
 Canonical publication/action results now compose atomically with that navigation,
 including reviewed corruption/mutation fixes. [Binding evidence and next integration](reviews/issue-11-agentica-records.md).
 The [shared GameSession host queue](reviews/issue-11-game-host-queue.md) and
@@ -50,12 +52,17 @@ The [canonical durable-start adoption](reviews/issue-11-canonical-start-recovery
 now replaces partial run-inventory discovery with the exact retained dispatch
 attempt, validated full-request admission, resolved settings and funded verified
 Stop settlement. Unit/native and real-service browser checks pass; this does not mount the client or
-complete transfer/adoption, decision/wake or publication renewal.
+complete decision/wake or publication renewal.
 P4 has also removed the [remaining stream/topology writer closure](reviews/issue-11-p4-stream-store-closure.md),
 including eleven stores and 118 obsolete source/test files.
-The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
-qualification remain open. Agentica remains unavailable in this intermediate
-preview; this is not complete feature parity or closure of #11.
+The [unfinished-navigation transfer](../tests/e2e/canonical-operation-transfer.md)
+now requires an exact service ACK and both kernel adoption receipts before movement.
+The integrated native fixture checks 24 transfer and 116 original-operation cases;
+that fixture is not the real service. The [real-service action proof](../tests/agentica-start-service/README.md)
+separately covers distinct observation identities, exact retry and local navigation.
+The SDK client is not mounted. Remaining P3 decision/wake/publication and application
+recovery, plus P5 final qualification, remain open. Agentica remains unavailable
+in this intermediate preview; this is not complete feature parity or closure of #11.
 
 ## Authority and Supersession
 
@@ -176,8 +183,8 @@ The next increment adds [earned observation, memory and local exploration](revie
 with native per-step cost/recovery evidence independent of retained floor count.
 P3 manual and Auto now run in the actual App, including named saves and recovery.
 The actual-App native depth test includes session publication and map reads, not
-only isolated storage callbacks. P3 Agentica lifecycle, remaining P4 writers and
-full P5 qualification remain open; no canonical live-provider claim is made.
+only isolated storage callbacks. P3 Agentica lifecycle and full P5 qualification
+remain open; no canonical live-provider claim is made.
 
 P1 storage contracts are split as follows:
 
@@ -237,14 +244,20 @@ P1 storage contracts are split as follows:
   full-request service validation, compact frozen admission and funded Stop/ACK.
   Lost replies, service restart and full logical quota have real-service/browser
   proof; missing service evidence remains UNKNOWN and blocks replacement.
-- **P3 Agentica, remaining:** explicit service transfer/adoption, decision/wake,
-  publication renewal and mounted application recovery, including granted runs.
+- **P3 unfinished-navigation transfer, checked locally:** immutable intent,
+  exact service ACK, separate guard/navigation adoption receipts, and effective
+  current-owner authority. Funded Stop works at partial-transfer stages. Real
+  .NET transfer qualification is separate from the native HTTP contract fixture.
+- **P3 Agentica, remaining:** decision/wake, publication renewal and mounted
+  application recovery, including granted runs and explicit transfer controls.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
-- **P4 started:** disconnected preview screens, stale route tests, standalone
+- **P4 source retirement, checked:** disconnected preview screens, stale route tests, standalone
   expedition writer and its legacy-format validators, standalone launch journal,
   standalone directed-v1 store, general/directed stream Agentica writers and the
   remaining stream/directed-stream/topology stores removed. The old RPG writer
-  and its proof adapters still require closure.
+  and its exclusively dependent adapters/fixtures are now removed too. One
+  production database opener remains. Shared domain algorithms and the radix
+  tree are retained. Deleting old-path tests does not establish canonical parity.
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
   qualification remain mandatory, not inferred from focused passes.
@@ -353,7 +366,7 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica delivery and recovery, removal of all
-obsolete writers/databases, full multi-controller depth/revisit/Q and game-level
+to arbitrary history. Canonical Agentica decision/wake/publication and mounted
+recovery, full multi-controller depth/revisit/Q and game-level
 remote settlement at capacity remain mandatory. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.

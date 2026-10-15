@@ -8,7 +8,7 @@ game, live-provider test, or full App cohort.
 
 - Maze observation-regression base: `7fe5f4a`, merged into the isolated SDK
   worktree at `f4988a6eb243d7f2cbd7ae4a60ff99da188b3d7c`.
-- Agentica: clean `602f15ac24a60faee8665cb165cb2d7c761c9eed` at an explicit
+- Agentica: clean `a1f00ac142a4e38cec2ff175849c67afd6ea17f0` at an explicit
   external root; the launcher refuses another revision or a dirty source tree.
 - The actual vendored SDK must equal the pinned service SDK, ignoring CRLF.
   Normalized SHA-256: `46d88c25bda57ee1371fc05209445f321dd3183e52f71a12abce221094a5a9dd`.
@@ -24,9 +24,9 @@ game, live-provider test, or full App cohort.
 Run in the isolated Maze worktree; both ports must be unused:
 
 ```powershell
-Set-Location C:/Users/Zythis/.codex/worktrees/maze-durable-sdk/maze-battle
+Set-Location C:/Users/Zythis/.codex/worktrees/dungeon-d0/maze-battle
 node node_modules/typescript/bin/tsc -p tests/e2e/canonical-start-service.tsconfig.json --noEmit
-node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-start-admission/Agentica
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-compact-outcome/Agentica
 ```
 
 The launcher builds the new C# project with explicit `-p:AgenticaRoot=...`,
@@ -70,8 +70,9 @@ reload retains that test's database. No user database or cache is reset. Ports
 Production `GameSession`, `prepareGameLaunch`, `createGameTransport`, SDK,
 `createLaunchRecovery`, GET discovery, POST Stop, and funded verified ACK all run
 through their real paths. The observation regression also uses the production
-action hooks and operation driver, with a temporary production fix only for the
-before/after qualification described below. Only Vite's development client is replaced with empty JavaScript to
+action hooks and operation driver. The observation identity repair is now part
+of production (`f1ada91`); the historical before/after run is described below.
+Only Vite's development client is replaced with empty JavaScript to
 remove its unrelated HMR WebSocket. Service responses and SDK frames are real;
 unexpected browser origins/messages fail the test.
 
@@ -128,15 +129,27 @@ Paid providers, successor/wake, publication renewal, every transport/crash
 interleaving, physical storage failure and the unavailable .NET SDK pin remain
 outside this proof.
 
-Known separate transport limitation: the pinned service can send an approximately
-110 KiB final `outcome` after `operation.parked`; Maze currently sets the SDK
-receive bound to 64 KiB. Native frame byte counts and SDK `protocol.error` remain
-in the evidence. This focused regression permits only that oversized terminal
-outcome (bounded by the service's 262144-byte limit), never oversized action or
-parked frames or other SDK errors. The action results, duplicate ACK, parked
-admission, HTTP custody probe and terminal settlement are still real. No fixture
-override increases the production SDK bound or edits/drops service messages.
+The pinned service always sends its compact outcome display projection; full
+HTTP audit evidence remains intact. Every native frame must fit Maze's unchanged
+64 KiB receive limit, the terminal notification must actually arrive, and the
+script must record zero SDK errors. There is no oversized-outcome exemption,
+transport-bound override or fixture message editing.
 The current narrow launch contract does not expose recent-history limits.
+
+## Integrated bounded-frame result (2026-10-15)
+
+- Maze `e631ba7` plus the exact fixture changes committed at `e837be1`; real
+  Agentica `a1f00ac142a4e38cec2ff175849c67afd6ea17f0`, clean SDK match.
+- **6/6 native PASS**, 17.0s, zero retries/skips or SDK errors. All received
+  frames fit 64 KiB. Production observation IDs are action-derived; the
+  previously failing terminal outcome is delivered normally before cleanup.
+- Evidence: parent `test-results/maze-start-service-V4aMFY/`, with exact source,
+  assembly hashes, commands, frames and retained original-request results.
+- Service build PASS, zero warnings/errors; offline .NET 10.0.401 limitation
+  remains. No paid providers, mounted UI, decision wake or transfer proof is
+  implied by these six tests.
+- Earlier oversized-outcome results below describe the superseded `602f15a`
+  service, not an exception retained in current acceptance.
 
 ## Original five-case result (2026-10-15)
 
