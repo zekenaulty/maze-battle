@@ -24,14 +24,14 @@ export async function createLaunchRecovery(port: CanonicalHostPort & CanonicalRe
   const network = boundedGameFetch(gate.signal, fetchImpl);
   let busy = false, stopRetry: CanonicalRequest | undefined, ackRetry: CanonicalRequest | undefined;
   let selected: ReturnType<typeof captureLaunchAdmission> | undefined;
-  async function current() {
+  async function current(remote = true) {
     gate.signal.throwIfAborted(); check(port.hostSignal === hostSignal, 'recovery game lifetime changed');
     const value = await readLaunch(launchId); gate.signal.throwIfAborted();
     check(Object.entries(original).every(([key, v]) => value.head[key as keyof typeof value.head] === v), 'recovery custody changed');
     const retained = value.value;
-    check(retained?.guard.admissionAttemptId === launch!.guard.admissionAttemptId && !retained.grant
-      && equal(retained.dispatch?.ref ?? null, launch!.dispatch?.ref ?? null), 'recovery launch binding changed');
-    check(!selected || !retained.run || equal(selected.admission, retained.run.value.data.admission), 'late announcement differs from recovery target');
+    check(retained?.guard.admissionAttemptId === launch!.guard.admissionAttemptId, 'recovery launch binding changed');
+    check(!remote || !retained.grant && equal(retained.dispatch?.ref ?? null, launch!.dispatch?.ref ?? null), 'recovery launch dispatch or grant changed');
+    check(!remote || !selected || !retained.run || equal(selected.admission, retained.run.value.data.admission), 'late announcement differs from recovery target');
     return retained;
   }
   async function validate(raw: unknown) {
@@ -54,13 +54,13 @@ export async function createLaunchRecovery(port: CanonicalHostPort & CanonicalRe
     return { status: 'identified' as const, run: entry.admission, settled: !!entry.terminal, fullStartEquivalence: 'verified' as const, raw };
   }
   async function stop() {
-    let retained = await current();
+    let retained = await current(false);
     if (retained.guard.state === 'acknowledged') return { status: 'settled' as const, localStopped: true, settled: true };
     const originalStop = stopRetry ?? (retained.guard.terminal ? (await readLaunchTerminal(launchId)).value.terminal.source : undefined);
     // Stop local authority first, even if service lookup/validation fails. No ordinary writes are required.
     try { await port.cleanupHostOperation(originalStop ? { kind: 'retry', request: originalStop } : { kind: 'cancel', target }, hostSignal); stopRetry = undefined; }
     catch (error) { if (error instanceof HostCleanupError) stopRetry = structuredClone(error.request); throw error; }
-    retained = await current(); check(retained.guard.terminal?.disposition === 'cancelled', 'launch lacks a durable local Stop');
+    retained = await current(false); check(retained.guard.terminal?.disposition === 'cancelled', 'launch lacks a durable local Stop');
     const found = await discover();
     if (found.status === 'unknown') return { ...found, localStopped: true, settled: false };
     let raw: unknown = null;
