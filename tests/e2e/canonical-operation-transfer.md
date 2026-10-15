@@ -8,6 +8,7 @@ Merged parent `7fe5f4ab298f7a1142e1e3fa95f502504402c997` via `4a84621` before im
 
 - Create `createGameOperationTransfer(port, sdk, originalAction, originalBinding)` alongside the existing operation driver. It never connects, starts, wakes, invokes actions, or renews a launch grant.
 - Explicitly retain a current-owner publication through the parent's publication path, then call `prepare(publicationRef)`. This commits an immutable intent and receipted current pointer in canonical execution records before HTTP.
+- Publication renewal is not implemented by this slice or assumed implemented by the parent. Integration must explicitly supply a current-owner retained publication. Transfer projects only its actor checkpoint and retained earned-knowledge anchor; no look, new sight, or hidden-world query. The distinct payload uses `transfer-<intent attempt ID>`, never the publication observation ID. Historical retry reproduces that exact ID and payload.
 - `pulse()` first GETs original operation custody and POSTs the exact retained transfer event. Even when GET already matches, it replays the original POST before retaining the exact ACK. Request, action, admission, usage, latest event, active epoch, parked state, and absence of successor custody are checked.
 - Subsequent pulses adopt the launch guard and navigation separately, then finalize navigation authority. Attempts are named by the immutable intent record ID plus `:guard` / `:navigation`. Final authority retains and verifies both explicit kernel receipts, operation IDs, target owner/epoch/game, ACK ordering, resulting revisions, and current publication. Mutable owner fields or generic adoption alone are insufficient.
 - A lost kernel reply is recovered from its named committed receipt. A reload under a different owner can reconcile the old transfer ACK but returns `takeover-required`; another explicitly prepared transfer is required, never an implicit epoch change.
@@ -50,6 +51,8 @@ git diff --check
 - One rerun initially refused occupied 5258 during prior test-server teardown. The listener exited without intervention; rerun passed. No unknown process was killed, no user DB/cache reset, no 5198/5244/5234/5223 listener touched.
 
 Coverage includes two explicit takeovers with movement, lost service ACK/reload/exact POST, lost committed kernel reply, both adopt receipts independently corrupted, generic adoption refusal, malformed ACKs, six partial-transfer Stop stages after reload at quota, Stop while ACK is in flight, missing progress ACK at Stop, service capacity refusal/retry, stale publication, and arrival remaining decision-required.
+
+Follow-up to `bf2ad77`: transfer observation identity is now intent-derived, avoiding reuse of the publication ID for a distinct projection. Rechecked **24/24 native PASS (1.3m), 133/133 focused units PASS, fixture TypeScript and build PASS**. Full-unit and original-operation counts above are the preceding `bf2ad77` baseline, not a rerun after this narrow change. Parent `f1ada91` / `fc01171` have not been merged or qualified in this isolated branch.
 
 ## Evidence Limits And Remaining Work
 

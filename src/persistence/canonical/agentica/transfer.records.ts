@@ -58,8 +58,8 @@ export async function loadTransferIntent(pages: OperationRead, identity: Prepare
     && Number(e.nextSessionEpoch) > Number(e.sessionEpoch), 'transfer event identity changed');
   check(publication.owner === source.expected.owner && publication.epoch === source.expected.epoch
     && publication.snapshot.gameId === source.expected.gameId && publication.snapshot.generation === source.expected.generation
-    && publication.snapshot.revision <= source.expected.revision && e.observation.observationId === data.publication.id
-    && equal(e.observation, transferObservation(publication, data.publication)) && e.observation.revision >= previous.observation.revision,
+    && publication.snapshot.revision <= source.expected.revision
+    && equal(e.observation, transferObservation(publication, source.attemptId)) && e.observation.revision >= previous.observation.revision,
   'transfer publication changed');
   return { reference: ref, data, source, row, publication };
 }

@@ -11,6 +11,11 @@ test('explicit ACK and both kernel receipts gate movement; repeated takeovers ke
       expect((await page.evaluate(() => window.canonicalOperationTransfer.transferPulse())).status).toBe(status);
     }
     const authorized = await page.evaluate(() => window.canonicalOperationTransfer.state());
+    const intent = authorized.retained!.intent;
+    expect(intent.data.event.observation.observationId).toBe(`transfer-${intent.source.attemptId}`);
+    expect(intent.data.event.observation.observationId).not.toBe(intent.data.publication.id);
+    expect(intent.data.event.observation.data.source).toEqual(intent.publication.observation);
+    expect(intent.data.event.observation.revision).toBe(intent.publication.wireRevision);
     expect(authorized.value!.confirmation).toEqual(original.value!.confirmation);
     expect(authorized.retained!.authority!.value).toMatchObject({ data: {
       guardAdoption: `${authorized.retained!.intent.reference.id}:guard`, navigationAdoption: `${authorized.retained!.intent.reference.id}:navigation` } });

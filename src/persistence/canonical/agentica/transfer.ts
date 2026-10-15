@@ -34,7 +34,7 @@ export async function retainTransferIntent(tx: CanonicalWork, input: CanonicalRe
   const epoch = previous.nextSessionEpoch ?? previous.sessionEpoch;
   check(tx.head.epoch > Number(epoch), 'transfer needs distinct newer canonical custody');
   const publication = await readPublication(pages, publicationRef); assertPublicationCurrent(publication, tx.head);
-  const observation = transferObservation(publication, publicationRef);
+  const observation = transferObservation(publication, request.attemptId);
   check(observation.revision >= previous.observation.revision, 'transfer cannot rewind observation');
   return writeTransferIntent(tx, request, identity, { confirmation: confirmed.reference, publication: publicationRef,
     navigationSequence: progress.sequence, previous, event: {
