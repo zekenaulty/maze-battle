@@ -1,13 +1,16 @@
-import { test, expect, serviceProof } from './canonical-start-service.decision.test';
-import { initialDecision, claimDecision, counterDelta, scriptedWindow } from './canonical-start-service.decision.steps';
+import { test, expect, service, serviceProof } from './canonical-start-service.decision.test';
+import { initialDecision, claimDecision, counterDelta, scriptedWindow, absentWindow } from './canonical-start-service.decision.steps';
 import { loseTerminalReply } from './canonical-start-service.decision-recovery.steps';
-import { decisionAckError, fundedQuota, dischargeAfterRootStop } from './canonical-start-service.decision-stop.steps';
+import { refuseBeforeRootAck, fundedQuota, dischargeAfterRootStop } from './canonical-start-service.decision-stop.steps';
 
-test('real lost wake claim discharges only navigation after exact root Stop without replay', async ({ page, wire }) => {
-  const { original, lost } = await loseTerminalReply(page), counters = await serviceProof();
+test('real lost wake claim survives service restart and discharges only navigation after exact root Stop', async ({ page, wire }, info) => {
+  const { original, lost } = await loseTerminalReply(page), beforeRestart = await serviceProof();
+  const counters = await service.restart();
+  expect(counters.processId).not.toBe(beforeRestart.processId); expect(counters.created).toBe(0);
+  expect(counters.decision).toEqual({ created: 0, initial: absentWindow, successor: absentWindow });
   await fundedQuota(page);
   expect(await page.evaluate(() => window.canonicalStartService.cancelDecision())).toEqual({ status: 'locally-stopped' });
-  expect(await decisionAckError(page)).not.toBe('');
+  await refuseBeforeRootAck(page);
   const unresolved = await page.evaluate(() => window.canonicalStartService.readDecision());
   expect(unresolved.operation!.operation.state).toBe('settled'); expect(unresolved.claim).toBeNull();
   expect(unresolved.head.allocations[unresolved.operation!.operation.id]).toBeDefined();
@@ -28,6 +31,9 @@ test('real lost wake claim discharges only navigation after exact root Stop with
   expect(stops).toHaveLength(1);
   expect(stops[0].body).toMatchObject({ runId: original.started.runId, attemptId: original.launch!.dispatch!.source.attemptId,
     acceptedRequestHash: original.launch!.run!.value.data.admission.acceptedRequestHash });
+  await info.attach('lost-claim-restart-counters.json', {
+    body: JSON.stringify({ beforeRestart, restarted: counters, after: await serviceProof() }), contentType: 'application/json',
+  });
 });
 
 test('real admitted child is recovered before root Stop discharges its unacknowledged predecessor', async ({ page, wire }) => {
@@ -52,16 +58,17 @@ test('real admitted child is recovered before root Stop discharges its unacknowl
   const counters = await serviceProof();
   await fundedQuota(page);
   expect(await page.evaluate(() => window.canonicalStartService.cancelDecision())).toEqual({ status: 'locally-stopped' });
-  expect(await decisionAckError(page)).not.toBe('');
+  await refuseBeforeRootAck(page);
   expect(await page.evaluate(() => window.canonicalStartService.stopDecisionRoot())).toMatchObject({ status: 'stop-requested', settled: false });
   const pending = await page.evaluate(() => window.canonicalStartService.readDecision());
   expect(pending.launch!.guard.state).toBe('settled'); expect(pending.operation!.operation.state).toBe('settled');
-  expect(await decisionAckError(page)).not.toBe('');
+  await refuseBeforeRootAck(page);
   await page.evaluate(() => window.canonicalStartService.cancelDecisionSuccessor());
   expect(await page.evaluate(() => window.canonicalStartService.pulseDecisionSuccessor())).toMatchObject({ status: 'terminal-acknowledged', disposition: 'cancelled' });
   const childStopped = await page.evaluate(() => window.canonicalStartService.readDecisionController());
   expect(childStopped.terminal!.bound.operation.state).toBe('acknowledged');
   expect(childStopped.terminal!.bound.progress.steps).toBe(0);
+  await refuseBeforeRootAck(page);
   expect(await page.evaluate(() => window.canonicalStartService.stopDecisionRoot())).toMatchObject({ status: 'settled', settled: true });
   const { after } = await dischargeAfterRootStop(page);
   expect(after.claim!.data).toEqual(admitted.claim!.data); expect(after.intent!.data).toEqual(admitted.intent!.data);

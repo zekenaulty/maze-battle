@@ -8,6 +8,18 @@ export async function decisionAckError(page: Page) {
   });
 }
 
+export async function refuseBeforeRootAck(page: Page) {
+  const before = await page.evaluate(() => window.canonicalStartService.readDecision());
+  const sources = await page.evaluate(() => window.canonicalStartService.readDecisionStopEvidence());
+  expect(sources.root.acknowledgement).toBeNull();
+  expect(sources.navigation.acknowledgement).toBeNull();
+  expect(await decisionAckError(page)).not.toBe('');
+  const after = await page.evaluate(() => window.canonicalStartService.readDecision());
+  expect(after.head).toEqual(before.head); expect(after.terminal).toEqual(before.terminal);
+  expect(after.head.allocations[after.operation!.operation.id]).toBeDefined();
+  expect(await page.evaluate(() => window.canonicalStartService.readDecisionStopEvidence())).toEqual(sources);
+}
+
 export async function fundedQuota(page: Page) {
   const full = await page.evaluate(() => window.canonicalStartService.fillQuota());
   expect(full.refusal).toContain('quota');
@@ -18,7 +30,9 @@ export async function dischargeAfterRootStop(page: Page) {
   const before = await page.evaluate(() => window.canonicalStartService.readDecision());
   const sources = await page.evaluate(() => window.canonicalStartService.readDecisionStopEvidence());
   expect(sources.root.operation.state).toBe('acknowledged');
-  expect(sources.root.acknowledgement!.source.input).toMatchObject({ proof: { kind: 'launch-stop' } });
+  expect(sources.root.acknowledgement!.source.input).toMatchObject({ proof: {
+    kind: 'launch-stop', terminal: { reason: 'interrupted', usage: null, usageUnknown: true },
+  } });
   expect(before.operation!.operation.state).toBe('settled');
   expect(before.head.allocations[before.operation!.operation.id]).toBeDefined();
   await fundedQuota(page);
@@ -35,6 +49,9 @@ export async function dischargeAfterRootStop(page: Page) {
   expect(discharged.root).toEqual(sources.root);
   expect(discharged.navigation.acknowledgement!.source.input).toMatchObject({
     operationId: before.operation!.operation.id, terminalAttemptId: sources.navigation.terminal!.source.attemptId,
+    proof: { schema: 1, delivery: 'decision-root-stop', action: full.terminal!.identity.storageKey,
+      original: full.terminal!.bound.original.reference, result: full.terminal!.bound.original.resultReference,
+      event: full.terminal!.event },
   });
   expect(discharged.navigation.operation.terminal!.disposition).toBe('completed');
   expect(after.originals).toEqual(before.originals);

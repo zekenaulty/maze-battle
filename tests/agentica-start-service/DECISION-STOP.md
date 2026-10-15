@@ -40,21 +40,27 @@ Source references below are within the exact Agentica checkout above.
 GameSession/IndexedDB, SDK, controller, operation driver and granted-root recovery.
 The new evidence reader only reads existing canonical source receipts.
 
-1. Lose the real terminal wake reply before any local claim; Stop at ordinary
-   quota exhaustion. Before root ACK, navigation ACK must fail and keep its fund.
+1. Lose the real terminal wake reply before any local claim, then restart the real
+   service against its retained isolated storage; Stop at ordinary quota
+   exhaustion. Before root ACK, navigation ACK must fail and keep its fund.
    Exact root Stop settles. The unchanged controller ACK API then must discharge
    only the original completed navigation, without a replay, claim or grant.
 2. Admit the successor navigation before predecessor ACK. Stop before any child
    driver confirmation or movement. Root Stop must stay pending; predecessor ACK
    must fail. Explicit child cancellation/terminal delivery acknowledges the
    child, then the same root Stop request settles. Only then may predecessor ACK
-   discharge its exact navigation reservation. No StopDecision is sent for the
+   discharge its exact navigation reservation. Refusal must leave local history
+   and quota unchanged both while root Stop is pending and after child ACK but
+   before root ACK. No StopDecision is sent for the
    continued parent, which must remain byte-for-byte unchanged in service reads.
 
 Both cases exhaust ordinary quota again immediately before the final ACK, check
 one navigation-only revision/reservation release, unchanged terminal and root
 receipts, and exact write-free retries after controller reconstruction in the
 same GameSession. Planner counters remain unchanged throughout cleanup. The
+new navigation proof must use delivery `decision-root-stop` and retain the exact
+original action, result and terminal; root usage remains honestly interrupted
+and unknown. After service restart all planner counters must remain zero. The
 original launch, action, claim (when present), publication selection, and retained
 decision remain immutable. Reconstruction is not browser reload qualification.
 
