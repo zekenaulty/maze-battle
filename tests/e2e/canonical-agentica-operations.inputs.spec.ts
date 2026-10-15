@@ -42,6 +42,21 @@ test('operation custody cannot discard the model frozen by durable start accepta
   expect(r.request.provider!.model).toBe('offline-model');
 });
 
+test('event ACK rejects a later model switch after confirmed resolved-model custody', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const f = window.canonicalAgenticaOperations, s = await f.boot(), confirmed = await f.confirm(s.action, s.binding, s.entry);
+    await f.acceptCustody(s.action, s.entry);
+    const first = await f.advance(s.action), original = { ...s.entry, latestEvent: first.state!.event!.data.event };
+    const switched = structuredClone(original); switched.request.provider!.model = 'different-model';
+    const before = await f.dump(), error = await f.ack(s.action, switched).then(() => 'accepted', String);
+    const unchanged = before === await f.dump(), accepted = await f.ack(s.action, original);
+    return { error, unchanged, confirmed: confirmed.state!.confirmation.data.entry.request.provider,
+      accepted: accepted.state!.acknowledgement!.data.entry.request.provider };
+  });
+  expect(r.confirmed!.model).toBe('offline-model'); expect(r.accepted).toEqual(r.confirmed);
+  expect(r.error).toContain('service operation differs'); expect(r.unchanged).toBe(true);
+});
+
 test('confirmation snapshots mutable identity, entry, binding and request before awaiting transaction reads', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const f = window.canonicalAgenticaOperations, s = await f.boot(), identity = await f.prepareAction(s.action);

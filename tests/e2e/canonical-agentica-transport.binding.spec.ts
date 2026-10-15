@@ -22,9 +22,28 @@ test('a conflict discovered after inspection cannot disable local Stop', async (
   await loseStart(page, server); server.entry = original(server);
   expect(await recover(page, 'inspect')).toMatchObject({ status: 'identified' });
   await page.evaluate(() => window.canonicalTransport.retainAnnouncement('different-run'));
-  expect(await recover(page, 'stop')).toHaveProperty('error');
-  expect((await page.evaluate(() => window.canonicalTransport.launch()))!.guard.terminal?.disposition).toBe('cancelled');
-  expect(server.posts).toEqual([]);
+  expect(await recover(page, 'stop')).toMatchObject({ error: expect.stringContaining('late announcement differs') });
+  const launch = (await page.evaluate(() => window.canonicalTransport.launch()))!;
+  expect(launch.guard).toMatchObject({ state: 'settled', terminal: { disposition: 'cancelled' } });
+  expect(launch.run!.value.data.started.runId).toBe('different-run');
+  expect(server.gets).toHaveLength(1); expect(server.posts).toEqual([]); expect(server.starts).toHaveLength(1);
+});
+
+test('a grant retained after inspection cannot disable local Stop', async ({ page, durableServer: server }) => {
+  await loseStart(page, server); server.entry = original(server);
+  expect(await recover(page, 'inspect')).toMatchObject({ status: 'identified' });
+  await page.evaluate(async runId => {
+    const f = window.canonicalTransport; await f.retainAnnouncement(runId); await f.retainGrant();
+  }, server.entry.runId);
+  const before = (await page.evaluate(() => window.canonicalTransport.launch()))!;
+  expect(before.grant).not.toBeNull(); expect(before.guard.state).toBe('admitted');
+  const result = await recover(page, 'stop');
+  const stopped = (await page.evaluate(() => window.canonicalTransport.launch()))!;
+  expect(stopped.guard).toMatchObject({ state: 'settled', terminal: { disposition: 'cancelled' } });
+  expect(result).toMatchObject({ error: expect.stringContaining('recovery launch dispatch or grant changed') });
+  expect(stopped.grant).toEqual(before.grant); expect(stopped.run).toEqual(before.run);
+  expect((await page.evaluate(() => window.canonicalTransport.head())).quota.reservations).toBe(1);
+  expect(server.gets).toHaveLength(1); expect(server.posts).toEqual([]); expect(server.starts).toHaveLength(1);
 });
 
 test('mutating returned admission metadata cannot retarget a later Stop', async ({ page, durableServer: server }) => {

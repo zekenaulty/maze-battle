@@ -72,6 +72,11 @@ const api = { boot, attach, begin, loadGameAction, reconcileGameAction,
       input: { launchId: l.binding.launchId, dispatch: { ...l.dispatch!.ref },
         ...launchProofFixture(l.binding.start, l.dispatch!.source.attemptId, runId, await mazeManifestDigest(l.binding.start.capabilities)) } });
   },
+  async retainGrant() {
+    const l = (await readLaunch()).value!;
+    await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.grant', execute: executeLaunchCommand,
+      input: { launchId: l.binding.launchId, run: { ...l.run!.ref }, publication: { ...l.binding.publication } } });
+  },
   closeRecovery() { recovery?.close(); recovery = undefined; },
   async fillQuota() {
     const { head } = await readCanonicalHead(), db = await openCanonicalDatabase();
