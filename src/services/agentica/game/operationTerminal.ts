@@ -1,4 +1,4 @@
-import type { AgenticaHost, HostOperationEvent } from '../sdk/agentica-host.mjs';
+import type { AgenticaHost } from '../sdk/agentica-host.mjs';
 import type { CanonicalRecoveryPort } from '../../game/CanonicalHostRecovery';
 import { readAgenticaTerminal } from '../../../persistence/canonical/agentica/terminal';
 import { terminalAcknowledgement } from '../../../persistence/canonical/agentica/terminal.ack';
@@ -8,6 +8,7 @@ import type { OperationBinding } from '../../../persistence/canonical/agentica/o
 import { check } from '../../../persistence/canonical/validation';
 import { equal } from '../../../persistence/canonical/agentica/validation';
 import type { CanonicalRequest } from '../../../persistence/canonical/types';
+import { nextOperationPrefix } from './operationPrefix';
 
 type Terminal = NonNullable<Awaited<ReturnType<typeof readAgenticaTerminal>>['value']>;
 export type OperationSdk = Pick<AgenticaHost, 'listOperations' | 'signalOperation' | 'stopDecision'>;
@@ -33,19 +34,7 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
   const delivery = stoppedDecision ? 'stop-decision' as const : 'signal' as const;
   if (!(entry.latestEvent && equivalentOperationWire(entry.latestEvent, event, 'event'))) {
     entry = operationEntry(entry);
-    const latest = entry.latestEvent, last = terminal.previous ?? terminal.probe;
-    let next: HostOperationEvent = event;
-    if (terminal.transfer && latest && equivalentOperationWire(latest, terminal.transfer.data.previous, 'event')) {
-      check(terminal.bound.progress.sequence === terminal.transfer.data.navigationSequence, 'service lost acknowledged transfer');
-      next = terminal.transfer.data.event;
-    } else if (!latest && terminal.probe) {
-      check(!terminal.transfer, 'service lost transfer predecessor');
-      check(!terminal.previous || terminal.previous.sequence === 2, 'service lost acknowledged progress'); next = terminal.probe;
-    } else if (last && (!latest || !equivalentOperationWire(latest, last, 'event'))) {
-      check(terminal.previous && latest && terminal.predecessor
-        && equivalentOperationWire(latest, terminal.predecessor, 'event'), 'service progress diverged from retained predecessor');
-      next = terminal.previous;
-    } else check(last ? !!latest : !latest, 'unexpected terminal predecessor');
+    const next = nextOperationPrefix(terminal, entry) ?? event;
     const remote = next === event && stoppedDecision ? await sdk.stopDecision(next, { fetchImpl: network })
       : await sdk.signalOperation(next, { fetchImpl: network });
     signal.throwIfAborted();
