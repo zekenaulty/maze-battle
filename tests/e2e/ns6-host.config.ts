@@ -5,7 +5,7 @@ const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const port = Number(process.env.NS6_HOST_TEST_PORT ?? 5183);
 export default defineConfig({
   testDir: '.',
-  testMatch: ['directed-stream*.spec.ts', 'directed-host*.spec.ts'],
+  testMatch: ['directed-stream*.spec.ts'],
   outputDir: '../../test-results/ns6-host', timeout: 120000, workers: 1,
   webServer: {
     command: `npm run dev -- --config tests/e2e/directed-stream.vite.config.ts --host 127.0.0.1 --port ${port} --strictPort`,

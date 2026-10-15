@@ -39,11 +39,8 @@ export const PROOF_FILES = Object.freeze({
     'browser-tests/service-integration.test.mjs',
   ],
   maze: [
-    'scripts/ns6-paired-host.mjs',
-    'scripts/ns6-paired-provider.mjs',
     'scripts/agentica-fixture-context.mjs',
-    'tests/e2e/ns6-paired.config.ts',
-    'tests/e2e/ns6-paired.spec.ts',
+    'scripts/agentica-fixture-provider.node-spec.mjs',
     'docs/evidence/agentica-fixture-2026-10-09.json',
   ],
 });
@@ -205,7 +202,7 @@ export async function inspectReadiness({ agenticaSource, mazeSource = DEFAULT_MA
     { id: 'dotnet_sdk', ...dotnetSdk },
     { id: 'qualified_fixture_assembly', status: 'unknown', reason: 'build_and_binary_provenance_not_verified' },
     { id: 'browser_and_dependencies', status: 'unknown', reason: 'not_loaded_or_launched' },
-    { id: 'ns6_integration_proof', status: 'unknown', reason: 'exact_head_destination_continuity_cohort_not_run' },
+    { id: 'ns6_integration_proof', status: 'missing', reason: 'directed_stream_agentica_harness_retired' },
   ];
   const continuity = continuityAssessment(sourceAudit.status);
   const source = { path: agenticaRoot, status: aggregate([sourceGit, sourceAudit]), git: sourceGit, audit: sourceAudit };
@@ -217,6 +214,7 @@ export async function inspectReadiness({ agenticaSource, mazeSource = DEFAULT_MA
     limitations: [
       'Bounded working-file reads are not an atomic snapshot of an active checkout.',
       'Ready means only the named check passed; SDK equality and historical ledgers do not qualify NS-6.',
+      'The directed-stream Agentica harness is retired; retained parser sources and historical evidence do not qualify the canonical client.',
       'No dotnet, package manager, browser, build, endpoint or provider was invoked; no credentials were read.',
       'Access control, auth, origins, deployment, SDK changes and protocol replacement are outside this work.',
     ],

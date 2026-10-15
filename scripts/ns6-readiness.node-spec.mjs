@@ -61,9 +61,9 @@ test('requires an explicit source and rejects duplicate, unknown and incomplete 
   assert.deepEqual(parseArgs(['--agentica-source', 'a b', '--maze-source', 'c d']), { agenticaSource: 'a b', mazeSource: 'c d' });
 });
 
-test('clean synthetic checkouts report unknown baseline, not runtime readiness', async t => {
+test('clean synthetic checkouts report unknown baseline and a retired integration harness', async t => {
   const report = await inspectReadiness(await fixture(t));
-  assert.equal(report.status, 'unknown');
+  assert.equal(report.status, 'missing');
   assert.equal(report.source.git.dirty, false);
   assert.equal(report.source.git.reason, 'unreviewed_head');
   assert.equal(report.source.audit.status, 'unknown');
@@ -71,7 +71,9 @@ test('clean synthetic checkouts report unknown baseline, not runtime readiness',
   assert.equal(report.continuity.status, 'unknown');
   assert.equal(report.prerequisites.find(p => p.id === 'proof_source_files').status, 'ready');
   assert.equal(report.prerequisites.find(p => p.id === 'dotnet_sdk').requiredVersion, '10.0.302');
-  assert.equal(report.prerequisites.find(p => p.id === 'ns6_integration_proof').status, 'unknown');
+  assert.deepEqual(report.prerequisites.find(p => p.id === 'ns6_integration_proof'), {
+    id: 'ns6_integration_proof', status: 'missing', reason: 'directed_stream_agentica_harness_retired',
+  });
 });
 
 test('SDK content mismatch is an unmet prerequisite even when both files exist', async t => {
@@ -193,7 +195,7 @@ async function snapshot(root) {
 
 test('CLI emits JSON, does not import fixture code, and leaves both trees byte-identical', async t => {
   const paths = await fixture(t);
-  await put(paths.mazeSource, 'scripts/ns6-paired-provider.mjs', 'throw new Error("MUST NOT EXECUTE");\n');
+  await put(paths.mazeSource, 'scripts/agentica-fixture-context.mjs', 'throw new Error("MUST NOT EXECUTE");\n');
   const before = [await snapshot(paths.agenticaSource), await snapshot(paths.mazeSource)];
   const child = spawnSync(process.execPath, [script, '--agentica-source', paths.agenticaSource, '--maze-source', paths.mazeSource], {
     encoding: 'utf8', windowsHide: true, timeout: 15000,

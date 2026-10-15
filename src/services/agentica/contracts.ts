@@ -1,5 +1,3 @@
-import type { StreamControl } from '../../domain/expedition/streaming/types';
-
 /** Mirrors Agentica HostProtocol.cs v1; this is not the temporary local harness envelope. */
 export interface AgenticaObservation {
   observationId: string; revision: number; observedAt: string;
@@ -26,13 +24,6 @@ export interface AgenticaCapability {
   id: string; name: string; description: string; kind: 'query' | 'action'; effect: 'readOnly' | 'writesLocalState';
   inputSchema: { fields: { name: string; type: 'string' | 'integer'; required: boolean; description?: string;
     allowedValues?: string[]; minimum?: number; maximum?: number }[]; allowAdditionalProperties: false };
-}
-export type AgenticaObjective = 'first-chest' | 'explore-collect-return';
-/** Browser-owned binding retained before admitting any action for the service-created run. */
-export interface AgenticaGameBinding {
-  protocolVersion: 1; hostId: 'maze-battle'; sessionId: string; sessionEpoch: string;
-  scopeId: string; perspectiveId: 'party'; worldId: string; floorId: string;
-  objectiveId: string; objective: AgenticaObjective; runId: string; manifestHash: string; control: StreamControl;
 }
 export interface AgenticaStart {
   protocolVersion: 1; hostId: 'maze-battle'; sessionId: string; sessionEpoch: string;
