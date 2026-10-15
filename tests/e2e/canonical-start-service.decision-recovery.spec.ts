@@ -1,6 +1,7 @@
 import { test, expect, service, serviceProof } from './canonical-start-service.decision.test';
 import { initialDecision, claimDecision, counterDelta, scriptedWindow } from './canonical-start-service.decision.steps';
 import { terminalWindow, loseTerminalReply, pulseError, stopSettledDecision } from './canonical-start-service.decision-recovery.steps';
+import { dischargeAfterRootStop } from './canonical-start-service.decision-stop.steps';
 
 test('real fast blocked successor is claimed but never granted or executed', async ({ page, wire }) => {
   const { before, retained } = await initialDecision(page, 'terminal');
@@ -38,7 +39,7 @@ test('real lost terminal wake reply replays the retained event and run without a
   expect(wire.received.filter(item => item.frame.type === 'error')).toEqual([]);
 });
 
-test('real service restart refuses the claimed wake without fabricating a claim, grant, or navigation ACK', async ({ page, wire }, info) => {
+test('real service restart refuses wake and discharges navigation only after exact root Stop without a fabricated claim', async ({ page, wire }, info) => {
   const { lost } = await loseTerminalReply(page), beforeRestart = await serviceProof();
   const restarted = await service.restart();
   expect(restarted.processId).not.toBe(beforeRestart.processId); expect(restarted.created).toBe(0);
@@ -61,6 +62,9 @@ test('real service restart refuses the claimed wake without fabricating a claim,
   expect(stopped.operation!.operation.state).toBe('settled'); expect(stopped.head.allocations[stopped.operation!.operation.id]).toBeDefined();
   expect(stopped.launch!.guard.state).toBe('acknowledged'); expect(stopped.claim).toBeNull();
   expect(stopped.statuses.filter(item => item.state.endsWith('.error'))).toEqual([]);
+  const { after } = await dischargeAfterRootStop(page);
+  expect(after.claim).toBeNull(); expect(after.selection).toEqual(lost.selection);
+  expect(after.actions).toEqual(lost.actions); expect(after.wakes).toEqual(stopped.wakes);
   expect(await serviceProof()).toEqual(restarted);
   expect(wire.received.filter(item => item.frame.type === 'error').map(item => item.frame.payload.code)).toEqual(['operation.wake_interrupted']);
   expect(wire.sent.filter(frame => frame.type === 'start.durable')).toHaveLength(1);

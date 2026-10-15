@@ -1,5 +1,10 @@
 # Explicit Decision Real-Service Proof
 
+Later root-Stop navigation discharge is qualified in [DECISION-STOP.md](DECISION-STOP.md).
+It extends the restart case below without weakening wake refusal or manufacturing
+a claim. The earlier results and unresolved boundary below describe their original
+runtime snapshots, not the later thirteen-case qualification.
+
 Base: parent `6da48ed`, merged into this worker at `744b409`.
 Service remains clean `577a214d020ba35ba3188761da6a114b978516b7` at
 `C:/Users/Zythis/.codex/worktrees/maze-wake-replay/Agentica`.

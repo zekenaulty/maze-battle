@@ -67,6 +67,10 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
       'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared'];
     const hashes = Object.fromEntries(names.map(name => [name, createHash('sha256')
       .update(readFileSync(`src/services/agentica/game/${name}.ts`)).digest('hex')]));
+    for (const name of ['decision.entry', 'decision.claim', 'terminal.decision', 'terminal.root-stop', 'terminal.ack', 'terminal']) {
+      const file = `src/persistence/canonical/agentica/${name}.ts`;
+      hashes[file] = createHash('sha256').update(readFileSync(file)).digest('hex');
+    }
     await info.attach('runtime-source-sha256.json', { body: JSON.stringify(hashes, null, 2), contentType: 'application/json' });
   }
   expect(wire.errors).toEqual([]); expect(wire.console).toEqual([]);

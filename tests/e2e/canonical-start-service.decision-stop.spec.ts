@@ -2,6 +2,7 @@ import { test, expect, service, serviceProof } from './canonical-start-service.d
 import { initialDecision, claimDecision, counterDelta, scriptedWindow, absentWindow } from './canonical-start-service.decision.steps';
 import { loseTerminalReply } from './canonical-start-service.decision-recovery.steps';
 import { refuseBeforeRootAck, fundedQuota, dischargeAfterRootStop } from './canonical-start-service.decision-stop.steps';
+import { equivalentOperationWire } from '../../src/persistence/canonical/agentica/operation.wire';
 
 test('real lost wake claim survives service restart and discharges only navigation after exact root Stop', async ({ page, wire }, info) => {
   const { original, lost } = await loseTerminalReply(page), beforeRestart = await serviceProof();
@@ -15,7 +16,7 @@ test('real lost wake claim survives service restart and discharges only navigati
   expect(unresolved.operation!.operation.state).toBe('settled'); expect(unresolved.claim).toBeNull();
   expect(unresolved.head.allocations[unresolved.operation!.operation.id]).toBeDefined();
   expect(await page.evaluate(() => window.canonicalStartService.stopDecisionRoot())).toMatchObject({ status: 'settled', settled: true });
-  const { after } = await dischargeAfterRootStop(page);
+  const { after } = await dischargeAfterRootStop(page, true);
   expect(after.claim).toBeNull();
   for (const key of ['data', 'reference', 'source', 'row'] as const) expect(after.intent![key]).toEqual(lost.intent![key]);
   expect(after.selection).toEqual(lost.selection); expect(after.actions).toEqual(lost.actions);
@@ -52,7 +53,8 @@ test('real admitted child is recovered before root Stop discharges its unacknowl
   const parent = remote.find(entry => entry.action.actionId === original.actions[3].action.actionId)!;
   const successor = remote.find(entry => entry.action.actionId === child.action!.actionId)!;
   expect(parent.state).toBe('continued'); expect(parent.wakeRunId).toBe(child.action!.runId);
-  expect(parent.latestEvent).toEqual(admitted.intent!.data.event); expect(parent.stopDecision).toBeUndefined();
+  expect(equivalentOperationWire(parent.latestEvent, admitted.intent!.data.event, 'event')).toBe(true);
+  expect(parent.stopDecision).toBeUndefined();
   expect(successor.state).toBe('parked'); expect(successor.admission!.operation).toBeDefined();
   expect(counterDelta(await serviceProof(), before)).toEqual({ created: 2, initial: scriptedWindow, successor: scriptedWindow });
   const counters = await serviceProof();
@@ -70,7 +72,7 @@ test('real admitted child is recovered before root Stop discharges its unacknowl
   expect(childStopped.terminal!.bound.progress.steps).toBe(0);
   await refuseBeforeRootAck(page);
   expect(await page.evaluate(() => window.canonicalStartService.stopDecisionRoot())).toMatchObject({ status: 'settled', settled: true });
-  const { after } = await dischargeAfterRootStop(page);
+  const { after } = await dischargeAfterRootStop(page, true);
   expect(after.claim!.data).toEqual(admitted.claim!.data); expect(after.intent!.data).toEqual(admitted.intent!.data);
   expect(after.head.checkpoint).toEqual(admitted.head.checkpoint); expect(after.originals).toEqual(admitted.originals);
   const settled = await page.evaluate(() => window.canonicalStartService.readDecisionController());
