@@ -2,7 +2,7 @@ import type { AgenticaAction, AgenticaResult, AgenticaStart } from '../../../ser
 import type { AgenticaOperationEntry } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { equivalentHostWire } from '../../../services/agentica/directed/wire';
 import { fields } from '../roster/codec';
-import { check, integer } from '../validation';
+import { check, integer, isObject } from '../validation';
 import { equal, snapshotJson } from './validation';
 import { MAX_OPERATION_ENTRY_BYTES } from './operation.types';
 
@@ -10,7 +10,17 @@ type ObjectValue = Record<string, unknown>;
 function omitNulls(value: ObjectValue, keys: string[]) { for (const key of keys) if (value[key] === null) delete value[key]; }
 function observation(input: unknown) {
   const value = input as ObjectValue;
-  if (value && typeof value === 'object') omitNulls(value, ['facts']);
+  if (!value || typeof value !== 'object') return;
+  omitNulls(value, ['facts']);
+  if (typeof value.observedAt === 'string') value.observedAt = value.observedAt.replace(/(?:Z|[+-]00:00)$/, '+00:00')
+    .replace(/\.(\d*?[1-9])?0+(?=[+-]\d{2}:\d{2}$)/, (_, fraction: string) => fraction ? `.${fraction}` : '');
+  if (value.facts !== undefined) {
+    check(Array.isArray(value.facts) && value.facts.every(isObject), 'invalid typed observation facts');
+    for (const fact of value.facts) {
+      if (fact.state === 'observed') delete fact.state;
+      omitNulls(fact, ['evidenceObservationIds', 'supersedes']);
+    }
+  }
 }
 /** Only typed .NET wire defaults are normalized; arbitrary observation data is never repaired. */
 export function equivalentOperationWire(a: unknown, b: unknown, kind: 'event' | 'result') {

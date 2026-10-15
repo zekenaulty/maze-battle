@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { launchStartFixture } from './launch.test-support';
 import { captureLaunchAdmission, validateLaunchAdmission } from './launch.service';
 import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
+import { launchStart } from './launch.wire';
 
 function fixture() {
   const start = launchStartFixture();
@@ -26,6 +27,33 @@ describe('canonical durable start service identity', () => {
     Object.assign(req.observation, { facts: null, observedAt: '2026-10-13T00:00:00+00:00' });
     Object.assign(req.capabilities[0], { durableHandoff: false });
     expect(() => capture(f)).not.toThrow();
+  });
+  it('allows resolved settings for an original request at its exact byte limit', () => {
+    const f = fixture(); f.start.observation.data.padding = '';
+    f.start.observation.data.padding = 'x'.repeat(3072 - new TextEncoder().encode(JSON.stringify(f.start)).byteLength);
+    expect(() => launchStart(f.start)).not.toThrow();
+    f.entry.originalRequest = structuredClone(f.start); f.entry.acceptedRequest = structuredClone(f.start);
+    f.entry.acceptedRequest.provider.model = 'configured-model'; f.entry.acceptedRequest.provider.thinkingEffort = 'low';
+    expect(capture(f).admission.provider.model).toBe('configured-model');
+    f.entry.stopRequested = true;
+    f.entry.terminal = { reason: 'interrupted', usage: null, usageUnknown: true, settledAt: '2026-10-15T13:00:00Z' };
+    expect(capture(f).terminal?.reason).toBe('interrupted');
+  });
+  it('compares typed fact defaults and 100 ns timestamps without erasing evidence', () => {
+    const f = fixture();
+    f.start.observation.observedAt = '2026-10-13T00:00:00.1234567Z';
+    f.start.observation.facts = [{ key: 'known', summary: 'Retained fact.', value: true }];
+    for (const key of ['originalRequest', 'acceptedRequest'] as const) {
+      f.entry[key] = structuredClone(f.start);
+      f.entry[key].observation.observedAt = '2026-10-13T00:00:00.1234567+00:00';
+      Object.assign(f.entry[key].observation.facts![0] as object, { state: 'observed', evidenceObservationIds: null, supersedes: null });
+    }
+    expect(() => capture(f)).not.toThrow();
+    f.entry.acceptedRequest.observation.observedAt = '2026-10-13T00:00:00.1234568+00:00';
+    expect(() => capture(f)).toThrow();
+    f.entry.acceptedRequest.observation.observedAt = f.entry.originalRequest.observation.observedAt;
+    Object.assign(f.entry.acceptedRequest.observation.facts![0] as object, { value: false });
+    expect(() => capture(f)).toThrow();
   });
   it.each(['originalRequest', 'acceptedRequest'] as const)('rejects scope, content and authority edits in %s', key => {
     const changes = [

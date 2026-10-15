@@ -23,6 +23,14 @@ function capability(input: AgenticaCapability) {
     if (f.minimum !== undefined && f.maximum !== undefined) check(Number(f.minimum) <= Number(f.maximum), 'invalid field range');
   }
 }
+export function launchProvider(input: unknown): AgenticaStart['provider'] {
+  const p = fields(input, 'provider contextWindowTokens maxOutputTokens', 'model thinkingEffort includeThoughtSummaries');
+  check(['fixture', 'openai'].includes(p.provider as string) && integer(p.contextWindowTokens, 1) && integer(p.maxOutputTokens, 1)
+    && p.maxOutputTokens <= p.contextWindowTokens, 'invalid launch provider');
+  for (const key of ['model', 'thinkingEffort']) if (p[key] !== undefined) wireId(p[key]);
+  check(p.includeThoughtSummaries === undefined || typeof p.includeThoughtSummaries === 'boolean', 'invalid launch provider option');
+  return snapshotJson(p) as unknown as AgenticaStart['provider'];
+}
 export function launchStart(input: AgenticaStart): AgenticaStart {
   const value = snapshotJson(input, MAX_LAUNCH_START_BYTES);
   const s = fields(value, 'protocolVersion hostId sessionId sessionEpoch scopeId perspectiveId objectiveId objective observation capabilities provider limits');
@@ -34,11 +42,7 @@ export function launchStart(input: AgenticaStart): AgenticaStart {
   check(o.facts === undefined || Array.isArray(o.facts) && o.facts.length <= 32, 'invalid launch facts');
   check(Array.isArray(value.capabilities) && value.capabilities.length > 0 && value.capabilities.length <= 3
     && new Set(value.capabilities.map(c => c.id)).size === value.capabilities.length, 'invalid launch manifests'); value.capabilities.forEach(capability);
-  const p = fields(s.provider, 'provider contextWindowTokens maxOutputTokens', 'model thinkingEffort includeThoughtSummaries');
-  check(['fixture', 'openai'].includes(p.provider as string) && integer(p.contextWindowTokens, 1) && integer(p.maxOutputTokens, 1)
-    && p.maxOutputTokens <= p.contextWindowTokens, 'invalid launch provider');
-  for (const key of ['model', 'thinkingEffort']) if (p[key] !== undefined) wireId(p[key]);
-  check(p.includeThoughtSummaries === undefined || typeof p.includeThoughtSummaries === 'boolean', 'invalid launch provider option');
+  launchProvider(s.provider);
   const limits = fields(s.limits, 'maxSteps maxRefinements maxPlanContinuations timeoutSeconds actionTimeoutSeconds');
   for (const key of Object.keys(limits)) check(integer(limits[key], ['maxRefinements', 'maxPlanContinuations'].includes(key) ? 0 : 1), 'invalid launch limits');
   return value;

@@ -3,8 +3,8 @@ import type { HostStartEntry } from '../../../services/agentica/sdk/agentica-hos
 import { fields } from '../roster/codec';
 import { check, integer } from '../validation';
 import { equivalentOperationStart } from './operation.wire';
-import { launchStart } from './launch.wire';
-import { snapshotJson, wireId } from './validation';
+import { launchProvider } from './launch.wire';
+import { equal, snapshotJson, wireId } from './validation';
 
 /** The original request already has canonical custody; retain only the service identity and resolved settings. */
 export interface LaunchAdmission {
@@ -25,7 +25,7 @@ function provider(input: unknown, start: AgenticaStart) {
   const p = { ...raw }; delete p.geminiApi; delete p.thinkingEffortResolved;
   for (const key of ['model', 'thinkingEffort']) if (p[key] === null) delete p[key];
   if (p.includeThoughtSummaries === false) delete p.includeThoughtSummaries;
-  const accepted = launchStart({ ...start, provider: p as unknown as AgenticaStart['provider'] }).provider;
+  const accepted = launchProvider(p);
   const requested = start.provider;
   check(accepted.provider === requested.provider && accepted.contextWindowTokens === requested.contextWindowTokens
     && accepted.maxOutputTokens === requested.maxOutputTokens && !!accepted.includeThoughtSummaries === !!requested.includeThoughtSummaries
@@ -39,7 +39,7 @@ export function validateLaunchAdmission(input: unknown, start: AgenticaStart, at
   check(a.schema === 1 && a.attemptId === attemptId, 'service start attempt changed'); wireId(a.attemptId); wireId(a.runId);
   for (const key of ['originalRequestHash', 'acceptedRequestHash', 'manifestHash'])
     check(typeof a[key] === 'string' && /^sha256:[a-f0-9]{64}$/.test(a[key]), 'invalid service start digest');
-  ticks(a.admittedAt); provider(a.provider, start);
+  ticks(a.admittedAt); check(equal(a.provider, provider(a.provider, start)), 'noncanonical resolved provider');
   return value as LaunchAdmission;
 }
 export function validateLaunchSettlement(input: unknown, admission: LaunchAdmission): LaunchSettlement {
