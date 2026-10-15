@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 20,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 21,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -70,9 +70,15 @@ The [successor grant and funded decision-handoff increment](reviews/issue-11-dec
 now binds fresh actions to the exact selected successor, uses its effective request,
 and validates bounded immediate predecessor evidence. Decision-aware ACK releases
 navigation capacity only, with exact Stop/reload reconciliation. Multi-window and
-source-deletion native cases pass; actual service decision execution remains unqualified.
-The SDK client is not mounted. Remaining P3 decision/wake controller and application
-recovery, plus P5 final qualification, remain open. Agentica remains unavailable
+source-deletion native cases pass. The [explicit decision controller](reviews/issue-11-decision-controller.md)
+now binds the retained intent, exact wake/adopt, correlated claim and selected
+successor grant through the actual GameSession. Eleven provider-free real-service
+cases pass, including successor navigation, fast settlement, exact lost-reply
+replay and process-restart refusal. Funded granted-root Stop has a separate native
+cohort. Stop before claim, Stop after child admission but before predecessor ACK,
+and actual cross-epoch decision/reload proof still require bounded follow-through.
+The SDK client is not mounted. Remaining P3 recovery and application integration,
+plus P5 final qualification, remain open. Agentica remains unavailable
 in this intermediate preview; this is not complete feature parity or closure of #11.
 
 ## Authority and Supersession
@@ -393,7 +399,7 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica decision/wake controller qualification and mounted
+to arbitrary history. Canonical Agentica decision recovery gaps and mounted
 recovery, full multi-controller depth/revisit/Q and game-level
 remote settlement at capacity remain mandatory. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.
