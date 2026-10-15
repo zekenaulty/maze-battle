@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('actual App disables the seventeenth save, keeps Delete usable, and reopens a freed slot', async ({ page }) => {
+test('actual App disables the seventeenth save, keeps Delete usable, and reopens a freed slot', async ({ page }, info) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Maze Battle', exact: true })).toBeVisible({ timeout: 60_000 });
   await page.getByRole('button', { name: 'Saves', exact: true }).click();
@@ -12,6 +12,15 @@ test('actual App disables the seventeenth save, keeps Delete usable, and reopens
   await expect(create).toBeDisabled();
   await expect(create).toHaveAccessibleDescription('16 / 16 manual saves. Limit reached.');
   await expect(page.getByRole('button', { name: 'Reset and start new game' })).toHaveCount(0);
+  for (const [width, height] of [[1440, 900], [390, 844]]) {
+    await page.setViewportSize({ width, height });
+    await expect(create).toBeVisible();
+    const bounds = await page.getByRole('dialog').boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`saves-${width}.png`) });
+  }
   await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
   await page.getByRole('button', { name: 'Delete save', exact: true }).click();
   await expect(page.locator('#manual-save-capacity')).toHaveText('15 / 16 manual saves');

@@ -58,8 +58,9 @@ including eleven stores and 118 obsolete source/test files.
 The [unfinished-navigation transfer](../tests/e2e/canonical-operation-transfer.md)
 now requires an exact service ACK and both kernel adoption receipts before movement.
 The integrated native fixture checks 24 transfer and 116 original-operation cases;
-that fixture is not the real service. The [real-service action proof](../tests/agentica-start-service/README.md)
-separately covers distinct observation identities, exact retry and local navigation.
+that fixture is not the real service. The seven-case [real-service action proof](../tests/agentica-start-service/README.md)
+separately covers distinct observation identities, exact retry, reload/explicit
+transfer before the first step, one local move and funded remote settlement.
 The SDK client is not mounted. Remaining P3 decision/wake/publication and application
 recovery, plus P5 final qualification, remain open. Agentica remains unavailable
 in this intermediate preview; this is not complete feature parity or closure of #11.
@@ -244,10 +245,12 @@ P1 storage contracts are split as follows:
   full-request service validation, compact frozen admission and funded Stop/ACK.
   Lost replies, service restart and full logical quota have real-service/browser
   proof; missing service evidence remains UNKNOWN and blocks replacement.
-- **P3 unfinished-navigation transfer, checked locally:** immutable intent,
+- **P3 unfinished-navigation transfer, checked:** immutable intent,
   exact service ACK, separate guard/navigation adoption receipts, and effective
-  current-owner authority. Funded Stop works at partial-transfer stages. Real
-  .NET transfer qualification is separate from the native HTTP contract fixture.
+  current-owner authority. Funded Stop works at partial-transfer stages in the
+  native contract fixture. A separate real .NET proof covers reload/takeover of
+  admitted zero-step navigation, one move and terminal settlement without another
+  planner invocation. This is not multi-step or decision-wake qualification.
 - **P3 Agentica, remaining:** decision/wake, publication renewal and mounted
   application recovery, including granted runs and explicit transfer controls.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
@@ -261,6 +264,15 @@ P1 storage contracts are split as follows:
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
   qualification remain mandatory, not inferred from focused passes.
+
+Latest integrated check (`0ca7fb9`, 2026-10-15): **2,734 unit PASS / one optional
+probe SKIP; 65 manual-save, 14 actual-App and seven real-service native cases
+PASS; production build PASS**. Earlier in this increment, 24 transfer and 116
+original-operation native cases passed. The actual save UI now exposes its
+16-slot limit without withdrawing control; loading a malformed candidate validates
+its bounded projection inside the transaction before replacing healthy roots.
+No paid calls or end-to-end mounted Agentic Play claim. Earlier retirement test
+counts are historical; removed legacy-only tests are not counted as current proof.
 
 The target database is `maze-battle` version 9 with `meta`, `heads`, `records`,
 `nodes`, `receipts` and `operations`. The opener discards earlier store layouts without reading

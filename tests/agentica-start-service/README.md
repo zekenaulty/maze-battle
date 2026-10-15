@@ -87,7 +87,11 @@ The fixture's service allowlist adds only operation GET/event POST and recovery
 GET to the existing start routes. No wake, decision adoption, provider route,
 or new browser origin is enabled. The operation driver confirms the real parked
 admission, delivers its custody probe, performs one bounded arrival pulse, and
-cancels/ACKs through the real service before settling the initial start.
+cancels/ACKs through the real service before settling the initial start. A separate
+case reloads before that step, retains a current-owner publication and explicit
+transfer intent, then requires the real service transfer ACK and both canonical
+adoption receipts before moving. It does not reconnect the action channel or
+start another run; the original action and launch grant remain unchanged.
 
 The loss injection awaits the **real correlated `startDurable` reply**, then throws
 at the SDK integration boundary. It is not a TCP reply-drop simulation. Local
@@ -112,6 +116,9 @@ launch admission, without sending a replacement remote start.
    Original data/source, observation time, readonly revision and retained result
    bytes are preserved. Exact retry is idempotent; service custody is resolved
    and the operation is parked and explicitly custody-confirmed.
+7. Explicit unfinished-navigation transfer across reload/owner change, exact
+   remote ACK, guard/navigation adoption receipts, one local step and funded
+   cancellation/terminal settlement. No planner entry during transfer or travel.
 
 `created` counts factory instances; `entered`/`cancelled` count wait-only entries
 and cancellations. The separate `scriptedCreated`, `scriptedCreateCalls`,
@@ -125,7 +132,7 @@ arrival, cancellation or ACK. Service usage separately reports `steps: 4`,
 no provider stream events. **Paid provider calls are zero by construction**, not
 billing telemetry. The adjacent-cell target proves one bounded local movement,
 not arbitrary multi-cell travel.
-Paid providers, successor/wake, publication renewal, every transport/crash
+Paid providers, successor/wake, automatic publication renewal, every transport/crash
 interleaving, physical storage failure and the unavailable .NET SDK pin remain
 outside this proof.
 
@@ -147,9 +154,30 @@ The current narrow launch contract does not expose recent-history limits.
   assembly hashes, commands, frames and retained original-request results.
 - Service build PASS, zero warnings/errors; offline .NET 10.0.401 limitation
   remains. No paid providers, mounted UI, decision wake or transfer proof is
-  implied by these six tests.
+  implied by these six tests; the subsequent seven-case run adds transfer below.
 - Earlier oversized-outcome results below describe the superseded `602f15a`
   service, not an exception retained in current acceptance.
+
+## Integrated transfer result (2026-10-15)
+
+- Maze `0ca7fb9`, same clean Agentica `a1f00ac` and SDK digest above.
+- **7/7 native PASS**, 24.3s, zero retries/skips. Includes all six prior cases
+  plus the actual-service transfer. Parent evidence:
+  `test-results/maze-start-service-P9dFNa/` (provenance, requests, frames, traces).
+- Transfer occurs before the first navigation step. Exact original publication,
+  action, admission and grant remain historical. The current-owner observation
+  uses only its retained earned evidence; transfer is not a new look.
+- The remote transfer ACK precedes both kernel adoption receipts and effective
+  authority. Only then does one step occur. Cancellation sends the retained
+  progress prefix, releases the navigation reservation on verified terminal ACK,
+  and settles the initial start separately. Counters stay at one create/three
+  refinements during this sequence; provider calls remain zero by construction.
+- Transfer test: no console/page/SDK errors or rejected service responses. Every
+  frame is within 64 KiB. Expected 400/404/409 responses in the original negative
+  cases remain deliberately tested, not hidden.
+- The fixture explicitly publishes current-owner evidence; it does not implement
+  the future application renewal policy. No multi-step mid-route transfer,
+  decision-wake, mounted Agentic Play or live-provider claim.
 
 ## Original five-case result (2026-10-15)
 
