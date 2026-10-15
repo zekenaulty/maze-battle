@@ -1,0 +1,29 @@
+import { prepareAction, readAction } from '../../src/persistence/canonical/agentica/actions';
+import { loadDecisionIntent } from '../../src/persistence/canonical/agentica/decision.records';
+import { loadDecisionClaim } from '../../src/persistence/canonical/agentica/decision.claim';
+import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
+import { readAgenticaOperation } from '../../src/persistence/canonical/agentica/operation';
+import { readAgenticaTerminal } from '../../src/persistence/canonical/agentica/terminal';
+import { readPublicationSelection } from '../../src/persistence/canonical/agentica/publication-selection';
+import type { OperationBinding } from '../../src/persistence/canonical/agentica/operation.types';
+import { readCanonical, readCanonicalHead } from '../../src/persistence/canonical/read';
+import type { decisionSdkCapture } from './canonical-start-service.decision-log';
+
+type Log = ReturnType<ReturnType<typeof decisionSdkCapture>['read']>;
+
+/** Read actual IndexedDB records only; SDK callbacks are not canonical admission evidence. */
+export async function decisionState(launchId: string, binding: OperationBinding, log: Log) {
+  const identities = await Promise.all(log.actions.map(item => prepareAction(item.action)));
+  const index = log.actions.findIndex(item => item.window === 'initial' && item.action.capabilityId === 'maze.navigate');
+  const admitted = index >= 0 && log.results.some(item => item.result.actionId === identities[index].action.actionId && item.result.operation);
+  const identity = admitted ? identities[index] : null;
+  const records = (await readCanonical(async pages => ({
+    originals: await Promise.all(identities.map(action => readAction(pages, action))),
+    selection: await readPublicationSelection(pages, launchId),
+    intent: identity ? await loadDecisionIntent(pages, identity) : null,
+    claim: identity ? await loadDecisionClaim(pages, identity) : null,
+  }))).value;
+  return { ...records, head: (await readCanonicalHead()).head, launch: (await readLaunch(launchId)).value,
+    operation: identity ? (await readAgenticaOperation(identity)).value : null,
+    terminal: identity ? (await readAgenticaTerminal(identity, binding)).value : null };
+}

@@ -1,0 +1,44 @@
+import { AgenticaHost, type AgenticaHostOptions, type AgenticaMessage, type HostOperationEvent,
+  type AgenticaStarted } from '../../src/services/agentica/sdk/agentica-host.mjs';
+import type { AgenticaAction, AgenticaResult } from '../../src/services/agentica/contracts';
+
+/** Actual SDK callbacks and correlated replies only. This never supplies service evidence. */
+export function decisionSdkCapture() {
+  const actions: { window: string; action: AgenticaAction }[] = [], results: { window: string; result: AgenticaResult }[] = [];
+  const messages: { window: string; message: AgenticaMessage }[] = [], statuses: { window: string; state: string; detail?: unknown }[] = [];
+  const wakes: HostOperationEvent[] = [], replies: AgenticaStarted[] = [];
+  const clients: AgenticaHost[] = [];
+  let loseReplies = 0;
+  function factory(window: 'initial' | 'successor') {
+    return (config: AgenticaHostOptions) => {
+      const sdk = new AgenticaHost({ ...config,
+        async onAction(action) {
+          if (actions.length >= 8) throw Error('Decision fixture action bound exceeded');
+          actions.push({ window, action: structuredClone(action) });
+          const result = await config.onAction(action); results.push({ window, result: structuredClone(result) }); return result;
+        },
+        onMessage(message) {
+          if (messages.length >= 512) throw Error('Decision fixture message bound exceeded');
+          messages.push({ window, message: structuredClone(message) }); config.onMessage?.(message);
+        },
+        onStatus(status) { statuses.push({ window, ...structuredClone(status) }); config.onStatus?.(status); },
+      });
+      const wake = sdk.wakeOperation.bind(sdk);
+      sdk.wakeOperation = async event => {
+        wakes.push(structuredClone(event));
+        const reply = await wake(event); replies.push(structuredClone(reply));
+        if (loseReplies > 0) {
+          loseReplies--; sdk.close();
+          throw Error('Fixture discarded the real correlated decision-wake reply.');
+        }
+        return reply;
+      };
+      clients.push(sdk); return sdk;
+    };
+  }
+  return { factory, loseNextReply: () => { loseReplies = 1; },
+    latest: () => clients.at(-1)!,
+    read: () => structuredClone({ actions, results, messages, statuses, wakes, replies }),
+    close: () => { for (const client of clients) client.close(); },
+  };
+}

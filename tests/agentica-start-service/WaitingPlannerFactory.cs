@@ -15,12 +15,18 @@ internal sealed class WaitingPlannerFactory : ILabPlannerFactory
     public int ScriptedCreateCalls => Volatile.Read(ref _scriptedCreateCalls);
     public int ScriptedRefineCalls => Volatile.Read(ref _scriptedRefineCalls);
     public int ScriptedStepsPlanned => Volatile.Read(ref _scriptedStepsPlanned);
+    public DecisionPlannerCounters Decision { get; } = new();
     public IReadOnlyList<ProviderMetadata> GetProviders() => [new("fixture", "wait-only", true, null, "cancellable-or-scripted-offline-fixture")];
     public IWorkflowPlanner Create(ProviderSettings settings, Action<LlmStreamEvent> onStreamEvent)
     {
-        if (settings.Provider != "fixture" || settings.Model is not ("wait-only" or "observation-sequence"))
-            throw new InvalidOperationException("Only the two explicit offline fixture planners are permitted.");
+        if (settings.Provider != "fixture" || settings.Model is not ("wait-only" or "observation-sequence" or "decision-navigation" or "decision-terminal"))
+            throw new InvalidOperationException("Only the four explicit offline fixture planners are permitted.");
         Interlocked.Increment(ref _created);
+        if (settings.Model is "decision-navigation" or "decision-terminal")
+        {
+            Decision.Created();
+            return new DecisionSequencePlanner(settings.Model == "decision-terminal", Decision);
+        }
         if (settings.Model == "observation-sequence")
         {
             Interlocked.Increment(ref _scriptedCreated);
