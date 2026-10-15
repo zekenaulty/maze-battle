@@ -20,7 +20,8 @@ export async function retainEventAcknowledgement(tx: CanonicalWork, input: Canon
   const request = operationRequest(tx, input, 'agentica.operation.ack', { action: identity.storageKey, event: ref, entry });
   const pages = launchPages(tx);
   const confirmed = await loadOperationConfirmation(pages, identity); check(confirmed && entry.latestEvent, 'missing acknowledged operation event');
-  const sequence = entry.latestEvent.sequence - 1;
+  const sequence = Number(ref.key.slice(ref.key.lastIndexOf('/') + 1));
+  check(ref.key === eventKey(identity, sequence), 'acknowledgement event key changed');
   const event = await loadOperationEvent(pages, identity, confirmed, sequence, ref);
   validateAcknowledgement(entry, confirmed, event.data);
   const previous = await loadEventAcknowledgement(pages, identity, confirmed, event);

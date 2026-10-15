@@ -26,14 +26,20 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
   check(matches.length <= 1, 'ambiguous terminal service custody');
   if (!matches.length) return { status: 'awaiting-service' as const };
   let entry = operationEntryShape(matches[0]);
-  validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result);
+  const priorEpoch = terminal.transfer?.data.event.sessionEpoch;
+  check(entry.activeEpoch === event.sessionEpoch || entry.activeEpoch === priorEpoch, 'terminal service epoch changed');
+  validateOperationEntry(entry, bound.launch.acceptedStart, identity.action, bound.result, entry.activeEpoch);
   if (terminal.confirmed) check(equal(entry.usage, terminal.confirmed.data.entry.usage), 'terminal admission usage changed');
   const delivery = stoppedDecision ? 'stop-decision' as const : 'signal' as const;
   if (!(entry.latestEvent && equivalentOperationWire(entry.latestEvent, event, 'event'))) {
     entry = operationEntry(entry);
     const latest = entry.latestEvent, last = terminal.previous ?? terminal.probe;
     let next: HostOperationEvent = event;
-    if (!latest && terminal.probe) {
+    if (terminal.transfer && latest && equivalentOperationWire(latest, terminal.transfer.data.previous, 'event')) {
+      check(terminal.bound.progress.sequence === terminal.transfer.data.navigationSequence, 'service lost acknowledged transfer');
+      next = terminal.transfer.data.event;
+    } else if (!latest && terminal.probe) {
+      check(!terminal.transfer, 'service lost transfer predecessor');
       check(!terminal.previous || terminal.previous.sequence === 2, 'service lost acknowledged progress'); next = terminal.probe;
     } else if (last && (!latest || !equivalentOperationWire(latest, last, 'event'))) {
       check(terminal.previous && latest && terminal.predecessor
@@ -44,7 +50,7 @@ export async function deliverGameTerminal(port: CanonicalRecoveryPort, sdk: Oper
       : await sdk.signalOperation(next, { fetchImpl: network });
     signal.throwIfAborted();
     if (next !== event) {
-      const accepted = operationEntry(remote); validateOperationEntry(accepted, bound.launch.acceptedStart, identity.action, bound.result);
+      const accepted = operationEntry(remote); validateOperationEntry(accepted, bound.launch.acceptedStart, identity.action, bound.result, next.nextSessionEpoch ?? next.sessionEpoch);
       check(equal(accepted.usage, entry.usage) && accepted.latestEvent
         && equivalentOperationWire(accepted.latestEvent, next, 'event'), 'service did not acknowledge retained predecessor');
       return { status: 'terminal-prefix-delivered' as const, sequence: next.sequence };

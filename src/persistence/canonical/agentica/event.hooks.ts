@@ -2,7 +2,7 @@ import { loadObservation, validateKnowledge } from '../knowledge/evidence';
 import type { NavigationHostHooks, NavigationPreparation } from '../navigation/host';
 import type { CanonicalRequest, Json } from '../types';
 import { check, jsonBytes, request as validateRequest } from '../validation';
-import { assertOperationCustody } from './operation.binding';
+import { assertEffectiveOperationCustody } from './authority';
 import { loadOperationConfirmation } from './operation.confirmation';
 import { loadOperationCustodyAck } from './operation.custody';
 import { eventKey, loadEventAcknowledgement, loadOperationEvent } from './event.records';
@@ -18,7 +18,8 @@ function reader(view: NavigationPreparation): OperationRead {
 /** Only navigation.advance. Admission uses navigationActionHooks instead. Arrived/blocked progress does not settle the kernel operation. */
 export function operationProgressHooks(input: PreparedAction, inputConfirmation: ProtocolRef): NavigationHostHooks {
   const identity = snapshotPrepared(input), confirmation = snapshotReference(inputConfirmation);
-  let prepared: { request: CanonicalRequest; sequence: number; previous: OperationPredecessor; custody: ProtocolRef; hostId: string } | undefined;
+  let prepared: { request: CanonicalRequest; sequence: number; wireSequence: number; epoch: string; authority?: ProtocolRef;
+    previous: OperationPredecessor; custody: ProtocolRef; hostId: string } | undefined;
   return {
     async prepare(view) {
       prepared = undefined;
@@ -27,16 +28,20 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
       const { bound } = confirmed, sequence = bound.progress.sequence;
       check(request.operation === 'navigation.advance' && equal(request.input, { operationId: confirmed.data.operationId, sequence })
         && equal(operation, bound.operation), 'progress command differs from confirmed operation');
-      assertOperationCustody(head, bound);
+      const authority = await assertEffectiveOperationCustody(pages, head, identity, confirmed);
       const custody = await loadOperationCustodyAck(pages, identity, confirmation); check(custody, 'custody probe is not acknowledged');
       let previous: OperationPredecessor = { kind: 'custody-probe', reference: confirmation };
-      if (sequence > 0) {
+      if (authority && sequence === authority.transfer.data.navigationSequence) {
+        previous = { kind: 'transfer', reference: authority.transfer.reference };
+      } else if (sequence > 0) {
         const event = await loadOperationEvent(pages, identity, confirmed, sequence);
         check(event.source.attemptId === bound.progress.sourceAttemptId, 'latest progress lacks its original event');
         check(await loadEventAcknowledgement(pages, identity, confirmed, event), 'previous event is not acknowledged');
         previous = { kind: 'progress', reference: event.reference };
       }
-      prepared = { request, sequence, previous, custody: custody.reference, hostId: bound.launch.binding.start.hostId };
+      prepared = { request, sequence, previous, custody: custody.reference, hostId: bound.launch.binding.start.hostId,
+        wireSequence: authority ? authority.transfer.data.event.sequence + sequence - authority.transfer.data.navigationSequence + 1 : sequence + 2,
+        epoch: String(head.epoch), ...(authority ? { authority: authority.reference } : {}) };
     },
     async commit(view) {
       const request = validateRequest(view.request), head = snapshotJson(view.head), p = snapshotJson(view.progress), cp = snapshotJson(view.checkpoint);
@@ -45,9 +50,10 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
         && p.operationId === view.operation.id && equal(p.position, cp.position), 'event was not prepared for this progress');
       await validateKnowledge(view.knowledge, cp.knowledge);
       const sight = cp.knowledge ? await loadObservation(view.knowledge, { sequence: cp.knowledge.sequence, id: cp.knowledge.id }) : null;
-      const data: OperationEvent = { confirmation, custody: ready.custody, previous: ready.previous, event: {
-        hostId: ready.hostId, sessionId: identity.action.sessionId, sessionEpoch: identity.action.sessionEpoch,
-        actionId: identity.action.actionId, operationId: p.operationId, sequence: p.sequence + 1, eventId: request.attemptId, kind: 'progress',
+      const data: OperationEvent = { confirmation, custody: ready.custody, previous: ready.previous,
+        ...(ready.authority ? { authority: ready.authority } : {}), event: {
+        hostId: ready.hostId, sessionId: identity.action.sessionId, sessionEpoch: ready.epoch,
+        actionId: identity.action.actionId, operationId: p.operationId, sequence: ready.wireSequence, eventId: request.attemptId, kind: 'progress',
         observation: { observationId: `event-${request.attemptId}`, revision: head.revision + 1,
           observedAt: sight?.header.observedAt ?? cp.updatedAt, data: {
             scope: 'actor', actor: { level: cp.position.level, ...cp.position.cell, facing: cp.facing, mode: cp.mode },

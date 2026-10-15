@@ -72,8 +72,8 @@ export function operationEntry(input: AgenticaOperationEntry) {
     && (entry as unknown as ObjectValue).settledUsage == null, 'service operation is not parked in original custody');
   return entry;
 }
-export function validateOperationEntry(entry: AgenticaOperationEntry, start: AgenticaStart, action: AgenticaAction, admission: AgenticaResult) {
+export function validateOperationEntry(entry: AgenticaOperationEntry, start: AgenticaStart, action: AgenticaAction, admission: AgenticaResult, activeEpoch = action.sessionEpoch) {
   check(equivalentOperationStart(entry.request, start) && equal(entry.action, action)
-    && equivalentOperationWire(entry.admission, admission, 'result') && entry.activeEpoch === action.sessionEpoch,
+    && equivalentOperationWire(entry.admission, admission, 'result') && entry.activeEpoch === activeEpoch,
   'service operation differs from original request, action or admission');
 }

@@ -9,13 +9,14 @@ import { equivalentOperationWire, operationEntry, validateOperationEntry } from 
 import { MAX_EVENT_BYTES, type EventAcknowledgement, type OperationEvent, type OperationRead } from './operation.types';
 import type { PreparedAction, ProtocolRef } from './types';
 import { equal, snapshotJson, snapshotReference } from './validation';
+import { loadTransferAuthority } from './transfer.records';
 
 export type ConfirmedOperation = NonNullable<Awaited<ReturnType<typeof loadOperationConfirmation>>>;
 export function eventKey(identity: PreparedAction, sequence: number, ack = false) {
   check(integer(sequence, 1), 'invalid operation event sequence'); return operationKey(identity, `${ack ? 'acks' : 'events'}/${sequence}`);
 }
 export function validateAcknowledgement(entry: AgenticaOperationEntry, confirmed: ConfirmedOperation, event: OperationEvent) {
-  validateOperationEntry(entry, confirmed.bound.launch.acceptedStart, confirmed.bound.original.original.action, confirmed.bound.result);
+  validateOperationEntry(entry, confirmed.bound.launch.acceptedStart, confirmed.bound.original.original.action, confirmed.bound.result, event.event.sessionEpoch);
   check(equal(entry.usage, confirmed.data.entry.usage) && entry.latestEvent != null
     && equivalentOperationWire(entry.latestEvent, event.event, 'event'), 'service did not acknowledge exact latest event');
 }
@@ -24,7 +25,7 @@ export async function loadOperationEvent(pages: OperationRead, identity: Prepare
   const custody = await loadOperationCustodyAck(pages, identity, confirmed.reference); check(custody, 'missing custody acknowledgement');
   const current = await loadEventRecord(pages, identity, confirmed, custody, sequence, reference);
   // Validate one predecessor's full evidence, never recursively traverse the event history.
-  if (sequence > 1) {
+  if (sequence > 1 && current.data.previous.kind === 'progress') {
     const previous = await loadEventRecord(pages, identity, confirmed, custody, sequence - 1, current.data.previous.reference);
     check(previous.row.revision < current.row.revision, 'operation event predecessor revision changed');
   }
@@ -35,7 +36,7 @@ async function loadEventRecord(pages: OperationRead, identity: PreparedAction, c
   const ref = reference && snapshotReference(reference), key = eventKey(identity, sequence), row = await pages.get('execution', key);
   check(row && row.indexes.length === 0 && (!ref || equal(ref, { key, id: row.id })), 'missing or replaced operation event');
   const value = fields(row.value, 'schema kind sourceAttemptId data'), data = snapshotJson(value.data) as unknown as OperationEvent;
-  fields(data, 'confirmation custody previous event');
+  fields(data, 'confirmation custody previous event', 'authority');
   check(value.schema === 1 && value.kind === 'agentica-operation-event' && equal(data.confirmation, confirmed.reference), 'operation event confirmation changed');
   check(equal(data.custody, custody.reference), 'operation event custody acknowledgement changed');
   const event = data.event, action = identity.action, start = confirmed.bound.launch.binding.start;
@@ -46,14 +47,20 @@ async function loadEventRecord(pages: OperationRead, identity: PreparedAction, c
   check(equal(host.event, navigationRecordRef(row, source.attemptId)) && receipt.afterRevision === row.revision
     && source.operation === 'navigation.advance' && equal(source.input, { operationId: confirmed.data.operationId, sequence: sequence - 1 })
     && result.operationId === confirmed.data.operationId && result.sequence === sequence, 'operation event source changed');
-  check(source.expected.owner === confirmed.source.expected.owner && source.expected.epoch === confirmed.source.expected.epoch
+  const authority = data.authority ? await loadTransferAuthority(pages, identity, confirmed, snapshotReference(data.authority)) : null;
+  const owner = authority?.source.expected ?? confirmed.source.expected;
+  const wireSequence = authority ? authority.transfer.data.event.sequence + sequence - authority.transfer.data.navigationSequence : sequence + 1;
+  check(source.expected.owner === owner.owner && source.expected.epoch === owner.epoch
     && receipt.beforeRevision >= custody.row.revision, 'operation event source custody changed');
-  check(event.hostId === start.hostId && event.sessionId === action.sessionId && event.sessionEpoch === action.sessionEpoch
-    && event.actionId === action.actionId && event.operationId === confirmed.data.operationId && integer(event.sequence, 2) && event.sequence === sequence + 1
+  if (authority) check(sequence > authority.transfer.data.navigationSequence && receipt.beforeRevision >= authority.row.revision, 'progress predates transfer authority');
+  check(event.hostId === start.hostId && event.sessionId === action.sessionId && event.sessionEpoch === String(owner.epoch)
+    && event.actionId === action.actionId && event.operationId === confirmed.data.operationId && integer(event.sequence, 2) && event.sequence === wireSequence
     && event.eventId === source.attemptId && event.kind === 'progress' && event.observation.revision === receipt.afterRevision
     && event.observation.observationId === `event-${source.attemptId}`, 'operation event identity changed');
   fields(data.previous, 'kind reference');
-  if (sequence === 1) check(equal(data.previous, { kind: 'custody-probe', reference: confirmed.reference }), 'first event lacks original custody probe');
+  if (authority && sequence === authority.transfer.data.navigationSequence + 1)
+    check(equal(data.previous, { kind: 'transfer', reference: authority.transfer.reference }), 'progress lacks transfer predecessor');
+  else if (sequence === 1) check(equal(data.previous, { kind: 'custody-probe', reference: confirmed.reference }), 'first event lacks original custody probe');
   else {
     const prev = snapshotReference(data.previous.reference);
     check(data.previous.kind === 'progress' && prev.key === eventKey(identity, sequence - 1), 'operation event predecessor changed');
@@ -62,7 +69,8 @@ async function loadEventRecord(pages: OperationRead, identity: PreparedAction, c
 }
 export async function loadEventAcknowledgement(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation,
   event: Awaited<ReturnType<typeof loadOperationEvent>>) {
-  const ack = await loadOperationRecord<EventAcknowledgement>(pages, eventKey(identity, event.data.event.sequence - 1, true), 'agentica-operation-ack');
+  const sequence = Number(event.source.input && (event.source.input as { sequence: number }).sequence) + 1;
+  const ack = await loadOperationRecord<EventAcknowledgement>(pages, eventKey(identity, sequence, true), 'agentica-operation-ack');
   if (!ack) return null;
   fields(ack.data, 'event entry'); const entry = operationEntry(ack.data.entry);
   check(equal(ack.data.event, event.reference) && ack.source.operation === 'agentica.operation.ack'
