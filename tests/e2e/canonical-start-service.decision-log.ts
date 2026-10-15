@@ -8,7 +8,19 @@ export function decisionSdkCapture() {
   const messages: { window: string; message: AgenticaMessage }[] = [], statuses: { window: string; state: string; detail?: unknown }[] = [];
   const wakes: HostOperationEvent[] = [], replies: AgenticaStarted[] = [];
   const clients: AgenticaHost[] = [];
-  let loseReplies = 0;
+  let loseReplies = 0, awaitOutcome = false;
+  const listeners = new Set<(message: AgenticaMessage) => void>();
+  function outcome(runId: string) {
+    const matches = (message: AgenticaMessage) => message.type === 'outcome' && message.runId === runId;
+    if (messages.some(item => matches(item.message))) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      const listener = (message: AgenticaMessage) => {
+        if (matches(message)) { clearTimeout(timer); listeners.delete(listener); resolve(); }
+      };
+      const timer = setTimeout(() => { listeners.delete(listener); reject(Error('Real successor outcome was not observed')); }, 10_000);
+      listeners.add(listener);
+    });
+  }
   function factory(window: 'initial' | 'successor') {
     return (config: AgenticaHostOptions) => {
       const sdk = new AgenticaHost({ ...config,
@@ -20,6 +32,7 @@ export function decisionSdkCapture() {
         onMessage(message) {
           if (messages.length >= 512) throw Error('Decision fixture message bound exceeded');
           messages.push({ window, message: structuredClone(message) }); config.onMessage?.(message);
+          for (const listener of listeners) listener(message);
         },
         onStatus(status) { statuses.push({ window, ...structuredClone(status) }); config.onStatus?.(status); },
       });
@@ -27,6 +40,7 @@ export function decisionSdkCapture() {
       sdk.wakeOperation = async event => {
         wakes.push(structuredClone(event));
         const reply = await wake(event); replies.push(structuredClone(reply));
+        if (awaitOutcome) { awaitOutcome = false; await outcome(reply.runId); }
         if (loseReplies > 0) {
           loseReplies--; sdk.close();
           throw Error('Fixture discarded the real correlated decision-wake reply.');
@@ -36,7 +50,7 @@ export function decisionSdkCapture() {
       clients.push(sdk); return sdk;
     };
   }
-  return { factory, loseNextReply: () => { loseReplies = 1; },
+  return { factory, loseNextReply: () => { loseReplies = 1; }, afterOutcome: () => { awaitOutcome = true; },
     latest: () => clients.at(-1)!,
     read: () => structuredClone({ actions, results, messages, statuses, wakes, replies }),
     close: () => { for (const client of clients) client.close(); },

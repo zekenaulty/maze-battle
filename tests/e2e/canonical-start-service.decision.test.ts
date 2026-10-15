@@ -17,7 +17,11 @@ interface DecisionWire {
   responses: { status: number; url: string; body: unknown }[]; errors: string[]; console: string[];
   before: ServiceProof;
 }
-export const test = base.extend<{ wire: DecisionWire }>({ wire: [async ({ page, context }, use, info) => {
+export const test = base.extend<{ wire: DecisionWire }, { decisionService: void }>({
+  decisionService: [async ({}, use) => {
+    await service.start(); try { await use(); } finally { await service.stop(); }
+  }, { scope: 'worker', auto: true }],
+  wire: [async ({ page, context }, use, info) => {
   const wire: DecisionWire = { sent: [], received: [], http: [], responses: [], errors: [], console: [], before: await serviceProof() };
   const pending: Promise<void>[] = [];
   page.on('pageerror', error => wire.errors.push(error.message));
@@ -69,6 +73,4 @@ export const test = base.extend<{ wire: DecisionWire }>({ wire: [async ({ page, 
   expect(wire.responses.filter(response => response.status >= 400), 'No unexpected HTTP refusal').toEqual([]);
   expect(wire.received.filter(frame => frame.bytes > 64 * 1024), 'Unchanged receive bound').toEqual([]);
 }, { auto: true }] });
-test.beforeAll(async () => { await service.start(); });
-test.afterAll(async () => { await service.stop(); });
 export { expect };
