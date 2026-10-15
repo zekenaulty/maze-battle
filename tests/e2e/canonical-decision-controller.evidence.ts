@@ -8,6 +8,8 @@ import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { json } from '../../src/persistence/canonical/world/records';
 import type { CanonicalHostPort } from '../../src/services/game/CanonicalHostCommand';
 import type { RemoteSnapshot } from './canonical-decision-controller.remote';
+import { gameRequest } from '../../src/services/game/canonicalRequests';
+import { executeSettingsCommand } from '../../src/persistence/canonical/game/settings';
 
 /** Deliberate corruption and raw funding inspection only in the disposable controller fixture database. */
 export async function deleteControllerEvidence(store: 'receipts' | 'records', id: string) {
@@ -32,4 +34,10 @@ export async function retainControllerClaim(port: CanonicalHostPort, seed: Trans
     input: json({ action: identity.storageKey, intent: intent.reference, started, entry }),
     execute: (request, options) => executeCanonical(request,
       async tx => (await retainDecisionClaim(tx, request, identity, intent.reference, started, entry)).receipt, options) });
+}
+
+/** Advance only the fence with a real domain commit outside the recovery-gated GameSession. */
+export async function advanceControllerRevision() {
+  const { head } = await readCanonicalHead();
+  return executeSettingsCommand(gameRequest(head, 'settings.command', { kind: 'throttle', ms: 700 }));
 }

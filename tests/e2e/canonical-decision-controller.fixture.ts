@@ -21,7 +21,7 @@ import { holdNextCanonicalRead } from './canonical-decision-controller.read-barr
 import { moveControllerSuccessor, completeControllerSuccessor } from './canonical-decision-controller.navigation';
 import { createControllerRootRecovery } from './canonical-decision-controller.root';
 import type { CanonicalRequest } from '../../src/persistence/canonical/types';
-import { controllerFunding, deleteControllerEvidence, retainControllerClaim } from './canonical-decision-controller.evidence';
+import { controllerFunding, deleteControllerEvidence, retainControllerClaim, advanceControllerRevision } from './canonical-decision-controller.evidence';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5266') throw Error('Isolated decision controller fixture only');
 let seeded: { session: GameSession; seed: TransferSeed; started: LaunchStarted; entry: AgenticaOperationEntry }, sdk: DecisionSdkFixture;
@@ -66,6 +66,7 @@ const api = { boot, dump, fillQuota, state: () => controllerState(seeded.seed), 
   stopRoot: () => root.stop(), acknowledgeRoot: (entry: unknown, retry?: CanonicalRequest) => root.acknowledge(entry, retry),
   funding: (childId?: string) => controllerFunding(seeded.seed, childId), replaceSource: changeSource, deleteEvidence: deleteControllerEvidence,
   retainRemoteClaim: () => retainControllerClaim(port, seeded.seed, sdk.remote.snapshot()),
+  advanceRecoveryRevision: advanceControllerRevision,
   acknowledgePrevious: () => controllers.at(-2)!.acknowledge(),
   begin, job: (id: number) => jobs.result(id), wait: (id: number) => jobs.wait(id),
   hold: (point: BarrierPoint) => sdk.barriers.hold(point), entered: (point: BarrierPoint) => sdk.barriers.entered(point),
