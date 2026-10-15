@@ -16,16 +16,21 @@ async function loadHandoff(pages: OperationRead, terminal: AgenticaTerminal) {
   return claim;
 }
 
-async function handoffEvidence(pages: OperationRead, terminal: AgenticaTerminal, claim: Claim,
-  entry: AgenticaOperationEntry, beforeRevision?: number) {
-  validateOperationEntry(entry, terminal.bound.start, terminal.identity.action, terminal.bound.result,
-    claim.decision.data.adoption?.nextSessionEpoch ?? claim.decision.data.event.sessionEpoch);
+export function decisionClaimSettlement(claim: Claim, entry: AgenticaOperationEntry) {
   const current = validateDecisionClaim(claim.decision, claim.data.started, entry), original = claim.data;
   if (original.state !== 'waking') {
     check(equal(current.settledUsage, original.settledUsage) && (current.state === original.state
       && current.stopped === original.stopped || !original.stopped && ['blocked', 'cancelled'].includes(original.state)
       && current.state === 'cancelled' && current.stopped), 'decision handoff rewinds or replaces settled claim');
   }
+  return current;
+}
+
+async function handoffEvidence(pages: OperationRead, terminal: AgenticaTerminal, claim: Claim,
+  entry: AgenticaOperationEntry, beforeRevision?: number) {
+  validateOperationEntry(entry, terminal.bound.start, terminal.identity.action, terminal.bound.result,
+    claim.decision.data.adoption?.nextSessionEpoch ?? claim.decision.data.event.sessionEpoch);
+  const current = decisionClaimSettlement(claim, entry);
   // A later local Stop cannot invalidate an earlier ACK. A Stop preceding ACK needs its exact remote marker.
   const stop = terminal.bound.launch.guard.terminal;
   const stopped = stop?.disposition === 'cancelled' && (beforeRevision === undefined

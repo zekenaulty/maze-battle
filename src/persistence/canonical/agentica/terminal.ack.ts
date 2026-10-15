@@ -10,16 +10,18 @@ import { equivalentOperationWire, operationEntryShape, validateOperationEntry } 
 import type { OperationBinding, OperationRead } from './operation.types';
 import { loadAgenticaTerminal } from './terminal';
 import { decisionHandoffEvidence } from './terminal.decision';
+import { decisionRootStopEvidence } from './terminal.root-stop';
 import type { PreparedAction } from './types';
 import { equal, snapshotJson, snapshotPrepared } from './validation';
 
-export type TerminalDelivery = 'signal' | 'stop-decision' | 'decision-handoff';
+export type TerminalDelivery = 'signal' | 'stop-decision' | 'decision-handoff' | 'decision-root-stop';
 type Terminal = NonNullable<Awaited<ReturnType<typeof loadAgenticaTerminal>>>;
 /** Validate full service identity; compact evidence points back to originals rather than copying them again. */
 async function acknowledgement(pages: OperationRead, terminal: Terminal, entry: AgenticaOperationEntry, delivery: TerminalDelivery): Promise<JsonObject> {
   const { bound, identity, event } = terminal, remote = operationEntryShape(entry);
   check(bound.operation.ackPolicy === 'verified-host', 'operation lacks verified acknowledgement policy');
-  const handoff = delivery === 'decision-handoff' ? await decisionHandoffEvidence(pages, terminal, remote) : null;
+  const handoff = delivery === 'decision-handoff' ? await decisionHandoffEvidence(pages, terminal, remote)
+    : delivery === 'decision-root-stop' ? await decisionRootStopEvidence(pages, terminal, remote) : null;
   if (!handoff) {
     validateOperationEntry(remote, bound.start, identity.action, bound.result, event.sessionEpoch);
     check(remote.wakeRunId == null && remote.wakeAdoption == null && (!('settledUsage' in remote) || remote.settledUsage == null),

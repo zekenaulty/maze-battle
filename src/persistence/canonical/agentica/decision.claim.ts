@@ -2,14 +2,15 @@ import type { AgenticaOperationEntry } from '../../../services/agentica/sdk/agen
 import { fields } from '../roster/codec';
 import type { CanonicalWork } from '../transaction';
 import type { CanonicalRequest } from '../types';
-import { check, integer } from '../validation';
+import { check } from '../validation';
 import { launchPages } from './launch.records';
 import { launchStarted } from './launch.wire';
 import type { LaunchStarted } from './launch.types';
 import { loadOperationRecord, operationRequest, writeOperationRecord } from './operation.records';
 import type { OperationRead } from './operation.types';
-import { equivalentOperationWire, operationEntryShape, validateOperationEntry } from './operation.wire';
+import { operationEntryShape } from './operation.wire';
 import { decisionKey, loadDecisionIntent, type RetainedDecision } from './decision.records';
+import { decisionEntry } from './decision.entry';
 import type { PreparedAction, ProtocolRef } from './types';
 import { equal, snapshotJson, snapshotPrepared, snapshotReference } from './validation';
 
@@ -17,34 +18,14 @@ export interface DecisionClaim {
   intent: ProtocolRef; started: LaunchStarted; usage: AgenticaOperationEntry['usage'];
   state: string; settledUsage: AgenticaOperationEntry['usage'] | null; stopped: boolean;
 }
-function sameAdoption(remote: AgenticaOperationEntry['wakeAdoption'], expected: RetainedDecision['data']['adoption']) {
-  if (!expected) return remote == null;
-  if (!remote) return false;
-  fields(remote, 'adoptionId nextSessionEpoch observation');
-  return remote.adoptionId === expected.adoptionId && remote.nextSessionEpoch === expected.nextSessionEpoch
-    && equivalentOperationWire({ observation: remote.observation }, { observation: expected.observation }, 'result');
-}
 export function validateDecisionClaim(decision: RetainedDecision, startedInput: LaunchStarted, remote: AgenticaOperationEntry) {
-  const { terminal, data } = decision, entry = operationEntryShape(remote);
+  const { terminal, data } = decision, entry = decisionEntry(decision, remote);
   const epoch = data.adoption?.nextSessionEpoch ?? data.event.sessionEpoch;
   const started = launchStarted(startedInput, { ...terminal.bound.start, sessionEpoch: epoch });
-  validateOperationEntry(entry, terminal.bound.start, decision.identity.action, terminal.bound.result, epoch);
-  check(['waking', 'continued', 'completed', 'blocked', 'cancelled'].includes(entry.state) && entry.wakeRunId === started.runId
-    && started.runId !== decision.identity.action.runId && started.manifestHash === decision.identity.action.manifestHash
-    && entry.latestEvent && equivalentOperationWire(entry.latestEvent, data.event, 'event')
-    && sameAdoption(entry.wakeAdoption, data.adoption)
-    && equal(entry.usage, terminal.confirmed!.data.entry.usage), 'service did not claim exact decision successor');
-  const settled = (entry as unknown as Record<string, unknown>).settledUsage;
-  const stopped = entry.stopDecision != null;
-  check(!stopped || entry.state === 'cancelled' && equivalentOperationWire(entry.stopDecision, data.event, 'event'), 'decision stop changed');
-  if (settled != null) {
-    const usage = fields(settled, 'steps refinements continuations providerCalls');
-    check(entry.state !== 'waking' && Object.entries(usage).every(([k, n]) => integer(n)
-      && n >= entry.usage[k as keyof typeof entry.usage]) && Number(usage.continuations) > entry.usage.continuations,
-    'decision settlement usage changed');
-  } else check(entry.state === 'waking' && !stopped || entry.state === 'cancelled' && stopped, 'decision settlement evidence missing');
+  check(entry.runId === started.runId && started.manifestHash === decision.identity.action.manifestHash,
+    'service did not claim exact decision successor');
   return { intent: decision.reference, started, usage: entry.usage, state: entry.state,
-    settledUsage: (settled ?? null) as DecisionClaim['settledUsage'], stopped };
+    settledUsage: entry.settledUsage, stopped: entry.stopped };
 }
 
 export async function loadDecisionClaim(pages: OperationRead, input: PreparedAction) {

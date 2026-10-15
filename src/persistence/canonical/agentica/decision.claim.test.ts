@@ -4,6 +4,7 @@ import type { AgenticaOperationEntry, HostOperationEvent } from '../../../servic
 import { canonicalFence } from '../transaction';
 import { gameCheckpoint } from '../game/checkpoint';
 import { validateDecisionClaim } from './decision.claim';
+import { decisionEntry } from './decision.entry';
 import { decisionAdoption, decisionEvent, type RetainedDecision } from './decision.records';
 import { launchStartFixture, launchStartedFixture } from './launch.test-support';
 import { protocolAction, protocolHead, protocolResult } from './types.test-support';
@@ -33,6 +34,25 @@ function fixture(adopt = false) {
 }
 
 describe('retained decision successor claims', () => {
+  it.each([false, true])('suppressed unclaimed entry is cleanup evidence, never a started claim (adopt=%s)', adopt => {
+    const f = fixture(adopt); delete f.entry.wakeRunId; delete f.entry.wakeAdoption;
+    f.entry.activeEpoch = f.decision.data.event.sessionEpoch;
+    f.entry.state = 'cancelled'; f.entry.stopDecision = f.entry.latestEvent;
+    const original = structuredClone(f.entry), evidence = decisionEntry(f.decision, f.entry);
+    expect(evidence).toMatchObject({ runId: null, activeEpoch: '1', state: 'cancelled', stopped: true, settledUsage: null });
+    expect(() => validateDecisionClaim(f.decision, f.started, f.entry)).toThrow('exact decision successor');
+    evidence.usage.steps++;
+    expect(f.entry).toEqual(original);
+  });
+  it.each(['waking', 'continued', 'completed', 'blocked', 'cancelled'])('no wake identity cannot imply %s successor settlement', state => {
+    const f = fixture(); delete f.entry.wakeRunId; f.entry.state = state;
+    if (state !== 'waking') Object.assign(f.entry, { settledUsage: { ...f.entry.usage, continuations: 1 } });
+    expect(() => decisionEntry(f.decision, f.entry)).toThrow('unclaimed decision');
+  });
+  it.each(['', 'run', '../foreign', 3])('rejects invalid or reused wake identity %s', runId => {
+    const f = fixture(); Object.assign(f.entry, { wakeRunId: runId });
+    expect(() => decisionEntry(f.decision, f.entry)).toThrow();
+  });
   it.each([false, true])('requires exact original scope and cumulative admission usage (adopt=%s)', adopt => {
     const f = fixture(adopt), original = structuredClone(f);
     expect(validateDecisionClaim(f.decision, f.started, f.entry)).toEqual({ intent: f.decision.reference, started: f.started, usage: f.entry.usage,

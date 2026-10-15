@@ -5,6 +5,7 @@ import { captureOperationBinding } from './operation.binding';
 import type { OperationBinding, OperationRead } from './operation.types';
 import { loadAgenticaTerminalBase } from './terminal.base';
 import { validateDecisionHandoffProof } from './terminal.decision';
+import { validateDecisionRootStopProof } from './terminal.root-stop';
 import type { PreparedAction } from './types';
 import { equal, snapshotPrepared } from './validation';
 
@@ -22,6 +23,8 @@ export async function loadAgenticaTerminal(pages: OperationRead, input: Prepared
     && equal(proof.transfer ?? null, transfer?.reference ?? null), 'terminal acknowledgement source changed');
   if (proof.delivery === 'decision-handoff') {
     await validateDecisionHandoffProof(pages, terminal, proof.decision, proof.remote, ack.receipt.beforeRevision);
+  } else if (proof.delivery === 'decision-root-stop') {
+    await validateDecisionRootStopProof(pages, terminal, proof.decision, proof.remote, ack.receipt.beforeRevision);
   } else {
     check(!Object.hasOwn(proof, 'decision'), 'unexpected decision acknowledgement evidence');
     const remote = fields(proof.remote, 'activeEpoch state usage'), usage = fields(remote.usage, 'steps refinements continuations providerCalls');
