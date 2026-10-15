@@ -33,6 +33,24 @@ for (const reason of ['stopped', 'interrupted'] as const) test(`${reason} termin
   expect(r.proof.terminal).toMatchObject({ reason, usageUnknown: reason === 'interrupted' });
 });
 
+for (const reason of ['stopped', 'interrupted'] as const)
+  test(`${reason} remote ACK without a run record rejects late announcement without writes`, async ({ page }) => {
+    const r = await page.evaluate(async reason => {
+      const c = window.canonicalLaunch; await c.admit(await c.seed()); await c.transition('dispatch');
+      const dispatched = (await c.readLaunch()).value!, stopped = await c.stop();
+      const raw = c.launchTerminalFixture(c.launchEntryFixture(dispatched.binding.start, dispatched.dispatch!.source.attemptId), reason);
+      await c.ack(stopped.request.attemptId, raw);
+      const settled = (await c.readLaunch()).value!, head = (await c.readCanonicalHead()).head, before = await c.dump();
+      const error = await c.announce().then(() => 'accepted', String);
+      return { settled, head, error, before, after: await c.dump() };
+    }, reason);
+    expect(r.settled.guard.state).toBe('acknowledged'); expect(r.settled.run).toBeNull(); expect(r.settled.grant).toBeNull();
+    expect(r.head.quota.reservations).toBe(0); expect(r.head.quota.reservedBytes).toBe(0);
+    expect(r.error).toContain('settled launch cannot acquire a late run record'); expect(r.after).toEqual(r.before);
+    await page.reload(); await page.waitForFunction(() => !!window.canonicalLaunch);
+    expect((await page.evaluate(() => window.canonicalLaunch.readLaunch())).value).toEqual(r.settled);
+  });
+
 for (const defect of ['pending', 'stop', 'run', 'hash', 'usage', 'time'] as const)
   test(`${defect} service evidence cannot ACK an announced launch`, async ({ page }) => {
     const r = await page.evaluate(async defect => {
