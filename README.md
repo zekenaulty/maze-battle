@@ -15,11 +15,11 @@ Maze Battle save formats are intentionally discarded, not migrated.
 - `npm run dev` starts Vite; use the URL printed by the server.
 - `npm run build` type-checks and builds production assets.
 - `npm run test` runs unit tests.
-- `npx playwright test --config tests/e2e/canonical-app.config.ts` checks the actual
+- `npm run e2e` checks the actual
   desktop/mobile App, recovery, Auto and depth-local movement.
 - Canonical persistence/Agentica cohorts have focused configurations under
-  `tests/e2e`. The default E2E collection still includes retired-model fixtures
-  pending removal; it is not the current canonical qualification gate.
+  `tests/e2e`; run each with its own `--config`. These isolated fixtures are not
+  mixed into the default actual-App run.
 
 Explore with WASD or arrow keys; touch devices also have a directional pad.
 Click an earned tile for bounded pathfinding. E interacts, M toggles the map,
@@ -46,6 +46,8 @@ Back up browser data before clearing site storage.
 All former `?expedition=` and `?agentica=1` routes mount this same game. No separate
 Lab game is launched, and no model starts on page load. The canonical Agentica
 binding is under qualification; host fixtures do not prove live-provider behavior.
+The obsolete RPG, expedition and directed persistence writers are removed; the
+remaining radix-tree helper is shared by the canonical store, not a second save system.
 See the [current persistence plan](docs/canonical-persistence-plan.md),
 [next-slice ledger](docs/agentic-play-next-slices.md) and
 [retirement map](docs/reviews/issue-11-p4-retirement-map.md). Earlier architecture
