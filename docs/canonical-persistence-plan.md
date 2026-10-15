@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 14,
-2026-10-13. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 15,
+2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
@@ -36,6 +36,13 @@ now keeps local Stop independent of ordinary storage, delivers exact retained
 event prefixes, reconciles lost replies, and releases navigation reserves only
 after verified remote acceptance. Arrival is a decision, not objective completion.
 P4 also removed the [general stream Agentica writer](reviews/issue-11-p4-general-stream-agentica-retirement.md).
+The [uncertain-start Stop increment](reviews/issue-11-uncertain-start-stop.md)
+adds read-only positive run discovery and funded explicit cancellation through
+the actual GameSession. It never grants, resumes, ACKs or replaces an uncertain
+start. Service snapshots cannot establish full-request equivalence or durable
+absence; complete start reconciliation remains open. P4 additionally removed the
+[directed stream Agentica writer](reviews/issue-11-p4-directed-agentica-retirement.md)
+and its four obsolete store registrations.
 The SDK client is not mounted. Remaining P3 Agentica adoption, P4 removal and P5 final
 qualification remain open. Agentica remains unavailable in this intermediate
 preview; this is not complete feature parity or closure of #11.
@@ -216,7 +223,8 @@ P1 storage contracts are split as follows:
   bounded prefix delivery, callback-free local Stop, verified funded ACK/retry and
   decision Stop without cognition. Native SDK/HTTP-fixture and pinned in-process
   registry evidence are separate; no paired application mount is implied.
-- **P3 Agentica, remaining:** uncertain-start reconciliation, explicit service
+- **P3 Agentica, remaining:** durable full-start admission/reconciliation (positive
+  discovery and explicit Stop are checked, not complete reconciliation), explicit service
   transfer/adoption, decision/wake, publication renewal and mounted application recovery.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 started:** disconnected preview screens, stale route tests, standalone
