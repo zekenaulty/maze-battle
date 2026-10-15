@@ -32,11 +32,15 @@ export async function attachDecisionController(session: GameSession, script: Awa
       const navigation = action(), binding = controller.binding, log = script.capture.read();
       const admitted = navigation && binding && log.results.some(item => item.result.actionId === navigation.actionId && item.result.operation);
       const identity = admitted ? await prepareAction(navigation) : null;
-      return { phase: controller.phase, binding, action: navigation,
+      return { phase: controller.phase, connected: sdk.connected, binding, action: navigation,
         operation: identity ? (await readAgenticaOperation(identity)).value : null,
         terminal: identity ? (await readAgenticaTerminal(identity, binding!)).value : null };
     },
     remote: () => sdk.listOperations({ hostId: 'maze-battle', sessionId: script.started.sessionId }),
+    async inspectRoot() {
+      recovery ??= await createGrantedLaunchRecovery(session, script.launchId);
+      return recovery.inspect();
+    },
     async stopRoot() {
       recovery ??= await createGrantedLaunchRecovery(session, script.launchId);
       return recovery.stop();

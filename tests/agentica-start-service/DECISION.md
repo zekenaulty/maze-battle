@@ -5,7 +5,7 @@ Service remains clean `577a214d020ba35ba3188761da6a114b978516b7` at
 `C:/Users/Zythis/.codex/worktrees/maze-wake-replay/Agentica`.
 Granted-root recovery `29fee651` was cherry-picked separately as `ff330a2`.
 Parent's eight controller/prefix runtime files were copied for validation only.
-Controller/channel cleanup copies were refreshed from parent after `7bfb8c1`:
+The earlier 11-case run used parent controller/channel cleanup copies after `7bfb8c1`:
 `9e3e4db585b4027d9d5d4b546e24e1704b304eeaf35ebcd56632777e43f61838` /
 `f545fd0da6601d2e90ed83fe6114bad004bff8dd3e395fa8f21a135aca73521f` (SHA-256).
 No service source, dependency, source pin, or production edits are part of the
@@ -48,6 +48,38 @@ preparing the controller does not wake; the tests call each bounded pulse explic
 Controller implementation is owned by parent. The fixture closes the initial
 transport before controller construction and captures its actual SDK for the
 successor navigation driver. ACK and Stop are separate explicit calls.
+
+## Post-Move Regression
+
+After the next parent fixes, controller/state copies were refreshed again:
+`b9e3c29bc22729cb6c1890aede202354261babc12f27068ffa8d6aa20a8275fe` /
+`230159a679fb1f7bb261f88dabdc71f035eafc932125921648a99e1c63cc563e` (SHA-256).
+TypeScript PASS and focused real-service cohort 4/4 PASS in 29.280 seconds.
+Evidence: `test-results/maze-decision-native-29IO7S/results.json` and `browser/`.
+No unexpected browser, SDK, HTTP or wire errors; only the exact expected restart
+refusal. 312 frames, maximum 7,426 bytes. Source hashes are attached per case.
+
+The normal successor navigation changes the checkpoint before another controller
+pulse. Its actual parked outcome already fenced new actions, so this pulse must
+return `recovery-required`, not invent a still-active cognition window. The test
+asserts no exception, SDK still connected, identical operation/binding/phase,
+unchanged head and wake count, and no additional planner calls. Explicit Stop,
+navigation settlement, root settlement and exact retries still succeed afterward.
+
+The restart-refusal case now attaches granted-root recovery immediately after
+the failed pulse, before calling controller cancel/close. Root inspection succeeds;
+the same controller cleanup remains usable afterward. This proves attachment
+release without destroying cleanup. The final pre-wake await cancellation race
+is not injected by these native cases. The earlier 11-case result below is for
+the earlier runtime snapshot; only the four decision cases were rerun here.
+
+This run reused the previously qualified DLL under `TEMP/maze-start-service-ZT07R5`
+and fresh storage under `TEMP/maze-decision-native-29IO7S`, with the existing
+sanitized fixture environment. Exact focused child command:
+
+```powershell
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-start-service.config.ts canonical-start-service.decision --workers=1 --retries=0 --trace=on --output C:/Users/Zythis/.codex/worktrees/canonical-start-service/maze-battle/test-results/maze-decision-native-29IO7S/browser
+```
 
 ## Checks
 

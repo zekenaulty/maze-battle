@@ -37,6 +37,15 @@ test('real explicit decision wakes one successor navigation and exact Stop settl
     expect((await page.evaluate(() => window.canonicalStartService.pulseDecisionSuccessor())).status).toBe(status);
   const moved = await page.evaluate(() => window.canonicalStartService.readDecisionController());
   expect(moved.operation!.progress).toMatchObject({ steps: 1, status: 'arrived' });
+  expect(moved.connected).toBe(true);
+  const beforePulse = await page.evaluate(() => window.canonicalStartService.readDecision());
+  expect(beforePulse.head.checkpoint.position).not.toEqual(handed.head.checkpoint.position);
+  // The real parked outcome already fenced new actions; legitimate movement must not close the retained SDK.
+  expect(await page.evaluate(() => window.canonicalStartService.pulseDecision())).toEqual({ status: 'recovery-required' });
+  expect(await page.evaluate(() => window.canonicalStartService.readDecisionController())).toEqual(moved);
+  const afterPulse = await page.evaluate(() => window.canonicalStartService.readDecision());
+  expect(afterPulse.head).toEqual(beforePulse.head); expect(afterPulse.wakes).toEqual(beforePulse.wakes);
+  expect(await serviceProof()).toEqual(counters);
   expect(await page.evaluate(() => window.canonicalStartService.cancelDecision())).toMatchObject({ status: 'locally-stopped' });
   await page.evaluate(() => window.canonicalStartService.cancelDecisionSuccessor());
   for (let pulse = 0; pulse < 3; pulse++) {

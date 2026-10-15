@@ -71,6 +71,7 @@ const api = { boot, loseStart, snapshot, recover,
   readDecisionController: () => controller!.read(), remoteDecision: () => controller!.remote(),
   pulseDecisionSuccessor: () => controller!.pulseNavigation(), cancelDecisionSuccessor: () => controller!.cancelNavigation(),
   stopDecisionRoot: () => controller!.stopRoot(), loseDecisionReply: () => decision!.capture.loseNextReply(),
+  inspectDecisionRoot: () => controller!.inspectRoot(),
   decisionReplyAfterOutcome: () => decision!.capture.afterOutcome(),
   async attachTransfer(action: Parameters<typeof attachServiceTransfer>[1], binding: Parameters<typeof attachServiceTransfer>[2]) {
     transferred = await attachServiceTransfer(session, action, binding);

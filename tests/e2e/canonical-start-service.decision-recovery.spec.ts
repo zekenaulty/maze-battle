@@ -50,6 +50,7 @@ test('real service restart refuses the claimed wake without fabricating a claim,
   expect(refused.wakes).toEqual([lost.intent!.data.event, lost.intent!.data.event]); expect(refused.replies).toEqual(lost.replies);
   expect(refused.actions).toEqual(lost.actions); expect(refused.head.checkpoint).toEqual(lost.head.checkpoint);
   expect((await page.evaluate(() => window.canonicalStartService.readDecisionController())).binding).toBeUndefined();
+  expect(await page.evaluate(() => window.canonicalStartService.inspectDecisionRoot())).toMatchObject({ status: 'identified' });
   await page.evaluate(() => window.canonicalStartService.cancelDecision());
   const ackError = await page.evaluate(async () => {
     try { await window.canonicalStartService.acknowledgeDecision(); return ''; } catch (error) { return String(error); }
