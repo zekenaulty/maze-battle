@@ -76,9 +76,13 @@ actual-run binding/claim-context commit; it is not standalone build qualificatio
 `decision.records.ts` changes only its loader import and call, preserving the
 parent's separate `decisionObservation` export when integrated.
 
-Shim-free parent integration verification is pending; these results do not
-qualify successor grants, actual service decision wake/replay, network controller
-behavior, or objective completion. A local Stop without the required remote
+Shim-free parent integration at `d47eeba` passed the 50-case cohort plus one
+successor-granted navigation/ACK/Stop/reload extension. Both fixture TypeScript
+projects, 2,787 unit tests (one optional skip) and production build passed.
+See the [parent evidence report](../../docs/reviews/issue-11-decision-successors.md)
+for exact commands, separate cohort counts, source-deletion/read-cost checks and
+initial fixture failures. These results do not qualify actual service decision
+wake/replay, network controller behavior, or objective completion. A local Stop without the required remote
 Stop marker remains unresolved, including a previously completed/continued
 decision that the service does not permit changing into a stopped decision.
 

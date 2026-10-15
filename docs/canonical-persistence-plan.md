@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 19,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 20,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -65,9 +65,13 @@ The [publication selection and decision evidence increment](reviews/issue-11-dec
 now selects immutable grant/publication pairs, fences superseded initial-run
 actions, and records an explicit decision intention and exact successor claim.
 The service-side wake attachment/replay fix is pushed separately. Native decision
-record tests are not browser-to-service wake qualification; no successor grant or
-mounted decision controller is claimed by this increment.
-The SDK client is not mounted. Remaining P3 successor decision/wake authority and application
+record tests are not browser-to-service wake qualification.
+The [successor grant and funded decision-handoff increment](reviews/issue-11-decision-successors.md)
+now binds fresh actions to the exact selected successor, uses its effective request,
+and validates bounded immediate predecessor evidence. Decision-aware ACK releases
+navigation capacity only, with exact Stop/reload reconciliation. Multi-window and
+source-deletion native cases pass; actual service decision execution remains unqualified.
+The SDK client is not mounted. Remaining P3 decision/wake controller and application
 recovery, plus P5 final qualification, remain open. Agentica remains unavailable
 in this intermediate preview; this is not complete feature parity or closure of #11.
 
@@ -257,7 +261,12 @@ P1 storage contracts are split as follows:
   native contract fixture. A separate real .NET proof covers reload/takeover of
   admitted zero-step navigation, one move and terminal settlement without another
   planner invocation. This is not multi-step or decision-wake qualification.
-- **P3 Agentica, remaining:** decision/wake, publication renewal and mounted
+- **P3 decision persistence, checked:** explicit intention/claim, initial publication
+  renewal, atomic successor grant/selection and funded navigation handoff ACK.
+  Immediate predecessor evidence is bounded without recursive ancestor loading;
+  old grants cannot execute fresh effects, while committed results remain replayable.
+- **P3 Agentica, remaining:** actual decision/wake controller, subsequent action
+  publication lifecycle and mounted
   application recovery, including granted runs and explicit transfer controls.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 source retirement, checked:** disconnected preview screens, stale route tests, standalone
@@ -271,7 +280,7 @@ P1 storage contracts are split as follows:
   movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
   qualification remain mandatory, not inferred from focused passes.
 
-Latest integrated check (`0ca7fb9`, 2026-10-15): **2,734 unit PASS / one optional
+Earlier integrated check (`0ca7fb9`, 2026-10-15): **2,734 unit PASS / one optional
 probe SKIP; 65 manual-save, 14 actual-App and seven real-service native cases
 PASS; production build PASS**. Earlier in this increment, 24 transfer and 116
 original-operation native cases passed. The actual save UI now exposes its
@@ -384,7 +393,7 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica successor decision/wake authority and mounted
+to arbitrary history. Canonical Agentica decision/wake controller qualification and mounted
 recovery, full multi-controller depth/revisit/Q and game-level
 remote settlement at capacity remain mandatory. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.
