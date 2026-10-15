@@ -10,6 +10,7 @@ import { startObservationSequence } from './canonical-start-service.actions';
 import { attachServiceTransfer } from './canonical-start-service.transfer';
 import { startDecisionSequence, type DecisionScriptMode } from './canonical-start-service.decision-script';
 import { attachDecisionController } from './canonical-start-service.decision-control';
+import { decisionStopEvidence } from './canonical-start-service.decision-evidence';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
 let session: GameSession;
@@ -65,6 +66,7 @@ async function recover(mode: 'inspect' | 'stop') {
 const api = { boot, loseStart, snapshot, recover,
   async startDecision(mode: DecisionScriptMode) { decision = await startDecisionSequence(session, mode); return decision.started; },
   readDecision: () => decision!.read(), pulseDecisionNavigation: () => decision!.pulseNavigation(),
+  readDecisionStopEvidence: () => decisionStopEvidence(decision!),
   async attachDecisionController() { controller?.close(); controller = await attachDecisionController(session, decision!); },
   prepareDecision: () => controller!.prepare(), pulseDecision: () => controller!.pulse(),
   acknowledgeDecision: () => controller!.acknowledge(), cancelDecision: () => controller!.cancel(),
