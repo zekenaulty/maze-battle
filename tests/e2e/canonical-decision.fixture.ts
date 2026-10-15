@@ -55,10 +55,17 @@ async function proof(): Promise<ClaimProof> {
     entry: { ...structuredClone(seed.entry), activeEpoch: epoch, state: 'waking', latestEvent: d.data.event,
       wakeRunId: runId, ...(d.data.adoption ? { wakeAdoption: d.data.adoption } : {}) } };
 }
-async function claim(p: ClaimProof) {
+async function claim(p: ClaimProof, mutateAfterCall = false) {
   const identity = await prepareAction(seed.action);
   return submit('agentica.operation.decision-claim', json({ action: identity.storageKey, ...p }),
-    async (tx, r) => (await retainDecisionClaim(tx, r, identity, p.intent, p.started, p.entry)).receipt);
+    async (tx, r) => {
+      const callerRequest = structuredClone(r), pending = retainDecisionClaim(tx, callerRequest, identity, p.intent, p.started, p.entry);
+      if (mutateAfterCall) {
+        callerRequest.operation = 'fixture.changed'; callerRequest.input = {}; callerRequest.expected.owner = 'foreign';
+        p.started.runId = 'foreign'; p.intent.id = 'foreign'; p.entry.wakeRunId = 'foreign';
+      }
+      return (await pending).receipt;
+    });
 }
 async function replay(operation: string) {
   return executeCanonical(requests.get(operation)!, async () => { throw Error('Committed exact retry ran a writer'); });

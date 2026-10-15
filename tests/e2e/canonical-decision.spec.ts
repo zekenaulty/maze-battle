@@ -66,7 +66,8 @@ test('exact claim retry and duplicate preserve one claim and never select or aut
     const refused = await c.gate(proof).then(() => 'accepted', String);
     return { proof, receipt, claimed, exact, exactUnchanged, duplicate, afterDuplicate, refused, gateUnchanged: beforeGate === await c.dump() };
   });
-  expect(r.claimed.claim!.data).toEqual({ intent: before.intent!.reference, started: r.proof.started, usage: r.proof.entry.usage });
+  expect(r.claimed.claim!.data).toEqual({ intent: before.intent!.reference, started: r.proof.started, usage: r.proof.entry.usage,
+    state: 'waking', settledUsage: null, stopped: false });
   expect(r.exact.replayed).toBe(true); expect(r.exact.receipt).toEqual(r.receipt); expect(r.exactUnchanged).toBe(true);
   expect(r.duplicate.result).toEqual({ reference: r.claimed.claim!.reference }); expect(r.afterDuplicate.claim).toEqual(r.claimed.claim);
   expect(r.afterDuplicate.launch).toEqual(before.launch); expect(r.afterDuplicate.selection).toEqual(before.selection);

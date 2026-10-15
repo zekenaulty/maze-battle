@@ -46,6 +46,7 @@ test('typed same-epoch event defaults and UTC fractions do not change claim iden
     (observation as unknown as Record<string, unknown>).facts = null;
     await c.claim(proof); return { proof, state: await c.state() };
   });
-  expect(r.state.claim!.data).toEqual({ intent: before.intent!.reference, started: r.proof.started, usage: r.proof.entry.usage });
+  expect(r.state.claim!.data).toEqual({ intent: before.intent!.reference, started: r.proof.started, usage: r.proof.entry.usage,
+    state: 'waking', settledUsage: null, stopped: false });
   expect(r.state.intent).toEqual(before.intent); expect(r.state.terminal).toEqual(before.terminal);
 });
