@@ -152,3 +152,28 @@ SHA-256 for the seven parent-owned validation copies, excluded from this commit:
 | `canonical/agentica/terminal.ack.ts` | `c7556e76ea63f6e16c36b32f93d285008ad8d092041e47758b31acb541f60942` |
 | `canonical/agentica/terminal.ts` | `be7ae7a079f1d0744ac9cceeb7c4690b3638192df36bf294e2081680253be46a` |
 | `services/agentica/game/decisionCleanup.ts` | `68f360808072eabac641d19d1df639ffbed74e75fe21392691bdbaa166d0f1e6` |
+
+## Late-Claim Retry Requalification
+
+Only the parent-owned `decisionCleanup.ts` validation copy was refreshed for the
+late-claim stale-ACK retry fix. Its new SHA-256 is
+`ed5913b608ecba23f49c7fb2022903b9d2bcd23b58f32c37f90c8325eabf71cb`.
+All seven validation copies matched parent after this run. Fixture source hashes
+and SDK source hash are identical to the preceding `Pe4heb` qualification.
+No production or fixture implementation change is included in this evidence update.
+
+The same TypeScript and full-cohort commands above passed. Native result:
+**13/13 PASS** in 76.306322 seconds, zero skips, retries or flaky cases. C# build:
+14.16 seconds, zero warnings/errors, still .NET 10.0.401 rather than repository
+10.0.302 pin proof. Source stayed clean at Agentica `577a214`.
+Evidence: `test-results/maze-start-service-39oGLd/`, with exact command arguments,
+source/DLL hashes, raw wire captures, runtime hashes, service log and traces.
+
+612 received frames, maximum 7,442 bytes. Zero page errors or paid provider calls.
+Decision/transfer console and HTTP diagnostics stayed empty; decision SDK errors
+stayed empty. The expected `operation.wake_interrupted` refusal and six original
+negative-API console diagnostics were unchanged. Ports 5258/5259 were released.
+
+This requalifies the existing real-service workflows against the fix. The cohort
+does not inject a claim specifically between ACK preparation and commit, or test
+the physical failed-ACK retry path. Those race proofs remain separate parent work.
