@@ -11,7 +11,7 @@ export async function serviceProof(): Promise<ServiceProof> {
   const response = await fetch(serviceOrigin + '/fixture/proof');
   expect(response.ok).toBe(true); return response.json();
 }
-interface DecisionWire {
+export interface DecisionWire {
   sent: AgenticaMessage[]; received: { frame: AgenticaMessage; bytes: number }[];
   http: { method: string; url: string; body?: unknown }[];
   responses: { status: number; url: string; body: unknown }[]; errors: string[]; console: string[];
