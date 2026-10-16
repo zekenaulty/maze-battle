@@ -15,6 +15,7 @@ interface DecisionWire {
   sent: AgenticaMessage[]; received: { frame: AgenticaMessage; bytes: number }[];
   http: { method: string; url: string; body?: unknown }[];
   responses: { status: number; url: string; body: unknown }[]; errors: string[]; console: string[];
+  expectedRefusals: { path: string; status: 409; code: string }[];
   before: ServiceProof;
 }
 export const test = base.extend<{ wire: DecisionWire }, { decisionService: void }>({
@@ -22,7 +23,7 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     await service.start(); try { await use(); } finally { await service.stop(); }
   }, { scope: 'worker', auto: true }],
   wire: [async ({ page, context }, use, info) => {
-  const wire: DecisionWire = { sent: [], received: [], http: [], responses: [], errors: [], console: [], before: await serviceProof() };
+  const wire: DecisionWire = { sent: [], received: [], http: [], responses: [], errors: [], console: [], expectedRefusals: [], before: await serviceProof() };
   const pending: Promise<void>[] = [];
   page.on('pageerror', error => wire.errors.push(error.message));
   page.on('console', message => { if (['error', 'warning'].includes(message.type())) wire.console.push(message.text()); });
@@ -73,8 +74,11 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     }
     await info.attach('runtime-source-sha256.json', { body: JSON.stringify(hashes, null, 2), contentType: 'application/json' });
   }
-  expect(wire.errors).toEqual([]); expect(wire.console).toEqual([]);
-  expect(wire.responses.filter(response => response.status >= 400), 'No unexpected HTTP refusal').toEqual([]);
+  expect(wire.errors).toEqual([]);
+  expect(wire.console).toEqual(wire.expectedRefusals.map(() => 'Failed to load resource: the server responded with a status of 409 (Conflict)'));
+  expect(wire.responses.filter(response => response.status >= 400).map(response => ({
+    path: new URL(response.url).pathname, status: response.status, code: (response.body as { code?: unknown })?.code,
+  })), 'Every HTTP refusal must match an explicit negative assertion').toEqual(wire.expectedRefusals);
   expect(wire.received.filter(frame => frame.bytes > 64 * 1024), 'Unchanged receive bound').toEqual([]);
 }, { auto: true }] });
 export { expect };
