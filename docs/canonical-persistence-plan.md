@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 23,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 24,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -85,8 +85,11 @@ adds positive new-owner adoption before intent retention, exact lost-adopt repla
 and explicit recovery after old-intent/terminal-claim/granted-child reload.
 Eighteen real-service cases and twenty native discovery cases pass. A retained
 old-owner intention remains recovery-only after takeover, not silently continued
-or replaced. Actively pending ungranted-action reload and adoption-process-restart
-proof remain open. Scoped discovery is local-only and never certifies remote clearance.
+or replaced. Adoption-process restart is now checked. The twenty-case real-service
+cohort also reproduces a genuine pending-ungranted-action reload gap: canonical
+absence cannot settle service custody, so Stop remains pending. This safe-refusal
+regression is not terminal-recovery success. Repair is required before mounting.
+Scoped discovery is local-only and never certifies remote clearance.
 The SDK client is not mounted. Remaining P3 recovery and application integration,
 plus P5 final qualification, remain open. Agentica remains unavailable
 in this intermediate preview; this is not complete feature parity or closure of #11.
@@ -289,8 +292,8 @@ P1 storage contracts are split as follows:
   single-original inspection, no storage creation/upgrade or remote requests.
   Actual new-owner decision adoption and terminal/granted reload recovery now
   have separate real-service proof. Pending-only remote custody stays unknown.
-- **P3 Agentica, remaining:** actively pending ungranted-action reload and
-  adoption-process-restart gates,
+- **P3 Agentica, remaining:** repair the proven actively pending ungranted-action
+  reload custody gap,
   subsequent action publication lifecycle and mounted application recovery,
   including granted runs and explicit transfer controls. Recovery discovery must
   be bounded and read-only; entering the panel must not activate a planner.

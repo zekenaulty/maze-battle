@@ -63,11 +63,22 @@ fixture TypeScript passed. [API and reproduction](../../tests/e2e/canonical-reco
 
 ## Remaining Gate
 
-- Qualify browser reload while an ungranted successor action is actively pending,
-  rather than extrapolating from a terminal successor. Preserve uncertain custody;
-  never turn it into a successful action, a fresh replay, or a fabricated release.
-- Qualify exact adoption replay after a service-process restart separately from
-  the already-checked ordinary wake restart.
+Follow-up integration: **20/20 real-service tests PASS** in 2.1 minutes,
+artifacts `test-results/maze-start-service-xxRwff/`. This includes a successful
+adoption-process-restart refusal/recovery proof and a regression that reproduces
+an unresolved recovery gap. [Exact evidence and source audit](../../tests/agentica-start-service/PENDING-RELOAD.md).
+
+- **Confirmed repair needed:** a service-dispatched action can be held at the
+  successor grant barrier when the browser reloads. No canonical action/result
+  exists, the new owner cannot continue the old intention, and service custody
+  remains unresolved. Root Stop correctly stays pending; StopDecision refuses
+  with `409 session.unresolved`. Funds stay retained. The passing regression
+  proves safe refusal, not a working terminal recovery path. Repair this boundary
+  before mounting; never invent a successful result or infer no effect from
+  an absent record alone.
+- Adoption-process restart is now checked: exact replay returns
+  `operation.wake_interrupted` without another planner; explicit root Stop and
+  navigation discharge complete. It does not qualify the actively pending case.
 - Mount explicit bounded recovery in the actual App, accessible even when
   ordinary play is blocked at quota. Preserve old-hook/lifetime fencing, require
   explicit positive adoption, and keep reset from erasing unresolved current
