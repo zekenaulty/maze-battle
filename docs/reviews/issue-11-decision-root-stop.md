@@ -77,10 +77,21 @@ confirmed uncommitted attempt. Review closure found no remaining issue in this f
 
 The real-service cohort does not inject the late-claim transaction race; the
 native cohort does. The native cohort cannot substitute for service quiescence
-proof; the actual service cases cover that separate boundary. New per-operation
-read/write measurements are a follow-up, not inferred physical disk evidence.
+proof; the actual service cases cover that separate boundary. The follow-up
+[native phase metrics](../../tests/e2e/canonical-decision-controller.metrics.md)
+now measure preparation, ACK and historical validation. Two integrated cases
+passed in 12.0 seconds: ACK read 113/168 object-store values and wrote exactly
+three values totaling 5,274/5,550 logical JSON bytes. Preparation and history
+wrote nothing. Counts are sample measurements, not physical disk I/O or a
+full-history scaling proof. Artifacts:
+`test-results/canonical-decision-root-stop-metrics-integrated-checked/`.
 
 ## Next Bounded Integration
+
+Update: the positive adoption, exact replay, and terminal-claim/granted-child
+reload cases below now pass against the real service. See the
+[reload/discovery integration report](issue-11-recovery-discovery.md).
+Reload with an actively pending ungranted action and App mounting remain open.
 
 The next service proof must use a real browser reload and new GameSession, not
 same-session controller reconstruction. Complete navigation before retaining an

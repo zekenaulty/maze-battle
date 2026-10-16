@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 22,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 23,
 2026-10-15. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -79,9 +79,14 @@ cohort. The [verified-root decision discharge](reviews/issue-11-decision-root-st
 now closes Stop before claim and Stop after child admission but before predecessor
 ACK, without creating missing claims or successor authority. Thirteen actual
 service cases and 83 native controller cases pass. Historical ACKs stay immutable;
-only proven uncommitted stale proofs may be rebuilt. Actual cross-epoch
-decision/reload qualification remains next. A retained old-owner intention is
-recovery-only after takeover, not silently continued or replaced.
+only proven uncommitted stale proofs may be rebuilt. The
+[real decision reload and read-only discovery increment](reviews/issue-11-recovery-discovery.md)
+adds positive new-owner adoption before intent retention, exact lost-adopt replay,
+and explicit recovery after old-intent/terminal-claim/granted-child reload.
+Eighteen real-service cases and twenty native discovery cases pass. A retained
+old-owner intention remains recovery-only after takeover, not silently continued
+or replaced. Actively pending ungranted-action reload and adoption-process-restart
+proof remain open. Scoped discovery is local-only and never certifies remote clearance.
 The SDK client is not mounted. Remaining P3 recovery and application integration,
 plus P5 final qualification, remain open. Agentica remains unavailable
 in this intermediate preview; this is not complete feature parity or closure of #11.
@@ -276,9 +281,22 @@ P1 storage contracts are split as follows:
   renewal, atomic successor grant/selection and funded navigation handoff ACK.
   Immediate predecessor evidence is bounded without recursive ancestor loading;
   old grants cannot execute fresh effects, while committed results remain replayable.
-- **P3 Agentica, remaining:** actual decision/wake controller, subsequent action
-  publication lifecycle and mounted
-  application recovery, including granted runs and explicit transfer controls.
+- **P3 decision controller, checked:** explicit wake/claim/grant through the
+  actual GameSession, independent funded ACK/Stop, and verified-root discharge
+  after lost claims or admitted children. Thirteen real-service cases and 83
+  integrated native controller cases qualify this bounded increment, not App mounting.
+- **P3 recovery discovery, checked:** local bounded inventory and explicit
+  single-original inspection, no storage creation/upgrade or remote requests.
+  Actual new-owner decision adoption and terminal/granted reload recovery now
+  have separate real-service proof. Pending-only remote custody stays unknown.
+- **P3 Agentica, remaining:** actively pending ungranted-action reload and
+  adoption-process-restart gates,
+  subsequent action publication lifecycle and mounted application recovery,
+  including granted runs and explicit transfer controls. Recovery discovery must
+  be bounded and read-only; entering the panel must not activate a planner.
+  Funded cleanup must remain accessible after ordinary quota failure. Reset must
+  not discard unresolved current remote custody merely because ordinary play is
+  unavailable; this is distinct from preserving obsolete save formats.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 source retirement, checked:** disconnected preview screens, stale route tests, standalone
   expedition writer and its legacy-format validators, standalone launch journal,
