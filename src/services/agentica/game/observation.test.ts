@@ -12,15 +12,15 @@ import { inspectArgs } from './validation';
 import type { InspectArgs } from './types';
 
 describe('canonical scoped Agentica perception', () => {
-  it('initial actor/source plus all opt-in capabilities fit the unchanged launch start bound', async () => {
+  it('initial actor/source plus all opt-in capabilities fit the launch start bound', async () => {
     const f = await perceptionFixture(), view = await observeMaze(f.pages, f.snapshot, f.ref);
     expect(view.observationId).toBe(f.ref.id); expect(view.revision).toBe(f.publication.wireRevision);
     expect(await observeMaze(f.pages, { ...f.snapshot, revision: f.snapshot.revision + 1,
       roots: { ...f.snapshot.roots, execution: 'bookkeeping' } }, f.ref)).toEqual(view);
     expect(view.data).not.toHaveProperty('cells'); expect(view.data).not.toHaveProperty('rooms'); expect(jsonBytes(view)).toBeLessThanOrEqual(768);
     const start = { ...launchStartFixture(view.revision), observation: view, capabilities: mazeCapabilities() };
-    expect(() => launchStart(start)).not.toThrow(); expect(jsonBytes(start)).toBeLessThanOrEqual(3072);
-    expect(start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore']);
+    expect(() => launchStart(start)).not.toThrow(); expect(jsonBytes(start)).toBeLessThanOrEqual(3584);
+    expect(start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact']);
     start.capabilities[0].name = 'mutated'; expect(mazeCapabilities()[0].name).toBe('Observe');
   });
   it('returns signed earned coordinates and preserves original cell and edge sources without refreshing sight', async () => {

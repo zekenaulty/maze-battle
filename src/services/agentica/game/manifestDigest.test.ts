@@ -18,7 +18,7 @@ function retainedThreeCapabilities() {
 describe('capability-only pinned service digest', () => {
   it('hashes the current manifest without changing the caller input', async () => {
     const capabilities = mazeCapabilities(), before = structuredClone(capabilities);
-    expect(await mazeManifestDigest(capabilities)).toBe('sha256:79431c29138b68e2b4808e073fe2190579b4be7923c7539efaea39070780ba61');
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:a62808cec9c3fe540352ce187ed95682fb3f1e4ee379bad1790b04506a5392b2');
     expect(capabilities).toEqual(before);
   });
   it('keeps retained three-capability roots exact without introducing explore authority', async () => {
@@ -27,11 +27,11 @@ describe('capability-only pinned service digest', () => {
     expect(launchStart({ ...launchStartFixture(), capabilities }).capabilities).toEqual(capabilities);
     expect(capabilities.some(c => c.id === 'maze.explore')).toBe(false);
   });
-  it('fits four capabilities and an explicitly optional exploration policy within the unchanged start bound', () => {
+  it('fits five capabilities and explicit interaction within the bounded start envelope', () => {
     const capabilities = mazeCapabilities(), start = { ...launchStartFixture(), capabilities };
     expect(launchStart(start)).toEqual(start);
-    expect(new TextEncoder().encode(JSON.stringify(start)).length).toBeLessThanOrEqual(3072);
-    expect(capabilities).toHaveLength(4);
+    expect(new TextEncoder().encode(JSON.stringify(start)).length).toBeLessThanOrEqual(3584);
+    expect(capabilities).toHaveLength(5);
     expect(capabilities[1].inputSchema.fields).toHaveLength(6);
     expect(capabilities[3]).toMatchObject({ kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true },

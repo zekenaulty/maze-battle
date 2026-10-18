@@ -40,23 +40,23 @@ async function actualStart(objective: string, env: Record<string, string> = {}) 
 }
 
 it.each([
-  ['default fixture', 3025, {}],
-  ['decision-frontier', 3028, { VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4', VITE_AGENTICA_MAX_REFINEMENTS: '2',
+  ['default fixture', 3310, {}],
+  ['decision-frontier', 3313, { VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4', VITE_AGENTICA_MAX_REFINEMENTS: '2',
     VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1', VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20' }],
-  ['configured OpenAI', 3051, { VITE_AGENTICA_PROVIDER: 'openai', VITE_AGENTICA_MODEL: 'configured-model', VITE_AGENTICA_THINKING_EFFORT: 'high' }],
+  ['configured OpenAI', 3336, { VITE_AGENTICA_PROVIDER: 'openai', VITE_AGENTICA_MODEL: 'configured-model', VITE_AGENTICA_THINKING_EFFORT: 'high' }],
 ] as const)('fits actual %s start with a 512-character ASCII objective', async (name, expectedBytes, env) => {
   const f = await actualStart('x'.repeat(512), env);
   console.info(`${name}: ${f.bytes} bytes; objective 512; session ${f.start.sessionId.length}; observation ${JSON.stringify(f.start.observation).length}`);
-  expect(f.error).toBeUndefined(); expect(f.bytes).toBe(expectedBytes); expect(f.bytes).toBeLessThanOrEqual(3072);
-  expect(f.start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore']);
+  expect(f.error).toBeUndefined(); expect(f.bytes).toBe(expectedBytes); expect(f.bytes).toBeLessThanOrEqual(3584);
+  expect(f.start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact']);
   expect(f.start.objective).toBe('x'.repeat(512)); expect(f.submitHostCommand).toHaveBeenCalledTimes(2);
 });
 
 it.each([['multibyte', '\u754c'], ['escaped', '"']] as const)('keeps the aggregate byte bound for a 512-character %s objective', async (name, character) => {
   const objective = character.repeat(512), f = await actualStart(objective);
   console.info(`${name}: ${f.bytes} bytes; objective ${objective.length}`);
-  expect(f.bytes).toBeGreaterThan(3072); expect(String(f.error)).toMatch(/(3072|4096) bytes/);
-  expect(() => launchStart(f.start)).toThrow('3072 bytes');
+  expect(f.bytes).toBeGreaterThan(3584); expect(String(f.error)).toMatch(/(3584|4096) bytes/);
+  expect(() => launchStart(f.start)).toThrow('3584 bytes');
   expect(f.start.objective).toBe(objective);
   expect(f.submitHostCommand.mock.calls.map(([command]) => command.operation)).toEqual(['agentica.publish']);
 });

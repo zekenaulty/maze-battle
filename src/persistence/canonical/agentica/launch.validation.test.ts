@@ -18,7 +18,7 @@ describe('bounded exact launch contracts', () => {
     expect(() => launchStart({ ...launchStartFixture(), [field]: null })).toThrow();
   });
   it('rejects excess payload, accessors, duplicate capabilities and invented effects', () => {
-    const start = launchStartFixture(); start.observation.data.text = 'x'.repeat(3072); expect(() => launchStart(start)).toThrow('3072 bytes');
+    const start = launchStartFixture(); start.observation.data.text = 'x'.repeat(3584); expect(() => launchStart(start)).toThrow('3584 bytes');
     const duplicate = launchStartFixture(); duplicate.capabilities.push(duplicate.capabilities[0]); expect(() => launchStart(duplicate)).toThrow('manifests');
     const effect = launchStartFixture(); effect.capabilities[0].effect = 'writesLocalState'; expect(() => launchStart(effect)).toThrow('effect');
     let reads = 0; const accessor = launchStartFixture(); Object.defineProperty(accessor, 'objective', { enumerable: true, get: () => { reads++; return 'x'; } });

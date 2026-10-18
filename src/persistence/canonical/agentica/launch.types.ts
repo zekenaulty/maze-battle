@@ -5,7 +5,7 @@ import type { CanonicalHead, CanonicalRecord, CanonicalRequest } from '../types'
 import type { ProtocolRead, ProtocolRef } from './types';
 import type { LaunchAdmission } from './launch.service';
 
-export const MAX_LAUNCH_START_BYTES = 3072;
+export const MAX_LAUNCH_START_BYTES = 3584;
 export const ACTIVE_LAUNCH_KEY = 'agentica/launch/active';
 export interface LaunchBinding {
   schema: 1; kind: 'agentica-launch'; launchId: string; endpoint: string;

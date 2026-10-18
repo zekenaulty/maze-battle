@@ -27,9 +27,10 @@ export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: Pr
     record = await pages.get('execution', ref.key); check(record && isObject(record.value), 'missing Agentica source record');
     const { receipt, source } = await pages.sourceReceipt(record.value.sourceAttemptId as string); original = source;
     check(receipt.afterRevision === record.revision && isObject(receipt.result), 'Agentica record source changed');
-    if (kind === 'agentica-result') check(['standalone', 'navigation'].includes(record.value.proof as string), 'invalid action proof format');
-    if (kind === 'agentica-result' && record.value.proof === 'navigation') {
-      check(['operation.admit', 'navigation.advance', 'operation.settle'].includes(source.operation), 'invalid navigation action source');
+    if (kind === 'agentica-result') check(['standalone', 'navigation', 'interaction'].includes(record.value.proof as string), 'invalid action proof format');
+    if (kind === 'agentica-result' && record.value.proof !== 'standalone') {
+      check(record.value.proof === 'interaction' ? source.operation === 'operation.admit'
+        : ['operation.admit', 'navigation.advance', 'operation.settle'].includes(source.operation), 'invalid durable action source');
       const host = fields(receipt.result.host, 'actionResult', 'event');
       check(equal(host.actionResult, navigationRecordRef(record, source.attemptId)), 'navigation action result proof changed');
     } else {

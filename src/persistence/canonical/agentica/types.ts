@@ -30,7 +30,7 @@ export interface PendingAction extends ProtocolSource {
   publication: ProtocolRef; effect: 'readOnly' | 'writesLocalState';
 }
 export interface ActionResult extends ProtocolSource {
-  kind: 'agentica-result'; proof: 'standalone' | 'navigation'; original: ProtocolRef; result: AgenticaResult;
+  kind: 'agentica-result'; proof: 'standalone' | 'navigation' | 'interaction'; original: ProtocolRef; result: AgenticaResult;
 }
 export interface RetainedAction {
   reference: ProtocolRef; original: PendingAction; publication: Publication;

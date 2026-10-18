@@ -1,5 +1,9 @@
 import { loadDestination } from '../navigation/records';
 import { destinationBinding } from '../navigation/validation';
+import { loadInteraction } from '../interaction/records';
+import { interactionBinding } from '../interaction/validation';
+import { gameCheckpoint } from '../game/checkpoint';
+import { chestArgs } from '../../../services/agentica/game/chestSelection';
 import { exploreArgs } from '../../../services/agentica/game/exploreArgs';
 import { fields } from '../roster/codec';
 import type { CanonicalHead } from '../types';
@@ -17,7 +21,7 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
   const identity = snapshotPrepared(input), binding = captureOperationBinding(inputBinding);
   const original = await readAction(pages, identity), result = original?.result;
   check(original && result?.operation && result.disposition === 'applied' && !result.completion
-    && original.original.effect === 'writesLocalState' && ['maze.navigate', 'maze.explore'].includes(identity.action.capabilityId), 'operation requires original navigation admission');
+    && original.original.effect === 'writesLocalState' && ['maze.navigate', 'maze.explore', 'maze.interact'].includes(identity.action.capabilityId), 'operation requires original durable admission');
   const reserved = fields(original.original.sourceRequest.input, 'action grant publication');
   check(original.original.sourceRequest.operation === 'agentica.action.reserve'
     && reserved.action === identity.storageKey && equal(reserved.grant, binding.grant)
@@ -33,8 +37,20 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
   const operation = await pages.liveOperation(result.operation.operationId); check(operation, 'missing funded navigation operation');
   check(operation.ackPolicy === 'verified-host', 'operation lacks verified acknowledgement policy');
   const record = await pages.get('execution', original.resultReference!.key), value = record!.value as unknown as ActionResult;
-  check(value.proof === 'navigation' && value.sourceAttemptId === operation.admissionAttemptId
+  const interaction = identity.action.capabilityId === 'maze.interact';
+  check(value.proof === (interaction ? 'interaction' : 'navigation') && value.sourceAttemptId === operation.admissionAttemptId
     && value.sourceRequest.operation === 'operation.admit', 'operation is not original result admission');
+  if (interaction) {
+    // Admission resolved this source against knowledge-only sight. Reconciliation reads its exact retained proof,
+    // never current world state (the chest may legitimately have changed after the original effect).
+    chestArgs(identity.action.arguments, binding.publication);
+    const selection = interactionBinding(operation.binding);
+    check(operation.id === `interact-${identity.storageKey.slice(-64)}` && selection.command.kind === 'open-chest'
+      && equal(fields(value.sourceRequest.input, 'operationId binding terminalBytes ackPolicy').binding, operation.binding)
+      && equal(selection.position, gameCheckpoint(original.publication.snapshot.checkpoint).position), 'operation interaction differs from original admission');
+    const progress = await loadInteraction(pages, operation);
+    return { kind: 'interaction' as const, binding, original, result, grant, launch, start, active, operation, progress };
+  }
   const destination = destinationBinding(operation.binding), target = destination.target;
   if (identity.action.capabilityId === 'maze.explore') {
     const { selection, room } = exploreArgs(identity.action.arguments, binding.publication);
@@ -47,7 +63,7 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
     check(destination.kind === 'known-destination' && equal({ level: target.level, ...target.cell }, args), 'operation target differs from original action');
   }
   const progress = await loadDestination(pages, operation);
-  return { binding, original, result, grant, launch, start, active, operation, progress };
+  return { kind: 'navigation' as const, binding, original, result, grant, launch, start, active, operation, progress };
 }
 export type BoundOperation = Awaited<ReturnType<typeof loadOperationBinding>>;
 export function assertBoundAction(bound: BoundOperation, identity: PreparedAction, binding: OperationBinding) {

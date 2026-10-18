@@ -10,6 +10,7 @@ export interface PlayNavigationStatus { phase: 'navigating' | 'decision'; messag
 export async function startPlayNavigation(session: GameSession, sdk: OperationSdk, action: AgenticaAction,
   binding: ActionBinding, signal: AbortSignal, update: (status: PlayNavigationStatus) => void, fail: (error: unknown) => void) {
   const driver = await createGameOperationDriver(session, sdk, action, binding);
+  const label = action.capabilityId === 'maze.interact' ? 'Interaction' : 'Navigation';
   let timer: ReturnType<typeof setTimeout> | undefined, closed = false, lastProgress = Date.now();
   const close = () => { closed = true; clearTimeout(timer); driver.close(); signal.removeEventListener('abort', close); };
   signal.addEventListener('abort', close, { once: true });
@@ -21,12 +22,13 @@ export async function startPlayNavigation(session: GameSession, sdk: OperationSd
       if (closed || signal.aborted) return;
       if (result.status === 'decision-required' || result.status === 'terminal-acknowledged') {
         update({ phase: 'decision', canContinue: result.status === 'decision-required', message: result.status === 'decision-required'
-          ? 'Navigation reached a decision boundary.' : 'Navigation settled. Objective completion is not established.' });
+          ? `${label} reached a decision boundary.` : `${label} settled. Objective completion is not established.` });
         close(); return;
       }
       if (result.status !== 'awaiting-service') lastProgress = Date.now();
-      else if (Date.now() - lastProgress >= 15_000) throw new Error('Navigation custody is unavailable. Explicit recovery is required.');
-      update({ phase: 'navigating', message: result.status === 'advanced' ? `Navigating: ${result.sequence} steps` : 'Confirming navigation custody' });
+      else if (Date.now() - lastProgress >= 15_000) throw new Error(`${label} custody is unavailable. Explicit recovery is required.`);
+      update({ phase: 'navigating', message: result.status === 'advanced' ? `Navigating: ${result.sequence} steps`
+        : result.status === 'applied-interaction' ? 'Interaction applied; reconciling result' : `Confirming ${label.toLowerCase()} custody` });
       timer = setTimeout(() => { void pulse(); }, 250);
     } catch (error) { close(); fail(error); }
   }

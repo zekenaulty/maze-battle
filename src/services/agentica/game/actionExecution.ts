@@ -15,6 +15,8 @@ import { MIN_TERMINAL_BYTES } from '../../../persistence/canonical/types';
 import { check } from '../../../persistence/canonical/validation';
 import { json } from '../../../persistence/canonical/world/records';
 import { actionGrant, actionResult, pinDeadline, type ActionBinding } from './actionContract';
+import { admitChest, selectedChest } from './actionInteraction';
+import { chestArgs } from './chestSelection';
 import { exploreArgs } from './exploreArgs';
 import { observeMaze, inspectMaze } from './observation';
 import { cursorAfter, inspectArgs, inspectQuery, localPosition } from './validation';
@@ -22,6 +24,7 @@ import { cursorAfter, inspectArgs, inspectQuery, localPosition } from './validat
 function parse(action: AgenticaAction, publication: ProtocolRef) {
   if (action.capabilityId === 'maze.observe') { fields(action.arguments, ''); return { kind: 'observe' as const }; }
   if (action.capabilityId === 'maze.inspect') return { kind: 'inspect' as const, args: inspectArgs(action.arguments) };
+  if (action.capabilityId === 'maze.interact') return { kind: 'interact' as const, selection: chestArgs(action.arguments, publication) };
   if (action.capabilityId === 'maze.explore') {
     return { kind: 'explore' as const, ...exploreArgs(action.arguments, publication) };
   }
@@ -36,6 +39,12 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
   let command: ReturnType<typeof parse> | undefined;
   try { command = parse(identity.action, binding.publication); } catch { /* Invalid arguments produce an explicit, non-effect refusal. */ }
   let refusal = command ? undefined : 'Invalid arguments for this capability.';
+  if (command?.kind === 'interact') {
+    let selected;
+    try { selected = await selectedChest(binding, command.selection); } catch { /* Refuse an invalid/stale disclosed selector. */ }
+    if (selected) return admitChest(port, binding, identity, command.selection, selected);
+    refusal = 'Chest selection is not an eligible current-tile observation.';
+  }
   if (command?.kind === 'navigate') {
     const target = command.target;
     const known = await readCanonical(async pages => {

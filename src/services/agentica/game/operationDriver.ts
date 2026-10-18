@@ -4,9 +4,11 @@ import { HostCleanupError, type CanonicalRecoveryPort } from '../../game/Canonic
 import type { CanonicalRequest } from '../../../persistence/canonical/types';
 import { readCanonical } from '../../../persistence/canonical/read';
 import { prepareAction } from '../../../persistence/canonical/agentica/actions';
-import { readAgenticaOperation, retainOperationConfirmation, retainOperationCustodyAck, operationProgressHooks, retainEventAcknowledgement } from '../../../persistence/canonical/agentica/operation';
+import { readAgenticaOperation, retainOperationConfirmation, retainOperationCustodyAck, operationProgressHooks, interactionProgressHooks, retainEventAcknowledgement } from '../../../persistence/canonical/agentica/operation';
 import { executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
 import { destinationDisposition } from '../../../persistence/canonical/navigation/types';
+import { executeInteractionCommand } from '../../../persistence/canonical/interaction/commands';
+import { interactionDisposition } from '../../../persistence/canonical/interaction/types';
 import { executeCanonical } from '../../../persistence/canonical/transaction';
 import { loadOperationBinding } from '../../../persistence/canonical/agentica/operation.binding';
 import { validateReservedOperationEntry } from '../../../persistence/canonical/agentica/operation.wire';
@@ -68,10 +70,12 @@ export async function createGameOperationDriver(port: CanonicalHostPort & Canoni
             async tx => (await retainOperationConfirmation(tx, request, identity, binding, entry)).receipt, options) });
         return { status: 'confirmed' as const };
       }
-      if (state.progress.status !== 'running') {
+      const disposition = state.kind === 'interaction' ? interactionDisposition(state.progress) : destinationDisposition(state.progress);
+      if (disposition) {
         await gate.port.submitHostCommand({ kind: 'fresh', operation: 'operation.settle',
-          input: { operationId: state.operation.id, disposition: destinationDisposition(state.progress)! },
-          execute: (request, options) => executeNavigationCommand(request, { ...options, host: operationSettlementHooks(identity, binding) }) });
+          input: { operationId: state.operation.id, disposition },
+          execute: (request, options) => (state.kind === 'interaction' ? executeInteractionCommand : executeNavigationCommand)(request,
+            { ...options, host: operationSettlementHooks(identity, binding) }) });
         return { status: 'locally-settled' as const, progress: state.progress.status };
       }
       if (!state.custodyAck) {
@@ -91,6 +95,12 @@ export async function createGameOperationDriver(port: CanonicalHostPort & Canoni
         return { status: 'acknowledged' as const, sequence: event.sequence };
       }
       const { operationId, sequence } = state.progress;
+      if (state.kind === 'interaction') {
+        await gate.port.submitHostCommand({ kind: 'fresh', operation: 'interaction.apply', input: { operationId, sequence },
+          execute: (request, options) => executeInteractionCommand(request,
+            { ...options, host: interactionProgressHooks(identity, state.confirmation.reference) }) });
+        return { status: 'applied-interaction' as const, sequence: sequence + 1 };
+      }
       await gate.port.submitHostCommand({ kind: 'fresh', operation: 'navigation.advance', input: { operationId, sequence },
         execute: (request, options) => executeNavigationCommand(request,
           { ...options, host: operationProgressHooks(identity, state.confirmation.reference) }) });

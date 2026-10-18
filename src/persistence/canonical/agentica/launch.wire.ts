@@ -6,9 +6,9 @@ import { MAX_LAUNCH_START_BYTES, type LaunchStarted } from './launch.types';
 
 function capability(input: AgenticaCapability) {
   const c = fields(input, 'id name description kind effect inputSchema', 'durableHandoff');
-  check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore'].includes(c.id as string), 'unsupported launch capability');
+  check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact'].includes(c.id as string), 'unsupported launch capability');
   wireId(c.name); check(typeof c.description === 'string' && c.description.length <= 512, 'invalid capability description');
-  const navigation = c.id === 'maze.navigate' || c.id === 'maze.explore';
+  const navigation = c.id === 'maze.navigate' || c.id === 'maze.explore' || c.id === 'maze.interact';
   check(c.kind === (navigation ? 'action' : 'query') && c.effect === (navigation ? 'writesLocalState' : 'readOnly')
     && (navigation ? c.durableHandoff === true : c.durableHandoff === undefined), 'invalid launch capability effect');
   const schema = fields(c.inputSchema, 'fields allowAdditionalProperties');
@@ -40,7 +40,7 @@ export function launchStart(input: AgenticaStart): AgenticaStart {
   const o = fields(s.observation, 'observationId revision observedAt data', 'facts'); wireId(o.observationId);
   check(integer(o.revision) && typeof o.observedAt === 'string' && Number.isFinite(Date.parse(o.observedAt)) && isObject(o.data), 'invalid launch observation');
   check(o.facts === undefined || Array.isArray(o.facts) && o.facts.length <= 32, 'invalid launch facts');
-  check(Array.isArray(value.capabilities) && value.capabilities.length > 0 && value.capabilities.length <= 4
+  check(Array.isArray(value.capabilities) && value.capabilities.length > 0 && value.capabilities.length <= 5
     && new Set(value.capabilities.map(c => c.id)).size === value.capabilities.length, 'invalid launch manifests'); value.capabilities.forEach(capability);
   launchProvider(s.provider);
   const limits = fields(s.limits, 'maxSteps maxRefinements maxPlanContinuations timeoutSeconds actionTimeoutSeconds');

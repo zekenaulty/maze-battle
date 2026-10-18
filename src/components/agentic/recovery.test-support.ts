@@ -1,4 +1,5 @@
 import type { RecoveryCandidate } from '../../persistence/canonical/agentica/recovery';
+import type { DestinationProgress } from '../../persistence/canonical/navigation/types';
 import type { RecoveryInspection, RecoveryInventory } from './useAgenticaRecovery';
 
 const digest = 'a'.repeat(64);
@@ -12,7 +13,7 @@ export const inventory = (): RecoveryInventory => ({
   pendingRemoteActions: 'unknown', sessionClear: 'unknown', stats: { reads: 3, writes: 0, readBytes: 100, writeBytes: 0 } });
 const destination = { schema: 1 as const, kind: 'known-destination' as const,
   target: { level: 1, cell: { spaceId: 'entry', row: 4, column: 5 } }, limits: { steps: 64, replans: 4, durationMs: 120_000 } };
-export const detail: RecoveryInspection = {
+export const detail: RecoveryInspection & { progress: DestinationProgress } = {
   fence: { ...inventory().fence }, candidate: structuredClone(candidate), launchId: 'root-launch',
   action: { actionId: 'original-action', capabilityId: 'maze.navigate', runId: 'run', runnerRunId: 'runner', stepId: 'step',
     sessionId: 'session', sessionEpoch: '1', manifestHash: `sha256:${digest}`, expectedRevision: 1,

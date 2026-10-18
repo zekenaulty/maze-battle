@@ -23,10 +23,10 @@ export function pinDeadline(request: CanonicalRequest, action: AgenticaAction): 
 }
 export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding, action: AgenticaAction) {
   const grant = await assertLaunchGrant(tx, binding.grant, action, binding.publication), cap = grant.capability;
-  const navigation = action.capabilityId === 'maze.navigate' || action.capabilityId === 'maze.explore';
-  check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore'].includes(action.capabilityId)
-    && cap.effect === (navigation ? 'writesLocalState' : 'readOnly') && cap.kind === (navigation ? 'action' : 'query')
-    && (navigation ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
+  const durable = ['maze.navigate', 'maze.explore', 'maze.interact'].includes(action.capabilityId);
+  check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact'].includes(action.capabilityId)
+    && cap.effect === (durable ? 'writesLocalState' : 'readOnly') && cap.kind === (durable ? 'action' : 'query')
+    && (durable ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
   if (action.capabilityId === 'maze.explore' && action.arguments.mode === 'room') check(cap.inputSchema.fields
     .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
   return grant;

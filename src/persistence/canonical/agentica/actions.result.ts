@@ -22,7 +22,7 @@ export async function readActionResult(pages: ProtocolRead, identity: PreparedAc
     && stored.epoch === pending.original.epoch && scope.revision >= before.revision, 'result original custody changed');
   const result = validateResult(stored.result, identity.action, pending.original.effect);
   check(result.afterRevision <= scope.revision + 1, 'result exceeds its commit revision');
-  if (stored.proof === 'navigation') check(isObject(stored.sourceRequest.input)
+  if (stored.proof === 'navigation' || stored.proof === 'interaction') check(isObject(stored.sourceRequest.input)
     && result.operation?.operationId === stored.sourceRequest.input.operationId && result.disposition === 'applied'
     && result.afterRevision === scope.revision + 1, 'navigation result operation binding changed');
   return result;
@@ -34,7 +34,7 @@ export async function actionResultWrite(pages: ProtocolRead, head: CanonicalHead
   Promise<{ key: string; value: ActionResult } | { existing: ProtocolRef }> {
   identity = snapshotPrepared(identity); input = snapshotJson(input, MAX_RESULT_BYTES);
   head = snapshotJson(head); request = snapshotRequest(request);
-  check(proof === 'standalone' || proof === 'navigation', 'invalid action proof format');
+  check(proof === 'standalone' || proof === 'navigation' || proof === 'interaction', 'invalid action proof format');
   const pending = await loadOriginalAction(pages, identity); check(pending, 'missing original action');
   const result = validateResult(input, identity.action, pending.original.effect), key = `${identity.storageKey}/result`;
   const previous = await pages.get('execution', key);

@@ -19,5 +19,7 @@ export function mazeCapabilities(): AgenticaCapability[] {
     { id: 'maze.explore', name: 'Explore', description: 'Default: approach. Room: local survey, stop on discoveries/bounds. No loot.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true },
         { name: 'mode', type: 'string', required: false, allowedValues: ['room'] }], allowAdditionalProperties: false } },
+    { id: 'maze.interact', name: 'Interact', description: 'Open an inspected current-tile chest. No movement.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+      inputSchema: { fields: [{ name: 'target', type: 'string', required: true }], allowAdditionalProperties: false } },
   ];
 }
