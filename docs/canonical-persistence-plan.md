@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 25,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 26,
 2026-10-17. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -95,8 +95,12 @@ lost replies, restart and funded root/navigation ACKs at ordinary quota.
 Scoped local discovery and explicit root Check/Stop are now mounted in the
 actual App, including its failed-load screen. Opening recovery never contacts
 the service. The SDK execution client and Start/Wake/Adopt controls remain
-unmounted. Remaining cleanup controls, reset protection, P3 application
-integration and P5 final qualification are open. This is not complete feature
+unmounted. The [navigation/reset increment](reviews/issue-11-navigation-reset-recovery.md)
+adds explicit inspected-original Stop/reconciliation in the same App, plus a
+transactional reset guard against unresolved current verified-host allocations.
+The actual-App quota proof covers local Stop, real remote navigation/root ACKs
+and deliberate fresh reset through UI controls. Pending-action recovery mounting,
+P3 execution integration and P5 final qualification remain open. This is not complete feature
 parity or closure of #11.
 
 ## Authority and Supersession
@@ -412,8 +416,15 @@ the issue solved while any normal step still clones historical floors.
 
 ## Reset Boundary
 
-The immediate recovery action clears and seeds **only the current `maze-battle`
-database** in one transaction, using a new game and owner identity. It does not
+The recovery action clears and seeds **only the current `maze-battle`
+database** in one transaction, using a new game and owner identity. Before any
+seed/clear, that same transaction validates the compact current head and exact
+funded operation/receipt witnesses. Any unresolved `verified-host` allocation,
+including terminal-but-unacknowledged work, refuses reset. An ambiguous current
+ledger also refuses; damaged observation history alone does not prevent reset.
+This is a bounded current-obligation guard, not a scan or preservation of old
+saves, nor proof of arbitrary remote-session clearance. Obsolete schemas are
+still disposed without reading their values. The action does not
 claim to perform the final incompatible-schema cutover or delete the separate
 experiment databases. No generic `localStorage.clear()` or origin-wide deletion.
 
@@ -430,9 +441,10 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica execution mounting and remaining
-recovery controls, reset protection against unresolved current service
-obligations, full multi-controller depth/revisit/Q and actual-App remote
-settlement at capacity remain mandatory. The checked service fixture and local
-recovery UI do not jointly prove those unmounted flows. No paid-model test is included
+to arbitrary history. Canonical Agentica execution mounting and pending-action
+recovery controls, full multi-controller depth/revisit/Q and mounted successor
+execution remain mandatory. The actual-App recovery proof does not qualify
+those unmounted flows. Pending-action recovery additionally needs an exact
+durable locator for rediscovery after a lost accepted reply and browser reload;
+an empty unresolved-action list is not clearance. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.
