@@ -26,6 +26,9 @@ export interface GameSessionView {
 export type CommandKind = 'exploration' | 'roster' | 'content' | 'settings' | 'auto';
 const handlers = { exploration: executeExplorationCommand, roster: executeRosterCommand,
   content: executeContentCommand, settings: executeSettingsCommand, auto: executeAutoCommand };
+class AgenticControlError extends Error {
+  constructor() { super('Manual control is unavailable during Agentic Play.'); }
+}
 
 /** One serialized writer. It publishes bounded projections, never accepts full-game reducers. */
 export class GameSession {
@@ -37,16 +40,51 @@ export class GameSession {
   get hostSignal() { return this.lifetime.signal; }
   private active = false;
   private refreshing = false;
+  private manualVersion = 0;
+  private manualRunning = false;
+  private agenticControl?: { gameId: string; generation: string; epoch: number; release: () => void };
   private readonly lock = new BrowserSaveLock(() => this.stop('Read only: control moved to another tab.'));
   private readonly changed: (view: GameSessionView) => void;
   constructor(changed: (view: GameSessionView) => void) { this.changed = changed; }
-  private publish(patch: Partial<GameSessionView>) { this.view = { ...this.view, ...patch }; this.changed(this.view); }
+  private publish(patch: Partial<GameSessionView>) {
+    if (patch.controlled === false) this.agenticControl?.release();
+    this.view = { ...this.view, ...patch }; this.changed(this.view);
+  }
   private assert(signal: AbortSignal) { signal.throwIfAborted(); if (!this.active) throw new Error('Inactive game session'); }
+  /** Local manual-input exclusion only; host commands still require their ordinary canonical authority. */
+  acquireAgenticControl = (): (() => void) => {
+    const signal = this.lifetime.signal; this.assert(signal);
+    this.assertManualControl();
+    if (!this.view.controlled || this.view.busy || this.view.recoveryRequired || this.manualRunning
+      || !this.head || this.head.owner !== this.owner || this.head.status !== 'ready'
+      || this.lock.supported && !this.lock.held) throw new Error('Game control unavailable');
+    const checkpoint = gameCheckpoint(this.head.checkpoint);
+    if (checkpoint.mode === 'auto-play' || checkpoint.townReturnMode === 'auto-play') throw new Error('Disable Auto before Agentic Play.');
+    const release = () => {
+      if (this.agenticControl?.release !== release) return;
+      this.agenticControl = undefined; signal.removeEventListener('abort', release);
+    };
+    const { gameId, generation, epoch } = this.head;
+    // Earlier manual admissions stay invalid even if this lease is released before they dequeue.
+    this.agenticControl = { gameId, generation, epoch, release }; this.manualVersion++;
+    signal.addEventListener('abort', release, { once: true });
+    return release;
+  };
+  private assertManualControl(version = this.manualVersion) {
+    if (this.agenticControl || version !== this.manualVersion) throw new AgenticControlError();
+  }
+  private async manual<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const version = this.manualVersion; this.assertManualControl(version);
+    return this.owned(async signal => {
+      this.assertManualControl(version); this.manualRunning = true;
+      try { return await work(signal); } finally { this.manualRunning = false; }
+    });
+  }
   private enqueue<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
     const signal = this.lifetime.signal;
     const pending = this.queue.catch(() => {}).then(async () => { this.assert(signal); return work(signal); });
     this.queue = pending.catch(error => {
-      if (signal.aborted || !this.active) return;
+      if (signal.aborted || !this.active || error instanceof AgenticControlError) return;
       const status = this.view.recoveryRequired && !this.view.busy ? this.view.status
         : `Action failed: ${error instanceof Error ? error.message : String(error)}`;
       this.publish({ status,
@@ -59,6 +97,8 @@ export class GameSession {
     const result = await projectGame(head, reuseRoster ? this.view.game : undefined);
     this.assert(signal);
     if (result.head.revision !== head.revision || result.head.epoch !== head.epoch) throw new Error('Game changed during publication. Retry from its latest checkpoint.');
+    const lease = this.agenticControl;
+    if (lease && (lease.gameId !== head.gameId || lease.generation !== head.generation || lease.epoch !== head.epoch)) lease.release();
     this.head = head;
     this.publish({ game: result.value, controlled: head.owner === this.owner && head.status === 'ready'
       && (!this.lock.supported || this.lock.held) });
@@ -136,9 +176,11 @@ export class GameSession {
   };
   flush = () => this.queue;
   private recover(reset: boolean) {
+    const version = this.manualVersion;
+    try { this.assertManualControl(version); } catch (error) { return Promise.reject(error); }
     this.lifetime.abort(); this.lifetime = new AbortController(); this.active = true;
     this.publish({ controlled: false, busy: true, status: reset ? 'Starting new game' : 'Taking control' });
-    return this.enqueue(signal => this.load(signal, reset, true));
+    return this.enqueue(signal => { this.assertManualControl(version); return this.load(signal, reset, true); });
   }
   resetGame = () => this.recover(true);
   takeControl = () => this.recover(false);
@@ -152,7 +194,7 @@ export class GameSession {
   };
   execute = async (kind: CommandKind, input: Json): Promise<CanonicalReceipt> => {
     const captured = structuredClone(input);
-    return this.owned(async signal => {
+    return this.manual(async signal => {
       const original = gameRequest(this.head!, `${kind}.command`, captured), started = performance.now();
       const result = await handlers[kind](original, { signal });
       this.assert(signal);
@@ -212,7 +254,7 @@ export class GameSession {
     });
   }
   private async save(input: Json) {
-    const refusal = await this.owned(async signal => {
+    const refusal = await this.manual(async signal => {
       let result: Awaited<ReturnType<typeof executeSaveCommand>>;
       try { result = await executeSaveCommand(gameRequest(this.head!, 'save.command', input), { signal }); }
       catch (error) {
