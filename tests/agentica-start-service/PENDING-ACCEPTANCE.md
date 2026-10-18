@@ -72,3 +72,62 @@ review and exact source-pin coordination.
   export, and this plan changed. No runtime, runner, pin or expected result changed.
 - Native repair acceptance: NOT RUN. The prior twenty-case run does not qualify
   this extraction or the unimplemented repair.
+
+## Resumed Source Review And Evidence Hooks
+
+Base checkout reverified clean at `4c070e4a15689ea10ed7e9e9d86145f1a0247215`.
+This follow-on slice adds evidence only, not the recovery implementation or its
+acceptance cases. It does not advance either service pin in `run.mjs`/`Program.cs`.
+
+- Reviewed Maze `ad7ee96528b03dc26c10c71e535ac99487b47a5b` read-only. Its API is
+  `provePregrantNoEffect(fence, preparedParent, binding, targetAction, { signal? })`.
+  It validates the original claim and binding, irreversible root cancellation,
+  missing successor grant/action custody, and a dereferenced non-successor
+  publication selection. The result is deterministic `unavailable`, with equal
+  cancellation revisions, no observation/completion/operation, and an evidence
+  digest binding the whole request fingerprint. The caller still must obtain the
+  exact service-owned request; the pure proof does not authenticate unsaved input.
+- Parent was observed at `a6783f7` (the integrated proof), not the earlier
+  `5c58af6`. Its `pendingRecovery.ts` composition was absent at this inspection.
+  No parent/runtime commit has been imported into this fixture branch.
+- Reviewed service `b8896bea2a6ef371e049d8f52cf2b4c265757025` read-only, not as an
+  approved pin. HTTP recovery refuses `recovery.live_run` until `HostRun.Terminal`,
+  whose implementation checks `_task?.IsCompleted == true`. Accepted terminal
+  recovery updates both retained-run state and durable custody. Dispatched
+  custody reserves result capacity (`reserved`); accepted HTTP results retain
+  `http` receipts against pruning. This commit exposes no release API or caller
+  token: do not invent either or equate root/navigation ACK with receipt release.
+  Its exact changed-result errors are `action.duplicate_changed` for a retained
+  run and `custody.result_changed` after restart. The forthcoming exact-action
+  GET and reviewed clean service SHA remain required inputs.
+- `canonical-start-service.pending-evidence.ts` hashes all canonical store keys
+  and values in one readonly transaction, plus separate world/knowledge and
+  publication-history hashes. Existing pending setup records those hashes; the
+  old unresolved case now asserts recovery is write-free and reload/Stop do not
+  change game or publication records. These new assertions are NOT native-tested.
+- `GET /fixture/run?runId=...` observes the real registry's run identity,
+  `Terminal`, `Completion.IsCompleted`, and `HasUnresolvedActions`. It performs no
+  cancellation, resolution, retention, or replacement of production behavior.
+  `canonical-start-service.pending-run.ts` validates original run/session binding
+  and polls the actual completion gate while unresolved custody remains true.
+
+Checks for this slice:
+
+- PASS: fixture TypeScript no-emit check.
+- PASS: Playwright discovery, still 20 tests in 10 files. Uses the previously
+  recorded launcher paths only for constructor metadata; `--list` starts no
+  service/browser and does not touch storage.
+- PASS: isolated Release fixture build against the unchanged clean Agentica
+  `577a214d020ba35ba3188761da6a114b978516b7`, SDK `10.0.401`, 19.30 seconds,
+  zero warnings/errors. This is not repository SDK `10.0.302` pin proof.
+  Exact arguments and exit code: `test-results/maze-pending-evidence-build-AdYi1p/build.json`;
+  output: `test-results/maze-pending-evidence-build-AdYi1p/build.log`.
+- PASS: `git diff --check`.
+- Failed test/build runs: none in this slice. Native browser runs: NOT RUN;
+  no ports acquired, no provider calls, no fabricated recovery, no push.
+
+Next gate: explicit parent composition commit and reviewed clean service path/SHA
+with exact-action lookup. Review/import only those supplied commits, then update
+the fixture pin/allowlists and replace the unresolved-gap case with funded quota
+settlement plus a separate lost-reply/restart case. Check processes before taking
+ports 5258/5259. Retain all failures and reruns with their exact source identity.

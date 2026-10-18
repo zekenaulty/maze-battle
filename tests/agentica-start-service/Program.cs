@@ -1,6 +1,7 @@
 using System.Net;
 using Agentica.Lab.Web;
 using Agentica.Lab.Web.Providers;
+using Agentica.Lab.Web.Runtime;
 using Maze.StartServiceFixture;
 
 if (args.Length != 1 || !Path.IsPathFullyQualified(args[0]))
@@ -23,12 +24,19 @@ app.Use(async (context, next) =>
     }
     var route = context.Request.Method + " " + context.Request.Path.Value;
     if (route is not ("GET /api/health" or "GET /api/host" or "GET /api/starts" or "POST /api/starts/stop" or "GET /fixture/proof"
-        or "GET /api/operations" or "POST /api/operations/events" or "POST /api/operations/stop-decision" or "GET /api/recovery"))
+        or "GET /api/operations" or "POST /api/operations/events" or "POST /api/operations/stop-decision" or "GET /api/recovery"
+        or "GET /fixture/run"))
     {
         context.Response.StatusCode = 403;
         return;
     }
     await next(context);
+});
+app.MapGet("/fixture/run", (string runId, HostRunRegistry registry) =>
+{
+    var run = registry.Get(runId);
+    return new { run.RunId, run.Request.HostId, run.Request.SessionId, run.Request.SessionEpoch,
+        terminal = run.Terminal, completionCompleted = run.Completion.IsCompleted, unresolved = run.HasUnresolvedActions };
 });
 app.MapGet("/fixture/proof", () => new
 {

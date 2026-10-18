@@ -15,6 +15,7 @@ import { decisionStopEvidence } from './canonical-start-service.decision-evidenc
 import { restoreDecisionSequence } from './canonical-start-service.decision-restore';
 import { attachNavigationCleanup } from './canonical-start-service.navigation-cleanup';
 import { readPendingCustody, recoverPendingCustody } from './canonical-start-service.pending-custody';
+import { readPendingCanonicalEvidence } from './canonical-start-service.pending-evidence';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
 let session: GameSession;
@@ -74,7 +75,7 @@ async function recover(mode: 'inspect' | 'stop') {
   }, (await readLaunch()).value!.binding.launchId);
   return recovery[mode]();
 }
-const api = { boot, loseStart, snapshot, recover, readPendingCustody, recoverPendingCustody,
+const api = { boot, loseStart, snapshot, recover, readPendingCustody, recoverPendingCustody, readPendingCanonicalEvidence,
   async startDecision(mode: DecisionScriptMode) { decision = await startDecisionSequence(session, mode); return decision.started; },
   async restoreDecision(reference: ProtocolRef) { restoredDecision = await restoreDecisionSequence(session, reference); },
   async attachNavigationCleanup(reference: ProtocolRef) { navigationCleanup = await attachNavigationCleanup(session, reference); },
