@@ -1,6 +1,8 @@
+import { RefreshCw, Square } from 'lucide-react';
 import type { RecoveryInspection } from './useAgenticaRecovery';
 
-export function RecoveryDetails({ detail }: { detail: RecoveryInspection }) {
+export function RecoveryDetails({ detail, disabled, onRecover }: { detail: RecoveryInspection; disabled: boolean;
+  onRecover: (action: 'stop' | 'reconcile') => void }) {
   return <section aria-label="Original action inspection" className="agentica-recovery-section">
     <h3>Original navigation</h3>
     <dl className="agentica-recovery-facts">
@@ -12,5 +14,11 @@ export function RecoveryDetails({ detail }: { detail: RecoveryInspection }) {
       <dt>ACK receipt</dt><dd>{detail.acknowledgement ? 'Retained' : 'Not retained'}</dd>
       <dt>Decision</dt><dd>{detail.claim ? 'Claim retained' : detail.decision ? 'Intent retained' : 'Not retained'}</dd>
     </dl>
+    <div className="agentica-recovery-actions">
+      <button type="button" disabled={disabled} onClick={() => onRecover('stop')}>
+        <Square size={16} aria-hidden="true" /> Stop navigation</button>
+      <button type="button" disabled={disabled} onClick={() => onRecover('reconcile')}>
+        <RefreshCw size={16} aria-hidden="true" /> Reconcile navigation</button>
+    </div>
   </section>;
 }

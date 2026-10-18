@@ -9,7 +9,7 @@ export function AgenticaRecovery(props: RecoveryProps & { onClose: () => void })
   const candidates = inventory?.allocations.flatMap(row => row.navigation ? [row.navigation] : []) ?? [];
   const predecessor = inventory?.selected?.predecessor;
   if (predecessor && !candidates.some(row => row.operationId === predecessor.operationId)) candidates.push(predecessor);
-  const disabled = Boolean(recovery.busy || recovery.ended);
+  const disabled = Boolean(recovery.busy || recovery.ended || !recovery.serviceAvailable);
   return <Dialog title="Agentica recovery" onClose={props.onClose}>
     <div className="agentica-recovery">
       <div className="agentica-recovery-heading"><h3>Local records</h3>
@@ -57,7 +57,8 @@ export function AgenticaRecovery(props: RecoveryProps & { onClose: () => void })
           </li>)}</ul>
         </section>}
       </>}
-      {recovery.detail && <RecoveryDetails detail={recovery.detail} />}
+      {recovery.detail && <RecoveryDetails detail={recovery.detail} disabled={disabled}
+        onRecover={action => { void recovery.runNavigation(action); }} />}
     </div>
   </Dialog>;
 }

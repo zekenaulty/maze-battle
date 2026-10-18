@@ -3,6 +3,8 @@ import { inspectAgenticaRecovery, listAgenticaRecovery, type RecoveryCandidate }
 import { readLaunch } from '../../persistence/canonical/agentica/launch';
 import { inRecoveryDatabase } from '../../persistence/canonical/agentica/recovery.database';
 import { createGrantedLaunchRecovery, createLaunchRecovery } from '../../services/agentica/game/launchRecovery';
+import { recoverGameNavigation } from '../../services/agentica/game/navigationRecovery';
+import { navigationRecoveryStatus } from './navigationRecoveryStatus';
 import type { GameSession } from '../../services/game/GameSession';
 import type { GameView } from '../../services/game/GameView';
 
@@ -50,7 +52,8 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
         setState({ key, ended: true, error: 'Game lifetime ended. Reopen recovery for current local records.' });
     };
     hostSignal.addEventListener('abort', end, { once: true });
-    void run(s, 'Reading local records', load);
+    if (hostSignal.aborted) end();
+    else void run(s, 'Reading local records', load);
     return () => { hostSignal.removeEventListener('abort', end); s.abort.abort(); s.close?.(); };
   }, [key]);
 
@@ -60,10 +63,20 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
   });
   const inspect = (candidate: RecoveryCandidate) => run(scope.current, 'Inspecting original', async s => {
     if (!view.inventory) return;
-    patch(s, { detail: undefined });
+    patch(s, { detail: undefined, service: undefined });
     const detail = await inspectAgenticaRecovery(view.inventory.fence, candidate, { signal: s.abort.signal });
     assertAlive(s); patch(s, { detail });
   });
+  const runNavigation = (action: 'stop' | 'reconcile') => run(scope.current,
+    action === 'stop' ? 'Stopping navigation' : 'Reconciling navigation', async s => {
+      const detail = view.detail;
+      if (!detail) return;
+      assertAlive(s); hostSignal.throwIfAborted(); patch(s, { service: undefined });
+      const result = await recoverGameNavigation(controller, detail.fence, detail.candidate, action, { signal: s.abort.signal });
+      assertAlive(s); hostSignal.throwIfAborted();
+      patch(s, { service: navigationRecoveryStatus(result), detail: undefined });
+      await load(s);
+    });
   const runService = (action: 'inspect' | 'stop') => run(scope.current, action === 'stop' ? 'Stopping root session' : 'Checking service', async s => {
     const inventory = view.inventory, active = inventory?.active;
     if (!active || !inventory) return;
@@ -99,5 +112,5 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
     patch(s, { service: message + ' Session clearance remains unknown.', detail: undefined });
     if (action === 'stop') await load(s);
   });
-  return { ...view, refresh, inspect, runService, serviceAvailable: !hostSignal.aborted };
+  return { ...view, refresh, inspect, runNavigation, runService, serviceAvailable: !hostSignal.aborted };
 }

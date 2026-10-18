@@ -5,9 +5,10 @@ import { exploreView } from './components/ExploreScreen.test-support';
 import type { RecoveryInspection, RecoveryInventory } from './components/agentic/useAgenticaRecovery';
 import type { useGameSession } from './hooks/useGameSession';
 import type { GameSession } from './services/game/GameSession';
+import { candidate, detail, inventory } from './components/agentic/recovery.test-support';
 
 const mocks = vi.hoisted(() => ({ session: {} as ReturnType<typeof useGameSession>, list: vi.fn(), inspect: vi.fn(),
-  readLaunch: vi.fn(), database: vi.fn(), initial: vi.fn(), granted: vi.fn(), cancel: vi.fn() }));
+  readLaunch: vi.fn(), database: vi.fn(), initial: vi.fn(), granted: vi.fn(), navigation: vi.fn(), cancel: vi.fn() }));
 vi.mock('./hooks/useGameSession', () => ({ useGameSession: () => mocks.session }));
 vi.mock('./hooks/useCanonicalMovement', () => ({ useCanonicalMovement: () => ({ cancel: mocks.cancel }) }));
 vi.mock('./hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: mocks.cancel }) }));
@@ -18,15 +19,8 @@ vi.mock('./persistence/canonical/agentica/recovery', () => ({ listAgenticaRecove
 vi.mock('./persistence/canonical/agentica/launch', () => ({ readLaunch: mocks.readLaunch }));
 vi.mock('./persistence/canonical/agentica/recovery.database', () => ({ inRecoveryDatabase: mocks.database }));
 vi.mock('./services/agentica/game/launchRecovery', () => ({ createLaunchRecovery: mocks.initial, createGrantedLaunchRecovery: mocks.granted }));
+vi.mock('./services/agentica/game/navigationRecovery', () => ({ recoverGameNavigation: mocks.navigation }));
 
-const candidate = { operationId: 'travel-original', original: { key: 'original-key', id: 'original-id' },
-  binding: { grant: { key: 'grant-key', id: 'grant-id' }, publication: { key: 'publication-key', id: 'publication-id' } } };
-const inventory = (): RecoveryInventory => ({ fence: { generation: 'generation', gameId: 'canonical-game', owner: 'owner', epoch: 1, revision: 5 },
-  active: { launchId: 'root-launch', guardId: 'root-guard', state: 'admitted', grant: null }, selected: null,
-  allocations: [{ operationId: candidate.operationId, state: 'admitted', navigation: candidate }],
-  pendingRemoteActions: 'unknown', sessionClear: 'unknown', stats: { reads: 3, writes: 0, readBytes: 100, writeBytes: 0 } });
-const detail = { action: { actionId: 'original-action', capabilityId: 'maze.navigate' }, operation: { state: 'admitted' },
-  progress: { status: 'running', steps: 2 }, terminal: null, acknowledgement: null, decision: null, claim: null } as unknown as RecoveryInspection;
 let lifetime: AbortController, schema: AbortController;
 let remote: { inspect: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes; }); return { promise, resolve }; };
@@ -57,6 +51,7 @@ describe('actual App recovery entry', () => {
   it('opens locally, inspects exactly one original, and remains offline across rerender and close', async () => {
     const { rerender } = render(<App />); await open();
     expect(mocks.inspect).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Stop navigation' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Inspect original 1' }));
     expect(await screen.findByRole('region', { name: 'Original action inspection' })).toHaveTextContent('original-action');
     expect(mocks.inspect).toHaveBeenCalledExactlyOnceWith(inventory().fence, candidate, { signal: expect.any(AbortSignal) });
@@ -67,6 +62,7 @@ describe('actual App recovery entry', () => {
     expect(mocks.database).not.toHaveBeenCalled();
     expect(mocks.readLaunch).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
     expect(mocks.session.controller.stop).not.toHaveBeenCalled();
+    expect(mocks.navigation).not.toHaveBeenCalled();
   });
 
   it('keeps the selected predecessor inspectable without duplicating a listed allocation', async () => {
@@ -95,6 +91,21 @@ describe('actual App recovery entry', () => {
     expect(lifetime.signal.aborted).toBe(false); expect(mocks.session.controller.stop).not.toHaveBeenCalled();
     await waitFor(() => expect(remote.close).toHaveBeenCalledOnce());
     expect(screen.getByText(/Local Stop recorded; service Stop is pending/)).toBeVisible();
+  });
+
+  it.each(['stop', 'reconcile'] as const)('keeps explicit navigation %s reachable during quota recovery on the same controller', async action => {
+    mocks.session = { ...mocks.session, game: undefined, controlled: false, recoveryRequired: true, busy: true, status: 'Storage quota exceeded' };
+    mocks.navigation.mockRejectedValue(new Error('Retained navigation needs explicit reconciliation.'));
+    render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: 'Inspect original 1' }));
+    const button = await screen.findByRole('button', { name: action === 'stop' ? 'Stop navigation' : 'Reconcile navigation' });
+    expect(button).toBeEnabled(); fireEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Retained navigation needs explicit reconciliation');
+    expect(mocks.navigation).toHaveBeenCalledExactlyOnceWith(mocks.session.controller, detail.fence, detail.candidate, action,
+      { signal: mocks.inspect.mock.calls[0][2].signal });
+    expect(button).toBeEnabled(); expect(screen.getByRole('button', { name: 'Refresh local records' })).toBeEnabled();
+    expect(mocks.list).toHaveBeenCalledOnce(); expect(lifetime.signal.aborted).toBe(false);
+    expect(mocks.session.controller.stop).not.toHaveBeenCalled(); expect(mocks.session.resetGame).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
   });
 
   it.each([false, true])('uses current root grant to choose explicit service recovery (granted: %s)', async granted => {
