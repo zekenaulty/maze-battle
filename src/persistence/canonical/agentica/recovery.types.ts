@@ -17,6 +17,7 @@ export interface RecoveryInventory {
   fence: OwnerFence;
   active: { launchId: string; guardId: string; state: CanonicalOperation['state']; grant: ProtocolRef | null } | null;
   selected: { reference: ProtocolRef; binding: OperationBinding; predecessor: RecoveryCandidate | null } | null;
+  claimed: RecoveryCandidate | null;
   allocations: RecoveryAllocation[];
   pendingRemoteActions: 'unknown';
   sessionClear: 'unknown';

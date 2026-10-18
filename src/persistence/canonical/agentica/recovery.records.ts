@@ -11,6 +11,7 @@ import type { RecoveryCandidate, RecoveryInventory } from './recovery.types';
 import { readSource } from './validation.source';
 import { equal, restoreRetainedAction, snapshotReference } from './validation';
 import type { CanonicalQuery } from '../read';
+import { readClaimedParent } from './recovery.claimed';
 
 export const recoveryOperationId = (key: string) => {
   check(/^agentica\/actions\/[a-f0-9]{64}$/.test(key), 'invalid recovery action key');
@@ -32,7 +33,7 @@ export async function recoveryPointers(pages: CanonicalQuery) {
   const active = await loadActiveLaunch(pages);
   if (!active) {
     check(await pages.witness('execution', 'agentica/launches/') === null, 'missing active funded or retained launch');
-    return { active: null, selected: null };
+    return { active: null, selected: null, claimed: null };
   }
   const launch = await loadLaunch(pages, active.id);
   check(launch.guard.admissionAttemptId === active.sourceAttemptId, 'active launch admission changed');
@@ -51,5 +52,5 @@ export async function recoveryPointers(pages: CanonicalQuery) {
     selection = { reference: selected.ref, binding: captureOperationBinding(selected.value.data), predecessor };
   }
   return { active: { launchId: active.id, guardId: launch.guard.id, state: launch.guard.state, grant: launch.grant?.ref ?? null },
-    selected: selection };
+    selected: selection, claimed: await readClaimedParent(pages, active) };
 }

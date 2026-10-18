@@ -7,7 +7,7 @@ export const candidate: RecoveryCandidate = { operationId: `travel-${digest}`,
   binding: { grant: { key: 'grant-key', id: 'grant-id' }, publication: { key: 'publication-key', id: 'publication-id' } } };
 export const inventory = (): RecoveryInventory => ({
   fence: { generation: 'generation', gameId: 'canonical-game', owner: 'owner', epoch: 1, revision: 5 },
-  active: { launchId: 'root-launch', guardId: 'root-guard', state: 'admitted', grant: null }, selected: null,
+  active: { launchId: 'root-launch', guardId: 'root-guard', state: 'admitted', grant: null }, selected: null, claimed: null,
   allocations: [{ operationId: candidate.operationId, state: 'admitted', navigation: candidate }],
   pendingRemoteActions: 'unknown', sessionClear: 'unknown', stats: { reads: 3, writes: 0, readBytes: 100, writeBytes: 0 } });
 const destination = { schema: 1 as const, kind: 'known-destination' as const,

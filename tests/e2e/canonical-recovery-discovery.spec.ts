@@ -9,7 +9,7 @@ test('never initializes a missing game', async ({ page }) => {
 test('empty allocations never certify session clear', async ({ page }) => {
   await page.evaluate(() => window.canonicalRecoveryDiscovery.boot('empty'));
   const empty = await page.evaluate(() => window.canonicalRecoveryDiscovery.list()); readOnly(empty);
-  expect(empty.value).toMatchObject({ active: null, selected: null, allocations: [], sessionClear: 'unknown', pendingRemoteActions: 'unknown' });
+  expect(empty.value).toMatchObject({ active: null, selected: null, claimed: null, allocations: [], sessionClear: 'unknown', pendingRemoteActions: 'unknown' });
 });
 
 test('pending-only reserve remains unknown and does not fabricate navigation', async ({ page }) => {
@@ -81,20 +81,24 @@ test('owns captured input across awaits', async ({ page }) => {
   readOnly(result); expect(result.value!.candidate).toEqual(candidate); expect(result.value!.fence).toEqual(inventory.fence);
 });
 
-test('inventory and single inspection do not walk older successor ancestry', async ({ page }) => {
+test('inventory and single inspection do not walk older successor ancestry', async ({ page }, info) => {
   await page.evaluate(() => window.canonicalRecoveryDiscovery.boot('acknowledged'));
   const first = (await page.evaluate(() => window.canonicalRecoveryDiscovery.list())).value!.selected!.predecessor!.original.key;
   const costs: { inventory: number; inspection: number }[] = [];
+  const stats = [];
   for (let i = 0; i < 3; i++) {
     await page.evaluate(() => window.canonicalRecoveryDiscovery.nextWindow());
     const listed = await page.evaluate(() => window.canonicalRecoveryDiscovery.list()); readOnly(listed);
     const inventory = listed.value!, candidate = inventory.selected!.predecessor!;
+    expect(inventory.claimed).toEqual(candidate);
     expect(inventory.allocations).toHaveLength(1);
     const inspected = await page.evaluate(({ fence, candidate }) => window.canonicalRecoveryDiscovery.inspect(fence, candidate), { fence: inventory.fence, candidate });
     readOnly(inspected); expect(inspected.value!.operation.state).toBe('acknowledged');
     expect(inventory.stats.reads).toBeLessThan(2048); expect(inspected.value!.stats.reads).toBeLessThan(2048);
     if (i > 0) { expect(listed.keys).not.toContain(first); expect(inspected.keys).not.toContain(first); }
     costs.push({ inventory: listed.keys.length, inspection: inspected.keys.length });
+    stats.push({ inventory: inventory.stats, inspection: inspected.value!.stats });
   }
   expect(costs[2]).toEqual(costs[1]);
+  await info.attach('claimed-parent-read-bounds.json', { contentType: 'application/json', body: JSON.stringify({ costs, stats }) });
 });

@@ -16,7 +16,7 @@ vi.mock('../../hooks/useMazePerception', () => ({ useMazePerception: () => ({ pe
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Dungeon map" /> }));
 vi.mock('../../persistence/canonical/agentica/recovery', () => ({
   listAgenticaRecovery: vi.fn(async () => ({ fence: { generation: 'generation', gameId: 'canonical-game', revision: 0 },
-    active: null, selected: null, allocations: [] })),
+    active: null, selected: null, claimed: null, allocations: [] })),
 }));
 
 beforeEach(() => {

@@ -10,7 +10,7 @@ import { inRecoveryDatabase } from './recovery.database';
 export type { RecoveryCandidate, RecoveryInventory } from './recovery.types';
 export { inspectAgenticaRecovery } from './recovery.inspect';
 
-/** Local allocations plus one selected predecessor. No history scan, remote lookup, or implicit choice. */
+/** Local allocations, selected predecessor and last claimed parent. No history scan, remote lookup or implicit choice. */
 export async function listAgenticaRecovery(options: { signal?: AbortSignal } = {}) {
   return inRecoveryDatabase(options.signal, inventory);
 }

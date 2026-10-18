@@ -27,7 +27,8 @@ async function inspectOriginal(expected: OwnerFence, candidate: RecoveryCandidat
     const bound = await loadOperationBinding(pages, identity, original.binding);
     check(bound.operation.id === candidate.operationId, 'recovery original operation changed');
     const pointers = await recoveryPointers(pages);
-    check(bound.operation.state !== 'acknowledged' || equal(pointers.selected?.predecessor, candidate), 'recovery candidate is no longer listed');
+    check(bound.operation.state !== 'acknowledged' || equal(pointers.selected?.predecessor, candidate)
+      || equal(pointers.claimed, candidate), 'recovery candidate is no longer listed');
     // The public terminal reader validates historical ACK proof at its committed revision cut.
     const terminal = await loadAgenticaTerminal(pages, identity, original.binding);
     const claim = await loadDecisionClaim(pages, identity);

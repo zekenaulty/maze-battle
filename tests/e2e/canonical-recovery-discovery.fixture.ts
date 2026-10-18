@@ -12,6 +12,8 @@ import { seedRecovery, nextRecoveryWindow, type Scenario } from './canonical-rec
 import { dump, fillQuota } from './canonical-decision-ack.storage';
 import { startGame } from './canonical-agentica-actions.setup';
 import { unchangedSchema, inventoryRace } from './canonical-recovery-discovery.schema';
+import { claimedRecovery, replayRecoveryClaim } from './canonical-recovery-discovery.claimed';
+import type { AgenticaAction } from '../../src/services/agentica/contracts';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5270') throw Error('Isolated recovery discovery fixture only');
 let context: Awaited<ReturnType<typeof seedRecovery>> | undefined;
@@ -46,7 +48,8 @@ async function corrupt(candidate: RecoveryCandidate, kind: 'reserve' | 'original
   } finally { db.close(); }
 }
 const api = {
-  unchangedSchema, inventoryRace,
+  unchangedSchema, inventoryRace, claimedRecovery,
+  replayClaim: (action: AgenticaAction) => replayRecoveryClaim(context!.session, action),
   async boot(scenario: Scenario = 'navigation') { context = await seedRecovery(scenario); return context.seed; },
   async nextWindow() { context!.seed = await nextRecoveryWindow(context!.session, context!.seed!); },
   list: () => audit(() => listAgenticaRecovery()),
@@ -73,7 +76,7 @@ const api = {
   },
   changeHead: () => publishGamePublication(context!.session),
   async takeover() { context!.session.stop(); context!.session = await startGame(); },
-  quota: fillQuota, corrupt, dump, stop: () => context?.session.stop(),
+  quota: fillQuota, corrupt, dump, stop: () => { context?.session.stop(); claimedRecovery.stop(); },
 };
 declare global { interface Window { canonicalRecoveryDiscovery: typeof api } }
 window.canonicalRecoveryDiscovery = api;
