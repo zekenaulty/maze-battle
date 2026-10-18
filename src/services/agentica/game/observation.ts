@@ -1,7 +1,7 @@
 import type { AgenticaObservation } from '../contracts';
 import type { CanonicalSnapshot } from '../../../persistence/canonical/types';
 import type { ProtocolRef } from '../../../persistence/canonical/agentica/types';
-import { snapshotJson } from '../../../persistence/canonical/agentica/validation';
+import { equal, snapshotJson } from '../../../persistence/canonical/agentica/validation';
 import { loadObservation, sourceReader } from '../../../persistence/canonical/knowledge/evidence';
 import { roomKey } from '../../../persistence/canonical/knowledge/keys';
 import { listKnownRooms, readKnownCells } from '../../../persistence/canonical/knowledge/queries';
@@ -10,6 +10,7 @@ import type { CellSource, RememberedCell } from '../../../persistence/canonical/
 import { fields } from '../../../persistence/canonical/roster/codec';
 import { check, jsonBytes } from '../../../persistence/canonical/validation';
 import { observation, perceptionContext, type PerceptionContext } from './context';
+import { chestToken } from './chestSelection';
 import { frontierObservation } from './frontierObservation';
 import { cursorAfter, flatAddress, inspectArgs, inspectionCursor, inspectQuery, localPosition } from './validation';
 import { MAP_PAGE_ROOMS, MAX_CONTEXT_BYTES, MAX_OBSERVATION_BYTES, MAX_PERCEPTION_READ_BYTES, ROOM_PAGE_SLOTS, ROOM_WINDOW_SIDE,
@@ -23,8 +24,15 @@ export async function observeMaze(pages: PerceptionPages, snapshot: CanonicalSna
     source: c.sight ? { sequence: c.checkpoint.knowledge!.sequence, id: c.checkpoint.knowledge!.id, revision: c.sight.header.revision } : null }, MAX_CONTEXT_BYTES);
 }
 
-function projectCell(cell: RememberedCell, state: 'visible' | 'remembered') {
-  return { at: flatAddress(cell.at), world: cell.world, state, source: cell.source, chests: cell.chests, stairs: cell.stairs,
+function projectCell(c: PerceptionContext, cell: RememberedCell, state: 'visible' | 'remembered') {
+  const current = state === 'visible' && c.checkpoint.mode !== 'town' && equal(cell.at, c.checkpoint.position) && c.sight
+    && equal(c.sight.header.actor, c.checkpoint.position) ? c.sight.cells.findIndex(seen => equal(seen.at, cell.at)) : -1;
+  const anchor = c.checkpoint.knowledge;
+  // Memory may retain an older unchanged fact; target selection must pin the current visibility receipt.
+  const source = anchor && current >= 0 ? { sequence: anchor.sequence, id: anchor.id, index: current } : null;
+  const chests = cell.chests.map((chest, index) => ({ ...chest,
+    ...(source && !chest.opened ? { target: chestToken(c.ref, source, index) } : {}) }));
+  return { at: flatAddress(cell.at), world: cell.world, state, source: cell.source, chests, stairs: cell.stairs,
     edges: Object.fromEntries(Object.entries(cell.edges).map(([direction, edge]) => [direction,
       { target: edge!.target ? flatAddress(edge!.target) : null, source: edge!.source }])) };
 }
@@ -62,7 +70,7 @@ async function roomObservation(c: PerceptionContext, query: InspectQuery, start:
   let after = start, headers: Awaited<ReturnType<typeof sources>> = [];
   for (const entry of known) {
     if (entry.state !== 'unknown') {
-      const nextCells = [...cells, projectCell(entry.cell, entry.state)], nextRefs = [...refs, ...cellSources(entry.cell)], nextHeaders = await sources(c, nextRefs);
+      const nextCells = [...cells, projectCell(c, entry.cell, entry.state)], nextRefs = [...refs, ...cellSources(entry.cell)], nextHeaders = await sources(c, nextRefs);
       if (!fits(c, data(after + 1, nextCells, nextHeaders))) { check(cells.length > 0, 'single earned cell exceeds observation budget'); break; }
       cells.push(nextCells.at(-1)!); refs.push(...cellSources(entry.cell)); headers = nextHeaders;
     }
@@ -93,5 +101,5 @@ export async function inspectMaze(pages: PerceptionPages, snapshot: CanonicalSna
   if (query.scope === 'room') return roomObservation(c, query, (after as number | undefined) ?? 0);
   const [cell] = await readKnownCells(c.pages, c.checkpoint, [localPosition(query as CellAddress)]);
   return cell.state === 'unknown' ? observation(c, { scope: 'cell', state: 'unknown' })
-    : observation(c, { scope: 'cell', cell: projectCell(cell.cell, cell.state), sources: await sources(c, cellSources(cell.cell)) });
+    : observation(c, { scope: 'cell', cell: projectCell(c, cell.cell, cell.state), sources: await sources(c, cellSources(cell.cell)) });
 }
