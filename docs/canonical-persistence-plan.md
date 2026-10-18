@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 24,
-2026-10-15. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 25,
+2026-10-17. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
@@ -85,14 +85,19 @@ adds positive new-owner adoption before intent retention, exact lost-adopt repla
 and explicit recovery after old-intent/terminal-claim/granted-child reload.
 Eighteen real-service cases and twenty native discovery cases pass. A retained
 old-owner intention remains recovery-only after takeover, not silently continued
-or replaced. Adoption-process restart is now checked. The twenty-case real-service
-cohort also reproduces a genuine pending-ungranted-action reload gap: canonical
-absence cannot settle service custody, so Stop remains pending. This safe-refusal
-regression is not terminal-recovery success. Repair is required before mounting.
-Scoped discovery is local-only and never certifies remote clearance.
-The SDK client is not mounted. Remaining P3 recovery and application integration,
-plus P5 final qualification, remain open. Agentica remains unavailable
-in this intermediate preview; this is not complete feature parity or closure of #11.
+or replaced. Adoption-process restart is now checked. The earlier twenty-case
+cohort reproduced a pending-ungranted-action reload gap. The
+[pregrant recovery increment](reviews/issue-11-pregrant-recovery.md) now closes
+that case through retained local cancellation/claim evidence and exact original
+service custody, not an inference from missing canonical records. Twenty-two
+real-service cases cover no-effect reconciliation, interim unresolved results,
+lost replies, restart and funded root/navigation ACKs at ordinary quota.
+Scoped local discovery and explicit root Check/Stop are now mounted in the
+actual App, including its failed-load screen. Opening recovery never contacts
+the service. The SDK execution client and Start/Wake/Adopt controls remain
+unmounted. Remaining cleanup controls, reset protection, P3 application
+integration and P5 final qualification are open. This is not complete feature
+parity or closure of #11.
 
 ## Authority and Supersession
 
@@ -425,7 +430,9 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica decision recovery gaps and mounted
-recovery, full multi-controller depth/revisit/Q and game-level
-remote settlement at capacity remain mandatory. No paid-model test is included
+to arbitrary history. Canonical Agentica execution mounting and remaining
+recovery controls, reset protection against unresolved current service
+obligations, full multi-controller depth/revisit/Q and actual-App remote
+settlement at capacity remain mandatory. The checked service fixture and local
+recovery UI do not jointly prove those unmounted flows. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.
