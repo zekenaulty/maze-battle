@@ -100,3 +100,79 @@ describe('explicit Agentic play controls', () => {
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
   });
 });
+
+describe('explicit same-owner decision continuation control', () => {
+  const continueButton = () => screen.getByRole('button', { name: 'Continue' });
+  beforeEach(() => {
+    props = { ...props, phase: 'decision', active: true, activeObjective: 'Investigate the visible corridor.',
+      canStart: false, canContinue: true, onContinue: vi.fn() };
+  });
+
+  it('only forwards an explicit Continue click, preserving the active objective and other controls', () => {
+    mount(); expect(continueButton()).toBeEnabled(); expect(start()).toBeDisabled(); expect(stop()).toBeEnabled();
+    const field = screen.getByRole('textbox', { name: 'Objective' });
+    expect(field).toHaveValue(props.activeObjective); expect(field).toBeDisabled();
+    fireEvent.keyDown(field, { key: 'Enter', ctrlKey: true }); expect(props.onContinue).not.toHaveBeenCalled();
+    fireEvent.click(continueButton()); expect(props.onContinue).toHaveBeenCalledExactlyOnceWith();
+    expect(field).toHaveValue(props.activeObjective);
+    for (const callback of [props.onStart, props.onStop, props.onRecovery, props.onClose]) expect(callback).not.toHaveBeenCalled();
+  });
+
+  it.each(['idle', 'preparing', 'starting', 'running', 'navigating', 'stopping', 'stopped', 'recovery'])
+    ('disables Continue in active nondecision phase %s even with stale permission', phase => {
+      props.phase = phase; mount(); expect(continueButton()).toBeDisabled(); fireEvent.click(continueButton());
+      expect(props.onContinue).not.toHaveBeenCalled(); expect(stop()).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Recovery' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Close dialog' })).toBeEnabled();
+    });
+
+  it.each([false, undefined])('requires explicit parent permission (%s)', canContinue => {
+    props.canContinue = canContinue; mount(); expect(continueButton()).toBeDisabled(); fireEvent.click(continueButton());
+    expect(props.onContinue).not.toHaveBeenCalled();
+  });
+
+  it('does not offer cold or inactive continuation despite a retained decision label', () => {
+    props.active = false; mount(); expect(continueButton()).toBeDisabled(); fireEvent.click(continueButton());
+    expect(props.onContinue).not.toHaveBeenCalled();
+  });
+
+  it('omits Continue when no callback is mounted, including legacy callers', () => {
+    props.onContinue = undefined; const view = mount(); expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
+    view.rerender(<AgenticPlayDialog {...props} canContinue={undefined} />);
+    expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument(); expect(stop()).toBeEnabled();
+  });
+
+  it('does not use launch configuration, Start permission or feedback as continuation authority', () => {
+    props = { ...props, profile: undefined, configurationError: 'Launch configuration unavailable.', error: 'Retained feedback.' };
+    mount(); expect(start()).toBeDisabled(); expect(continueButton()).toBeEnabled(); fireEvent.click(continueButton());
+    expect(props.onContinue).toHaveBeenCalledOnce(); expect(props.onStart).not.toHaveBeenCalled();
+  });
+
+  it('never continues on opening, permission changes, rerender, dismissal or unmount', () => {
+    const view = mount();
+    view.rerender(<AgenticPlayDialog {...props} canContinue={false} />);
+    view.rerender(<AgenticPlayDialog {...props} />); expect(continueButton()).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' })); view.unmount();
+    expect(props.onClose).toHaveBeenCalledOnce(); expect(props.onContinue).not.toHaveBeenCalled(); expect(props.onStop).not.toHaveBeenCalled();
+  });
+
+  it('honors synchronous parent busy state before a second click without owning a permanent latch', () => {
+    const view = mount();
+    const onContinue = vi.fn(() => view.rerender(<AgenticPlayDialog {...props} onContinue={onContinue} phase="preparing" canContinue={false} />));
+    view.rerender(<AgenticPlayDialog {...props} onContinue={onContinue} />);
+    const button = continueButton(); fireEvent.click(button); fireEvent.click(button);
+    expect(onContinue).toHaveBeenCalledOnce(); expect(continueButton()).toBeDisabled(); expect(stop()).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'Objective' })).toHaveValue(props.activeObjective);
+    view.rerender(<AgenticPlayDialog {...props} onContinue={onContinue} />);
+    expect(continueButton()).toBeEnabled(); expect(onContinue).toHaveBeenCalledOnce();
+    fireEvent.click(continueButton()); expect(onContinue).toHaveBeenCalledTimes(2);
+    fireEvent.click(stop()); fireEvent.click(screen.getByRole('button', { name: 'Recovery' }));
+    expect(props.onStop).toHaveBeenCalledOnce(); expect(props.onRecovery).toHaveBeenCalledOnce(); expect(props.onStart).not.toHaveBeenCalled();
+  });
+
+  it('forwards separate click intents when permission is unchanged; parent serialization owns duplicate effects', () => {
+    mount(); fireEvent.click(continueButton()); fireEvent.click(continueButton());
+    expect(props.onContinue).toHaveBeenCalledTimes(2); expect(continueButton()).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'Objective' })).toHaveValue(props.activeObjective);
+  });
+});

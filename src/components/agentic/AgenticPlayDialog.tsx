@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Play, RefreshCw, Square } from 'lucide-react';
+import { Play, RefreshCw, Square, StepForward } from 'lucide-react';
 import { Dialog } from '../Dialog';
 import type { GameLaunchOptions } from '../../services/agentica/game/launch';
 import './agentic.css';
@@ -13,17 +13,20 @@ export interface AgenticPlayDialogProps {
   active: boolean;
   activeObjective?: string;
   canStart: boolean;
+  canContinue?: boolean;
   onStart: (objective: string) => void;
+  onContinue?: () => void;
   onStop: () => void;
   onRecovery: () => void;
   onClose: () => void;
 }
 
-export function AgenticPlayDialog({ profile, configurationError, phase, message, error, active, activeObjective, canStart,
-  onStart, onStop, onRecovery, onClose }: AgenticPlayDialogProps) {
+export function AgenticPlayDialog({ profile, configurationError, phase, message, error, active, activeObjective, canStart, canContinue,
+  onStart, onContinue, onStop, onRecovery, onClose }: AgenticPlayDialogProps) {
   const objectiveId = useId(), [objective, setObjective] = useState(activeObjective ?? '');
   const trimmed = objective.trim(), { provider, limits } = profile ?? {};
   const startEnabled = Boolean(profile && !configurationError && canStart && !active && trimmed && objective.length <= 512);
+  const continueEnabled = Boolean(canContinue && onContinue && active && phase === 'decision');
   const missing = 'Not configured';
   return <Dialog title="Agentic play" onClose={onClose}>
     <div className="agentic-play agentic-play-controls">
@@ -52,6 +55,8 @@ export function AgenticPlayDialog({ profile, configurationError, phase, message,
           <Play size={16} aria-hidden="true" /> Start Agentic play</button>
         <button type="button" disabled={!active} onClick={onStop}>
           <Square size={16} aria-hidden="true" /> Stop Agentic play</button>
+        {onContinue && <button type="button" disabled={!continueEnabled} onClick={() => { if (continueEnabled) onContinue(); }}>
+          <StepForward size={16} aria-hidden="true" /> Continue</button>}
         <button type="button" onClick={onRecovery}><RefreshCw size={16} aria-hidden="true" /> Recovery</button>
       </div>
     </div>
