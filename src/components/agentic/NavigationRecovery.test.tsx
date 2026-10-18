@@ -38,8 +38,8 @@ afterEach(() => {
 
 describe('explicit inspected navigation recovery', () => {
   it.each([
-    ['stop', { status: 'navigation-stopped' }, 'Local navigation Stop recorded.'],
-    ['reconcile', { status: 'terminal-acknowledged', disposition: 'cancelled' }, 'Navigation terminal acknowledged (cancelled).'],
+    ['stop', { status: 'navigation-stopped' }, 'Navigation stopped locally.'],
+    ['reconcile', { status: 'terminal-acknowledged', disposition: 'cancelled' }, 'Navigation acknowledged (cancelled).'],
     ['reconcile', { status: 'terminal-prefix-delivered', sequence: 4 }, 'Navigation terminal prefix delivered through sequence 4.'],
     ['reconcile', { status: 'navigation-acknowledged' }, 'Navigation acknowledged.'],
     ['reconcile', { status: 'awaiting-service' }, 'Navigation is awaiting the service.'],
