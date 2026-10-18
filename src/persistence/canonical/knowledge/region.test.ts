@@ -47,7 +47,7 @@ describe('canonical earned world regions', () => {
     const f = knowledgeFixture(); await f.observe([earnedCell()]); f.reads.length = 0;
     const region = await readKnowledgeRegion(f.pages, f.checkpoint(), { floor: 1, row: 101, column: 101, rows: 64, columns: 16 });
     expect(region.cells).toEqual([]);
-    expect(f.reads.filter(key => key.startsWith('perception/world/'))).toHaveLength(85);
+    expect(f.reads.filter(key => key.startsWith('perception/world/'))).toHaveLength(170);
     expect(f.reads.some(key => key.includes('/cell/') || key.includes('/room/'))).toBe(false);
   });
 
@@ -67,7 +67,7 @@ describe('canonical earned world regions', () => {
     const region = await readKnowledgeRegion(f.pages, f.checkpoint(), { floor: 1, row: -16, column: -16, rows: 32, columns: 32 });
     expect(region.cells).toHaveLength(1024);
     expect(region.cells.filter(c => c.state === 'visible')).toHaveLength(32);
-    expect(f.reads.filter(key => key.includes('/world/'))).toHaveLength(64);
+    expect(f.reads.filter(key => key.includes('/world/'))).toHaveLength(128);
     expect(f.reads.filter(key => key.includes('/cell/'))).toHaveLength(64);
     expect(f.reads.filter(key => key.includes('/observation/')).length).toBeLessThanOrEqual(102);
   });
@@ -79,7 +79,7 @@ describe('canonical earned world regions', () => {
     b.cells['-5:-2'].at.cell.spaceId = 'forged';
     await expect(readKnowledgeRegion(f.pages, f.checkpoint(), scope)).rejects.toThrow('spatial index');
     f.records.delete(key);
-    await expect(readKnowledgeRegion(f.pages, f.checkpoint(), scope)).rejects.toThrow('missing from spatial');
+    await expect(readKnowledgeRegion(f.pages, f.checkpoint(), scope)).rejects.toThrow('missing spatial index');
     f.records.set(key, saved);
     const memory = f.records.get(blockKey(cell.at))!.value as unknown as MemoryBlock;
     memory.cells[localKey(cell.at)].chests[0].opened = true;

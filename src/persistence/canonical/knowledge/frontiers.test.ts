@@ -58,6 +58,21 @@ describe('current earned frontier selection', () => {
     expect(f.reads).toContain(blockKey(neighbor.at));
     expect(f.reads.every(key => !key.startsWith('perception/room/'))).toBe(true);
   });
+  it.each([-1, 0])('rejects an omitted cross-room neighbor from anchor row %s even when its remembered block is unloaded', async row => {
+    const actor = open(row + 1, 0), anchor = open(row, 0), neighbor = open(row - 1, 0, 'other-room', 0, 0);
+    anchor.edges = { east: null, west: null };
+    const f = await fixture([actor, anchor, neighbor]); await f.observe([actor, anchor]);
+    const source = f.checkpoint().knowledge!, selection = { at: anchor.at, direction: 'north' as const,
+      source: { sequence: source.sequence, id: source.id, index: 1 } };
+    expect(await readFrontiers(f.pages, f.checkpoint())).toEqual([]);
+    const retained = structuredClone(f.records.get(blockKey(neighbor.at)));
+    delete (f.records.get(worldBlockKey(1, neighbor.world))!.value as unknown as WorldIndexBlock).cells[worldCellKey(neighbor.world)];
+    f.reads.length = f.writes.length = 0;
+    await expect(readFrontiers(f.pages, f.checkpoint())).rejects.toThrow();
+    await expect(isCurrentFrontier(f.pages, f.checkpoint(), selection)).rejects.toThrow();
+    expect(f.records.get(blockKey(neighbor.at))).toEqual(retained); expect(f.writes).toEqual([]);
+    expect(f.reads).not.toContain(blockKey(neighbor.at));
+  });
   it('ignores old frontiers outside current sight and returns empty only for valid bounded none', async () => {
     const f = await fixture(); await f.observe([open(0, 0)]);
     expect(await readFrontiers(f.pages, f.checkpoint())).toEqual([]);

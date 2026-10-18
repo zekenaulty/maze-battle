@@ -8,6 +8,7 @@ import { blockKey, KNOWLEDGE_PREFIX, localKey } from './keys';
 import { loadMemoryBlock } from './memory';
 import { cellPosition, cellSource } from './validation';
 import { MAX_VISIBLE_CELLS, type CellSource, type KnowledgeRead, type MemoryBlock, type ObservedCell } from './types';
+import { retainWorldIndexEvidence, validateWorldIndexEvidence } from './worldIndex.evidence';
 
 export const WORLD_BLOCK_SIDE = 4;
 export interface WorldCellIndex { at: WorldPosition; world: GridPosition; source: CellSource }
@@ -24,8 +25,8 @@ export function worldBlockKey(floor: number, world: GridPosition) {
   return `${KNOWLEDGE_PREFIX}world/${b.floor}/${b.row}:${b.column}`;
 }
 export async function loadWorldIndexBlock(pages: KnowledgeRead, floor: number, world: GridPosition) {
-  const row = await pages.get('knowledge', worldBlockKey(floor, world));
-  if (!row) return null;
+  const key = worldBlockKey(floor, world), row = await pages.get('knowledge', key);
+  if (!row) { await validateWorldIndexEvidence(pages, key, row); return null; }
   const b = fields(row.value, 'schema floor row column cells'), expected = worldBlockAddress(floor, world);
   check(b.schema === 1 && b.floor === floor && b.row === expected.row && b.column === expected.column, 'foreign world index block');
   check(b.cells && typeof b.cells === 'object' && !Array.isArray(b.cells)
@@ -35,6 +36,7 @@ export async function loadWorldIndexBlock(pages: KnowledgeRead, floor: number, w
     const point = fields(c.world, 'row column') as unknown as GridPosition;
     check(c.at.level === floor && key === worldCellKey(point) && same(worldBlockAddress(floor, point), expected), 'foreign world index cell');
   }
+  await validateWorldIndexEvidence(pages, key, row);
   return row.value as unknown as WorldIndexBlock;
 }
 
@@ -63,5 +65,8 @@ export async function indexObservedWorldCells(pages: CanonicalPages, cells: Obse
     const next: WorldCellIndex = { at: cell.at, world: cell.world, source: cell.source };
     if (!old || !same(old, next)) { block.cells[coordinate] = next; changed.add(key); }
   }
-  for (const key of changed) await pages.set('knowledge', key, json(blocks.get(key)!));
+  for (const key of changed) {
+    const row = await pages.set('knowledge', key, json(blocks.get(key)!));
+    await retainWorldIndexEvidence(pages, key, row);
+  }
 }
