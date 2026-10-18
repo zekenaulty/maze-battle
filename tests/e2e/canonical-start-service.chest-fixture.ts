@@ -9,11 +9,16 @@ import { DIRECTIONS, type ObservedCell } from '../../src/persistence/canonical/k
 import type { WorldPosition } from '../../src/persistence/canonical/world/types';
 import { appNavigationEvidence } from './canonical-start-service.app-evidence';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
+import { loadRunGrant } from '../../src/persistence/canonical/agentica/run-grant.read';
 
-export async function chestOperationEvidence(action: AgenticaAction) {
-  const evidence = await appNavigationEvidence(action);
+export async function chestOperationEvidence(action: AgenticaAction, successor?: AgenticaAction) {
+  const evidence = await appNavigationEvidence(action, successor);
   if (evidence.parent?.kind !== 'interaction') throw Error('Expected the exact confirmed interaction.');
-  return { ...evidence, parent: evidence.parent };
+  const successorGrant = evidence.claim && evidence.selection
+    ? (await readCanonical(pages => loadRunGrant(pages, evidence.selection!.value.data.grant))).value : null;
+  const predecessorAck = evidence.parent.operation.acknowledgementAttemptId
+    ? (await readCanonical(pages => pages.sourceReceipt(evidence.parent!.operation.acknowledgementAttemptId!))).value : null;
+  return { ...evidence, parent: evidence.parent, successorGrant, predecessorAck };
 }
 const key = (at: WorldPosition) => JSON.stringify([at.level, at.cell.spaceId, at.cell.row, at.cell.column]);
 function appSession() {

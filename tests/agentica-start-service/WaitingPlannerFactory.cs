@@ -24,8 +24,8 @@ internal sealed class WaitingPlannerFactory : ILabPlannerFactory
         Interlocked.Increment(ref _created);
         if (settings.Model == "decision-chest")
         {
-            Decision.Created(); Decision.Initial.Entered();
-            return new NewChestSequencePlanner(Decision.Initial.Called, Decision.Initial.Planned);
+            Decision.Created();
+            return new NewChestSequencePlanner(Decision);
         }
         if (settings.Model == "decision-room")
         {
