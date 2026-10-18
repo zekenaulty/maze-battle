@@ -5,6 +5,7 @@ import { readLaunch } from '../../../persistence/canonical/agentica/launch';
 import { readLaunchTerminal } from '../../../persistence/canonical/agentica/launch.terminal';
 import { launchAcknowledgement } from '../../../persistence/canonical/agentica/launch.ack';
 import { captureLaunchAdmission } from '../../../persistence/canonical/agentica/launch.service';
+import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
 import { equal } from '../../../persistence/canonical/agentica/validation';
 import { check } from '../../../persistence/canonical/validation';
 import { claimTransportAttachment, transportGate } from './transportGate';
@@ -16,7 +17,8 @@ import { mazeManifestDigest } from './manifestDigest';
 export async function createStartRecovery(port: CanonicalHostPort & CanonicalRecoveryPort, launchId: string,
   mode: 'initial' | 'granted', fetchImpl: typeof fetch) {
   const gate = transportGate(port), hostSignal = port.hostSignal;
-  const initial = await readLaunch(launchId), launch = initial.value;
+  const read = () => inRecoveryDatabase(gate.signal, () => readLaunch(launchId));
+  const initial = await read(), launch = initial.value;
   gate.signal.throwIfAborted();
   check(launch && (mode === 'initial' ? !launch.grant : !!launch.grant),
     mode === 'initial' ? 'launch is not an ungranted start' : 'launch is not an explicitly granted start');
@@ -29,7 +31,7 @@ export async function createStartRecovery(port: CanonicalHostPort & CanonicalRec
   let selected: ReturnType<typeof captureLaunchAdmission> | undefined;
   async function current(remote = true) {
     gate.signal.throwIfAborted(); check(port.hostSignal === hostSignal, 'recovery game lifetime changed');
-    const value = await readLaunch(launchId); gate.signal.throwIfAborted();
+    const value = await read(); gate.signal.throwIfAborted();
     check(Object.entries(original).every(([key, v]) => value.head[key as keyof typeof value.head] === v), 'recovery custody changed');
     const retained = value.value;
     check(retained?.guard.admissionAttemptId === launch!.guard.admissionAttemptId, 'recovery launch binding changed');
@@ -61,7 +63,8 @@ export async function createStartRecovery(port: CanonicalHostPort & CanonicalRec
   async function stop() {
     let retained = await current(false);
     if (retained.guard.state === 'acknowledged') return { status: 'settled' as const, localStopped: true, settled: true };
-    const originalStop = stopRetry ?? (retained.guard.terminal ? (await readLaunchTerminal(launchId)).value.terminal.source : undefined);
+    const originalStop = stopRetry ?? (retained.guard.terminal
+      ? (await inRecoveryDatabase(gate.signal, () => readLaunchTerminal(launchId))).value.terminal.source : undefined);
     // Stop local authority first, even if service lookup/validation fails. No ordinary writes are required.
     try { await port.cleanupHostOperation(originalStop ? { kind: 'retry', request: originalStop } : { kind: 'cancel', target }, hostSignal); stopRetry = undefined; }
     catch (error) { if (error instanceof HostCleanupError) stopRetry = structuredClone(error.request); throw error; }

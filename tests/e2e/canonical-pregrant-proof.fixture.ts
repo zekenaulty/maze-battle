@@ -15,6 +15,7 @@ import { changeKey, deleteRow, observeReads } from './canonical-pregrant-proof.s
 import { fenceOldCallbacks } from './canonical-pregrant-proof.hooks';
 import { recoverPregrantAction } from '../../src/services/agentica/game/pendingRecovery';
 import { unchangedSchema } from './canonical-recovery-discovery.schema';
+import { createGrantedLaunchRecovery, createLaunchRecovery } from '../../src/services/agentica/game/launchRecovery';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5268') throw Error('Isolated pregrant proof fixture only');
 let state: ProofSeed;
@@ -61,6 +62,12 @@ const api = {
   },
   databases: async () => (await indexedDB.databases()).map(db => ({ name: db.name, version: db.version })),
   schemaRecovery: (legacy: boolean) => unchangedSchema(legacy, () => api.absent(true)),
+  rootSchemaRecovery: (legacy: boolean, granted: boolean) => unchangedSchema(legacy, async () => {
+    const forbidden = async () => { throw Error('Schema refusal cannot write or contact the service'); };
+    const recovery = await (granted ? createGrantedLaunchRecovery : createLaunchRecovery)({ hostSignal: new AbortController().signal,
+      submitHostCommand: forbidden, cleanupHostOperation: forbidden }, 'absent-launch', forbidden);
+    recovery.close();
+  }),
   async absent(composition = false) {
     const action = { actionId: 'absent-action', runId: 'absent-run', runnerRunId: 'absent-runner', stepId: 'absent-step',
       sessionId: 'absent-session', sessionEpoch: '1', capabilityId: 'maze.navigate', manifestHash: `sha256:${'a'.repeat(64)}`,

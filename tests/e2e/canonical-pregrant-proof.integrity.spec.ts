@@ -13,6 +13,14 @@ for (const legacy of [false, true]) test(`HTTP composition cannot ${legacy ? 'up
   expect(result.sentinel).toBe(legacy ? 'preserve' : null);
 });
 
+for (const legacy of [false, true]) for (const granted of [false, true])
+  test(`${granted ? 'granted' : 'initial'} root recovery cannot ${legacy ? 'upgrade obsolete' : 'create absent'} storage`, async ({ page }) => {
+    const result = await page.evaluate(({ legacy, granted }) => window.canonicalPregrantProof.rootSchemaRecovery(legacy, granted), { legacy, granted });
+    expect(result.error).toContain('existing current canonical database');
+    expect(result.before).toEqual(result.after); expect(result.writes).toEqual([]);
+    expect(result.sentinel).toBe(legacy ? 'preserve' : null);
+  });
+
 for (const [name, options, error] of [
   ['uncancelled guard', { cancel: false }, 'cancellation'],
   ['missing correlated claim', { claim: false }, 'correlated claim'],
