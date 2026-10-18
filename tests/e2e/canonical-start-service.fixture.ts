@@ -42,7 +42,9 @@ const options = (): GameLaunchOptions => ({
   limits: { maxSteps: 1, maxRefinements: 0, maxPlanContinuations: 0, timeoutSeconds: 120, actionTimeoutSeconds: 15 },
 });
 async function boot() {
-  session = new GameSession(() => {}); await session.start();
+  const app = (globalThis as typeof globalThis & { __canonicalStartAppSession?: GameSession }).__canonicalStartAppSession;
+  session = app ?? new GameSession(() => {});
+  if (app) await session.flush(); else await session.start();
   if (!session.view.controlled) throw Error(session.view.status);
   return (await readCanonicalHead()).head;
 }

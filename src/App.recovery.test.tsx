@@ -47,7 +47,7 @@ describe('canonical App recovery controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset and start new game' }));
     expect(screen.getByRole('dialog', { name: 'Reset Maze Battle?' })).toBeVisible();
     expect(screen.getByText(/discards this game's saves and observation history/)).toBeVisible();
-    expect(screen.getByText(/Separate expedition data is not cleared/)).toBeVisible();
+    expect(screen.getByText(/Outstanding Agentica obligations must be reconciled first/)).toBeVisible();
     expect(state.session.resetGame).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

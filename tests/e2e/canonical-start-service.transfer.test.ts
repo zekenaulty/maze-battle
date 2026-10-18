@@ -22,8 +22,6 @@ export const test = base.extend<{ wire: WireEvidence }>({ wire: [async ({ page, 
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
     if (![browserOrigin, serviceOrigin].includes(url.origin)) throw Error('Unexpected external request: ' + url.origin);
-    if (url.origin === browserOrigin && url.pathname === '/@vite/client')
-      return route.fulfill({ contentType: 'application/javascript', body: '' });
     if (url.origin === serviceOrigin) {
       if (!['GET /api/operations', 'POST /api/operations/events', 'GET /api/starts', 'POST /api/starts/stop'].includes(request.method() + ' ' + url.pathname))
         throw Error('Unexpected service request: ' + request.method() + ' ' + url.pathname);
@@ -37,6 +35,8 @@ export const test = base.extend<{ wire: WireEvidence }>({ wire: [async ({ page, 
     })());
   });
   page.on('websocket', socket => {
+    const url = new URL(socket.url());
+    if (url.origin === 'ws://127.0.0.1:5258') { expect(url.pathname).toBe('/'); return; }
     expect(socket.url()).toBe('ws://127.0.0.1:5259/api/host');
     socket.on('framesent', e => {
       const frame = JSON.parse(String(e.payload));

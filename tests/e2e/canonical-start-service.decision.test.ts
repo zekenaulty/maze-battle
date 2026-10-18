@@ -30,8 +30,6 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
     if (![browserOrigin, serviceOrigin].includes(url.origin)) throw Error('Unexpected external request: ' + url.origin);
-    if (url.origin === browserOrigin && url.pathname === '/@vite/client')
-      return route.fulfill({ contentType: 'application/javascript', body: '' });
     if (url.origin === serviceOrigin) {
       if (!['GET /api/operations', 'POST /api/operations/events', 'POST /api/operations/stop-decision',
         'GET /api/starts', 'POST /api/starts/stop', 'GET /api/recovery', 'GET /api/recovery/action',
@@ -48,6 +46,9 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     })());
   });
   page.on('websocket', socket => {
+    // The actual App needs Vite's CSS/React client; its dev socket is not Agentica traffic.
+    const url = new URL(socket.url());
+    if (url.origin === 'ws://127.0.0.1:5258') { expect(url.pathname).toBe('/'); return; }
     expect(socket.url()).toBe('ws://127.0.0.1:5259/api/host');
     socket.on('framesent', event => {
       const frame = JSON.parse(String(event.payload));
@@ -68,7 +69,7 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     await info.attach('native-decision-service-proof.json', { body: JSON.stringify({ wire, state, proof: await serviceProof() }, null, 2), contentType: 'application/json' });
     const names = ['decisionController', 'decisionChannel', 'decisionState', 'decisionCommit', 'decisionCleanup',
       'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared',
-      'pendingRecovery', 'pendingRecovery.wire', 'actionHooks', 'actionContract'];
+      'pendingRecovery', 'pendingRecovery.wire', 'navigationRecovery', 'actionHooks', 'actionContract'];
     const hashes = Object.fromEntries(names.map(name => [name, createHash('sha256')
       .update(readFileSync(`src/services/agentica/game/${name}.ts`)).digest('hex')]));
     for (const name of ['decision.entry', 'decision.claim', 'terminal.decision', 'terminal.root-stop', 'terminal.ack', 'terminal',

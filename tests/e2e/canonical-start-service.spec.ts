@@ -23,13 +23,13 @@ test.beforeEach(async ({ page, context }) => {
     if (url.origin === serviceOrigin && !['GET /api/starts', 'POST /api/starts/stop', 'GET /api/operations',
       'POST /api/operations/events', 'GET /api/recovery'].includes(request.method() + ' ' + url.pathname))
       throw Error('Unexpected service request: ' + request.method() + ' ' + url.pathname);
-    if (url.origin === browserOrigin && url.pathname === '/@vite/client')
-      return route.fulfill({ contentType: 'application/javascript', body: '' });
     if (url.origin === serviceOrigin) network.push({ method: request.method(), url: request.url(),
       ...(request.postData() ? { body: request.postDataJSON() } : {}) });
     return route.continue();
   });
   page.on('websocket', socket => {
+    const url = new URL(socket.url());
+    if (url.origin === 'ws://127.0.0.1:5258') { expect(url.pathname).toBe('/'); return; }
     expect(socket.url()).toBe('ws://127.0.0.1:5259/api/host');
     socket.on('framesent', event => {
       const frame = JSON.parse(String(event.payload));

@@ -29,7 +29,7 @@ export function GameRecovery({ status, busy, onRetry, onReset, onAgenticaRecover
     </section>
     {confirming && <ConfirmActionDialog
       title="Reset Maze Battle?"
-      message="This discards this game's saves and observation history and takes control from other tabs. Separate expedition data is not cleared. This cannot be undone."
+      message="This discards this game's saves and observation history and takes control from other tabs. Outstanding Agentica obligations must be reconciled first. This cannot be undone."
       confirmLabel="Discard saves and start new game"
       onConfirm={async () => { await onReset(); }}
       onClose={() => setConfirming(false)}

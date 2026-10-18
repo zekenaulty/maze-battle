@@ -80,7 +80,7 @@ describe('explicit original navigation recovery', () => {
     if (reason === 'unfinished') m.inspect.mockResolvedValue({ ...inspection(), operation: {} });
     if (reason === 'root-running') m.read.mockResolvedValue({ ...initial(), value: { ...initial().value, guard: { admissionAttemptId: 'admission' } } });
     if (reason === 'root-changed') m.read.mockResolvedValue({ ...initial(), head: { ...fence, revision: 26 } });
-    if (reason === 'other-owner') port = { ...port, owner: 'other' } as GameSession;
+    if (reason === 'other-owner') Object.defineProperty(port, 'owner', { value: 'other' });
     await expect(run()).rejects.toThrow();
     expect(m.sdk).not.toHaveBeenCalled(); expect(m.driver).not.toHaveBeenCalled(); expect(fetchImpl).not.toHaveBeenCalled();
   });
