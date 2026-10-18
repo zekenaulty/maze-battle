@@ -41,7 +41,6 @@ export class GameSession {
   private active = false;
   private refreshing = false;
   private manualVersion = 0;
-  private manualRunning = false;
   private agenticControl?: { gameId: string; generation: string; epoch: number; release: () => void };
   private readonly lock = new BrowserSaveLock(() => this.stop('Read only: control moved to another tab.'));
   private readonly changed: (view: GameSessionView) => void;
@@ -51,11 +50,11 @@ export class GameSession {
     this.view = { ...this.view, ...patch }; this.changed(this.view);
   }
   private assert(signal: AbortSignal) { signal.throwIfAborted(); if (!this.active) throw new Error('Inactive game session'); }
-  /** Local manual-input exclusion only; host commands still require their ordinary canonical authority. */
+  /** Local exclusion, not host authority. After acquisition, flush and recheck control/Auto before preparing a run. */
   acquireAgenticControl = (): (() => void) => {
     const signal = this.lifetime.signal; this.assert(signal);
     this.assertManualControl();
-    if (!this.view.controlled || this.view.busy || this.view.recoveryRequired || this.manualRunning
+    if (!this.view.controlled || this.view.busy || this.view.recoveryRequired
       || !this.head || this.head.owner !== this.owner || this.head.status !== 'ready'
       || this.lock.supported && !this.lock.held) throw new Error('Game control unavailable');
     const checkpoint = gameCheckpoint(this.head.checkpoint);
@@ -75,10 +74,7 @@ export class GameSession {
   }
   private async manual<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
     const version = this.manualVersion; this.assertManualControl(version);
-    return this.owned(async signal => {
-      this.assertManualControl(version); this.manualRunning = true;
-      try { return await work(signal); } finally { this.manualRunning = false; }
-    });
+    return this.owned(signal => { this.assertManualControl(version); return work(signal); });
   }
   private enqueue<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
     const signal = this.lifetime.signal;

@@ -107,13 +107,20 @@ describe('GameSession Agentic manual-control lease', () => {
     if (!earlyRelease) expect(() => session.acquireAgenticControl()).toThrow('Agentic Play');
     release(); await session.execute('exploration', {}); expect(mocks.exploration).toHaveBeenCalledOnce();
   });
-  it('does not revoke a running manual mutation; acquisition waits for its completion', async () => {
+  it('acquires over a running commit and drains it while refusing manual work queued behind it', async () => {
     const gate = deferred<void>(), entered = deferred<void>();
     mocks.exploration.mockImplementationOnce(async (request: CanonicalRequest) => { entered.resolve(); await gate.promise; return commit(request); });
     const pending = session.execute('exploration', {}); await entered.promise;
-    expect(() => session.acquireAgenticControl()).toThrow('Game control unavailable');
-    gate.resolve(); await pending; const release = session.acquireAgenticControl(); release();
-    await session.execute('exploration', {});
+    const queued = session.execute('roster', {}), outcomes = Promise.allSettled([pending, queued]);
+    const release = session.acquireAgenticControl(); let flushed = false;
+    const barrier = session.flush().then(() => { flushed = true; });
+    await Promise.resolve(); expect(flushed).toBe(false);
+    gate.resolve(); await barrier;
+    expect((await outcomes).map(result => result.status)).toEqual(['fulfilled', 'rejected']);
+    expect(mocks.roster).not.toHaveBeenCalled(); expect(mocks.exploration).toHaveBeenCalledOnce();
+    expect(session.view).toMatchObject({ controlled: true, recoveryRequired: false });
+    await expect(session.execute('exploration', {})).rejects.toThrow('Agentic Play');
+    release(); await session.execute('exploration', {});
   });
   it('continues a queued host command after refusing an older manual admission', async () => {
     const manual = session.execute('exploration', {}), command = host(), pending = session.submitHostCommand(command);
@@ -122,6 +129,27 @@ describe('GameSession Agentic manual-control lease', () => {
     expect(mocks.exploration).not.toHaveBeenCalled(); expect(command.execute).toHaveBeenCalledOnce();
     expect(session.view).toMatchObject({ controlled: true, recoveryRequired: false });
     await expect(session.execute('exploration', {})).rejects.toThrow('Agentic Play'); release();
+  });
+  it('exposes an already-running Auto-on commit for the controller to revalidate after flush', async () => {
+    const gate = deferred<void>(), entered = deferred<void>();
+    mocks.settings.mockImplementationOnce(async (request: CanonicalRequest) => {
+      entered.resolve(); await gate.promise;
+      head = { ...head, checkpoint: checkpointJson({ ...gameCheckpoint(head.checkpoint), mode: 'auto-play' }) }; return commit(request);
+    });
+    const pending = session.execute('settings', { kind: 'auto', enabled: true }); await entered.promise;
+    const release = session.acquireAgenticControl(); gate.resolve(); await session.flush(); await pending;
+    expect(session.view.game?.mode).toBe('auto-play');
+    await expect(session.execute('auto', {})).rejects.toThrow('Agentic Play');
+    release(); expect(() => session.acquireAgenticControl()).toThrow('Disable Auto');
+  });
+  it('does not orphan a lease when the already-running manual commit fails behind the flush barrier', async () => {
+    const gate = deferred<void>(), entered = deferred<void>();
+    mocks.exploration.mockImplementationOnce(async () => { entered.resolve(); await gate.promise; throw Error('Commit failed'); });
+    const pending = session.execute('exploration', {}), settled = Promise.allSettled([pending]); await entered.promise;
+    const release = session.acquireAgenticControl(); gate.resolve(); await session.flush();
+    expect((await settled)[0].status).toBe('rejected'); expect(session.view.recoveryRequired).toBe(true);
+    await session.takeControl(); const current = session.acquireAgenticControl(); release();
+    await expect(session.createManualSave()).rejects.toThrow('Agentic Play'); current();
   });
   it.each(['auto-play', 'town'] as const)('requires explicit ordinary Auto-off before acquiring from %s', async mode => {
     head = { ...head, revision: head.revision + 1, checkpoint: checkpointJson({ ...gameCheckpoint(head.checkpoint), mode,
