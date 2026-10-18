@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 32,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 33,
 2026-10-18. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -499,6 +499,13 @@ restrict cleanup to verified game-owned keys, never generic storage clearing.
 No reads of those values may seed a new game. New-schema startup
 must deliberately offer/reset incompatible own schemas; it must not silently
 repair arbitrary corrupt data or touch unrelated applications on the same origin.
+
+The [explicit interaction operation prerequisite](reviews/issue-11-explicit-interaction-operation.md)
+now composes one-shot shared quest acceptance, chest loot and reward claiming with
+canonical operation custody, atomic host evidence and effect-preserving recovery.
+It is not yet a mounted Agentica interaction capability: disclosed target binding,
+service custody, sanitized results and fresh decision publication remain next.
+Navigation still does not authorize voluntary interaction.
 
 ## Acceptance Not Yet Met
 
