@@ -2,6 +2,7 @@ import type { AgenticaAction } from '../contracts';
 import type { CanonicalHostPort } from '../../game/CanonicalHostCommand';
 import type { CanonicalRecoveryPort } from '../../game/CanonicalHostRecovery';
 import { prepareAction } from '../../../persistence/canonical/agentica/actions';
+import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
 import { validateDecisionClaim } from '../../../persistence/canonical/agentica/decision.claim';
 import { launchStarted } from '../../../persistence/canonical/agentica/launch.wire';
 import type { LaunchStarted } from '../../../persistence/canonical/agentica/launch.types';
@@ -16,19 +17,24 @@ import { decisionState, assertDecisionCurrent, assertDecisionCustody } from './d
 import { decisionCommits } from './decisionCommit';
 import { decisionCleanup } from './decisionCleanup';
 import { deliverDecisionPrefix, readDecisionRemote } from './decisionRemote';
+import { unclaimedPlayAdoption } from './playAdoption';
 
 /** Explicit bounded decision continuation. Construction, preparation and navigation never wake the planner. */
 export async function createGameDecisionController(port: CanonicalHostPort & CanonicalRecoveryPort,
   input: AgenticaAction, inputBinding: ActionBinding, options: { factory?: DecisionSdkFactory; fetchImpl?: typeof fetch;
-    signal?: AbortSignal; onWithdraw?: (reason: DecisionWithdrawal) => void; sameOwnerOnly?: boolean } = {}) {
+    signal?: AbortSignal; onWithdraw?: (reason: DecisionWithdrawal) => void; sameOwnerOnly?: boolean; adoptionOnly?: boolean } = {}) {
+  const { sameOwnerOnly, adoptionOnly } = options;
+  check(!sameOwnerOnly || !adoptionOnly, 'decision owner modes are exclusive');
   const binding = captureBinding(inputBinding), hostSignal = port.hostSignal;
   const lifetime = AbortSignal.any([hostSignal, ...(options.signal ? [options.signal] : [])]); lifetime.throwIfAborted();
   const identity = await prepareAction(input);
   check(port.hostSignal === hostSignal, 'decision game lifetime changed'); lifetime.throwIfAborted();
-  const state = () => decisionState(identity, binding);
+  const state = () => adoptionOnly ? inRecoveryDatabase(lifetime, () => decisionState(identity, binding)) : decisionState(identity, binding);
   const initial = await state(), launch = initial.value.terminal.bound.launch;
+  const owner = initial.head.owner, epoch = initial.head.epoch;
   check(port.hostSignal === hostSignal, 'decision game lifetime changed'); lifetime.throwIfAborted();
-  if (options.sameOwnerOnly) check(launch.guard.owner === initial.head.owner && launch.guard.epoch === initial.head.epoch
+  if (adoptionOnly) check(unclaimedPlayAdoption(initial, { action: identity.action, binding }), 'mounted adoption requires an unclaimed old-owner decision');
+  if (sameOwnerOnly) check(launch.guard.owner === initial.head.owner && launch.guard.epoch === initial.head.epoch
     && identity.action.sessionEpoch === String(initial.head.epoch) && !initial.value.decision?.data.adoption,
   'mounted decision requires the original owner and epoch');
   const release = claimTransportAttachment(launch.binding.launchId);
@@ -39,7 +45,17 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
   const network = boundedGameFetch(work.signal, options.fetchImpl), cleanup = decisionCleanup(port, identity, binding,
     channel.sdk, boundedGameFetch(recovery.signal, options.fetchImpl), recovery.signal, hostSignal);
   const commands = decisionCommits(work.port, identity, binding);
-  let phase = 'prepared', busy = false, connected = false, announcement: LaunchStarted | undefined;
+  let phase = 'prepared', busy = false, connected = false, announcement: LaunchStarted | undefined, preparedAdoption: ProtocolRef | undefined;
+  function assertAdoption(view: typeof initial) {
+    if (!adoptionOnly) return;
+    const { decision, terminal } = view.value, guard = terminal.bound.launch.guard;
+    check(view.head.owner === owner && view.head.epoch === epoch, 'mounted adoption owner changed');
+    check(preparedAdoption && decision && equal(preparedAdoption, decision.reference)
+      && decision.data.adoption && decision.data.adoption.nextSessionEpoch === String(epoch)
+      && decision.data.event.sessionEpoch !== String(epoch), 'mounted adoption requires explicit new-epoch intention');
+    if (!announcement) check((guard.owner !== owner || guard.epoch !== epoch) && terminal.bound.operation.state === 'settled',
+      'mounted adoption root or original settled before service adoption');
+  }
   const close = () => { if (phase === 'closed') return; phase = 'closed'; work.close(); recovery.close(); channel.close(); release(); lifetime.removeEventListener('abort', close); };
   lifetime.addEventListener('abort', close, { once: true });
   if (lifetime.aborted) { close(); lifetime.throwIfAborted(); }
@@ -49,17 +65,29 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
   }
   async function prepare(inputPublication: ProtocolRef) {
     const publication = snapshotReference(inputPublication);
-    return exclusive(async () => { await commands.prepare(publication); return (await state()).value.decision!.reference; });
+    return exclusive(async () => {
+      if (adoptionOnly) {
+        const fresh = await state(); work.signal.throwIfAborted();
+        check(fresh.head.owner === owner && fresh.head.epoch === epoch
+          && unclaimedPlayAdoption(fresh, { action: identity.action, binding }), 'mounted adoption source changed before preparation');
+      }
+      await commands.prepare(publication); work.signal.throwIfAborted();
+      const prepared = (await state()).value.decision!; work.signal.throwIfAborted();
+      if (adoptionOnly) preparedAdoption = snapshotReference(prepared.reference);
+      return prepared.reference;
+    });
   }
   async function advance() {
     work.signal.throwIfAborted(); let view = await state(); work.signal.throwIfAborted();
+    if (adoptionOnly) check(view.head.owner === owner && view.head.epoch === epoch, 'mounted adoption owner changed');
     if (channel.binding) {
       assertDecisionCustody(view);
       return channel.fenced ? { status: 'recovery-required' as const }
         : { status: 'attached' as const, binding: channel.binding, runId: announcement!.runId };
     }
     assertDecisionCurrent(view); const decision = view.value.decision!;
-    if (options.sameOwnerOnly) check(!decision.data.adoption, 'mounted decision cannot adopt another owner or epoch');
+    if (sameOwnerOnly) check(!decision.data.adoption, 'mounted decision cannot adopt another owner or epoch');
+    assertAdoption(view);
     if (!connected) {
       await channel.sdk.connect(); work.signal.throwIfAborted(); connected = true; phase = 'connected';
       return { status: 'connected' as const };
@@ -72,7 +100,7 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
       // Reattach only by exact retained wake/adopt, never resume or create a replacement intention.
       const fresh = await state(); work.signal.throwIfAborted();
       if (channel.fenced) return { status: 'recovery-required' as const };
-      assertDecisionCurrent(fresh); phase = 'waking';
+      assertDecisionCurrent(fresh); assertAdoption(fresh); phase = 'waking';
       const raw = decision.data.adoption ? await channel.sdk.adoptDecision(decision.data.event, decision.data.adoption)
         : await channel.sdk.wakeOperation(decision.data.event);
       work.signal.throwIfAborted();

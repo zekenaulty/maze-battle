@@ -9,7 +9,8 @@ import { deferred } from './transportGate';
 
 const mocks = vi.hoisted(() => ({ state: vi.fn(), current: vi.fn(), custody: vi.fn(), prepare: vi.fn(), claim: vi.fn(),
   grant: vi.fn(), adopt: vi.fn(), cleanup: vi.fn(), ack: vi.fn(), validate: vi.fn(), remote: vi.fn(), prefix: vi.fn(), publication: vi.fn(),
-  hooks: vi.fn(), action: vi.fn(), save: vi.fn(), driver: vi.fn(), boundary: vi.fn(), load: vi.fn(), reconcile: vi.fn() }));
+  hooks: vi.fn(), action: vi.fn(), save: vi.fn(), driver: vi.fn(), boundary: vi.fn(), load: vi.fn(), reconcile: vi.fn(), database: vi.fn() }));
+vi.mock('../../../persistence/canonical/agentica/recovery.database', () => ({ inRecoveryDatabase: mocks.database }));
 vi.mock('./decisionState', () => ({ decisionState: mocks.state, assertDecisionCurrent: mocks.current, assertDecisionCustody: mocks.custody }));
 vi.mock('./decisionCommit', () => ({ decisionCommits: () => ({ prepare: mocks.prepare, claim: mocks.claim, grant: mocks.grant, adopt: mocks.adopt }) }));
 vi.mock('./decisionCleanup', () => ({ decisionCleanup: () => ({ cancel: mocks.cleanup, acknowledge: mocks.ack }) }));
@@ -69,6 +70,7 @@ beforeEach(() => {
   sdk = { connect: vi.fn(async () => {}), close: vi.fn(() => options.onStatus?.({ state: 'disconnected' })), listOperations: vi.fn(),
     signalOperation: vi.fn(), stopDecision: vi.fn(), wakeOperation: vi.fn(async () => started), adoptDecision: vi.fn() };
   m.state.mockImplementation(async () => view); m.publication.mockResolvedValue(successorBinding.publication);
+  m.database.mockImplementation(async (signal, read) => { signal.throwIfAborted(); const result = await read(signal); signal.throwIfAborted(); return result; });
   m.prepare.mockImplementation(async () => { view.value.decision = { reference: ref('decision'), terminal: view.value.terminal,
     data: { adoption: null, event: { sessionEpoch: '1' }, publication: successorBinding.publication } }; });
   m.claim.mockImplementation(async () => { view.value.claim = { data: { started, state: 'waking' }, decision: view.value.decision }; });
