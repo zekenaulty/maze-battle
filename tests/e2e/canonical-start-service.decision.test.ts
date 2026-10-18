@@ -18,11 +18,12 @@ export interface DecisionWire {
   expectedRefusals: { method: 'POST' | 'GET'; path: string; status: 409; code: string }[];
   before: ServiceProof;
 }
-export const test = base.extend<{ wire: DecisionWire }, { decisionService: void }>({
+export const test = base.extend<{ wire: DecisionWire; roomProof: boolean }, { decisionService: void }>({
+  roomProof: [false, { option: true }],
   decisionService: [async ({}, use) => {
     await service.start(); try { await use(); } finally { await service.stop(); }
   }, { scope: 'worker', auto: true }],
-  wire: [async ({ page, context }, use, info) => {
+  wire: [async ({ page, context, roomProof }, use, info) => {
   const wire: DecisionWire = { sent: [], received: [], http: [], responses: [], errors: [], console: [], expectedRefusals: [], before: await serviceProof() };
   const pending: Promise<void>[] = [];
   page.on('pageerror', error => wire.errors.push(error.message));
@@ -60,7 +61,9 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
       wire.received.push({ frame: JSON.parse(String(event.payload)), bytes: Buffer.byteLength(event.payload) });
     });
   });
-  await page.goto('/tests/e2e/canonical-start-service.html'); await page.waitForFunction(() => !!window.canonicalStartService);
+  // The first boot creates the game; an App URL flag supplied later cannot change its seed.
+  await page.goto('/tests/e2e/canonical-start-service.html' + (roomProof ? '?roomProof=1' : ''));
+  await page.waitForFunction(() => !!window.canonicalStartService);
   await page.evaluate(() => window.canonicalStartService.boot());
   try { await use(wire); } finally {
     const state = await page.evaluate(() => window.canonicalStartService.readDecision()).catch(String);

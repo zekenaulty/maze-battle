@@ -9,6 +9,8 @@ import { parseFrontier } from '../../src/services/agentica/game/frontierSelectio
 import type { CellAddress } from '../../src/services/agentica/game/types';
 import type { CellSource } from '../../src/persistence/canonical/knowledge/types';
 
+test.use({ roomProof: true });
+
 const roomWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
 async function pack(page: Page) {
   return page.evaluate(async () => {
@@ -54,11 +56,10 @@ test('actual App explicitly explores one earned room until a source-bound materi
   await expect(dialog).toContainText('decision-room');
   await dialog.getByRole('textbox', { name: 'Objective', exact: true }).fill('Explore the selected earned room until something meaningful changes. Do not collect.');
   await dialog.getByRole('button', { name: 'Start Agentic play', exact: true }).click();
-  await expect.poll(() => wire.sent.filter(frame => frame.type === 'action.result').length).toBe(2);
-  const actions = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload);
-  expect(actions.map(action => action.capabilityId)).toEqual(['maze.inspect', 'maze.explore']);
-  expect(actions[0].arguments).toEqual({ scope: 'frontiers' });
-  const query = wire.sent.find(frame => frame.type === 'action.result' && frame.payload.actionId === actions[0].actionId)!.payload;
+  await expect.poll(() => wire.sent.some(frame => frame.type === 'action.result')).toBe(true);
+  const queryAction = wire.received.find(({ frame }) => frame.type === 'action.request')!.frame.payload;
+  expect(queryAction.capabilityId).toBe('maze.inspect'); expect(queryAction.arguments).toEqual({ scope: 'frontiers' });
+  const query = wire.sent.find(frame => frame.type === 'action.result' && frame.payload.actionId === queryAction.actionId)!.payload;
   expect(query.disposition).toBe('applied');
   expect(query.observation.data.scope).toBe('frontiers'); expect(query.observation.data.frontiers.length).toBeGreaterThan(0);
   const admission = await page.evaluate(() => window.canonicalStartService.snapshot());
@@ -67,6 +68,9 @@ test('actual App explicitly explores one earned room until a source-bound materi
   const selected = candidates.find(candidate => candidate.at.level === actor.level && candidate.at.spaceId === actor.spaceId);
   expect(selected, 'The room fixture must offer a current-space token in its bounded public page').toBeDefined();
   expect(candidates[0].at.spaceId).not.toBe(actor.spaceId);
+  await expect.poll(() => wire.sent.filter(frame => frame.type === 'action.result').length).toBe(2);
+  const actions = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload);
+  expect(actions.map(action => action.capabilityId)).toEqual(['maze.inspect', 'maze.explore']);
   expect(actions[1].arguments).toEqual({ frontier: selected!.frontier, mode: 'room' });
   const selection = parseFrontier(selected!.frontier, admission.launch!.binding.publication);
   expect(selection.at.cell.spaceId).toBe(gameCheckpoint(before.head.checkpoint).position.cell.spaceId);
