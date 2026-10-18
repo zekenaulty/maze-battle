@@ -5,6 +5,8 @@ import { inRecoveryDatabase } from '../../persistence/canonical/agentica/recover
 import { createGrantedLaunchRecovery, createLaunchRecovery } from '../../services/agentica/game/launchRecovery';
 import { recoverGameNavigation } from '../../services/agentica/game/navigationRecovery';
 import { navigationRecoveryStatus } from './navigationRecoveryStatus';
+import { listGamePendingActions, inspectGamePendingAction, reconcileGamePendingAction, isPendingRecoveryInvalidated,
+  type PendingActionPage, type PendingActionSelection } from '../../services/agentica/game/pendingActionRecovery';
 import type { GameSession } from '../../services/game/GameSession';
 import type { GameView } from '../../services/game/GameView';
 
@@ -13,6 +15,7 @@ export type RecoveryInspection = Awaited<ReturnType<typeof inspectAgenticaRecove
 interface State {
   key: object; inventory?: RecoveryInventory; detail?: RecoveryInspection;
   busy?: string; error?: string; service?: string; ended?: boolean;
+  pendingPage?: PendingActionPage; pendingSelection?: PendingActionSelection;
 }
 interface Scope { key: object; abort: AbortController; busy: boolean; close?: () => void }
 export interface RecoveryProps { controller: GameSession; game?: GameView; controlled: boolean }
@@ -34,14 +37,18 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
     if (!s || !alive(s) || s.busy) return;
     s.busy = true; patch(s, { busy: label, error: undefined });
     try { await work(s); }
-    catch (error) { patch(s, { error: error instanceof Error ? error.message.slice(0, 240) : 'Recovery could not be read.' }); }
+    catch (error) {
+      if (isPendingRecoveryInvalidated(error))
+        patch(s, { inventory: undefined, detail: undefined, pendingPage: undefined, pendingSelection: undefined, service: undefined });
+      patch(s, { error: error instanceof Error ? error.message.slice(0, 240) : 'Recovery could not be read.' });
+    }
     finally { s.busy = false; patch(s, { busy: undefined }); }
   }
   async function load(s: Scope) {
     const inventory = await listAgenticaRecovery({ signal: s.abort.signal }); assertAlive(s);
     if (game && (inventory.fence.gameId !== game.id || inventory.fence.generation !== game.snapshot.generation))
       throw new Error('The local game changed. Reopen recovery from the current game.');
-    patch(s, { inventory, detail: undefined });
+    patch(s, { inventory, detail: undefined, pendingPage: undefined, pendingSelection: undefined });
   }
   useEffect(() => {
     const s: Scope = { key, abort: new AbortController(), busy: false }; scope.current = s;
@@ -59,11 +66,11 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
 
   const view: State = state.key === key ? state : { key };
   const refresh = () => run(scope.current, 'Reading local records', async s => {
-    patch(s, { inventory: undefined, detail: undefined, service: undefined }); await load(s);
+    patch(s, { inventory: undefined, detail: undefined, service: undefined, pendingPage: undefined, pendingSelection: undefined }); await load(s);
   });
   const inspect = (candidate: RecoveryCandidate) => run(scope.current, 'Inspecting original', async s => {
     if (!view.inventory) return;
-    patch(s, { detail: undefined, service: undefined });
+    patch(s, { detail: undefined, service: undefined, pendingPage: undefined, pendingSelection: undefined });
     const detail = await inspectAgenticaRecovery(view.inventory.fence, candidate, { signal: s.abort.signal });
     assertAlive(s); patch(s, { detail });
   });
@@ -76,6 +83,29 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
       assertAlive(s); hostSignal.throwIfAborted();
       patch(s, { service: navigationRecoveryStatus(result), detail: undefined });
       await load(s);
+    });
+  const runPending = (action: { kind: 'list'; afterActionId?: string } | { kind: 'inspect'; actionId: string } | { kind: 'reconcile' }) =>
+    run(scope.current, action.kind === 'list' ? 'Checking action custody' : action.kind === 'inspect' ? 'Inspecting pending action' : 'Reconciling pending action', async s => {
+      const detail = view.detail;
+      if (!detail?.claim) return;
+      assertAlive(s); patch(s, { service: undefined });
+      const args = [controller, detail.fence, detail.candidate] as const, options = { signal: s.abort.signal };
+      if (action.kind === 'list') {
+        patch(s, { pendingPage: undefined, pendingSelection: undefined });
+        const pendingPage = await listGamePendingActions(...args, { ...options, afterActionId: action.afterActionId });
+        assertAlive(s); patch(s, { pendingPage });
+      } else if (action.kind === 'inspect') {
+        const item = view.pendingPage?.items.find(item => item.actionId === action.actionId);
+        if (!item) throw new Error('Select an action from the current page.');
+        patch(s, { pendingSelection: undefined });
+        const pendingSelection = await inspectGamePendingAction(...args, item, options);
+        assertAlive(s); patch(s, { pendingSelection });
+      } else {
+        if (!view.pendingSelection) throw new Error('Inspect the selected action first.');
+        await reconcileGamePendingAction(...args, view.pendingSelection, options); assertAlive(s);
+        patch(s, { service: 'Action reconciled as unavailable. Root and session clearance remain unknown.' });
+        await load(s);
+      }
     });
   const runService = (action: 'inspect' | 'stop') => run(scope.current, action === 'stop' ? 'Stopping root session' : 'Checking service', async s => {
     const inventory = view.inventory, active = inventory?.active;
@@ -112,5 +142,5 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
     patch(s, { service: message + ' Session clearance remains unknown.', detail: undefined });
     if (action === 'stop') await load(s);
   });
-  return { ...view, refresh, inspect, runNavigation, runService, serviceAvailable: !hostSignal.aborted };
+  return { ...view, refresh, inspect, runNavigation, runPending, runService, serviceAvailable: !hostSignal.aborted };
 }

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { fixtureEnvironment } from './service.mjs';
 
-const pin = '90a8798ac45ee783991ccc993bd34faf573461e4';
+const pin = '27cb2ce9717438edfe19487e3920faa183112c97';
 const { values } = parseArgs({ options: { 'agentica-root': { type: 'string' }, grep: { type: 'string' } }, allowPositionals: false });
 const external = values['agentica-root'];
 if (!external || !path.isAbsolute(external)) throw Error('Usage: node run.mjs --agentica-root ABSOLUTE_ROOT [--grep PATTERN]');

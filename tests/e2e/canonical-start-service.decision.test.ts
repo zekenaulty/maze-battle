@@ -33,7 +33,7 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     if (url.origin === serviceOrigin) {
       if (!['GET /api/operations', 'POST /api/operations/events', 'POST /api/operations/stop-decision',
         'GET /api/starts', 'POST /api/starts/stop', 'GET /api/recovery', 'GET /api/recovery/action',
-        'POST /api/recovery'].includes(request.method() + ' ' + url.pathname))
+        'GET /api/recovery/run', 'POST /api/recovery'].includes(request.method() + ' ' + url.pathname))
         throw Error('Unexpected service request: ' + request.method() + ' ' + url.pathname);
       wire.http.push({ method: request.method(), url: request.url(), ...(request.postData()
         ? { body: request.postDataJSON(), serializedBody: request.postData()! } : {}) });
@@ -69,12 +69,18 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     await info.attach('native-decision-service-proof.json', { body: JSON.stringify({ wire, state, proof: await serviceProof() }, null, 2), contentType: 'application/json' });
     const names = ['decisionController', 'decisionChannel', 'decisionState', 'decisionCommit', 'decisionCleanup',
       'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared',
-      'pendingRecovery', 'pendingRecovery.wire', 'navigationRecovery', 'actionHooks', 'actionContract'];
+      'pendingRecovery', 'pendingRecovery.wire', 'pendingRecovery.errors', 'pendingActionRecovery',
+      'pendingActionRecovery.context', 'pendingActionRecovery.wire', 'navigationRecovery', 'actionHooks', 'actionContract'];
     const hashes = Object.fromEntries(names.map(name => [name, createHash('sha256')
       .update(readFileSync(`src/services/agentica/game/${name}.ts`)).digest('hex')]));
     for (const name of ['decision.entry', 'decision.claim', 'terminal.decision', 'terminal.root-stop', 'terminal.ack', 'terminal',
-      'pregrant-proof', 'pregrant-proof.records', 'recovery.database']) {
+      'pregrant-proof', 'pregrant-proof.records', 'recovery.database', 'recovery', 'recovery.inspect', 'recovery.records',
+      'recovery.claimed', 'decision.claim.locator']) {
       const file = `src/persistence/canonical/agentica/${name}.ts`;
+      hashes[file] = createHash('sha256').update(readFileSync(file)).digest('hex');
+    }
+    for (const name of ['AgenticaRecovery.tsx', 'useAgenticaRecovery.ts', 'PendingActions.tsx']) {
+      const file = `src/components/agentic/${name}`;
       hashes[file] = createHash('sha256').update(readFileSync(file)).digest('hex');
     }
     await info.attach('runtime-source-sha256.json', { body: JSON.stringify(hashes, null, 2), contentType: 'application/json' });

@@ -60,7 +60,7 @@ test.afterEach(async ({ page }, info) => {
   if (!scripted) { expect(actions).toEqual([]); expect(results).toEqual([]); }
   expect(errors).toEqual([]);
   expect(incomingBytes.filter(frame => frame.bytes > 64 * 1024)).toEqual([]);
-  expect(proof).toMatchObject({ source: '90a8798ac45ee783991ccc993bd34faf573461e4', paidProviderCalls: 0 });
+  expect(proof).toMatchObject({ source: '27cb2ce9717438edfe19487e3920faa183112c97', paidProviderCalls: 0 });
   expect(proof.cancelled).toBe(proof.entered);
 });
 async function serviceProof(): Promise<ServiceProof> {

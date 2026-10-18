@@ -45,7 +45,7 @@ async function boot() {
   const app = (globalThis as typeof globalThis & { __canonicalStartAppSession?: GameSession }).__canonicalStartAppSession;
   session = app ?? new GameSession(() => {});
   if (app) await session.flush(); else await session.start();
-  if (!session.view.controlled) throw Error(session.view.status);
+  if (!session.view.controlled && !(app && session.view.recoveryRequired)) throw Error(session.view.status);
   return (await readCanonicalHead()).head;
 }
 async function snapshot() {
