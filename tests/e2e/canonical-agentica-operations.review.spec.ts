@@ -7,6 +7,14 @@ test('review: valid fresh-publication admission can be confirmed', async ({ page
     return probes.newPublication();
   });
   console.log('FRESH_PUBLICATION', JSON.stringify(result));
+  expect(result.unselected).toContain('publication or grant is not selected for current custody');
+  expect(result.unselectedUnchanged).toBe(true);
+  expect(result.selection.before.publication).toEqual(result.oldPublication);
+  expect(result.selection.after.publication).toEqual(result.publication);
+  expect(result.selection.after.grant).toEqual(result.selection.before.grant);
+  expect(result.selection.after.previousSelection).toEqual(result.selection.previous);
+  expect(result.selection.current).not.toEqual(result.selection.previous);
+  expect(result.selection.historicalUnchanged).toBe(true); expect(result.selection.domainUnchanged).toBe(true);
   expect(result.admission).toBe('applied');
   expect(result.confirmation).toBe('accepted');
   expect(result.wrongPublication).toContain('original grant changed'); expect(result.wrongUnchanged).toBe(true);

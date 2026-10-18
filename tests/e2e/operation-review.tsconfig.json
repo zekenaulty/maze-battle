@@ -1,0 +1,1 @@
+{ "extends": "../../tsconfig.json", "include": ["operation-review*.ts", "canonical-agentica-operations.review.spec.ts", "canonical-agentica-operations.failures.spec.ts"] }

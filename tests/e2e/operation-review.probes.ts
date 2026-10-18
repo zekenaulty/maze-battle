@@ -1,8 +1,11 @@
 import type {} from './canonical-agentica-operations.fixture';
 import { createGameActionHooks } from '../../src/services/agentica/game/actionHooks';
+import { renewGamePublication } from '../../src/services/agentica/game/publication';
 import type { CanonicalHostPort } from '../../src/services/game/CanonicalHostCommand';
 import { actionFingerprint, actionKey } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { retainPublication } from '../../src/persistence/canonical/agentica/publication';
+import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
+import { readPublicationSelection, readPublicationSelectionRecord } from '../../src/persistence/canonical/agentica/publication-selection';
 import { readCanonical, snapshotOf } from '../../src/persistence/canonical/read';
 import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { observeMaze } from '../../src/services/agentica/game/observation';
@@ -29,6 +32,18 @@ export async function newPublication() {
   const action = { ...s.action, actionId: crypto.randomUUID(), runnerRunId: crypto.randomUUID(), stepId: crypto.randomUUID(),
     expectedRevision: observation.revision };
   const hooks = createGameActionHooks(port, binding);
+  const launchId = (await readLaunch()).value!.binding.launchId;
+  const previous = (await readCanonical(pages => readPublicationSelection(pages, launchId))).value;
+  if (!previous) throw Error('Missing retained publication selection');
+  const beforeSelection = await f.dump();
+  const unselected = await hooks.saveAction!(actionKey(action), { fingerprint: actionFingerprint(action), status: 'pending' })
+    .then(() => 'accepted', String);
+  const unselectedUnchanged = beforeSelection === await f.dump();
+  await renewGamePublication(port, { launchId, grant: binding.grant, publication,
+    previousSelection: previous.ref });
+  const selected = (await readCanonical(pages => readPublicationSelection(pages, launchId))).value!;
+  const historical = (await readCanonical(pages => readPublicationSelectionRecord(pages, previous.ref))).value;
+  const afterSelection = (await f.readCanonicalHead()).head;
   await hooks.saveAction!(actionKey(action), { fingerprint: actionFingerprint(action), status: 'pending' });
   const admission = await hooks.onAction!(action);
   if (!admission.operation) throw Error(`Fresh admission failed: ${JSON.stringify(admission)}`);
@@ -40,10 +55,14 @@ export async function newPublication() {
   const retained = (await f.read(action)).value;
   if (retained) await f.acceptCustody(action, entry);
   const moved = retained ? (await f.advance(action)).state : null;
-  return { oldPublication: s.binding.publication, publication, admission: admission.disposition,
+  return { oldPublication: s.binding.publication, publication, admission: admission.disposition, unselected, unselectedUnchanged,
+    selection: { previous: previous.ref, current: selected.ref, before: previous.value.data, after: selected.value.data,
+      historicalUnchanged: JSON.stringify(historical) === JSON.stringify(previous),
+      domainUnchanged: current.roots.world === afterSelection.roots.world && current.roots.knowledge === afterSelection.roots.knowledge
+        && JSON.stringify(current.checkpoint) === JSON.stringify(afterSelection.checkpoint) },
     operation: admission.operation.operationId, confirmation, wrongPublication, wrongUnchanged,
     retainedPublication: retained?.confirmation.data.binding.publication, startObservation: retained?.confirmation.data.entry.request.observation.observationId,
-    steps: moved?.progress.steps };
+    steps: moved?.kind === 'navigation' ? moved.progress.steps : undefined };
 }
 
 export async function predecessor(damage: 'receipt' | 'body' | 'record' | 'witness' | 'source') {
