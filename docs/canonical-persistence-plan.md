@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 30,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 31,
 2026-10-18. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -125,6 +125,11 @@ discloses retained settings; explicit input revalidates the exact offer after
 acquiring control. The canonical decision claim precedes guard adoption and
 successor admission. Continue uses validated retained service usage, not a local
 counter. Old-owner intentions/claims remain recovery-only; no automatic renewal.
+The [earned-frontier approach increment](reviews/issue-11-earned-frontier-approach.md)
+adds bounded current-sight frontier inspection and explicit source-bound approach
+through the same navigation, GameSession and durable Agentica protocol. It stops
+at the selected anchor, not at an invented hidden destination. Corridor/room
+continuation, material-surprise handling and quest collection remain below.
 
 ## Authority and Supersession
 
@@ -345,8 +350,16 @@ P1 storage contracts are split as follows:
   withdraws stale offers. Validated service usage gates further continuation;
   an exhausted allowance is distinguished from its pending read. An old-owner
   intention/claim is not silently replaced with a new one.
-- **P3 Agentica, remaining:** bounded frontier exploration and ordinary quest
-  collection. Preserve earned-only room/map/frontier scope and explicit
+- **P3 frontier approach, checked:** bounded current-sight query, exact
+  publication/source selection, nonzero earned route, original limits and
+  explicit decision on arrival. Missing remembered-neighbor index entries fail
+  complete-block integrity checks. No hidden-world selection or incidental loot.
+  Older knowledge without integrity evidence requires explicit guarded reset;
+  no schema auto-upgrade, migration or silent evidence repair was introduced.
+- **P3 Agentica, remaining:** lawful continuation beyond the selected approach,
+  room-level/material-observation decision policy and ordinary quest collection.
+  An empty current-sight page is not proof that the floor is fully explored.
+  Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
   never equate a navigation/root ACK with clearance of every remote action.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
@@ -482,8 +495,9 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
 to arbitrary history. Initial canonical Agentica execution, explicit same-owner
-continuation and inspected new-owner adoption are now mounted; bounded frontier,
-explicit ordinary quest collection and full multi-controller depth/revisit/Q
+continuation, inspected new-owner adoption and source-bound frontier approach
+are now mounted; exploration continuation/material decisions, explicit ordinary
+quest collection and full multi-controller depth/revisit/Q
 remain mandatory. The actual-App execution/recovery proofs do not qualify those
 remaining flows or full RPG parity.
 Pending-action recovery now has exact durable rediscovery

@@ -1,31 +1,28 @@
 {
-  "base": "ae0b51fc4179d0f81f01359be3c07d66d76399a2",
-  "branch": "codex/canonical-frontier-native",
+  "runtime": "84f79cc329c2effc6499e35f1e8e0ee58a031a06",
+  "branch": "codex/agentic-game-a1",
   "scope": "Native canonical frontier approach only; no corridor continuation or material-stop policy",
   "origin": "http://127.0.0.1:5290",
-  "serverStarted": false,
   "checks": {
-    "discovery": { "status": "PASS", "tests": 33, "files": 4,
-      "command": "node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-frontier.config.ts --list" },
-    "baseTypecheck": { "status": "BLOCKED", "reason": "Base lacks knowledge/frontiers and createFrontierBinding; no replacement production modules added",
-      "command": "node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-frontier.tsconfig.json" },
-    "draftOverlayTypecheck": { "status": "FAIL", "fixtureDiagnostics": 0, "dependencyDiagnostics": 1,
-      "reason": "Read-only compiler overlay of actual owner drafts: knowledge/frontiers.ts:15 TS2352, Json-to-WorldPosition cast" },
-    "browser": { "status": "NOT-RUN", "owner": "parent after dependency integration",
-      "command": "node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-frontier.config.ts" }
+    "browser": {
+      "status": "PASS",
+      "passed": 33,
+      "failed": 0,
+      "retries": 0,
+      "durationSeconds": 49.1,
+      "command": "node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-frontier.config.ts",
+      "results": "test-results/canonical-frontier/results.json"
+    },
+    "typecheck": {
+      "status": "PASS",
+      "command": "node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-frontier.tsconfig.json"
+    }
   },
-  "overlaySources": [
-    { "root": "dungeon-d0/maze-battle", "file": "src/persistence/canonical/navigation/commands.ts", "sha256": "b1034620aaace91330128bf348f57b3109611149edb9ba2338c76fd87f3acfe2" },
-    { "root": "dungeon-d0/maze-battle", "file": "src/persistence/canonical/navigation/types.ts", "sha256": "e653f9760764f45c62f8686df29ab0dfef638336a7a6e693792ba70751d3cc4c" },
-    { "root": "dungeon-d0/maze-battle", "file": "src/persistence/canonical/navigation/validation.ts", "sha256": "6e3d8590d9c4737dbb59d6161cd2d101fbd449e7ccf9641ed902d5b271239126" },
-    { "root": "maze-app-recovery/maze-battle", "file": "src/persistence/canonical/knowledge/frontiers.ts", "sha256": "5ce7294c4d081d25a535f50ec12277d343030a0ad9e93bc3d7bf1611c5ed5e70" },
-    { "root": "maze-app-recovery/maze-battle", "file": "src/persistence/canonical/knowledge/frontiers.read.ts", "sha256": "c5e77ab154c3992befc425a9615b33c29e7ac808fafef6d06197cc6310ce80d7" }
-  ],
+  "report": "docs/reviews/issue-11-earned-frontier-approach.md",
   "evidenceLimits": [
-    "Generated seed-one qualified ordinary floor with one initial look; browser validity remains unverified until parent runs",
-    "Native retained-command replay only, not a real-service HTTP lost-reply qualification",
-    "No Agentica wire, opaque selection token or service decision-delivery proof in this lane",
-    "No authored opposite A/B world or full-A2 claim",
-    "No providers, services, existing-config changes or access to the user origin on port 5198"
+    "Generated seed-one qualified floor with one initial look, not authored two-dungeon Q",
+    "Native retained-command replay; separate actual-App service cohort proves protocol composition",
+    "No corridor continuation, material-stop policy, automatic objective selection or quest collection",
+    "No providers or access to the user origin on port 5198"
   ]
 }

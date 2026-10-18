@@ -1,13 +1,34 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 29 cases, including two actual-App recovery cases,
+tests. Current cohort: 30 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
 positive and stale-offer/takeover cases, including exact retained settings and
-validated exhausted allowance. This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-mounted-adoption.md).
+validated exhausted allowance. The earned-frontier case adds current-sight
+inspection and explicit source-bound approach through the same mounted game.
+This is not a parallel game or live-provider test.
+[Current evidence and limits](../../docs/reviews/issue-11-earned-frontier-approach.md).
+
+## Earned Frontier Increment (2026-10-18)
+
+The complete cohort passes 30/30 at Maze `84f79cc`, pinned Agentica `27cb2ce`,
+with retained evidence at `test-results/maze-start-service-d4Aypm/` (267.35s,
+zero skips/retries). The fixture pins generator seed 2; production generation,
+initial sight and persistence still execute normally. `decision-frontier` is an
+offline planner: inspect current frontiers, then copy the first public selection
+token unchanged. Two explicitly started windows produce four actions and fourteen
+local steps (7 + 7), with no planner calls during those steps. The planner has no
+hidden coordinates, seed access or pre-discovered route. Actual checkpoints must
+equal the selected anchors; pack and world roots remain unchanged.
+
+This proves bounded approach, not autonomous corridor continuation, material
+surprise handling, quest collection, the authored two-dungeon corpus, or model
+decision quality. Explicit recovery delivers the retained child's progress and
+decision before root Stop; exact ACKs release reservations, while session-wide
+remote clearance remains UNKNOWN. Earlier empty-frontier and cleanup-order
+fixture failures are recorded in the report rather than hidden by retries.
 
 ## Sources and prerequisites
 
