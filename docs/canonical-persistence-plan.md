@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 31,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 32,
 2026-10-18. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -128,8 +128,12 @@ counter. Old-owner intentions/claims remain recovery-only; no automatic renewal.
 The [earned-frontier approach increment](reviews/issue-11-earned-frontier-approach.md)
 adds bounded current-sight frontier inspection and explicit source-bound approach
 through the same navigation, GameSession and durable Agentica protocol. It stops
-at the selected anchor, not at an invented hidden destination. Corridor/room
-continuation, material-surprise handling and quest collection remain below.
+at the selected anchor, not at an invented hidden destination. The newer
+[bounded-space increment](reviews/issue-11-bounded-space-exploration.md) adds
+explicit current-space continuation and source-bound material decisions. Its
+native/runtime checks pass; the first expanded real-service fixture correctly
+refused an out-of-scope selection and is being corrected. Quest collection and
+the full qualification corpus remain below.
 
 ## Authority and Supersession
 
@@ -356,8 +360,13 @@ P1 storage contracts are split as follows:
   complete-block integrity checks. No hidden-world selection or incidental loot.
   Older knowledge without integrity evidence requires explicit guarded reset;
   no schema auto-upgrade, migration or silent evidence repair was introduced.
-- **P3 Agentica, remaining:** lawful continuation beyond the selected approach,
-  room-level/material-observation decision policy and ordinary quest collection.
+- **P3 local exploration, runtime/native checked:** explicit `mode: "room"`,
+  same-space earned waypoints, material observation decisions and original limits.
+  A retained 21x21 window prevents oscillation or target loss during path refills.
+  Local scope exhaustion is not a room/floor completion claim. Actual-service
+  qualification of this mode remains pending; see the increment report.
+- **P3 Agentica, remaining:** sustained coverage/remembered off-window return,
+  actual-service material-decision qualification and ordinary quest collection.
   An empty current-sight page is not proof that the floor is fully explored.
   Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
@@ -496,8 +505,9 @@ The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
 to arbitrary history. Initial canonical Agentica execution, explicit same-owner
 continuation, inspected new-owner adoption and source-bound frontier approach
-are now mounted; exploration continuation/material decisions, explicit ordinary
-quest collection and full multi-controller depth/revisit/Q
+are now mounted; explicit local exploration/material decisions have runtime and
+native proof, with the new actual-service case still pending. Ordinary quest
+collection and full multi-controller depth/revisit/Q
 remain mandatory. The actual-App execution/recovery proofs do not qualify those
 remaining flows or full RPG parity.
 Pending-action recovery now has exact durable rediscovery
