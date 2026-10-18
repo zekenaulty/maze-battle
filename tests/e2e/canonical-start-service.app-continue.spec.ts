@@ -40,6 +40,7 @@ test('actual App continues one decision only on explicit input and preserves the
   await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 20_000 });
   await expect(dialog.getByRole('alert')).toHaveCount(0);
   await expect(dialog.getByRole('textbox', { name: 'Objective', exact: true })).toHaveValue(objective);
+  await expect(dialog.getByRole('status').filter({ hasText: /Execution allowance exhausted\./ })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
   const second = await page.evaluate(() => window.canonicalStartService.snapshot()), counters = await serviceProof();
   expect(counterDelta(counters, initialCounters)).toEqual({ created: 2, initial: scriptedWindow, successor: scriptedWindow });

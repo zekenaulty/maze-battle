@@ -33,7 +33,8 @@ export function App() {
   const openRecovery = () => { agentic.recover(); open('agentic-recovery'); };
   const openAgentic = () => open(agentic.profile || agentic.configurationError ? 'agentic' : 'agentic-recovery');
   const agenticaRecovery = dialog === 'agentic-recovery' && <AgenticaRecovery controller={session.controller}
-    game={game} controlled={session.controlled} onClose={() => setDialog(undefined)} />;
+    game={game} controlled={session.controlled} onClose={() => setDialog(undefined)}
+    onAdopt={offer => { agentic.adoptDecision(offer); open('agentic'); }} />;
   if (!game || recovering) return <><GameRecovery status={session.status} busy={session.busy}
     onRetry={session.retry} onReset={newGame} onAgenticaRecovery={openRecovery} />{agenticaRecovery}</>;
   const shared = { onCharacters: () => open('characters'), onSaves: openSaves,

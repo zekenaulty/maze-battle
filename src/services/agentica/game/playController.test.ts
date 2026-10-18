@@ -11,9 +11,11 @@ import type { GameLaunchOptions } from './launch';
 import { deferred } from './transportGate';
 import { mazeCapabilities } from './capabilities';
 import type { PlayDecisionOptions } from './playDecision';
+import type { PlayAdoptionOffer } from './playAdoption';
 
 const m = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), execute: vi.fn(), publication: vi.fn(),
-  hooks: vi.fn(), action: vi.fn(), save: vi.fn(), load: vi.fn(), reconcile: vi.fn(), driver: vi.fn(), stop: vi.fn(), decision: vi.fn() }));
+  hooks: vi.fn(), action: vi.fn(), save: vi.fn(), load: vi.fn(), reconcile: vi.fn(), driver: vi.fn(), stop: vi.fn(), decision: vi.fn(),
+  adoption: vi.fn(), allowance: vi.fn() }));
 vi.mock('../../../persistence/canonical/agentica/launch', () => ({ readLaunch: m.read, executeLaunchCommand: m.execute }));
 vi.mock('../../../persistence/canonical/agentica/publication', () => ({ assertPublicationCurrent: m.publication }));
 vi.mock('./launch', () => ({ prepareGameLaunch: m.prepare }));
@@ -23,6 +25,8 @@ vi.mock('./manifestDigest', () => ({ mazeManifestDigest: async () => `sha256:${'
 vi.mock('./operationDriver', () => ({ createGameOperationDriver: m.driver }));
 vi.mock('./playStop', () => ({ stopGamePlay: m.stop }));
 vi.mock('./playDecision', () => ({ startPlayDecision: m.decision }));
+vi.mock('./playAdoption', () => ({ inspectPlayAdoption: m.adoption }));
+vi.mock('./playAllowance', () => ({ readPlayDecisionAllowance: m.allowance }));
 
 // Real controller, transport correlation/gates, wire validators and navigation timer. No database,
 // WebSocket, HTTP, provider, or real operation driver: these are lifecycle tests, not custody proof.
@@ -84,6 +88,7 @@ beforeEach(() => {
   m.hooks.mockReturnValue({ onAction: m.action, saveAction: m.save, loadAction: m.load, reconcileAction: m.reconcile });
   m.stop.mockResolvedValue('Original root acknowledged.');
   m.decision.mockReturnValue({ close: vi.fn() });
+  m.allowance.mockResolvedValue(1);
   controller = createGamePlayController(session, changed, hooks => {
     options = hooks;
     return { connect, startDurable, close: sdkClose } as unknown as AgenticaHost;
@@ -104,14 +109,19 @@ describe('explicit same-owner continuation mount', () => {
     expect(runner().original).toEqual({ action, binding: { grant: ref, publication: ref } });
     expect(startDurable).toHaveBeenCalledOnce(); expect(acquire).toHaveBeenCalledOnce(); expect(releaseControl).not.toHaveBeenCalled();
     expect(() => controller.continueDecision()).toThrow('explicit available decision');
+    m.allowance.mockResolvedValueOnce(0);
     runner().onDecision({ action: { ...action, actionId: 'successor' }, binding: { grant: ref, publication: ref } },
       { phase: 'decision', message: 'Next decision', canContinue: true });
+    await vi.advanceTimersByTimeAsync(0);
     expect(controller.state).toMatchObject({ phase: 'decision', canContinue: false, active: true });
     expect(() => controller.continueDecision()).toThrow();
     await controller.stop(); expect(releaseControl).toHaveBeenCalledOnce();
   });
   it.each(['idle', 'running', 'navigating', 'nondecision terminal', 'zero limit'])('does not offer continuation at %s', async phase => {
-    if (phase === 'zero limit') await controller.start({ ...config, limits: { ...config.limits, maxPlanContinuations: 0 } });
+    if (phase === 'zero limit') {
+      m.allowance.mockResolvedValue(0);
+      await controller.start({ ...config, limits: { ...config.limits, maxPlanContinuations: 0 } });
+    }
     else if (phase !== 'idle') await attached();
     if (['navigating', 'nondecision terminal', 'zero limit'].includes(phase)) {
       await options.onAction(action);
@@ -138,6 +148,66 @@ describe('explicit same-owner continuation mount', () => {
   });
   it('a stale lifetime cannot continue a retained boundary', async () => {
     await boundary(); host.abort(); expect(() => controller.continueDecision()).toThrow();
+    expect(m.decision).not.toHaveBeenCalled(); expect(releaseControl).toHaveBeenCalledOnce();
+  });
+  it('does not enable a continuation from a late allowance read after Stop', async () => {
+    await navigating(); const barrier = hold(m.allowance); pulse.mockResolvedValueOnce({ status: 'decision-required' });
+    await vi.advanceTimersByTimeAsync(250); await barrier.entered;
+    await controller.stop(); const updates = changes.length; barrier.release(); await vi.advanceTimersByTimeAsync(0);
+    expect(changes).toHaveLength(updates); expect(controller.state.canContinue).toBe(false);
+  });
+  it.each(['resolve', 'reject'])('a late allowance %s cannot change a replacement attempt', async outcome => {
+    const allowance = deferred<number>();
+    await navigating(); m.allowance.mockReturnValueOnce(allowance.promise);
+    pulse.mockResolvedValueOnce({ status: 'decision-required' });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(controller.state.message).toBe('Checking retained execution allowance.');
+    await controller.stop(); retained = null; await attached();
+    const before = controller.state, updates = changes.length;
+    if (outcome === 'resolve') allowance.resolve(1); else allowance.reject(Error('Old allowance failure'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.state).toEqual(before); expect(changes).toHaveLength(updates);
+  });
+});
+
+describe('explicit inspected-original adoption mount', () => {
+  const offer: PlayAdoptionOffer = {
+    fence: { generation: 'generation', gameId: 'game', owner: 'owner', epoch: 2, revision: 3 },
+    candidate: { operationId: 'navigation', original: ref, binding: { grant: ref, publication: ref } },
+    launchId: 'retained-launch', original: { action, binding: { grant: ref, publication: ref } },
+    objective: 'Original objective', profile: { endpoint: config.endpoint, provider: config.provider, limits: config.limits },
+    remainingContinuations: 1,
+  };
+  beforeEach(() => { m.adoption.mockResolvedValue(structuredClone(offer)); });
+  it('rereads the exact offer before adopting and discloses its retained profile without a new launch', async () => {
+    await controller.adoptDecision(offer);
+    expect(m.adoption).toHaveBeenCalledWith(session, offer.fence, offer.candidate, { signal: expect.any(AbortSignal) });
+    expect(m.decision).toHaveBeenCalledWith(expect.objectContaining({ original: offer.original, mode: 'adopt' }));
+    expect(controller.state).toMatchObject({ active: true, launchId: offer.launchId, objective: offer.objective, profile: offer.profile });
+    expect(m.prepare).not.toHaveBeenCalled(); expect(startDurable).not.toHaveBeenCalled();
+    expect(acquire).toHaveBeenCalledOnce(); expect(() => controller.adoptDecision(offer)).toThrow();
+    await controller.stop(); expect(m.stop).toHaveBeenCalledWith(session, offer.launchId, host.signal);
+  });
+  it.each(['null', 'objective', 'profile', 'fence'])('a changed %s offer cannot execute or Stop an unvalidated root', async change => {
+    const stale = structuredClone(offer);
+    if (change === 'objective') stale.objective = 'Changed';
+    if (change === 'profile') stale.profile.provider.model = 'Changed';
+    if (change === 'fence') stale.fence.revision++;
+    m.adoption.mockResolvedValue(change === 'null' ? null : stale);
+    await controller.adoptDecision(offer);
+    expect(m.decision).not.toHaveBeenCalled(); expect(controller.state.phase).toBe('recovery');
+    expect(controller.state.launchId).toBeUndefined();
+    await controller.stop(); expect(m.stop).not.toHaveBeenCalled(); expect(releaseControl).toHaveBeenCalledOnce();
+  });
+  it.each(['flush', 'inspection'])('Stop overtakes adoption %s without waiting for a late read', async stage => {
+    const barrier = hold(stage === 'flush' ? flush : m.adoption), pending = controller.adoptDecision(offer);
+    await barrier.entered; await controller.stop(); expect(controller.state.phase).toBe('stopped');
+    expect(m.stop).not.toHaveBeenCalled(); expect(releaseControl).toHaveBeenCalledOnce();
+    barrier.release(); await pending; expect(m.decision).not.toHaveBeenCalled();
+  });
+  it('a replaced lifetime during offer inspection cannot mount adoption', async () => {
+    const barrier = hold(m.adoption), pending = controller.adoptDecision(offer);
+    await barrier.entered; host.abort(); barrier.release(); await pending;
     expect(m.decision).not.toHaveBeenCalled(); expect(releaseControl).toHaveBeenCalledOnce();
   });
 });

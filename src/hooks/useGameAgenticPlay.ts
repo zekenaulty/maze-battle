@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GameSession } from '../services/game/GameSession';
 import { readGameAgenticaProfile } from '../config/agentica';
 import { createGamePlayController, idleGamePlay } from '../services/agentica/game/playController';
+import type { PlayAdoptionOffer } from '../services/agentica/game/playAdoption';
 
 const configuration = readGameAgenticaProfile(import.meta.env);
 
@@ -22,6 +23,12 @@ export function useGameAgenticPlay(session: GameSession) {
     } catch (error) { setState(current => ({ ...current, error: String(error).slice(0, 240) })); }
   };
   const stop = () => { void controller.current?.stop(); };
+  const adoptDecision = (offer: PlayAdoptionOffer) => {
+    try {
+      controller.current ??= createGamePlayController(session, setState);
+      void controller.current.adoptDecision(offer);
+    } catch (error) { setState(current => ({ ...current, error: String(error).slice(0, 240) })); }
+  };
   const continueDecision = () => {
     try { void controller.current?.continueDecision(); }
     catch (error) { setState(current => ({ ...current, error: String(error).slice(0, 240) })); }
@@ -30,5 +37,7 @@ export function useGameAgenticPlay(session: GameSession) {
     controller.current?.close(); controller.current = undefined;
     setState({ phase: 'recovery', active: false, message: 'Live execution withdrawn. Retained work requires reconciliation.' });
   };
-  return { ...state, profile: configuration.profile, configurationError: configuration.error, start, continueDecision, stop, recover };
+  return { ...state, profile: state.active && state.profile ? state.profile : configuration.profile,
+    configurationError: state.active && state.profile ? undefined : configuration.error,
+    start, continueDecision, adoptDecision, stop, recover };
 }

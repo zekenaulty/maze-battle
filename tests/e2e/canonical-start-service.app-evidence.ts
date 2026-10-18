@@ -24,10 +24,12 @@ export async function appNavigationEvidence(initial: AgenticaAction, successor?:
   const claim = (await readCanonical(pages => loadDecisionClaim(pages, identity))).value;
   const selection = (await readCanonical(pages => readPublicationSelection(pages, launch.binding.launchId))).value;
   const childIdentity = successor ? await prepareAction(successor) : null;
+  const guardAdoption = claim?.decision.data.adoption
+    ? (await readCanonical(pages => pages.sourceReceipt(`${claim.decision.reference.id}:guard`))).value : null;
   return {
     parent: (await readAgenticaOperation(identity)).value,
     parentTerminal: (await readAgenticaTerminal(identity, binding)).value,
-    claim, selection,
+    claim, selection, guardAdoption,
     child: childIdentity ? (await readAgenticaOperation(childIdentity)).value : null,
     childTerminal: childIdentity && selection ? (await readAgenticaTerminal(childIdentity, {
       grant: selection.value.data.grant, publication: selection.value.data.publication,
