@@ -18,7 +18,7 @@ const selected = { action: { ...detail.action, actionId: item.actionId, capabili
 const claimed = { ...detail, claim: { reference: { key: 'claim', id: 'claim-source' } } };
 let props: RecoveryProps, host: AbortController;
 const mount = () => render(<AgenticaRecovery {...props} onClose={vi.fn()} />);
-const click = async (name: string) => fireEvent.click(await screen.findByRole('button', { name, exact: true }));
+const click = async (name: string) => fireEvent.click(await screen.findByRole('button', { name }));
 async function select() {
   await click('Inspect original 1'); await click('Check action custody'); await click('Inspect action pending-action');
   await screen.findByRole('button', { name: 'Reconcile pending action' });
@@ -101,7 +101,7 @@ describe('explicit claimed-run action recovery UI', () => {
     mount(); await select(); await click('Reconcile pending action');
     for (const name of ['Reconcile pending action', 'Check action custody', 'Inspect action pending-action', 'Check service',
       'Stop Agentic session', 'Stop navigation', 'Reconcile navigation', 'Refresh local records', 'Inspect original 1']) {
-      const control = screen.getByRole('button', { name, exact: true }); expect(control).toBeDisabled(); fireEvent.click(control);
+      const control = screen.getByRole('button', { name }); expect(control).toBeDisabled(); fireEvent.click(control);
     }
     expect(m.reconcile).toHaveBeenCalledOnce(); expect(m.pending).toHaveBeenCalledOnce(); expect(m.exact).toHaveBeenCalledOnce();
     await act(async () => pending.resolve({ status: 'action-reconciled' }));

@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 26,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 27,
 2026-10-17. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -99,7 +99,11 @@ unmounted. The [navigation/reset increment](reviews/issue-11-navigation-reset-re
 adds explicit inspected-original Stop/reconciliation in the same App, plus a
 transactional reset guard against unresolved current verified-host allocations.
 The actual-App quota proof covers local Stop, real remote navigation/root ACKs
-and deliberate fresh reset through UI controls. Pending-action recovery mounting,
+and deliberate fresh reset through UI controls. The [pending-action recovery increment](reviews/issue-11-mounted-pending-recovery.md)
+now mounts explicit run-page discovery, exact inspection and reconciliation. A
+receipt-witnessed active-root claimed-parent reference survives both ACKs, browser
+reload and service restart. The 24-case provider-free service cohort includes
+actual-App lost-reply rediscovery, with no new planner calls or gameplay effects.
 P3 execution integration and P5 final qualification remain open. This is not complete feature
 parity or closure of #11.
 
@@ -301,14 +305,17 @@ P1 storage contracts are split as follows:
   single-original inspection, no storage creation/upgrade or remote requests.
   Actual new-owner decision adoption and terminal/granted reload recovery now
   have separate real-service proof. Pending-only remote custody stays unknown.
-- **P3 Agentica, remaining:** repair the proven actively pending ungranted-action
-  reload custody gap,
-  subsequent action publication lifecycle and mounted application recovery,
-  including granted runs and explicit transfer controls. Recovery discovery must
-  be bounded and read-only; entering the panel must not activate a planner.
-  Funded cleanup must remain accessible after ordinary quota failure. Reset must
-  not discard unresolved current remote custody merely because ordinary play is
-  unavailable; this is distinct from preserving obsolete save formats.
+- **P3 pending-action recovery, checked:** explicit actual-App discovery and
+  selection, exact no-effect reconciliation, lost accepted reply and restart.
+  Local claimed-parent references are receipt-witnessed, independent of live
+  allocations, and grant no authority. Missing proof fails closed; an empty
+  remote page never means session clearance. Current claim validation remains
+  independent of optional discovery evidence, with no migration or fallback.
+- **P3 Agentica, remaining:** mount explicit Start and execution on the current
+  App-owned GameSession, then subsequent publication lifecycle, continuation and
+  adoption controls. Preserve earned-only room/map/frontier scope and explicit
+  voluntary interactions. Keep tested recovery usable during quota failure;
+  never equate a navigation/root ACK with clearance of every remote action.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
 - **P4 source retirement, checked:** disconnected preview screens, stale route tests, standalone
   expedition writer and its legacy-format validators, standalone launch journal,
@@ -441,10 +448,11 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica execution mounting and pending-action
-recovery controls, full multi-controller depth/revisit/Q and mounted successor
+to arbitrary history. Canonical Agentica execution mounting, full multi-controller
+depth/revisit/Q and mounted successor
 execution remain mandatory. The actual-App recovery proof does not qualify
-those unmounted flows. Pending-action recovery additionally needs an exact
-durable locator for rediscovery after a lost accepted reply and browser reload;
-an empty unresolved-action list is not clearance. No paid-model test is included
+those unmounted flows. Pending-action recovery now has exact durable rediscovery
+proof, not arbitrary session cleanup or permission for automatic continuation.
+The service page response is bounded, but its capped ledger is still read as a
+whole; this is not a history-independent service-I/O claim. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.

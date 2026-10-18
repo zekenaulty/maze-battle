@@ -1,14 +1,15 @@
 # Canonical durable-start service proof
 
-Fixture-only native browser integration, retaining the original five start tests.
-No production changes are included in the fixture commit. This is not a parallel
-game, live-provider test, or full App cohort.
+Provider-free native browser integration, retaining the original five start
+tests. Current cohort: 24 cases, including two actual-App recovery cases. This
+is not a parallel game or live-provider test, and does not mount Start/execution
+in the playable App. [Current evidence and limits](../../docs/reviews/issue-11-mounted-pending-recovery.md).
 
 ## Sources and prerequisites
 
 - Maze observation-regression base: `7fe5f4a`, merged into the isolated SDK
   worktree at `f4988a6eb243d7f2cbd7ae4a60ff99da188b3d7c`.
-- Agentica: clean `577a214d020ba35ba3188761da6a114b978516b7` at an explicit
+- Agentica: clean `27cb2ce9717438edfe19487e3920faa183112c97` at an explicit
   external root; the launcher refuses another revision or a dirty source tree.
 - The actual vendored SDK must equal the pinned service SDK, ignoring CRLF.
   Normalized SHA-256: `46d88c25bda57ee1371fc05209445f321dd3183e52f71a12abce221094a5a9dd`.
@@ -24,9 +25,9 @@ game, live-provider test, or full App cohort.
 Run in the isolated Maze worktree; both ports must be unused:
 
 ```powershell
-Set-Location C:/Users/Zythis/.codex/worktrees/canonical-start-service/maze-battle
+Set-Location C:/Users/Zythis/.codex/worktrees/dungeon-d0/maze-battle
 node node_modules/typescript/bin/tsc -p tests/e2e/canonical-start-service.tsconfig.json --noEmit
-node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-wake-replay/Agentica
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica
 ```
 
 The launcher builds the new C# project with explicit `-p:AgenticaRoot=...`,
@@ -47,7 +48,21 @@ request/frame attachments, traces, and the service log are retained under
 `test-results/maze-start-service-*`; service storage/builds remain under the
 matching fresh TEMP directory. Neither is deleted by this launcher.
 
-## Isolation and real boundaries
+## Current Recovery Qualification
+
+The 24-case integrated run retains real HTTP/SDK boundaries, exact custody,
+decision/wake/adoption, restart and quota checks. It adds actual-App navigation
+and pending-action recovery, with run-scoped descriptor paging and exact lookup.
+The genuine Vite client is served; its exact local development websocket is
+separated from Agentica traffic assertions, not stubbed. The strict loopback
+allowlist includes the required recovery GET/POST and decision event routes.
+Mobile screenshots and canonical evidence verify the App-owned writer. See the
+current report above for source revisions, counters, failures and proof limits.
+
+## Original Seven-Case Boundaries (Historical)
+
+The following description and dated results document earlier qualified revisions,
+not the current route allowlist, client setup or decision coverage.
 
 The real `LabWebApplication.Create` receives a strictly injected offline
 `ILabPlannerFactory`, isolated storage, and a provider configuration whose
