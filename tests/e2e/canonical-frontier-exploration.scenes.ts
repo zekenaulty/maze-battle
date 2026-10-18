@@ -13,7 +13,6 @@ function disclose(page: Page, variant: ExplorationVariant) {
 test('A/B earn the same prefix then opposite public choices; unopened chest stops before collection', async ({ page, browser }, info) => {
   const a = await disclose(page, 'A'); await attachEvidence(info, 'A-public-and-native-state.json', a);
   const context = await browser.newContext({ serviceWorkers: 'block' });
-  await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   let audit: (() => void) | undefined;
   try {
     const other = await context.newPage(); audit = await openExploration(other);
@@ -33,6 +32,10 @@ test('A/B earn the same prefix then opposite public choices; unopened chest stop
       expect(result.afterEffects).toEqual(result.effects);
       expect(result.rows.slice(0, 3).every(row => row.frame.sight.cells.every(cell => !cell.chests.length && !cell.stairs.length))).toBe(true);
       expect(last.frame.sight.cells.find(cell => cell.chests.length)?.chests).toEqual([{ id: 'chest-1-socket-6:room', opened: false }]);
+      const index = last.frame.sight.cells.findIndex(cell => cell.chests.length);
+      const source = last.state.head.checkpoint.knowledge as { sequence: number; id: string };
+      expect(last.state.value.progress.notice).toEqual({ kind: 'unopened-chest', at: last.frame.sight.cells[index].at,
+        previousSource: null, source: { sequence: source.sequence, id: source.id, index } });
       expect(last.frame.sight.header.sequence).toBe(result.seeded.sight.header.sequence + 3);
       expect(last.state.head.roots.knowledge).not.toEqual(result.seeded.page.head.roots.knowledge);
     }
@@ -43,6 +46,7 @@ test('A/B earn the same prefix then opposite public choices; unopened chest stop
       const c = window.canonicalFrontierExploration; return c.selectUnopenedObjectFrontier(await c.frame());
     }));
     expect(selected.map(selection => selection.direction)).toEqual(['east', 'north']);
+    expect(selected.map(selection => selection.source)).toEqual([a.rows[3].state.value.progress.notice!.source, b.rows[3].state.value.progress.notice!.source]);
     expect(selected.map(selection => ({ row: selection.at.cell.row, column: selection.at.cell.column })))
       .toEqual([EXPLORATION_MARKER, EXPLORATION_MARKER]);
     await attachEvidence(info, 'opposite-earned-selections.json', selected);
@@ -76,8 +80,6 @@ test('A/B earn the same prefix then opposite public choices; unopened chest stop
       expect(last.state.head.roots.world).toEqual((index === 0 ? a : b).seeded.page.head.roots.world);
     }
   } finally {
-    const path = info.outputPath('B-native-trace.zip');
-    await context.tracing.stop({ path }); await info.attach('B-native-trace', { path, contentType: 'application/zip' });
     await context.close(); audit?.();
   }
 });
@@ -122,6 +124,9 @@ test('newly seen downstairs yields a decision without entering stairs or generat
   expect(result.rows.slice(0, 7).every(row => row.state.value.status === 'running' && row.frame.sight.cells.every(cell => !cell.stairs.length))).toBe(true);
   const last = result.rows[7], stair = last.frame.sight.cells.find(cell => cell.stairs.includes('down'));
   expect(stair).toBeDefined(); expect(last.state.value.progress).toMatchObject({ steps: 7, status: 'decision', reason: 'new-object' });
+  const source = last.state.head.checkpoint.knowledge as { sequence: number; id: string };
+  expect(last.state.value.progress.notice).toEqual({ kind: 'stairs-discovered', at: stair!.at, previousSource: null,
+    source: { sequence: source.sequence, id: source.id, index: last.frame.sight.cells.indexOf(stair!) } });
   expect(last.state.value.progress.position).not.toEqual(stair!.at);
   expect(last.state.head.checkpoint).toMatchObject({ mode: 'manual', position: { level: 1 } });
   expect(last.state.head.roots.world).toEqual(result.seeded.page.head.roots.world);

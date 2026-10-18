@@ -17,7 +17,8 @@ import { explorationActor, explorationRecipe, EXPLORATION_MARKER, EXPLORATION_PA
   EXPLORATION_WORLD, type ExplorationScene, type ExplorationVariant } from './canonical-frontier-exploration.layout';
 
 export async function seedExplorationScene(variant: ExplorationVariant, scene: ExplorationScene = 'unopened-chest') {
-  if (!['unopened-chest', 'opened-chest', 'stairs'].includes(scene)) throw Error('Unknown exploration fixture scene');
+  if (!['unopened-chest', 'opened-chest', 'stairs', 'scope-boundary'].includes(scene)) throw Error('Unknown exploration fixture scene');
+  const exitScene = scene === 'stairs' || scene === 'scope-boundary';
   const now = new Date().toISOString();
   const checkpoint: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual',
     position: { level: 1, cell: { spaceId: 'entry', row: 7, column: 7 } }, knowledge: null,
@@ -31,7 +32,7 @@ export async function seedExplorationScene(variant: ExplorationVariant, scene: E
   });
   await content.prepare();
   await assertExplorationLayout(variant);
-  if (scene !== 'stairs') await content.work(async tx => {
+  if (!exitScene) await content.work(async tx => {
     const room = await content.records.loadRoomContent(tx.pages, 1, EXPLORATION_SPACE);
     if (!room.chestId) throw Error('Pinned generated room must contain its ordinary chest');
     const stored = await content.records.loadChest(tx.pages, 1, room.chestId);
@@ -42,15 +43,18 @@ export async function seedExplorationScene(variant: ExplorationVariant, scene: E
       ? { ...chest, opened: true, loot: rollChestLoot(chest, () => 0.5).map(encodeItem) } : chest });
     return null;
   });
-  const spaceId = scene === 'stairs' ? (await readCanonical(p => loadFloor(p, 1))).value.exit!.spaceId : EXPLORATION_SPACE;
-  await content.place(explorationActor(spaceId));
+  const spaceId = exitScene ? (await readCanonical(p => loadFloor(p, 1))).value.exit!.spaceId : EXPLORATION_SPACE;
+  const actor = explorationActor(spaceId);
+  // The west entrance is first disclosed from the left corner; the opposite corner isolates delayed stairs.
+  if (scene === 'stairs') actor.cell.column = 14;
+  await content.place(actor);
   const beforeLook = (await readCanonicalHead()).head;
   await knowledge.act({ kind: 'look' });
   const observed = await knowledge.current(), sight = observed.value, page = await query(observed.snapshot);
   if (!page.value.length || page.value.some(f => f.at.cell.spaceId !== spaceId)) throw Error('Cold fixture needs same-space earned frontiers');
   if (sight.cells.some(cell => cell.chests.some(chest => !chest.opened) || cell.stairs.length))
     throw Error('Material fixture object must be outside initial earned sight');
-  if (scene !== 'stairs' && (!same(page.value[0].at.cell, { spaceId, ...EXPLORATION_PAIR_ORACLE.firstAnchor })
+  if (!exitScene && (!same(page.value[0].at.cell, { spaceId, ...EXPLORATION_PAIR_ORACLE.firstAnchor })
     || page.value[0].direction !== EXPLORATION_PAIR_ORACLE.firstDirection)) throw Error('Pinned pair first frontier changed');
   return { beforeLook, sight, page };
 }

@@ -2,7 +2,7 @@ import { createModuleRecipe } from '../../src/domain/expedition/topology/modules
 import type { WorldPosition } from '../../src/persistence/canonical/world/types';
 
 export type ExplorationVariant = 'A' | 'B';
-export type ExplorationScene = 'unopened-chest' | 'opened-chest' | 'stairs';
+export type ExplorationScene = 'unopened-chest' | 'opened-chest' | 'stairs' | 'scope-boundary';
 export const EXPLORATION_WORLD = 'frontier-exploration-pair';
 export const EXPLORATION_SPACE = 'socket-6:room';
 export const EXPLORATION_MARKER = { row: 9, column: 5 };
