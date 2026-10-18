@@ -1,11 +1,12 @@
 import type { AgenticaAction } from '../contracts';
 import type { CanonicalHostPort } from '../../game/CanonicalHostCommand';
 import { canonicalFence } from '../../../persistence/canonical/transaction';
+import type { OwnerFence } from '../../../persistence/canonical/types';
 import { prepareAction } from '../../../persistence/canonical/agentica/actions';
 import { provePregrantNoEffect } from '../../../persistence/canonical/agentica/pregrant-proof';
 import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
-import { equal, validateAction } from '../../../persistence/canonical/agentica/validation';
-import { check } from '../../../persistence/canonical/validation';
+import { equal, snapshotJson, validateAction } from '../../../persistence/canonical/agentica/validation';
+import { check, fence, sameFence } from '../../../persistence/canonical/validation';
 import { fields } from '../../../persistence/canonical/roster/codec';
 import { captureBinding, type ActionBinding } from './actionContract';
 import { decisionState } from './decisionState';
@@ -14,17 +15,21 @@ import { pendingRecoveryEntry, pendingRecoveryUrl, recoveryResponse } from './pe
 
 /** Explicit single-action reconciliation after local Stop. No SDK attachment, planner, game write or ACK. */
 export async function recoverPregrantAction(port: Pick<CanonicalHostPort, 'hostSignal'>, inputParent: AgenticaAction,
-  inputBinding: ActionBinding, inputAction: AgenticaAction, options: { fetchImpl?: typeof fetch } = {}) {
+  inputBinding: ActionBinding, inputAction: AgenticaAction,
+  options: { signal?: AbortSignal; expectedFence?: OwnerFence; fetchImpl?: typeof fetch } = {}) {
   const parent = validateAction(inputParent), binding = captureBinding(inputBinding), action = validateAction(inputAction);
-  const hostSignal = port.hostSignal;
-  hostSignal.throwIfAborted(); const identity = await prepareAction(parent);
-  return inRecoveryDatabase(hostSignal, async signal => {
+  const capturedFence = options.expectedFence ? snapshotJson(options.expectedFence) : undefined;
+  if (capturedFence) fence(capturedFence);
+  const hostSignal = port.hostSignal, lifetime = AbortSignal.any([hostSignal, ...(options.signal ? [options.signal] : [])]);
+  lifetime.throwIfAborted(); const identity = await prepareAction(parent);
+  return inRecoveryDatabase(lifetime, async signal => {
     const alive = () => {
       signal.throwIfAborted(); check(port.hostSignal === hostSignal, 'pending recovery game lifetime changed');
     };
     alive();
     const view = await decisionState(identity, binding); alive();
-    const expected = canonicalFence(view.head), { start, launch } = view.value.terminal.bound;
+    check(!capturedFence || sameFence(capturedFence, view.head), 'pending recovery inspected fence changed');
+    const expected = capturedFence ?? canonicalFence(view.head), { start, launch } = view.value.terminal.bound;
     const prove = async () => {
       alive(); const proof = await provePregrantNoEffect(expected, identity, binding, action, { signal }); alive(); return proof;
     };
