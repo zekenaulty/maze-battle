@@ -66,16 +66,19 @@ describe('earned exploration material policy', () => {
       [{ ...actor, stairs: ['up'], edges: { east: neighbor.at } }, { ...neighbor, edges: { west: actor.at } }], [old]);
     expect(await f.read()).toMatchObject({ reason: 'traversability-changed', previousSource: { sequence: 1 }, index: 0 });
   });
-  it('stops when another space enters sight, but not for more cells in an already-visible space', async () => {
+  it('stops for a newly discovered space, not for remembered neighbors reentering sight', async () => {
     const actor = floorCell(), other = floorCell(1, 'other');
     const f = await comparison([actor], [actor, other]);
     expect(await f.read()).toMatchObject({ reason: 'other-space-visible', at: other.at, index: 1 });
     expect(await (await comparison([actor, other], [actor, other, floorCell(2, 'other')])).read()).toBeNull();
-    expect(await (await comparison([actor], [actor, other], [actor, other])).read()).toMatchObject({ reason: 'other-space-visible' });
+    expect(await (await comparison([actor], [actor, other], [actor, other])).read()).toBeNull();
+    expect(await (await comparison([actor], [actor, floorCell(2, 'other')], [actor, other])).read()).toBeNull();
   });
   it('stops on actual entry into another space even if it was already visible', async () => {
     const actor = floorCell(), other = floorCell(1, 'other'), f = await comparison([actor, other], [other, actor]);
     expect(await f.read()).toMatchObject({ reason: 'space-entered', at: other.at, index: 0 });
+    expect(await (await comparison([actor], [other, actor], [actor, other])).read())
+      .toMatchObject({ reason: 'space-entered', at: other.at, index: 0 });
   });
   it('selects a deterministic public-coordinate reason while preserving its actual observation index', async () => {
     const actor = floorCell(), early = { ...floorCell(1), chests: [{ id: 'early', opened: false }] };

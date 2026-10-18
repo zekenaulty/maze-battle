@@ -29,6 +29,14 @@ export async function compareExplorationObservation(pages: KnowledgeRead, before
   check(checkpoint.position.cell.spaceId === scopeSpaceId, 'exploration requires the occupied selected space');
   const cells = explorationCells(newCells, checkpoint.position.level), before = await explorationView(pages, checkpoint);
   const remembered = await before.known(cells);
+  // Recognition survives leaving sight; only source-validated first discovery is a new space.
+  const knownSpaces = new Set<string>();
+  for (const space of new Set(cells.map(c => c.at.cell.spaceId))) {
+    if (space === scopeSpaceId) continue;
+    if (await before.knownSpace(space)) knownSpaces.add(space);
+    else check(!remembered.some(c => c.state !== 'unknown' && c.at.cell.spaceId === space)
+      && !before.current.cells.some(c => c.at.cell.spaceId === space), 'remembered exploration space has no known-space evidence');
+  }
   const evidence = (index: number): Evidence => ({ baseline: structuredClone(before.anchor),
     at: structuredClone(cells[index].at), index, previousSource: remembered[index].state === 'unknown'
       ? null : structuredClone(remembered[index].cell.source) });
@@ -56,7 +64,6 @@ export async function compareExplorationObservation(pages: KnowledgeRead, before
       discovery ??= { ...evidence(index), reason: 'stairs-discovered', stair };
   }
   if (discovery) return discovery;
-  const visibleSpaces = new Set(before.current.cells.map(c => c.at.cell.spaceId));
-  const other = ordered.find(({ cell }) => cell.at.cell.spaceId !== scopeSpaceId && !visibleSpaces.has(cell.at.cell.spaceId));
+  const other = ordered.find(({ cell }) => cell.at.cell.spaceId !== scopeSpaceId && !knownSpaces.has(cell.at.cell.spaceId));
   return other ? { ...evidence(other.index), reason: 'other-space-visible' } : null;
 }

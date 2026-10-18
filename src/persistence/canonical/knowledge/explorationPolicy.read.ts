@@ -1,10 +1,13 @@
 import { gameCheckpoint, type GameCheckpoint } from '../game/checkpoint';
+import { fields } from '../roster/codec';
 import { check, jsonBytes } from '../validation';
 import { same } from '../world/records';
-import { loadObservation, validateKnowledge } from './evidence';
+import { loadObservation, sourceReader, validateKnowledge } from './evidence';
+import { roomKey } from './keys';
 import { readKnownCells } from './queries';
 import { MAX_VISIBLE_CELLS, type KnowledgeRead, type ObservedCell } from './types';
 import { loadWorldIndexBlock, worldBlockKey, worldCellKey, type WorldIndexBlock } from './worldIndex';
+import { cellSource } from './validation';
 
 // Pre-move view: logical record reads/bytes, not physical index IO. No history scans.
 export const MAX_EXPLORATION_READS = 256;
@@ -56,5 +59,16 @@ export async function explorationView(input: KnowledgeRead, before: GameCheckpoi
   }
   // Validate current memory even if an early cell already supplies a material stop.
   await known(current.cells);
-  return { checkpoint, anchor, current, known };
+  const source = sourceReader(pages);
+  async function knownSpace(spaceId: string) {
+    const level = checkpoint.position.level, key = roomKey(level, spaceId), row = await pages.get('knowledge', key);
+    if (!row) return false;
+    const room = fields(row.value, 'schema level spaceId source'); cellSource(room.source);
+    check(room.schema === 1 && room.level === level && room.spaceId === spaceId && room.source.sequence <= anchor!.sequence
+      && same(row.indexes, [`known-rooms/${level}/${spaceId}`]), 'invalid exploration known-space evidence');
+    const seen = await source(room.source);
+    check(seen.at.level === level && seen.at.cell.spaceId === spaceId, 'exploration space differs from source evidence');
+    return true;
+  }
+  return { checkpoint, anchor, current, known, knownSpace };
 }

@@ -4,9 +4,9 @@ import type { CanonicalRecord } from '../types';
 import { compareExplorationObservation, MAX_EXPLORATION_READS, MAX_EXPLORATION_READ_BYTES } from './explorationPolicy';
 import { comparison, floorCell } from './explorationPolicy.test-support';
 import { explorationPages } from './explorationPolicy.read';
-import { blockKey, localKey, observationKey } from './keys';
+import { blockKey, localKey, observationKey, roomKey } from './keys';
 import { knowledgeFixture } from './region.test-support';
-import type { MemoryBlock, ObservationHeader, ObservedCell } from './types';
+import type { KnownRoom, MemoryBlock, ObservationHeader, ObservedCell } from './types';
 import { worldBlockKey, worldCellKey, type WorldIndexBlock } from './worldIndex';
 
 describe('exploration evidence guards', () => {
@@ -59,6 +59,27 @@ describe('exploration evidence guards', () => {
       memory.cells[localKey(old.at)].stairs = ['down'];
       await expect(f.read()).rejects.toThrow('source evidence');
     }
+  });
+  it.each(['source-id', 'foreign-source', 'future-source', 'foreign-room', 'index', 'missing-room'] as const)
+  ('refuses corrupt known-room provenance: %s', async kind => {
+    const actor = floorCell(), other = floorCell(1, 'other');
+    const f = await comparison([actor], [actor, other], [actor, other]);
+    const key = roomKey(1, 'other'), row = f.before.records.get(key)!, room = row.value as unknown as KnownRoom;
+    if (kind === 'source-id') room.source.id = 'foreign';
+    if (kind === 'foreign-source') room.source.index = 0;
+    if (kind === 'future-source') room.source.sequence = 3;
+    if (kind === 'foreign-room') room.spaceId = 'elsewhere';
+    if (kind === 'index') row.indexes = [];
+    if (kind === 'missing-room') f.before.records.delete(key);
+    await expect(f.read()).rejects.toThrow(); expect(f.before.writes).toEqual([]);
+  });
+  it('does not hide corrupt known-space evidence behind a new object or actual scope crossing', async () => {
+    const actor = floorCell(), other = floorCell(1, 'other'), poi = { ...floorCell(2), chests: [{ id: 'new', opened: false }] };
+    const f = await comparison([actor], [actor, poi, other], [actor, other]);
+    (f.before.records.get(roomKey(1, 'other'))!.value as unknown as KnownRoom).source.index = 0;
+    await expect(f.read()).rejects.toThrow('space differs from source');
+    f.cells.splice(0, f.cells.length, other, actor);
+    await expect(f.read()).rejects.toThrow('space differs from source');
   });
   it('rejects physical coordinate reassignment instead of treating it as ordinary new floor', async () => {
     const actor = floorCell(), old = floorCell(1), replacement = floorCell(1, 'replacement');

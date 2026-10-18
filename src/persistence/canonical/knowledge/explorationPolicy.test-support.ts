@@ -6,6 +6,11 @@ export const floorCell = (column = 0, spaceId = 'room'): ObservedCell =>
   ({ ...earnedCell(0, column, spaceId, 0, column), edges: {}, chests: [] });
 export async function comparison(prior: ObservedCell[], current: ObservedCell[], history?: ObservedCell[]) {
   const f = knowledgeFixture();
+  const set = f.pages.set.bind(f.pages);
+  f.pages.set = async (area, key, value, indexes = []) => {
+    const row = await set(area, key, value, indexes);
+    Object.assign(row, { key, indexes: [...indexes] }); f.records.set(key, structuredClone(row)); return row;
+  };
   if (history) await f.observe(history);
   await f.observe(prior); f.reads.length = f.writes.length = 0;
   const cells = structuredClone(current);
