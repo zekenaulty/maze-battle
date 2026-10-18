@@ -1,7 +1,7 @@
 # Issue 11: Bounded Space Exploration
 
-2026-10-18. Runtime candidate `fb1a59c`, actual-service fixture candidate
-`0edbf0a`, on `codex/agentic-game-a1`. This extends the canonical game's earned
+2026-10-18. Runtime candidate `fb1a59c`, final integrated proof candidate
+`be5c68d`, on `codex/agentic-game-a1`. This extends the canonical game's earned
 frontier approach. It is not completed A2/Q, full room coverage, quest collection,
 or closure of issue #11. The umbrella goal remains active.
 
@@ -64,22 +64,28 @@ read-only source review found no material blocker in this repair.
 
 ## Qualification
 
-- Full unit suite at `0edbf0a`: **3,762 PASS, one existing optional probe SKIP**;
-  `test-results/bounded-space-unit-final.json`.
+- Final full unit suite at `be5c68d`: **3,767 PASS, one existing optional probe
+  SKIP**, 269.11 seconds; `test-results/bounded-space-unit-qualified.json`.
+  The earlier runtime pass was 3,762 PASS before five fixture regression tests
+  were added; its report remains `test-results/bounded-space-unit-final.json`.
 - Focused navigation after the window repair: **37 PASS**, including independent
   path/executor review tests and malformed-window cases.
 - Existing earned-frontier native suite: **33 PASS**, 46.96 seconds.
-- New native exploration suite after the repair: **7 PASS**, 26.87 seconds.
+- Final native exploration suite after the repair: **12 PASS**, 38.91 seconds.
   Two authored placements in production-generated 15x15 spaces (seeds 177/349)
   share an earned prefix, then stop at a new chest before the original anchor.
   Explicit subsequent choices use different earned directions. Other cases cover
   opened-chest continuation, a new stair, a space boundary, original step limits
   across reload, exact replay with zero writes, changed-body refusal and Stop.
+  The five added cases inject failures at observation, navigation and final head
+  writes, proving complete rollback and one exact successful retry. Approach and
+  survey takeover cases require explicit adoption, preserve the pending window
+  and original scope/limits/deadline, and do not move on reload or adoption alone.
 - Existing known-destination native regression: **56 PASS**, 1.3 minutes, before
   the room-only retained-window repair.
-- Production/service-fixture TypeScript checks and production build pass. The
+- Production/service/exploration-fixture TypeScript checks and production build pass. The
   existing bundle-size warning remains (749.45 kB JavaScript, 228.86 kB gzip).
-  Expanded native/service qualification is recorded below when it completes.
+  Actual-service qualification is recorded below.
 
 The native JSON reports for the frontier configurations are under
 `tests/e2e/test-results/`; their `.last-run.json`/browser outputs are under the
@@ -88,12 +94,48 @@ restarted.
 
 ### Actual App and Service
 
+The complete provider-free cohort passes **31/31**, zero retries/skips, at
+`be5c68d`: `test-results/maze-start-service-9jpdUo/`. The focused new case also
+passes separately in `maze-start-service-blCRff/` (14.0 seconds total).
+
+The new actual-App case uses generator seed 5, otherwise the normal game
+initialization, content and sight. The offline planner reads the public actor,
+queries current-sight frontiers, and selects the first returned token matching
+that actor's floor/space, unchanged. Its first-page foreign-room candidate is
+deliberately not eligible. No hidden coordinates, seed or route reach the planner.
+
+There are **two tool actions** (`maze.inspect`, `maze.explore`) and **two planner
+entries** (one initial plan, one query-driven refinement). Four ordinary local
+moves earn a new other-space observation and stop before the selected anchor;
+no planner call occurs during movement. The exact material notice matches the
+committed source. Pack and world roots remain unchanged. Desktop/mobile screenshots
+were inspected. Explicit Stop/recovery preserves the decision and its ordered
+progress prefix, then exact child/root ACKs release local reserves. Session-wide
+remote clearance remains UNKNOWN, not inferred from zero local allocations.
+
+This service case proves a material stop during approach. Native cases separately
+prove crossing the original anchor and local survey. It does not prove sustained
+multi-room exploration, a model revising its intention, or the full Q corpus.
+
+### Intermediate Failures
+
 The first expanded provider-free service run `maze-start-service-XfpEbs` passed
 the 30 existing cases and failed the new case before movement. The offline
 fixture selected the first public frontier, which belonged to `socket-2:room`,
 while the actor was in `entry`. Current-room authority correctly refused it;
-the extra refinement was the service reacting to that refusal. This is not a
-passing exploration proof. Fixture correction and rerun remain pending here.
+the extra refinement was the service reacting to that refusal. In `r7XvkB`, the
+corrected planner refused before issuing exploration: the shared fixture had
+already initialized seed 2 before the room-only URL flag selected seed 5. A
+test-only pre-boot option now supplies that flag before initialization; the other
+30 cases retain their original seed/setup. Both failed runs are retained, and
+neither runtime authority nor assertion was loosened to make them pass.
+
+The first affected unit run had four stale fixtures/golden expectations after the
+contract change; these were corrected, not accommodated by runtime fallbacks.
+The expanded schema briefly exceeded the unchanged 3072-byte launch bound for one
+profile. Compact descriptions restore 3025/3028/3051-byte representative maxima;
+escaped/multibyte objectives still fail if they exceed the bound. No quota or
+message bound was raised.
 
 Agentica is pinned to clean `27cb2ce9717438edfe19487e3920faa183112c97`. The fixture
 uses alternate .NET 10.0.401 because repository-pinned 10.0.302 is unavailable.

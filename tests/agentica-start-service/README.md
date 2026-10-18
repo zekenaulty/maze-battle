@@ -1,15 +1,34 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 30 cases, including two actual-App recovery cases,
+tests. Current cohort: 31 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
 positive and stale-offer/takeover cases, including exact retained settings and
 validated exhausted allowance. The earned-frontier case adds current-sight
 inspection and explicit source-bound approach through the same mounted game.
+The bounded-room case adds explicit same-space exploration and a material stop.
 This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-earned-frontier-approach.md).
+[Current evidence and limits](../../docs/reviews/issue-11-bounded-space-exploration.md).
+
+## Bounded Space Increment (2026-10-18)
+
+The complete cohort passes 31/31 at Maze `be5c68d`, pinned Agentica `27cb2ce`,
+with evidence at `test-results/maze-start-service-9jpdUo/`, zero skips/retries.
+The new `decision-room` fixture makes two actions: inspect earned frontiers,
+then select a public current-space token with explicit `mode: "room"`. Four local
+moves stop on a source-bound newly visible other-space observation. There are no
+planner calls during movement and no changes to pack/world roots. Exact ordered
+progress, local Stop and verified recovery/ACKs remain on the actual App/session.
+Remote session-wide clearance stays UNKNOWN; no objective completion is claimed.
+
+Only this case opts into `roomProof` before the shared boot, selecting generator
+seed 5; all other cases retain seed 2. The first two failed attempts exposed an
+out-of-scope fixture selection and a too-late seed flag, not permission to relax
+current-room authority. Separate qualification tests retain those regressions.
+No provider calls or user database reset. This is not the authored two-dungeon Q
+corpus, LLM decision-quality proof, or repository SDK-pin qualification.
 
 ## Earned Frontier Increment (2026-10-18)
 
