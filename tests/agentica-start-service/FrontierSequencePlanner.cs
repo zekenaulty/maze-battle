@@ -7,7 +7,7 @@ using Agentica.Tools;
 namespace Maze.StartServiceFixture;
 
 // Two choices per window: ask for earned boundaries, then select one returned token unchanged.
-internal sealed class FrontierSequencePlanner(Action<bool> called, Action planned) : IWorkflowPlanner
+internal sealed class FrontierSequencePlanner(Action<bool> called, Action planned, bool room = false) : IWorkflowPlanner
 {
     private int _stage;
     private string? _observation;
@@ -16,6 +16,10 @@ internal sealed class FrontierSequencePlanner(Action<bool> called, Action planne
     {
         called(false);
         if (_stage != 0) throw new InvalidOperationException("No implicit frontier continuation is permitted.");
+        if (room && HostProtocol.Element(request.Request.Context
+            ?? throw new InvalidOperationException("Missing real room request context."))
+            .GetProperty("continuation").ValueKind != JsonValueKind.Null)
+            throw new InvalidOperationException("The room fixture permits only its explicit initial window.");
         return Next(request, cancellationToken);
     }
 
@@ -47,6 +51,7 @@ internal sealed class FrontierSequencePlanner(Action<bool> called, Action planne
             if (token.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(token.GetString()))
                 throw new InvalidOperationException("Missing public frontier selection token.");
             input["frontier"] = token.Clone();
+            if (room) input["mode"] = "room";
         }
         else
         {
@@ -59,6 +64,7 @@ internal sealed class FrontierSequencePlanner(Action<bool> called, Action planne
         return Task.FromResult(new WorkflowPlan("frontier-script-" + _stage, _stage,
             [new PlanStep("frontier-step-" + _stage, explore ? "maze.explore" : "maze.inspect",
                 explore ? ToolKind.Action : ToolKind.Query, explore ? ToolEffect.WritesLocalState : ToolEffect.ReadOnly, input)],
-            "Approach one selected earned boundary; do not collect, continue automatically or claim completion."));
+            room ? "Explore the selected observed space locally until a material decision; do not collect or claim completion."
+                : "Approach one selected earned boundary; do not collect, continue automatically or claim completion."));
     }
 }
