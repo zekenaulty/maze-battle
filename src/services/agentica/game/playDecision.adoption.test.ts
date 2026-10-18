@@ -31,6 +31,18 @@ describe('explicit mounted new-owner adoption', () => {
     expect(m.publication).not.toHaveBeenCalled(); expect(sdk.connect).not.toHaveBeenCalled();
   });
 
+  it.each(['town', 'auto-play'])('refuses direct adoption from canonical %s before publication or network', async mode => {
+    Object.assign(view.head, { checkpoint: { ...adoptionFixture().view.head.checkpoint, mode } });
+    run({ mode: 'adopt' }); await drain(); expect(fail).toHaveBeenCalledOnce();
+    expect(m.publication).not.toHaveBeenCalled(); expect(sdk.connect).not.toHaveBeenCalled();
+  });
+
+  it.each(['town', 'auto-play'])('rechecks %s before cognitive work even after intent preparation', async mode => {
+    const barrier = hold(m.remote); run({ mode: 'adopt' }); await vi.advanceTimersByTimeAsync(250); await barrier.entered;
+    Object.assign(view.head, { checkpoint: { ...adoptionFixture().view.head.checkpoint, mode } });
+    barrier.release(); await drain(); expect(fail).toHaveBeenCalledOnce(); expect(sdk.adoptDecision).not.toHaveBeenCalled();
+  });
+
   it('adopts the retained transfer event epoch, not the original action epoch', async () => {
     view.head.epoch = 3; view.value.terminal.event.sessionEpoch = '2'; view.value.terminal.bound.launch.guard.epoch = 2;
     sdk.adoptDecision.mockResolvedValueOnce(launchStartedFixture({ ...adoptionFixture().entry.request, sessionEpoch: '3' }, successorAction.runId));

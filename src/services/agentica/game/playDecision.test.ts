@@ -5,6 +5,12 @@ import { m, run, attach, navigate, drain, hold, notice, options, sdk, session, u
 import { deferred } from './transportGate';
 
 describe('explicit mounted decision continuation', () => {
+  it('accepts the explicit continue mode with the same-owner protocol', async () => {
+    run({ mode: 'continue' }); await vi.advanceTimersByTimeAsync(500);
+    expect(sdk.wakeOperation).toHaveBeenCalledOnce(); expect(sdk.adoptDecision).not.toHaveBeenCalled();
+    expect(m.ack).toHaveBeenCalledOnce(); expect(fail).not.toHaveBeenCalled();
+  });
+
   it('publishes and prepares once, attaches before execution, then returns the exact next original without another wake', async () => {
     const barrier = hold(sdk.wakeOperation); run(); await vi.advanceTimersByTimeAsync(250); await barrier.entered;
     const action = structuredClone(successorAction), executing = options.onAction(action);

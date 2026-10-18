@@ -19,7 +19,9 @@ export function adoptionFixture() {
   const terminal = { identity: { action }, binding, event: { kind: 'decision', sessionEpoch: '1', usage: { steps: 99, replans: 9 } },
     confirmed: { data: { entry } }, bound: { result, start, launch, operation: { state: 'settled' },
       grant: { value: { data: { owner: 'owner', epoch: 1 } } }, active: { id: 'launch', sourceAttemptId: 'root-admission' } } };
-  const view = { head: { ...fence, status: 'ready' }, value: { terminal, decision: null, claim: null, grant: null,
+  const checkpoint = { schema: 1, kind: 'rpg', position: { level: 1, cell: { spaceId: 'floor:1', row: 0, column: 0 } },
+    knowledge: null, mode: 'manual', facing: 'north', wave: 1, createdAt: '2026-10-18T00:00:00.000Z', updatedAt: '2026-10-18T00:00:00.000Z', activityLog: [] };
+  const view = { head: { ...fence, status: 'ready', checkpoint }, value: { terminal, decision: null, claim: null, grant: null,
     selected: { value: { data: binding } } } } as unknown as DecisionView;
   const inspected = { fence, candidate, action, launchId: 'launch', operation: { state: 'settled' },
     acknowledgement: null, terminal: { event: terminal.event }, decision: null, claim: null };

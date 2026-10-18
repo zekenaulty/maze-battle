@@ -3,6 +3,7 @@ import type { CanonicalHostPort } from '../../game/CanonicalHostCommand';
 import type { CanonicalRecoveryPort } from '../../game/CanonicalHostRecovery';
 import { prepareAction } from '../../../persistence/canonical/agentica/actions';
 import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
+import { gameCheckpoint } from '../../../persistence/canonical/game/checkpoint';
 import { validateDecisionClaim } from '../../../persistence/canonical/agentica/decision.claim';
 import { launchStarted } from '../../../persistence/canonical/agentica/launch.wire';
 import type { LaunchStarted } from '../../../persistence/canonical/agentica/launch.types';
@@ -49,6 +50,8 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
   function assertAdoption(view: typeof initial) {
     if (!adoptionOnly) return;
     const { decision, terminal } = view.value, guard = terminal.bound.launch.guard;
+    const checkpoint = gameCheckpoint(view.head.checkpoint);
+    check(checkpoint.mode !== 'town' && checkpoint.mode !== 'auto-play', 'mounted adoption requires manual dungeon control');
     check(view.head.owner === owner && view.head.epoch === epoch, 'mounted adoption owner changed');
     check(preparedAdoption && decision && equal(preparedAdoption, decision.reference)
       && decision.data.adoption && decision.data.adoption.nextSessionEpoch === String(epoch)

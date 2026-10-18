@@ -1,5 +1,6 @@
 import type { GameSession } from '../../game/GameSession';
 import type { OwnerFence } from '../../../persistence/canonical/types';
+import { gameCheckpoint } from '../../../persistence/canonical/game/checkpoint';
 import type { RecoveryCandidate } from '../../../persistence/canonical/agentica/recovery.types';
 import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
 import { inspectAgenticaRecovery } from '../../../persistence/canonical/agentica/recovery.inspect';
@@ -27,6 +28,8 @@ export function unclaimedPlayAdoption(view: DecisionView, original: PlayDecision
   const { terminal, decision, claim, grant, selected } = view.value;
   const { operation, launch, active } = terminal.bound;
   check(equal(terminal.identity.action, original.action) && equal(terminal.binding, original.binding), 'adoption original changed');
+  const checkpoint = gameCheckpoint(view.head.checkpoint);
+  if (checkpoint.mode === 'town' || checkpoint.mode === 'auto-play') return false;
   if (decision || claim) return false;
   check(!grant, 'adoption successor grant has no intention');
   if (view.head.status !== 'ready' || operation.state !== 'settled' || terminal.event.kind !== 'decision'
@@ -53,11 +56,13 @@ export async function inspectPlayAdoption(session: GameSession, inputFence: Owne
   validateFence(fence);
   const signal = AbortSignal.any([hostSignal, ...(options.signal ? [options.signal] : [])]);
   signal.throwIfAborted(); check(fence.owner === session.owner, 'adoption requires this current owner');
-  if (!session.view.controlled || session.view.busy || session.view.recoveryRequired) return null;
+  if (!session.view.controlled || session.view.busy || session.view.recoveryRequired
+    || session.view.game?.mode === 'town' || session.view.game?.mode === 'auto-play') return null;
   const current = (readSignal = signal) => {
     signal.throwIfAborted(); readSignal.throwIfAborted();
     const { view } = session, snapshot = view.game?.snapshot;
     check(session.hostSignal === hostSignal && view.controlled && !view.busy && !view.recoveryRequired
+      && view.game?.mode !== 'town' && view.game?.mode !== 'auto-play'
       && session.owner === fence.owner && snapshot?.generation === fence.generation && snapshot.gameId === fence.gameId,
     'adoption game control or lifetime changed');
   };

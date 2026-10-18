@@ -16,7 +16,7 @@ let insideDatabase: boolean;
 beforeEach(() => {
   vi.resetAllMocks(); fixture = adoptionFixture(); host = new AbortController(); scope = new AbortController(); database = new AbortController(); insideDatabase = false;
   session = { owner: fixture.fence.owner, get hostSignal() { return host.signal; },
-    view: { controlled: true, game: { snapshot: fixture.fence } }, submitHostCommand: vi.fn(), cleanupHostOperation: vi.fn(), flush: vi.fn(),
+    view: { controlled: true, game: { mode: 'manual', snapshot: fixture.fence } }, submitHostCommand: vi.fn(), cleanupHostOperation: vi.fn(), flush: vi.fn(),
     refresh: vi.fn(), execute: vi.fn() } as unknown as GameSession;
   m.database.mockImplementation(async (signal, read) => {
     signal.throwIfAborted(); insideDatabase = true;
@@ -88,6 +88,26 @@ describe('read-only new-owner adoption disclosure', () => {
     if (reason === 'busy') session.view.busy = true;
     if (reason === 'recovery') session.view.recoveryRequired = true;
     expect(await inspect()).toBeNull(); expect(m.database).not.toHaveBeenCalled();
+  });
+
+  it.each(['town', 'auto-play'] as const)('does not offer %s or even open storage from that live projection', async mode => {
+    session.view.game!.mode = mode;
+    expect(await inspect()).toBeNull(); expect(m.database).not.toHaveBeenCalled();
+  });
+
+  it.each(['town', 'auto-play'])('refuses canonical %s despite a stale dungeon projection', async mode => {
+    fixture.view.head.checkpoint.mode = mode;
+    expect(await inspect()).toBeNull(); expect(m.launch).not.toHaveBeenCalled();
+  });
+
+  it.each(['town', 'auto-play'] as const)('rejects a transition to %s while inspection is pending', async mode => {
+    m.inspect.mockImplementationOnce(async () => { session.view.game!.mode = mode; return fixture.inspected; });
+    await expect(inspect()).rejects.toThrow('control or lifetime changed'); expect(m.state).not.toHaveBeenCalled();
+  });
+
+  it('retains existing non-Auto dungeon eligibility', async () => {
+    session.view.game!.mode = 'waves'; fixture.view.head.checkpoint.mode = 'waves';
+    expect(await inspect()).not.toBeNull();
   });
 
   it.each(['acknowledged', 'cancelled', 'intent', 'claim', 'unconfirmed', 'root-settled', 'same-epoch', 'steps', 'refinements'])
