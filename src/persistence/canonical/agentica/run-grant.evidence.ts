@@ -1,6 +1,6 @@
 import type { AgenticaOperationEntry } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { fields } from '../roster/codec';
-import { check, validId } from '../validation';
+import { check } from '../validation';
 import { validateDecisionClaim, type DecisionClaim } from './decision.claim';
 import { loadDecisionIntent } from './decision.records';
 import { loadOperationBinding } from './operation.binding';
@@ -33,7 +33,7 @@ export async function validateSuccessorGrantEvidence(pages: OperationRead, curre
     && intent.row.revision < claim.row.revision && claim.row.revision < current.record.row.revision,
     'successor claim source changed');
   const proof = validateDecisionClaim(intent, g.started, claimInput.entry as unknown as AgenticaOperationEntry);
-  check(validId(claim.data.locatorId) && equal(claim.data, { ...proof, locatorId: claim.data.locatorId })
+  check(equal(claim.data, proof)
     && proof.state === 'waking' && !proof.stopped && proof.settledUsage === null
     && equal(g.start.observation, intent.data.adoption?.observation ?? intent.data.event.observation),
     'successor claim cannot grant execution');

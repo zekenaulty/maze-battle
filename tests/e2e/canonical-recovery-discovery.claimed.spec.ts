@@ -11,7 +11,13 @@ test('first claim creates the active-root locator atomically without a successor
   const pointer = await page.evaluate(() => window.canonicalRecoveryDiscovery.claimedRecovery.locator());
   const detail = await page.evaluate(({ fence, candidate }) => window.canonicalRecoveryDiscovery.inspect(fence, candidate),
     { fence: listed.value!.fence, candidate: listed.value!.claimed! }); readOnly(detail);
-  expect(detail.value!.claim!.data.locatorId).toBe(pointer.id);
+  expect(Object.keys(detail.value!.claim!.data).sort()).toEqual(['intent', 'settledUsage', 'started', 'state', 'stopped', 'usage']);
+  const receipt = await page.evaluate(() => window.canonicalRecoveryDiscovery.claimedRecovery.receipt());
+  const proof = receipt.result as { claimedParent: { key: string; id: string; recordWitness: string }; agenticaOperation: { recordWitness: string } };
+  expect(proof.claimedParent.key).toBe(pointer.key); expect(proof.claimedParent.id).toBe(pointer.id);
+  expect(JSON.parse(proof.claimedParent.recordWitness)).toEqual(pointer);
+  expect(JSON.parse(proof.agenticaOperation.recordWitness).value.data).toEqual(detail.value!.claim!.data);
+  expect(receipt.afterRevision).toBe(pointer.revision);
   expect(detail.value!.claim!.source.attemptId).toBe((pointer.value as { sourceAttemptId: string }).sourceAttemptId);
 });
 
@@ -44,7 +50,8 @@ test('failed claim write rolls back its staged locator', async ({ page }) => {
   expect(listed.value!.claimed).toBeNull();
 });
 
-for (const kind of ['root', 'source', 'revision', 'original', 'binding', 'claim', 'claim-source', 'root-source'] as const)
+for (const kind of ['root', 'source', 'revision', 'original', 'binding', 'claim', 'claim-source', 'root-source',
+  'missing-witness', 'witness-key', 'witness-id', 'witness-content', 'claim-witness', 'claim-format'] as const)
   test(`claimed locator fails closed on damaged ${kind}`, async ({ page }) => {
     await page.evaluate(() => window.canonicalRecoveryDiscovery.claimedRecovery.boot());
     await page.evaluate(() => window.canonicalRecoveryDiscovery.claimedRecovery.acknowledge());

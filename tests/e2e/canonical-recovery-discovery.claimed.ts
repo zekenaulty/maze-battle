@@ -13,6 +13,7 @@ import { json } from '../../src/persistence/canonical/world/records';
 import { fields } from '../../src/persistence/canonical/roster/codec';
 import type { GameSession } from '../../src/services/game/GameSession';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
+import { canonicalJson } from '../../src/services/agentica/sdk/agentica-host.mjs';
 let state: ProofSeed | undefined;
 
 export async function replayRecoveryClaim(session: GameSession, action: AgenticaAction) {
@@ -33,7 +34,9 @@ async function locator() {
   const s = state!, root = (await s.root.state()).launch.binding.launchId;
   return (await readCanonical(p => p.get('execution', claimedParentKey(root)))).value!;
 }
-async function corrupt(kind: 'root' | 'source' | 'revision' | 'original' | 'binding' | 'claim' | 'claim-source' | 'root-source') {
+type Damage = 'root' | 'source' | 'revision' | 'original' | 'binding' | 'claim' | 'claim-source' | 'root-source'
+  | 'missing-witness' | 'witness-key' | 'witness-id' | 'witness-content' | 'claim-witness' | 'claim-format';
+async function corrupt(kind: Damage) {
   const s = state!, pointer = await locator(), value = pointer.value as Record<string, unknown>;
   const claim = (await readCanonical(p => loadDecisionClaim(p, s.identity))).value!, db = await openCanonicalDatabase();
   try {
@@ -42,6 +45,23 @@ async function corrupt(kind: 'root' | 'source' | 'revision' | 'original' | 'bind
       await db.delete('receipts', [pointer.gameId, attempt]); return;
     }
     if (kind === 'claim') { await db.delete('records', [pointer.gameId, claim.reference.id]); return; }
+    if (['missing-witness', 'witness-key', 'witness-id', 'witness-content', 'claim-witness', 'claim-format'].includes(kind)) {
+      const receipt = claim.receipt, result = fields(receipt.result, 'agenticaOperation claimedParent');
+      const witness = fields(result.claimedParent, 'key id recordWitness');
+      if (kind === 'missing-witness') delete result.claimedParent;
+      if (kind === 'witness-key') witness.key = 'agentica/claimed-parents/foreign';
+      if (kind === 'witness-id') witness.id = 'foreign';
+      if (kind === 'witness-content') witness.recordWitness = '{}';
+      const operation = fields(result.agenticaOperation, 'key id recordWitness');
+      if (kind === 'claim-witness') operation.recordWitness = '{}';
+      if (kind === 'claim-format') {
+        const data = fields((claim.row.value as { data: unknown }).data, 'intent started usage state settledUsage stopped');
+        data.locatorId = pointer.id;
+        operation.recordWitness = canonicalJson(claim.row);
+        await db.put('records', claim.row, [pointer.gameId, claim.row.id]);
+      }
+      await db.put('receipts', receipt, [pointer.gameId, receipt.attemptId]); return;
+    }
     if (kind === 'root') value.launchId = 'wrong-root';
     if (kind === 'source') value.sourceAttemptId = 'wrong-claim-source';
     if (kind === 'revision') pointer.revision--;
@@ -53,6 +73,10 @@ async function corrupt(kind: 'root' | 'source' | 'revision' | 'original' | 'bind
 export const claimedRecovery = {
   async boot(options: SeedOptions = {}) { state = await seedPregrantProof(options); return state.seed; },
   claim, locator, corrupt,
+  async receipt() {
+    const pointer = await locator(), attemptId = (pointer.value as { sourceAttemptId: string }).sourceAttemptId;
+    return (await readCanonical(p => p.sourceReceipt(attemptId))).value.receipt;
+  },
   async acknowledge(rootFirst = false) {
     const s = state!, root = async () => s.root.acknowledge(await s.root.entry());
     if (rootFirst) await root();

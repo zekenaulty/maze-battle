@@ -1,8 +1,12 @@
+import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
+import type { CanonicalRecord } from '../types';
 import { check, validId } from '../validation';
 import type { OperationBinding } from './operation.types';
 import { captureOperationBinding } from './operation.binding';
 import type { ProtocolRef } from './types';
 import { snapshotReference } from './validation';
+
+export const claimedParentWitness = (row: CanonicalRecord) => ({ key: row.key, id: row.id, recordWitness: canonicalJson(row) });
 
 export const claimedParentKey = (launchId: string) => {
   check(validId(launchId), 'invalid claimed parent root');

@@ -1,7 +1,7 @@
 import { fields } from '../roster/codec';
 import { check } from '../validation';
 import { loadDecisionClaim } from './decision.claim';
-import { claimedParentKey, claimedParentValue } from './decision.claim.locator';
+import { claimedParentKey, claimedParentValue, claimedParentWitness } from './decision.claim.locator';
 import { captureOperationBinding } from './operation.binding';
 import type { OperationRead } from './operation.types';
 import type { ProtocolRef } from './types';
@@ -18,7 +18,9 @@ export async function readClaimedParent(pages: OperationRead, active: { id: stri
   check(pointer.indexes.length === 0 && equal(value, claimedParentValue(active.id, value.sourceAttemptId as string, original, binding)),
     'claimed parent pointer changed');
   const identity = await restoreRetainedAction(pages, original, binding), claim = await loadDecisionClaim(pages, identity);
-  check(claim && claim.data.locatorId === pointer.id && claim.row.revision === pointer.revision
+  // The source receipt witnesses both writes; the immutable claim remains service evidence only.
+  check(claim && equal(fields(claim.receipt.result, 'agenticaOperation claimedParent').claimedParent, claimedParentWitness(pointer))
+    && claim.row.revision === pointer.revision
     && claim.source.attemptId === value.sourceAttemptId, 'claimed parent claim source changed');
   const bound = claim.decision.terminal.bound;
   check(equal(bound.original.reference, original) && equal(claim.decision.data.binding, binding)

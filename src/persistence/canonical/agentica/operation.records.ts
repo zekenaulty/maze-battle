@@ -23,9 +23,15 @@ export async function loadOperationRecord<T>(pages: OperationRead, key: string, 
   check(row.indexes.length === 0 && value.schema === 1 && value.kind === kind && (!ref || equal(ref, { key, id: row.id })), 'operation record binding changed');
   const { receipt, source } = await pages.sourceReceipt(value.sourceAttemptId as string);
   jsonBytes(receipt.result, 12 * 1024);
-  const result = fields(receipt.result, 'agenticaOperation');
+  const claim = kind === 'agentica-decision-claim';
+  const result = fields(receipt.result, claim ? 'agenticaOperation claimedParent' : 'agenticaOperation');
+  if (claim) {
+    const companion = fields(result.claimedParent, 'key id recordWitness');
+    snapshotReference({ key: companion.key as string, id: companion.id as string });
+    check(typeof companion.recordWitness === 'string', 'invalid claimed parent witness');
+  }
   check(receipt.afterRevision === row.revision && equal(result.agenticaOperation, { key, id: row.id, recordWitness: canonicalJson(row) }), 'operation record source changed');
-  return { reference: { key, id: row.id }, data: snapshotJson(value.data) as unknown as T, row, source };
+  return { reference: { key, id: row.id }, data: snapshotJson(value.data) as unknown as T, row, source, receipt };
 }
 export async function writeOperationRecord<T>(tx: CanonicalWork, request: CanonicalRequest, key: string, kind: string, data: T): Promise<ProtocolWrite> {
   const value = snapshotJson({ schema: 1, kind, sourceAttemptId: request.attemptId, data });
