@@ -2,6 +2,7 @@ import { openCanonicalDatabase } from './database';
 import { accountHead, appendedBytes } from './accounting';
 import { workBudget } from './budget';
 import { CanonicalPages } from './pages';
+import { requireResetClearance } from './resetGuard';
 import { CANONICAL_STORES, DEFAULT_QUOTA, type CanonicalHead, type CanonicalWorkLimits, type JsonObject } from './types';
 import { check, checkpoint, head, jsonBytes, marker, validId } from './validation';
 
@@ -13,7 +14,7 @@ export function initializeCanonical(owner: string, initial: JsonObject, seed?: I
   return create(false, owner, initial, seed, options);
 }
 
-/** Explicit destructive action: no old data is read, repaired or carried forward. */
+/** Explicit discard, fenced by current obligations. No old schema is read or migrated. */
 export function resetCanonical(owner: string, initial: JsonObject, seed?: Initializer, options: Options = {}) {
   return create(true, owner, initial, seed, options);
 }
@@ -30,6 +31,7 @@ async function create(reset: boolean, owner: string, initial: JsonObject, seed: 
     budget.alive();
     let generation: string;
     if (reset) {
+      await requireResetClearance(tx, budget);
       generation = crypto.randomUUID();
     } else {
       budget.read();

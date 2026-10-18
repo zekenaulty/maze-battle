@@ -90,7 +90,7 @@ test('concurrent new attempts admit only one expected revision', async ({ page }
   expect(result.statuses.sort()).toEqual(['fulfilled', 'rejected']); expect(result.head.revision).toBe(2);
 });
 
-test('reset replaces corrupt current data, isolates unrelated databases and rejects old fences and cursors', async ({ page }) => {
+test('reset replaces corrupt referenced data, isolates unrelated databases and rejects old fences and cursors', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const c = window.canonical;
     const unrelated = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -100,8 +100,8 @@ test('reset replaces corrupt current data, isolates unrelated databases and reje
     await new Promise<void>(resolve => { const tx = unrelated.transaction('data', 'readwrite'); tx.objectStore('data').put('keep', 'sentinel'); tx.oncomplete = () => resolve(); });
     const old = await c.initializeCanonical('owner', {}, async pages => { await pages.set('world', 'a', 1, ['rooms/a']); await pages.set('world', 'b', 2, ['rooms/b']); });
     const cursor = (await c.listCanonical('world', 'rooms/', 1)).value.next!;
-    const db = await c.openCanonicalDatabase(); await db.put('meta', { bad: true } as never, 'schema'); db.close();
-    const failed = await c.readCanonicalHead().catch(String);
+    const db = await c.openCanonicalDatabase(); await db.clear('records'); db.close();
+    const failed = await c.readCanonical(pages => pages.get('world', 'a')).catch(String);
     const fresh = await c.resetCanonical('new-owner', { fresh: true });
     const stale = await c.executeCanonical(c.command(old.head), async () => null).catch(String);
     const staleCursor = await c.listCanonical('world', 'rooms/', 1, cursor).catch(String);
@@ -109,7 +109,7 @@ test('reset replaces corrupt current data, isolates unrelated databases and reje
     unrelated.close();
     return { old: old.head, fresh: fresh.head, failed, stale, staleCursor, sentinel, dump: await c.dump() };
   });
-  expect(result.failed).toContain('invalid schema marker'); expect(result.stale).toContain('generation changed');
+  expect(result.failed).toContain('missing referenced record'); expect(result.stale).toContain('generation changed');
   expect(result.staleCursor).toContain('foreign game identity'); expect(result.sentinel).toBe('keep');
   expect(result.fresh.generation).not.toBe(result.old.generation); expect(result.fresh.gameId).not.toBe(result.old.gameId);
   expect(result.dump.content).not.toContain('rooms/a'); expect(result.fresh.quota.usedBytes).toBe(result.dump.bytes);

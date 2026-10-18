@@ -1,0 +1,1 @@
+{ "extends": "../../tsconfig.json", "compilerOptions": { "types": ["vite/client", "node"] }, "include": ["canonical-reset*.ts", "canonical-agentica-operations.reset.spec.ts", "../../src/vite-env.d.ts"] }
