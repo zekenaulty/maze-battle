@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 28,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 29,
 2026-10-18. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -107,13 +107,18 @@ actual-App lost-reply rediscovery, with no new planner calls or gameplay effects
 The [initial Start increment](reviews/issue-11-mounted-start.md) now mounts explicit
 configured Start, scoped queries, bounded known-destination execution and urgent
 Stop in that same App-owned GameSession. No automatic wake, collection, provider
-selection or new-game harness. P3 continuation/adoption integration and P5 final
+selection or new-game harness. P3 adoption integration and P5 final
 qualification remain open. This is not complete feature
 parity or closure of #11.
 The final 26-case provider-free service cohort includes exact reserved-to-parked
 waiting without movement/writes, actual-App Start and urgent Stop, plus the prior
 reload/recovery/decision cases. See the linked report for separate unit/build
 evidence and environment limits.
+The [explicit continuation increment](reviews/issue-11-mounted-continuation.md)
+now mounts one same-owner successor window per explicit Continue, using the
+retained decision/claim/grant path and a verified predecessor handoff ACK.
+The 27-case provider-free service cohort includes this actual-App flow. No
+automatic wake, new root start, hidden collection or cold-reload adoption is implied.
 
 ## Authority and Supersession
 
@@ -323,8 +328,12 @@ P1 storage contracts are split as follows:
   objective, scoped queries and a serialized local navigation loop in the actual
   App. Stop bypasses pending network work; a manual-control lease excludes mixed
   writers. No model activation per cell, automatic wake, loot or completion claim.
-- **P3 Agentica, remaining:** mount subsequent publication lifecycle, continuation
-  and adoption controls. Preserve earned-only room/map/frontier scope and explicit
+- **P3 same-owner continuation, checked:** explicit Continue publishes earned
+  context, retains/correlates intent and claim, selects a successor grant and
+  ACKs only the predecessor. The same App/session performs bounded navigation;
+  a next decision requires another explicit input. Stop remains immediate.
+- **P3 Agentica, remaining:** mount explicit inspected-original adoption controls,
+  bounded frontier exploration and ordinary quest collection. Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
   never equate a navigation/root ACK with clearance of every remote action.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
@@ -459,9 +468,10 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Initial canonical Agentica execution is now mounted; full
-multi-controller depth/revisit/Q and mounted successor execution remain mandatory.
-The actual-App initial/recovery proofs do not qualify those unmounted flows.
+to arbitrary history. Initial canonical Agentica execution and explicit same-owner
+continuation are now mounted; full multi-controller depth/revisit/Q and mounted
+new-owner adoption remain mandatory. The actual-App initial/recovery/continuation
+proofs do not qualify those remaining flows.
 Pending-action recovery now has exact durable rediscovery
 proof, not arbitrary session cleanup or permission for automatic continuation.
 The service page response is bounded, but its capped ledger is still read as a
