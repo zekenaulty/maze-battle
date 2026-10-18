@@ -4,6 +4,7 @@ import { readLaunch } from '../../persistence/canonical/agentica/launch';
 import { inRecoveryDatabase } from '../../persistence/canonical/agentica/recovery.database';
 import { createGrantedLaunchRecovery, createLaunchRecovery } from '../../services/agentica/game/launchRecovery';
 import { recoverGameNavigation } from '../../services/agentica/game/navigationRecovery';
+import { inspectPlayAdoption, type PlayAdoptionOffer } from '../../services/agentica/game/playAdoption';
 import { navigationRecoveryStatus } from './navigationRecoveryStatus';
 import { listGamePendingActions, inspectGamePendingAction, reconcileGamePendingAction, isPendingRecoveryInvalidated,
   type PendingActionPage, type PendingActionSelection } from '../../services/agentica/game/pendingActionRecovery';
@@ -16,13 +17,22 @@ interface State {
   key: object; inventory?: RecoveryInventory; detail?: RecoveryInspection;
   busy?: string; error?: string; service?: string; ended?: boolean;
   pendingPage?: PendingActionPage; pendingSelection?: PendingActionSelection;
+  adoption?: { key: object; offer: PlayAdoptionOffer };
 }
 interface Scope { key: object; abort: AbortController; busy: boolean; close?: () => void }
-export interface RecoveryProps { controller: GameSession; game?: GameView; controlled: boolean }
+export interface RecoveryProps { controller: GameSession; game?: GameView; controlled: boolean; onAdopt?: (offer: PlayAdoptionOffer) => void }
 
-export function useAgenticaRecovery({ controller, game, controlled }: RecoveryProps) {
+export function useAgenticaRecovery({ controller, game, controlled, onAdopt }: RecoveryProps) {
   const hostSignal = controller.hostSignal;
   const key = useMemo(() => ({}), [controller, hostSignal, controller.owner, game?.id, game?.snapshot.generation, controlled]);
+  const canOfferAdoption = () => Boolean(onAdopt && controlled && game && controller.view?.controlled
+    && !controller.view.busy && !controller.view.recoveryRequired && controller.view.game?.id === game.id
+    && controller.view.game.snapshot.generation === game.snapshot.generation && controller.view.game.snapshot.revision === game.snapshot.revision
+    && controller.view.game.mode === game.mode && controller.view.game.checkpoint.townReturnMode === game.checkpoint.townReturnMode
+    && controller.view.game.mode !== 'town' && controller.view.game.mode !== 'auto-play' && controller.view.game.checkpoint.townReturnMode !== 'auto-play');
+  const eligible = canOfferAdoption();
+  const adoptionKey = useMemo(() => ({}), [key, eligible, game?.snapshot.revision, game?.mode, game?.checkpoint.townReturnMode]);
+  const latestAdoption = useRef(adoptionKey); latestAdoption.current = adoptionKey;
   const latest = useRef(key); latest.current = key;
   const scope = useRef<Scope | undefined>(undefined);
   const [state, setState] = useState<State>({ key });
@@ -40,7 +50,7 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
     catch (error) {
       if (isPendingRecoveryInvalidated(error))
         patch(s, { inventory: undefined, detail: undefined, pendingPage: undefined, pendingSelection: undefined, service: undefined });
-      patch(s, { error: error instanceof Error ? error.message.slice(0, 240) : 'Recovery could not be read.' });
+      patch(s, { adoption: undefined, error: error instanceof Error ? error.message.slice(0, 240) : 'Recovery could not be read.' });
     }
     finally { s.busy = false; patch(s, { busy: undefined }); }
   }
@@ -48,7 +58,7 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
     const inventory = await listAgenticaRecovery({ signal: s.abort.signal }); assertAlive(s);
     if (game && (inventory.fence.gameId !== game.id || inventory.fence.generation !== game.snapshot.generation))
       throw new Error('The local game changed. Reopen recovery from the current game.');
-    patch(s, { inventory, detail: undefined, pendingPage: undefined, pendingSelection: undefined });
+    patch(s, { inventory, detail: undefined, adoption: undefined, pendingPage: undefined, pendingSelection: undefined });
   }
   useEffect(() => {
     const s: Scope = { key, abort: new AbortController(), busy: false }; scope.current = s;
@@ -66,13 +76,24 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
 
   const view: State = state.key === key ? state : { key };
   const refresh = () => run(scope.current, 'Reading local records', async s => {
-    patch(s, { inventory: undefined, detail: undefined, service: undefined, pendingPage: undefined, pendingSelection: undefined }); await load(s);
+    patch(s, { inventory: undefined, detail: undefined, adoption: undefined, service: undefined, pendingPage: undefined, pendingSelection: undefined }); await load(s);
   });
   const inspect = (candidate: RecoveryCandidate) => run(scope.current, 'Inspecting original', async s => {
     if (!view.inventory) return;
-    patch(s, { detail: undefined, service: undefined, pendingPage: undefined, pendingSelection: undefined });
+    patch(s, { detail: undefined, adoption: undefined, service: undefined, pendingPage: undefined, pendingSelection: undefined });
     const detail = await inspectAgenticaRecovery(view.inventory.fence, candidate, { signal: s.abort.signal });
     assertAlive(s); patch(s, { detail });
+    if (!canOfferAdoption() || latestAdoption.current !== adoptionKey) return;
+    const offer = await inspectPlayAdoption(controller, detail.fence, detail.candidate, { signal: s.abort.signal });
+    assertAlive(s);
+    if (offer && canOfferAdoption() && latestAdoption.current === adoptionKey) patch(s, { adoption: { key: adoptionKey, offer } });
+  });
+  const adoptionOffer = eligible && view.adoption?.key === adoptionKey ? view.adoption.offer : undefined;
+  const adopt = () => run(scope.current, 'Adopting navigation', async s => {
+    if (!adoptionOffer || !canOfferAdoption() || latestAdoption.current !== adoptionKey) return;
+    assertAlive(s); hostSignal.throwIfAborted();
+    patch(s, { adoption: undefined });
+    onAdopt!(adoptionOffer);
   });
   const runNavigation = (action: 'stop' | 'reconcile') => run(scope.current,
     action === 'stop' ? 'Stopping navigation' : 'Reconciling navigation', async s => {
@@ -81,7 +102,7 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
       assertAlive(s); hostSignal.throwIfAborted(); patch(s, { service: undefined });
       const result = await recoverGameNavigation(controller, detail.fence, detail.candidate, action, { signal: s.abort.signal });
       assertAlive(s); hostSignal.throwIfAborted();
-      patch(s, { service: navigationRecoveryStatus(result), detail: undefined });
+      patch(s, { service: navigationRecoveryStatus(result), detail: undefined, adoption: undefined });
       await load(s);
     });
   const runPending = (action: { kind: 'list'; afterActionId?: string } | { kind: 'inspect'; actionId: string } | { kind: 'reconcile' }) =>
@@ -139,8 +160,8 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
         : result.status === 'identified' ? result.settled ? 'Original root is settled at the service.' : 'Original root is retained, not settled.'
           : result.status === 'undispatched' ? 'Original root was not dispatched.'
             : action === 'stop' ? 'Local Stop recorded; original service start is unknown.' : 'Original service start is unknown; absence does not prove no execution.';
-    patch(s, { service: message + ' Session clearance remains unknown.', detail: undefined });
+    patch(s, { service: message + ' Session clearance remains unknown.', detail: undefined, adoption: undefined });
     if (action === 'stop') await load(s);
   });
-  return { ...view, refresh, inspect, runNavigation, runPending, runService, serviceAvailable: !hostSignal.aborted };
+  return { ...view, adoptionOffer, adopt, refresh, inspect, runNavigation, runPending, runService, serviceAvailable: !hostSignal.aborted };
 }
