@@ -16,7 +16,7 @@ import { restoreDecisionSequence } from './canonical-start-service.decision-rest
 import { attachNavigationCleanup } from './canonical-start-service.navigation-cleanup';
 import { readPendingCustody, readExactPendingCustody, recoverPendingCustody } from './canonical-start-service.pending-custody';
 import { readPendingCanonicalEvidence } from './canonical-start-service.pending-evidence';
-import { recoverPendingNoEffect, postPendingRecovery, readLostPendingReply, readPendingRecoveryTransactions } from './canonical-start-service.pending-repair';
+import { recoverPendingNoEffect, producePendingInterim, postPendingRecovery, readLostPendingReply, readPendingRecoveryTransactions } from './canonical-start-service.pending-repair';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
@@ -79,6 +79,7 @@ async function recover(mode: 'inspect' | 'stop') {
 }
 const api = { boot, loseStart, snapshot, recover, readPendingCustody, readExactPendingCustody, recoverPendingCustody, readPendingCanonicalEvidence,
   recoverPendingNoEffect: (action: AgenticaAction, loseReply = false) => recoverPendingNoEffect(session, decisionSource(), action, loseReply),
+  producePendingInterim: (action: AgenticaAction) => producePendingInterim(session, decisionSource(), action),
   postPendingRecovery, readLostPendingReply, readPendingRecoveryTransactions,
   async startDecision(mode: DecisionScriptMode) { decision = await startDecisionSequence(session, mode); return decision.started; },
   async restoreDecision(reference: ProtocolRef) { restoredDecision = await restoreDecisionSequence(session, reference); },

@@ -68,7 +68,7 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     await info.attach('native-decision-service-proof.json', { body: JSON.stringify({ wire, state, proof: await serviceProof() }, null, 2), contentType: 'application/json' });
     const names = ['decisionController', 'decisionChannel', 'decisionState', 'decisionCommit', 'decisionCleanup',
       'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared',
-      'pendingRecovery', 'pendingRecovery.wire'];
+      'pendingRecovery', 'pendingRecovery.wire', 'actionHooks', 'actionContract'];
     const hashes = Object.fromEntries(names.map(name => [name, createHash('sha256')
       .update(readFileSync(`src/services/agentica/game/${name}.ts`)).digest('hex')]));
     for (const name of ['decision.entry', 'decision.claim', 'terminal.decision', 'terminal.root-stop', 'terminal.ack', 'terminal',
