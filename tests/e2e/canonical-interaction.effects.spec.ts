@@ -40,6 +40,7 @@ test('admission is effect-free; explicit chest apply commits actual quest loot a
   expect(r.after.observation.header.sequence).toBe(r.before.observation.header.sequence + 1);
   expect(r.after.observation.cells.find(cell => cell.chests.some(ch => ch.id === chest.id))!.chests).toContainEqual({ id: chest.id, opened: true });
   expect(r.afterRead).toBe(r.beforeRead); expect(r.terminal.stats.writes).toBe(0);
+  for (const head of [r.admitted.head, r.state.head, r.terminal.head]) expect(head.checkpoint.position).toEqual(r.seed.position);
   expect(r.terminal.value).toMatchObject({ disposition: 'decision', progress: r.state.value.progress });
   expect(r.terminal.value.admission.receipt).toEqual(r.admission.outcome.receipt);
   expect(r.terminal.value.progressSource.receipt).toEqual(r.applied.outcome.receipt);
