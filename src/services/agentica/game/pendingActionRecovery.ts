@@ -1,7 +1,6 @@
 import type { GameSession } from '../../game/GameSession';
 import type { OwnerFence } from '../../../persistence/canonical/types';
 import type { RecoveryCandidate } from '../../../persistence/canonical/agentica/recovery';
-import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
 import { provePregrantNoEffect } from '../../../persistence/canonical/agentica/pregrant-proof';
 import { equal, snapshotJson, validateAction } from '../../../persistence/canonical/agentica/validation';
 import { check, fence } from '../../../persistence/canonical/validation';
@@ -9,9 +8,11 @@ import { boundedGameFetch } from './network';
 import { recoverPregrantAction } from './pendingRecovery';
 import { pendingRecoveryEntry, pendingRecoveryUrl, recoveryResponse } from './pendingRecovery.wire';
 import { pendingRecoveryContext } from './pendingActionRecovery.context';
+import { checkPendingCustody, inPendingRecoveryDatabase, pendingRecoveryRead } from './pendingRecovery.errors';
 import { pendingClearance, pendingDescriptor, pendingPage, pendingRunUrl, selectedHashes } from './pendingActionRecovery.wire';
 import type { GamePendingRecovery, PendingActionDescriptor, PendingActionSelection } from './pendingActionRecovery.types';
 export type { GamePendingRecovery, PendingActionDescriptor, PendingActionPage, PendingActionSelection } from './pendingActionRecovery.types';
+export { PendingRecoveryInvalidatedError, isPendingRecoveryInvalidated } from './pendingRecovery.errors';
 
 export interface PendingRecoveryOptions { signal?: AbortSignal; fetchImpl?: typeof fetch }
 const selections = new WeakMap<PendingActionSelection, { port: GameSession; fence: OwnerFence;
@@ -27,21 +28,21 @@ export function createGamePendingRecovery(port: GameSession, inputFence: OwnerFe
   const closed = new AbortController(), lifetime = AbortSignal.any([hostSignal, closed.signal, ...(options.signal ? [options.signal] : [])]);
   let anchor: unknown;
   const alive = (signal: AbortSignal) => {
-    signal.throwIfAborted(); check(port.hostSignal === hostSignal, 'pending recovery game lifetime changed');
-    check(port.owner === expected.owner, 'pending recovery requires current game ownership');
+    signal.throwIfAborted(); checkPendingCustody(port.hostSignal === hostSignal, 'pending recovery game lifetime changed');
+    checkPendingCustody(port.owner === expected.owner, 'pending recovery requires current game ownership');
   };
   async function run<T>(work: (context: Awaited<ReturnType<typeof pendingRecoveryContext>>,
     signal: AbortSignal, network: typeof fetch, current: () => Promise<unknown>) => Promise<T>): Promise<T> {
     alive(lifetime); check(!running.has(port), 'pending recovery is already running'); running.add(port);
     try {
-      return await inRecoveryDatabase(lifetime, async signal => {
-        const current = async () => {
+      return await inPendingRecoveryDatabase(lifetime, async signal => {
+        const current = () => pendingRecoveryRead(lifetime, async () => {
           alive(signal);
           const found = await pendingRecoveryContext(expected, candidate, signal, () => alive(signal)); alive(signal);
           check(anchor === undefined || equal(anchor, found.anchor), 'pending recovery original custody changed');
           anchor ??= snapshotJson(found.anchor);
           return found;
-        };
+        });
         const context = await current(), network = boundedGameFetch(signal, fetchImpl);
         const guarded: typeof fetch = async (url, init) => {
           await current(); const response = await network(url, init); await current(); return response;
@@ -66,7 +67,8 @@ export function createGamePendingRecovery(port: GameSession, inputFence: OwnerFe
         selectedHashes(raw, descriptor);
         const action = validateAction((raw as Record<string, unknown>).request);
         check(action.actionId === descriptor.actionId, 'selected recovery action changed');
-        const result = await provePregrantNoEffect(expected, identity, candidate.binding, action, { signal });
+        const result = await pendingRecoveryRead(lifetime,
+          () => provePregrantNoEffect(expected, identity, candidate.binding, action, { signal }));
         await current(); const cap = start.capabilities.find(c => c.id === action.capabilityId);
         check(cap, 'missing original recovery capability');
         pendingRecoveryEntry(raw, action, start.objectiveId, cap, result);
@@ -86,7 +88,7 @@ export function createGamePendingRecovery(port: GameSession, inputFence: OwnerFe
         };
         const result = await recoverPregrantAction(port, identity.action, candidate.binding, saved.action,
           { signal, expectedFence: expected, fetchImpl: guarded });
-        check(equal(result.result, saved.result), 'selected recovery proof changed'); return result;
+        checkPendingCustody(equal(result.result, saved.result), 'selected recovery proof changed'); return result;
       });
     },
   };
