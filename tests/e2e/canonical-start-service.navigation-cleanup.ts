@@ -1,6 +1,6 @@
 import type { GameSession } from '../../src/services/game/GameSession';
-import { AgenticaHost } from '../../src/services/agentica/sdk/agentica-host.mjs';
-import { createGameOperationDriver } from '../../src/services/agentica/game/operationDriver';
+import { recoverGameNavigation } from '../../src/services/agentica/game/navigationRecovery';
+import { listAgenticaRecovery } from '../../src/persistence/canonical/agentica/recovery';
 import { readAgenticaTerminal } from '../../src/persistence/canonical/agentica/terminal';
 import { loadOperationBinding } from '../../src/persistence/canonical/agentica/operation.binding';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
@@ -10,21 +10,27 @@ import { retainedNavigation } from './canonical-start-service.retained-navigatio
 /** Historical cleanup only: no socket connection, transfer or action execution. */
 export async function attachNavigationCleanup(session: GameSession, reference: ProtocolRef) {
   const { identity, binding } = await retainedNavigation(reference);
-  const forbidden = async () => { throw Error('Reload cleanup cannot execute an action'); };
-  const sdk = new AgenticaHost({ url: 'ws://127.0.0.1:5259/api/host', onAction: forbidden, loadAction: forbidden, saveAction: forbidden });
-  const driver = await createGameOperationDriver(session, sdk, identity.action, binding);
+  const abort = new AbortController();
+  async function recover(action: 'stop' | 'reconcile') {
+    const inventory = await listAgenticaRecovery({ signal: abort.signal });
+    const candidates = inventory.allocations.flatMap(row => row.navigation ? [row.navigation] : []);
+    if (inventory.selected?.predecessor) candidates.push(inventory.selected.predecessor);
+    const candidate = candidates.find(row => row.original.id === reference.id && row.original.key === reference.key);
+    if (!candidate) throw Error('Original is no longer in the bounded local recovery inventory');
+    return recoverGameNavigation(session, inventory.fence, candidate, action, { signal: abort.signal });
+  }
   let cancelled = false;
   return {
-    async cancel() { await driver.cancel(); cancelled = true; },
+    async cancel() { await recover('stop'); cancelled = true; },
     async pulse() {
       if (!cancelled) throw Error('Explicit local cancellation required before historical delivery');
-      return driver.pulse();
+      return recover('reconcile');
     },
     async read() {
       const { value: bound, head } = await readCanonical(pages => loadOperationBinding(pages, identity, binding));
       return { head, binding, original: bound.original, operation: bound.operation, progress: bound.progress,
         terminal: (await readAgenticaTerminal(identity, binding)).value };
     },
-    close() { driver.close(); sdk.close(); },
+    close() { abort.abort(); },
   };
 }
