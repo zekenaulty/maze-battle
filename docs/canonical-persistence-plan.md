@@ -1,15 +1,15 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 27,
-2026-10-17. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 28,
+2026-10-18. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
 P3 Auto now uses that same playable App and canonical commands, with earned
 waypoints, explicit collection/guild/care policy, interruption and bounded floor
 preparation. [Auto integration evidence](reviews/issue-11-auto-cutover.md).
-Retained known-destination execution and atomic host hooks are checked separately
-from the unmounted Agentica client. [Navigation proof](reviews/issue-11-navigation-composition.md).
+Retained known-destination execution and atomic host hooks were checked separately
+before mounting the initial client below. [Navigation proof](reviews/issue-11-navigation-composition.md).
 Actual-App depth-local movement is now measured through 16 retained qualified
 floors. [Method and limitations](reviews/issue-11-app-depth.md).
 P4 has removed the alternate production writers and disconnected preview UI.
@@ -94,8 +94,8 @@ real-service cases cover no-effect reconciliation, interim unresolved results,
 lost replies, restart and funded root/navigation ACKs at ordinary quota.
 Scoped local discovery and explicit root Check/Stop are now mounted in the
 actual App, including its failed-load screen. Opening recovery never contacts
-the service. The SDK execution client and Start/Wake/Adopt controls remain
-unmounted. The [navigation/reset increment](reviews/issue-11-navigation-reset-recovery.md)
+the service. At that recovery milestone, execution controls remained unmounted;
+initial Start is now mounted below. The [navigation/reset increment](reviews/issue-11-navigation-reset-recovery.md)
 adds explicit inspected-original Stop/reconciliation in the same App, plus a
 transactional reset guard against unresolved current verified-host allocations.
 The actual-App quota proof covers local Stop, real remote navigation/root ACKs
@@ -104,8 +104,16 @@ now mounts explicit run-page discovery, exact inspection and reconciliation. A
 receipt-witnessed active-root claimed-parent reference survives both ACKs, browser
 reload and service restart. The 24-case provider-free service cohort includes
 actual-App lost-reply rediscovery, with no new planner calls or gameplay effects.
-P3 execution integration and P5 final qualification remain open. This is not complete feature
+The [initial Start increment](reviews/issue-11-mounted-start.md) now mounts explicit
+configured Start, scoped queries, bounded known-destination execution and urgent
+Stop in that same App-owned GameSession. No automatic wake, collection, provider
+selection or new-game harness. P3 continuation/adoption integration and P5 final
+qualification remain open. This is not complete feature
 parity or closure of #11.
+The final 26-case provider-free service cohort includes exact reserved-to-parked
+waiting without movement/writes, actual-App Start and urgent Stop, plus the prior
+reload/recovery/decision cases. See the linked report for separate unit/build
+evidence and environment limits.
 
 ## Authority and Supersession
 
@@ -311,9 +319,12 @@ P1 storage contracts are split as follows:
   allocations, and grant no authority. Missing proof fails closed; an empty
   remote page never means session clearance. Current claim validation remains
   independent of optional discovery evidence, with no migration or fallback.
-- **P3 Agentica, remaining:** mount explicit Start and execution on the current
-  App-owned GameSession, then subsequent publication lifecycle, continuation and
-  adoption controls. Preserve earned-only room/map/frontier scope and explicit
+- **P3 initial execution, checked:** explicit configured Start and a player-entered
+  objective, scoped queries and a serialized local navigation loop in the actual
+  App. Stop bypasses pending network work; a manual-control lease excludes mixed
+  writers. No model activation per cell, automatic wake, loot or completion claim.
+- **P3 Agentica, remaining:** mount subsequent publication lifecycle, continuation
+  and adoption controls. Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
   never equate a navigation/root ACK with clearance of every remote action.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
@@ -448,10 +459,10 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Canonical Agentica execution mounting, full multi-controller
-depth/revisit/Q and mounted successor
-execution remain mandatory. The actual-App recovery proof does not qualify
-those unmounted flows. Pending-action recovery now has exact durable rediscovery
+to arbitrary history. Initial canonical Agentica execution is now mounted; full
+multi-controller depth/revisit/Q and mounted successor execution remain mandatory.
+The actual-App initial/recovery proofs do not qualify those unmounted flows.
+Pending-action recovery now has exact durable rediscovery
 proof, not arbitrary session cleanup or permission for automatic continuation.
 The service page response is bounded, but its capped ledger is still read as a
 whole; this is not a history-independent service-I/O claim. No paid-model test is included

@@ -1,9 +1,11 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 24 cases, including two actual-App recovery cases. This
-is not a parallel game or live-provider test, and does not mount Start/execution
-in the playable App. [Current evidence and limits](../../docs/reviews/issue-11-mounted-pending-recovery.md).
+tests. Current cohort: 26 cases, including two actual-App recovery cases,
+explicit Start/local navigation/Stop, and delayed service acceptance in that
+same App. This is not a parallel
+game or live-provider test. Mounted continuation/adoption remains separate work.
+[Current evidence and limits](../../docs/reviews/issue-11-mounted-start.md).
 
 ## Sources and prerequisites
 
@@ -48,7 +50,7 @@ request/frame attachments, traces, and the service log are retained under
 `test-results/maze-start-service-*`; service storage/builds remain under the
 matching fresh TEMP directory. Neither is deleted by this launcher.
 
-## Current Recovery Qualification
+## Recovery Milestone (24 Cases)
 
 The 24-case integrated run retains real HTTP/SDK boundaries, exact custody,
 decision/wake/adoption, restart and quota checks. It adds actual-App navigation
