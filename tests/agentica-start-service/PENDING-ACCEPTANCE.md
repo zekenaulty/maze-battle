@@ -1,4 +1,8 @@
-# Pending Recovery Acceptance Preparation
+# Pending Recovery Acceptance
+
+**Current result: 21/21 native PASS.** See [PENDING-RECOVERY.md](PENDING-RECOVERY.md)
+for the completed acceptance, exact commits, full evidence paths and failure
+history. The preparation and focused-run notes below are retained as history.
 
 ## Current Handoff
 
@@ -19,7 +23,7 @@ match the approved parent exactly.
 
 The two actual browser-to-service pending recovery cases now PASS. They use
 production `recoverPregrantAction`, not a fixture substitute. Full cohort
-qualification is next. The HTTP loss hook throws only after the real service
+qualification subsequently passed at `5a3e752`. The HTTP loss hook throws only after the real service
 returns successful acceptance; negative/replay requests go to the actual service.
 
 Current checks:
@@ -178,7 +182,7 @@ Checks for this slice:
 - Failed test/build runs: none in this slice. Native browser runs: NOT RUN;
   no ports acquired, no provider calls, no fabricated recovery, no push.
 
-Next gate: explicit parent composition commit and reviewed clean service path/SHA
+Historical next gate (now satisfied): explicit parent composition commit and reviewed clean service path/SHA
 with exact-action lookup. Review/import only those supplied commits, then update
 the fixture pin/allowlists and replace the unresolved-gap case with funded quota
 settlement plus a separate lost-reply/restart case. Check processes before taking
