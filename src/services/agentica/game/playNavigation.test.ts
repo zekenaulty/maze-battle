@@ -18,8 +18,17 @@ describe('bounded App navigation scheduler', () => {
     await startPlayNavigation(session, sdk, action, binding, new AbortController().signal, update, fail);
     await vi.advanceTimersByTimeAsync(500);
     expect(update.mock.calls.map(([state]) => state.phase)).toEqual(['navigating', 'decision']);
+    expect(update.mock.calls[1][0].canContinue).toBe(true);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(driver.pulse).toHaveBeenCalledTimes(2); expect(driver.close).toHaveBeenCalledOnce(); expect(fail).not.toHaveBeenCalled();
+  });
+  it('does not offer a new decision for an acknowledged nondecision terminal', async () => {
+    driver.pulse.mockResolvedValue({ status: 'terminal-acknowledged' });
+    const update = vi.fn();
+    await startPlayNavigation(session, sdk, action, binding, new AbortController().signal, update, vi.fn());
+    await vi.advanceTimersByTimeAsync(500);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ phase: 'decision', canContinue: false }));
+    expect(driver.pulse).toHaveBeenCalledOnce();
   });
   it('does not overlap an unresolved pulse or reschedule a late response after withdrawal', async () => {
     let resolve!: (value: unknown) => void;

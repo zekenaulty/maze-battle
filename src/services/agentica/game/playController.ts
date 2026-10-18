@@ -6,11 +6,12 @@ import { prepareGameLaunch, type GameLaunchOptions } from './launch';
 import { createGameTransport } from './transport';
 import { transportGate } from './transportGate';
 import { startPlayNavigation } from './playNavigation';
+import { startPlayDecision, type PlayDecisionOriginal } from './playDecision';
 import { stopGamePlay } from './playStop';
 
 export interface GamePlayState {
   phase: 'idle' | 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'stopping' | 'stopped' | 'recovery';
-  active: boolean; message?: string; error?: string; launchId?: string; objective?: string;
+  active: boolean; message?: string; error?: string; launchId?: string; objective?: string; canContinue?: boolean;
 }
 export const idleGamePlay: GamePlayState = { phase: 'idle', active: false };
 type SdkFactory = (options: AgenticaHostOptions) => AgenticaHost;
@@ -23,6 +24,8 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   let gate: ReturnType<typeof transportGate> | undefined;
   let transport: Awaited<ReturnType<typeof createGameTransport>> | undefined;
   let navigation: Awaited<ReturnType<typeof startPlayNavigation>> | undefined;
+  let decision: ReturnType<typeof startPlayDecision> | undefined, original: PlayDecisionOriginal | undefined;
+  let remainingContinuations = 0;
   let pending: Promise<void> = Promise.resolve(), stopPending: Promise<void> | undefined;
   let attempt = 0, operationSeen = false, operationKey: string | undefined, releaseControl: (() => void) | undefined;
   const update = (patch: Partial<GamePlayState>) => {
@@ -31,11 +34,11 @@ export function createGamePlayController(session: GameSession, changed: (state: 
       try { changed({ ...state }); } catch { /* Display observers never own action results. */ }
     }
   };
-  const withdraw = () => { gate?.close(); navigation?.close(); transport?.close(); };
+  const withdraw = () => { gate?.close(); navigation?.close(); transport?.close(); decision?.close(); };
   const fail = (error: unknown) => {
     if (closed || stopping || terminal || hostSignal.aborted) return;
     terminal = true; withdraw();
-    update({ phase: 'recovery', active: true, error: error instanceof Error ? error.message.slice(0, 240) : 'Agentic play requires recovery.' });
+    update({ phase: 'recovery', active: true, canContinue: false, error: error instanceof Error ? error.message.slice(0, 240) : 'Agentic play requires recovery.' });
   };
   async function launch(config: GameLaunchOptions, launchId: string, token: number, localGate: ReturnType<typeof transportGate>) {
     const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted;
@@ -62,12 +65,15 @@ export function createGamePlayController(session: GameSession, changed: (state: 
                 operationSeen = true; operationKey = key;
                 const launch = (await readLaunch(launchId)).value!; localGate.signal.throwIfAborted();
                 check(launch.grant, 'Navigation lacks a committed launch grant.');
-                const driver = await startPlayNavigation(session, sdk, action,
-                  { grant: launch.grant.ref, publication: launch.binding.publication }, localGate.signal,
+                const binding = { grant: launch.grant.ref, publication: launch.binding.publication };
+                const driver = await startPlayNavigation(session, sdk, action, binding, localGate.signal,
                   status => {
                     if (!current()) return;
-                    if (status.phase === 'decision') { terminal = true; transport?.close(); }
-                    update(status);
+                    if (status.phase === 'decision') {
+                      original = status.canContinue ? structuredClone({ action, binding }) : undefined;
+                      terminal = true; transport?.close();
+                    }
+                    update({ ...status, canContinue: !!original && remainingContinuations > 0 });
                   }, report);
                 if (!current() || localGate.signal.aborted) { driver.close(); return result; }
                 navigation = driver;
@@ -100,14 +106,44 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     const config = structuredClone(input), launchId = crypto.randomUUID();
     releaseControl = session.acquireAgenticControl();
     stopping = false; terminal = false; operationSeen = false; operationKey = undefined; stopPending = undefined;
+    original = undefined; remainingContinuations = config.limits.maxPlanContinuations;
     gate = transportGate(session); update({ phase: 'preparing', active: true, launchId, objective: config.objective,
-      error: undefined, message: 'Preparing earned context' });
+      error: undefined, canContinue: false, message: 'Preparing earned context' });
     pending = launch(config, launchId, ++attempt, gate); return pending;
+  }
+  function continueDecision() {
+    check(!closed && !stopping && !hostSignal.aborted && session.hostSignal === hostSignal
+      && state.active && state.phase === 'decision' && state.canContinue && original && releaseControl,
+    'Continue requires the current owner and an explicit available decision.');
+    const next = structuredClone(original);
+    withdraw(); terminal = false; original = undefined; gate = transportGate(session);
+    const token = ++attempt, localGate = gate;
+    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted;
+    // Advisory UI accounting only. Canonical intent/grant and service cumulative limits remain authoritative.
+    remainingContinuations--;
+    update({ phase: 'preparing', canContinue: false, error: undefined, message: 'Preparing the next explicit decision' });
+    pending = (async () => {
+      try {
+        await session.flush(); if (!current()) return;
+        check(session.view.controlled && !session.view.busy && !session.view.recoveryRequired,
+          'Game control changed before continuation.');
+        decision = startPlayDecision({ session, original: next, signal: localGate.signal, factory,
+          update: status => { if (current()) update({ ...status, canContinue: false }); },
+          onDecision: (candidate, status) => {
+            if (!current()) return;
+            original = structuredClone(candidate); terminal = true;
+            update({ ...status, canContinue: remainingContinuations > 0 });
+          },
+          fail: error => { if (current()) fail(error); },
+        });
+      } catch (error) { if (current()) fail(error); }
+    })();
+    return pending;
   }
   function stop() {
     if (closed || !state.launchId) return Promise.resolve();
     if (stopPending) return stopPending;
-    stopping = true; terminal = true; withdraw(); update({ phase: 'stopping', message: 'Stopping local play', error: undefined });
+    stopping = true; terminal = true; withdraw(); update({ phase: 'stopping', canContinue: false, message: 'Stopping local play', error: undefined });
     return stopPending = (async () => {
       try {
         const message = await stopGamePlay(session, state.launchId!, hostSignal);
@@ -119,5 +155,5 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   }
   const close = () => { if (closed) return; closed = true; stopping = true; terminal = true; withdraw(); releaseControl?.(); releaseControl = undefined; hostSignal.removeEventListener('abort', close); };
   hostSignal.addEventListener('abort', close, { once: true });
-  return { start, stop, close, get state() { return { ...state }; } };
+  return { start, continueDecision, stop, close, get state() { return { ...state }; } };
 }

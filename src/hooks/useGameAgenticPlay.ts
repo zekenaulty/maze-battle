@@ -22,9 +22,13 @@ export function useGameAgenticPlay(session: GameSession) {
     } catch (error) { setState(current => ({ ...current, error: String(error).slice(0, 240) })); }
   };
   const stop = () => { void controller.current?.stop(); };
+  const continueDecision = () => {
+    try { void controller.current?.continueDecision(); }
+    catch (error) { setState(current => ({ ...current, error: String(error).slice(0, 240) })); }
+  };
   const recover = () => {
     controller.current?.close(); controller.current = undefined;
     setState({ phase: 'recovery', active: false, message: 'Live execution withdrawn. Retained work requires reconciliation.' });
   };
-  return { ...state, profile: configuration.profile, configurationError: configuration.error, start, stop, recover };
+  return { ...state, profile: configuration.profile, configurationError: configuration.error, start, continueDecision, stop, recover };
 }

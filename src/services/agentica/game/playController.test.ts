@@ -10,9 +10,10 @@ import { createGamePlayController, type GamePlayState } from './playController';
 import type { GameLaunchOptions } from './launch';
 import { deferred } from './transportGate';
 import { mazeCapabilities } from './capabilities';
+import type { PlayDecisionOptions } from './playDecision';
 
 const m = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), execute: vi.fn(), publication: vi.fn(),
-  hooks: vi.fn(), action: vi.fn(), save: vi.fn(), load: vi.fn(), reconcile: vi.fn(), driver: vi.fn(), stop: vi.fn() }));
+  hooks: vi.fn(), action: vi.fn(), save: vi.fn(), load: vi.fn(), reconcile: vi.fn(), driver: vi.fn(), stop: vi.fn(), decision: vi.fn() }));
 vi.mock('../../../persistence/canonical/agentica/launch', () => ({ readLaunch: m.read, executeLaunchCommand: m.execute }));
 vi.mock('../../../persistence/canonical/agentica/publication', () => ({ assertPublicationCurrent: m.publication }));
 vi.mock('./launch', () => ({ prepareGameLaunch: m.prepare }));
@@ -21,6 +22,7 @@ vi.mock('./actionRead', () => ({ loadGameAction: m.load, reconcileGameAction: m.
 vi.mock('./manifestDigest', () => ({ mazeManifestDigest: async () => `sha256:${'a'.repeat(64)}` }));
 vi.mock('./operationDriver', () => ({ createGameOperationDriver: m.driver }));
 vi.mock('./playStop', () => ({ stopGamePlay: m.stop }));
+vi.mock('./playDecision', () => ({ startPlayDecision: m.decision }));
 
 // Real controller, transport correlation/gates, wire validators and navigation timer. No database,
 // WebSocket, HTTP, provider, or real operation driver: these are lifecycle tests, not custody proof.
@@ -81,9 +83,62 @@ beforeEach(() => {
   m.action.mockResolvedValue(result);
   m.hooks.mockReturnValue({ onAction: m.action, saveAction: m.save, loadAction: m.load, reconcileAction: m.reconcile });
   m.stop.mockResolvedValue('Original root acknowledged.');
+  m.decision.mockReturnValue({ close: vi.fn() });
   controller = createGamePlayController(session, changed, hooks => {
     options = hooks;
     return { connect, startDurable, close: sdkClose } as unknown as AgenticaHost;
+  });
+});
+
+describe('explicit same-owner continuation mount', () => {
+  async function boundary() {
+    await navigating(); pulse.mockResolvedValueOnce({ status: 'decision-required' });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(controller.state).toMatchObject({ phase: 'decision', canContinue: true });
+    expect(m.decision).not.toHaveBeenCalled();
+  }
+  const runner = () => m.decision.mock.calls[0][0] as PlayDecisionOptions;
+  it('uses the original action and grant with one explicit window, not a replacement start', async () => {
+    await boundary(); await controller.continueDecision();
+    expect(m.decision).toHaveBeenCalledOnce();
+    expect(runner().original).toEqual({ action, binding: { grant: ref, publication: ref } });
+    expect(startDurable).toHaveBeenCalledOnce(); expect(acquire).toHaveBeenCalledOnce(); expect(releaseControl).not.toHaveBeenCalled();
+    expect(() => controller.continueDecision()).toThrow('explicit available decision');
+    runner().onDecision({ action: { ...action, actionId: 'successor' }, binding: { grant: ref, publication: ref } },
+      { phase: 'decision', message: 'Next decision', canContinue: true });
+    expect(controller.state).toMatchObject({ phase: 'decision', canContinue: false, active: true });
+    expect(() => controller.continueDecision()).toThrow();
+    await controller.stop(); expect(releaseControl).toHaveBeenCalledOnce();
+  });
+  it.each(['idle', 'running', 'navigating', 'nondecision terminal', 'zero limit'])('does not offer continuation at %s', async phase => {
+    if (phase === 'zero limit') await controller.start({ ...config, limits: { ...config.limits, maxPlanContinuations: 0 } });
+    else if (phase !== 'idle') await attached();
+    if (['navigating', 'nondecision terminal', 'zero limit'].includes(phase)) {
+      await options.onAction(action);
+      if (phase !== 'navigating') {
+        pulse.mockResolvedValueOnce({ status: phase === 'zero limit' ? 'decision-required' : 'terminal-acknowledged' });
+        await vi.advanceTimersByTimeAsync(250);
+      }
+    }
+    expect(() => controller.continueDecision()).toThrow(); expect(m.decision).not.toHaveBeenCalled();
+  });
+  it('Stop overtakes the continuation flush without constructing a runner', async () => {
+    await boundary(); const barrier = hold(flush), continuation = controller.continueDecision();
+    await barrier.entered; await controller.stop(); barrier.release(); await continuation;
+    expect(m.decision).not.toHaveBeenCalled(); expect(controller.state.phase).toBe('stopped');
+  });
+  it('a withdrawn runner cannot publish another boundary or failure', async () => {
+    await boundary(); await controller.continueDecision(); const input = runner();
+    await controller.stop(); expect(input.signal.aborted).toBe(true);
+    expect(m.decision.mock.results[0].value.close).toHaveBeenCalled();
+    const updates = changes.length;
+    input.onDecision(input.original, { phase: 'decision', message: 'Late', canContinue: true });
+    input.update({ phase: 'running', message: 'Late' }); input.fail(Error('Late'));
+    expect(changes).toHaveLength(updates); expect(controller.state.phase).toBe('stopped');
+  });
+  it('a stale lifetime cannot continue a retained boundary', async () => {
+    await boundary(); host.abort(); expect(() => controller.continueDecision()).toThrow();
+    expect(m.decision).not.toHaveBeenCalled(); expect(releaseControl).toHaveBeenCalledOnce();
   });
 });
 afterEach(() => { controller.close(); vi.clearAllTimers(); vi.useRealTimers(); });

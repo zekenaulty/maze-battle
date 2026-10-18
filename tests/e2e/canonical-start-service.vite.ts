@@ -9,6 +9,17 @@ export default defineConfig({
   plugins: [react(), {
     name: 'actual-app-service-controller', enforce: 'pre',
     transform(source, id) {
+      if (id.replaceAll('\\', '/').endsWith('/src/hooks/useGameAgenticPlay.ts')) {
+        const anchor = 'const configuration = readGameAgenticaProfile(import.meta.env);';
+        if (!source.includes(anchor)) throw Error('Actual App profile instrumentation no longer matches');
+        return source.replace(anchor, `const configuration = readGameAgenticaProfile({ ...import.meta.env,
+          ...(new URL(location.href).searchParams.has('decisionProof') ? {
+            VITE_AGENTICA_MODEL: 'decision-navigation', VITE_AGENTICA_MAX_STEPS: '8',
+            VITE_AGENTICA_MAX_REFINEMENTS: '6', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1',
+            VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
+          } : {}),
+        });`);
+      }
       if (!id.replaceAll('\\', '/').endsWith('/src/hooks/useGameSession.ts')) return;
       const anchor = 'return { ...view, controller: session,';
       if (!source.includes(anchor)) throw Error('Actual App hook instrumentation no longer matches');

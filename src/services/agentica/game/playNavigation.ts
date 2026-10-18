@@ -4,7 +4,7 @@ import type { OperationSdk } from './operationTerminal';
 import { createGameOperationDriver } from './operationDriver';
 import type { ActionBinding } from './actionContract';
 
-export interface PlayNavigationStatus { phase: 'navigating' | 'decision'; message: string }
+export interface PlayNavigationStatus { phase: 'navigating' | 'decision'; message: string; canContinue?: boolean }
 
 /** One serialized engine pulse per timer. Service absence is bounded; errors never retry implicitly. */
 export async function startPlayNavigation(session: GameSession, sdk: OperationSdk, action: AgenticaAction,
@@ -20,7 +20,7 @@ export async function startPlayNavigation(session: GameSession, sdk: OperationSd
       const result = await driver.pulse();
       if (closed || signal.aborted) return;
       if (result.status === 'decision-required' || result.status === 'terminal-acknowledged') {
-        update({ phase: 'decision', message: result.status === 'decision-required'
+        update({ phase: 'decision', canContinue: result.status === 'decision-required', message: result.status === 'decision-required'
           ? 'Navigation reached a decision boundary.' : 'Navigation settled. Objective completion is not established.' });
         close(); return;
       }
