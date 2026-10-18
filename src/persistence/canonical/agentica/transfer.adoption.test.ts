@@ -9,7 +9,7 @@ import { loadTransferAdoptions, transferAdoptionId } from './transfer.adoption';
 function fixture() {
   const expected = { generation: 'generation', gameId: 'game', owner: 'new-owner', epoch: 3, revision: 12 };
   const transfer = { reference: { key: 'intent', id: 'immutable-intent' }, source: { expected } } as RetainedTransfer;
-  const confirmed = { bound: { launch: { guard: { id: 'guard-id' } }, operation: { id: 'navigation-id' } } } as ConfirmedOperation;
+  const confirmed = { bound: { kind: 'navigation', launch: { guard: { id: 'guard-id' } }, operation: { id: 'navigation-id' } } } as unknown as ConfirmedOperation;
   const rows = new Map<string, { source: CanonicalRequest; receipt: CanonicalReceipt }>();
   for (const [i, kind] of (['guard', 'navigation'] as const).entries()) {
     const attemptId = transferAdoptionId(transfer, kind), operationId = `${kind}-id`;
@@ -46,5 +46,10 @@ describe('explicit transfer kernel receipt binding', () => {
   it('requires guard adoption before navigation adoption', async () => {
     const f = fixture(); f.rows.get('immutable-intent:navigation')!.receipt.beforeRevision = 12;
     await expect(f.load()).rejects.toThrow('order changed');
+  });
+  it('rejects interaction adoption before loading any kernel receipt', async () => {
+    const f = fixture(); Object.assign(f.confirmed.bound, { kind: 'interaction' });
+    f.rows.clear();
+    await expect(f.load()).rejects.toThrow('interaction transfer is not supported');
   });
 });

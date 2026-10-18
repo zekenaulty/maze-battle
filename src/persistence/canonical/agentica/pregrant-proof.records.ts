@@ -10,6 +10,7 @@ import { loadRunGrant } from './run-grant.read';
 import { loadAgenticaTerminal } from './terminal';
 import type { PreparedAction } from './types';
 import { equal, snapshotPrepared } from './validation';
+import { recoveryOperationId } from './recovery.records';
 
 /** Absence is usable only after an irreversible Stop closes the sole grant writer. */
 export async function loadPregrantStop(pages: OperationRead, inputParent: PreparedAction,
@@ -40,6 +41,7 @@ export async function loadPregrantStop(pages: OperationRead, inputParent: Prepar
   check(selectedGrant.launch.binding.launchId === bound.launch.binding.launchId
     && selectedGrant.started.runId !== started.runId, 'pregrant successor was selected');
   check(!await loadOriginalAction(pages, pending), 'pregrant action already has canonical custody');
-  check(!await pages.liveOperation(`travel-${pending.storageKey.slice(-64)}`), 'pregrant action already has an operation');
+  check(!await pages.liveOperation(recoveryOperationId(pending.storageKey,
+    action.capabilityId === 'maze.interact' ? 'maze.interact' : 'maze.navigate')), 'pregrant action already has an operation');
   return { cancellation: stop.terminal, claim: claim.reference };
 }

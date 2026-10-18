@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from 'vitest';
-import { recoveryOriginal } from './recovery.records';
+import { recoveryOperationId, recoveryOriginal } from './recovery.records';
 import { readSource } from './validation.source';
 import { prepareAction, restoreRetainedAction } from './validation';
 import { protocolAction } from './types.test-support';
@@ -36,4 +36,14 @@ it('propagates corrupt immutable reserve evidence rather than reporting absence'
   const f = await fixture(); vi.mocked(readSource).mockRejectedValue(new Error('source receipt changed'));
   await expect(f.load()).rejects.toThrow('source receipt changed');
   expect(restoreRetainedAction).not.toHaveBeenCalled();
+});
+
+it('reconstructs the interaction ID from the retained capability without parsing its private selection', async () => {
+  const f = await fixture('maze.interact'), result = await f.load();
+  expect(result.candidate).toEqual({ operationId: `interact-${f.identity.storageKey.slice(-64)}`, original: f.ref, binding: f.binding });
+  expect(recoveryOperationId(f.ref.key)).toBe(`travel-${f.identity.storageKey.slice(-64)}`);
+  expect(recoveryOperationId(f.ref.key, 'maze.explore')).toBe(recoveryOperationId(f.ref.key));
+  expect(recoveryOperationId(f.ref.key, 'maze.interact')).toBe(result.candidate.operationId);
+  expect(() => recoveryOperationId(f.ref.key, 'maze.other')).toThrow('capability');
+  expect(() => recoveryOperationId(`agentica/actions/${'g'.repeat(64)}`, 'maze.interact')).toThrow('key');
 });

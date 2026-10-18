@@ -19,7 +19,8 @@ export async function retainTransferIntent(tx: CanonicalWork, input: CanonicalRe
   const identity = snapshotPrepared(action), publicationRef = snapshotReference(inputPublication);
   const request = operationRequest(tx, input, 'agentica.operation.transfer', { action: identity.storageKey, publication: publicationRef });
   const pages = launchPages(tx), confirmed = await loadOperationConfirmation(pages, identity); check(confirmed, 'transfer needs original confirmation');
-  const { bound } = confirmed, { operation, launch, active, progress } = bound;
+  const { bound } = confirmed; check(bound.kind === 'navigation', 'interaction transfer is not supported');
+  const { operation, launch, active, progress } = bound;
   check(operation.state === 'admitted' && launch.guard.state === 'admitted' && progress.status === 'running', 'only unfinished navigation can transfer');
   check(active?.id === launch.binding.launchId && active.sourceAttemptId === launch.guard.admissionAttemptId, 'transfer launch is not active');
   const custody = await loadOperationCustodyAck(pages, identity, confirmed.reference); check(custody, 'transfer needs acknowledged original custody');
@@ -49,6 +50,7 @@ export async function retainTransferAck(tx: CanonicalWork, input: CanonicalReque
   const identity = snapshotPrepared(action), ref = snapshotReference(inputRef), entry = operationEntry(remote);
   const request = operationRequest(tx, input, 'agentica.operation.transfer-ack', { action: identity.storageKey, intent: ref, entry });
   const pages = launchPages(tx), confirmed = await loadOperationConfirmation(pages, identity); check(confirmed, 'missing transfer confirmation');
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const transfer = await loadTransfer(pages, identity, confirmed); check(transfer && equal(transfer.reference, ref), 'transfer target changed');
   validateTransferAck(entry, confirmed, transfer);
   const previous = await loadTransferAck(pages, identity, confirmed, transfer);
@@ -60,6 +62,7 @@ export async function retainTransferAuthority(tx: CanonicalWork, input: Canonica
   const identity = snapshotPrepared(action), ref = snapshotReference(inputRef);
   const request = operationRequest(tx, input, 'agentica.operation.transfer-authorize', { action: identity.storageKey, intent: ref });
   const pages = launchPages(tx), confirmed = await loadOperationConfirmation(pages, identity); check(confirmed, 'missing transfer confirmation');
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const transfer = await loadTransfer(pages, identity, confirmed); check(transfer && equal(transfer.reference, ref), 'transfer target changed');
   const ack = await loadTransferAck(pages, identity, confirmed, transfer); check(ack, 'transfer needs exact service ACK');
   const { operation, launch, active, progress } = confirmed.bound;

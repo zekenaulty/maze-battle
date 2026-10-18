@@ -7,8 +7,11 @@ import { loadTransfer, loadTransferAuthority, transferStageKey } from './transfe
 import type { PreparedAction } from './types';
 import { equal } from './validation';
 
-/** Navigation authority only. Original action grants are never renewed or rewritten here. */
+/** Original action grants are never renewed or rewritten here. Interactions cannot transfer. */
 export async function assertEffectiveOperationCustody(pages: OperationRead, head: CanonicalHead, identity: PreparedAction, confirmed: ConfirmedOperation) {
+  if (confirmed.bound.kind === 'interaction') check(confirmed.bound.progress.owner === confirmed.source.expected.owner
+    && confirmed.bound.progress.epoch === confirmed.source.expected.epoch && head.owner === confirmed.source.expected.owner
+    && head.epoch === confirmed.source.expected.epoch, 'interaction requires original custody');
   const transfer = await loadTransfer(pages, identity, confirmed);
   if (!transfer) { assertOperationCustody(head, confirmed.bound); return null; }
   const key = transferStageKey(transfer.reference, 'authority'), row = await pages.get('execution', key);

@@ -12,6 +12,7 @@ export function transferAdoptionId(transfer: RetainedTransfer, kind: TransferAdo
 }
 export async function loadTransferAdoption(pages: OperationRead, confirmed: ConfirmedOperation, transfer: RetainedTransfer,
   ackRevision: number, kind: TransferAdoptionKind) {
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const attemptId = transferAdoptionId(transfer, kind), { source, receipt } = await pages.sourceReceipt(attemptId);
   const operationId = kind === 'guard' ? confirmed.bound.launch.guard.id : confirmed.bound.operation.id;
   const target = transfer.source.expected, fence = source.expected;

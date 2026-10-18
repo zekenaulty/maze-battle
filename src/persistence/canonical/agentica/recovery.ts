@@ -25,10 +25,11 @@ async function inventory(signal: AbortSignal) {
       const operation = await pages.liveOperation(operationId);
       check(operation && operation.state !== 'acknowledged', 'recovery allocation changed');
       let navigation: RecoveryAllocation['navigation'] = null;
-      if (/^travel-[a-f0-9]{64}$/.test(operationId)) {
+      if (/^(travel|interact)-[a-f0-9]{64}$/.test(operationId)) {
         const key = `agentica/actions/${operationId.slice(-64)}`, row = await pages.get('execution', key);
         check(row && operation.ackPolicy === 'verified-host', 'missing original funded recovery action');
         navigation = (await recoveryOriginal(pages, { key, id: row.id })).candidate;
+        check(navigation.operationId === operationId, 'recovery operation capability changed');
       } else if (operationId.startsWith('agentica-launch:')) {
         check(pointers.active, 'missing active funded launch');
         await loadLaunch(pages, operationId.slice('agentica-launch:'.length));

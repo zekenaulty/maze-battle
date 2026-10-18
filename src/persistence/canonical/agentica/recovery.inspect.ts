@@ -5,7 +5,7 @@ import { check, fence, sameFence } from '../validation';
 import { loadDecisionClaim } from './decision.claim';
 import { loadDecisionIntent } from './decision.records';
 import { captureOperationBinding, loadOperationBinding } from './operation.binding';
-import { recoveryOperationId, recoveryOriginal, recoveryPointers } from './recovery.records';
+import { recoveryOriginal, recoveryPointers } from './recovery.records';
 import type { RecoveryCandidate } from './recovery.types';
 import { loadAgenticaTerminal } from './terminal';
 import { equal, snapshotJson, snapshotReference } from './validation';
@@ -16,7 +16,8 @@ export async function inspectAgenticaRecovery(inputFence: OwnerFence, input: Rec
   const expected = snapshotJson(inputFence); fence(expected);
   fields(input, 'operationId original binding');
   const candidate = { operationId: input.operationId, original: snapshotReference(input.original), binding: captureOperationBinding(input.binding) };
-  check(candidate.operationId === recoveryOperationId(candidate.original.key), 'recovery operation identity changed');
+  check(typeof candidate.operationId === 'string' && /^(travel|interact)-[a-f0-9]{64}$/.test(candidate.operationId),
+    'recovery operation identity changed');
   return inRecoveryDatabase(options.signal, signal => inspectOriginal(expected, candidate, signal));
 }
 

@@ -13,9 +13,10 @@ import { equal, restoreRetainedAction, snapshotReference } from './validation';
 import type { CanonicalQuery } from '../read';
 import { readClaimedParent } from './recovery.claimed';
 
-export const recoveryOperationId = (key: string) => {
+export const recoveryOperationId = (key: string, capabilityId = 'maze.navigate') => {
   check(/^agentica\/actions\/[a-f0-9]{64}$/.test(key), 'invalid recovery action key');
-  return `travel-${key.slice(-64)}`;
+  check(['maze.navigate', 'maze.explore', 'maze.interact'].includes(capabilityId), 'invalid recovery action capability');
+  return `${capabilityId === 'maze.interact' ? 'interact' : 'travel'}-${key.slice(-64)}`;
 };
 
 /** Always reconstruct from the immutable reserve, never from the current selected pair. */
@@ -25,8 +26,9 @@ export async function recoveryOriginal(pages: OperationRead, input: ProtocolRef)
   const args = fields(pending.sourceRequest.input, 'action grant publication');
   const binding = captureOperationBinding({ grant: args.grant as unknown as ProtocolRef, publication: args.publication as unknown as ProtocolRef });
   const identity = await restoreRetainedAction(pages, ref, binding);
-  check(['maze.navigate', 'maze.explore'].includes(identity.action.capabilityId) && pending.effect === 'writesLocalState', 'recovery requires original navigation');
-  return { identity, candidate: { operationId: recoveryOperationId(ref.key), original: ref, binding } satisfies RecoveryCandidate };
+  check(['maze.navigate', 'maze.explore', 'maze.interact'].includes(identity.action.capabilityId)
+    && pending.effect === 'writesLocalState', 'recovery requires original navigation or interaction');
+  return { identity, candidate: { operationId: recoveryOperationId(ref.key, identity.action.capabilityId), original: ref, binding } satisfies RecoveryCandidate };
 }
 
 export async function recoveryPointers(pages: CanonicalQuery) {

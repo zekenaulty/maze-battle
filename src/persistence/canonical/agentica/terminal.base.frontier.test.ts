@@ -17,10 +17,10 @@ beforeEach(() => vi.clearAllMocks());
 async function fixture(capability = 'maze.explore', disposition: 'completed' | 'blocked' | 'cancelled' = 'completed', room = false) {
   const identity = await prepareAction({ ...protocolAction(), capabilityId: capability });
   const binding = { grant: { key: 'agentica/grant', id: 'grant' }, publication: { key: 'agentica/pub', id: 'pub' } };
-  const result = protocolResult(identity.action), bound = { operation: { id: 'travel', terminal: {} }, result,
+  const result = protocolResult(identity.action), bound = { kind: 'navigation', operation: { id: 'travel', terminal: {} }, result,
     progress: { sequence: 0, steps: 0, replans: 0, reason: room ? 'new-object' : 'route-unavailable',
       binding: { kind: room ? 'frontier-exploration' : capability === 'maze.explore' ? 'frontier-approach' : 'known-destination' } }, start: { hostId: 'maze-battle' } };
-  vi.mocked(loadOperationBinding).mockResolvedValue(bound as Awaited<ReturnType<typeof loadOperationBinding>>);
+  vi.mocked(loadOperationBinding).mockResolvedValue(bound as unknown as Awaited<ReturnType<typeof loadOperationBinding>>);
   vi.mocked(loadOperationConfirmation).mockResolvedValue(null);
   vi.mocked(loadDestinationTerminal).mockResolvedValue({ disposition,
     terminal: { source: { attemptId: 'terminal-original' } } } as Awaited<ReturnType<typeof loadDestinationTerminal>>);

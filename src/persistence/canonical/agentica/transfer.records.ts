@@ -38,6 +38,7 @@ export async function writeTransferIntent(tx: CanonicalWork, request: CanonicalR
 
 /** Historical validation is deliberately shallow: original confirmation plus this source, never an ancestor walk. */
 export async function loadTransferIntent(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation, input: ProtocolRef) {
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const ref = snapshotReference(input), row = await pages.get('execution', ref.key);
   check(row && row.id === ref.id && row.indexes.length === 0, 'missing or replaced transfer intent');
   const value = fields(row.value, 'schema kind sourceAttemptId data');
@@ -65,6 +66,7 @@ export async function loadTransferIntent(pages: OperationRead, identity: Prepare
 }
 export async function loadTransfer(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation) {
   const row = await pages.get('execution', transferKey(identity)); if (!row) return null;
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const value = fields(row.value, 'schema kind sourceAttemptId intent');
   const intent = await loadTransferIntent(pages, identity, confirmed, value.intent as unknown as ProtocolRef);
   const { receipt } = await pages.sourceReceipt(value.sourceAttemptId as string), result = fields(receipt.result, 'transferIntent transferTip');
@@ -74,12 +76,14 @@ export async function loadTransfer(pages: OperationRead, identity: PreparedActio
 }
 export type RetainedTransfer = NonNullable<Awaited<ReturnType<typeof loadTransfer>>>;
 export function validateTransferAck(entry: AgenticaOperationEntry, confirmed: ConfirmedOperation, transfer: RetainedTransfer) {
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   operationEntry(entry);
   validateOperationEntry(entry, confirmed.bound.start, confirmed.bound.original.original.action, confirmed.bound.result, transfer.data.event.nextSessionEpoch);
   check(equal(entry.usage, confirmed.data.entry.usage) && entry.latestEvent
     && equivalentOperationWire(entry.latestEvent, transfer.data.event, 'event'), 'service did not acknowledge exact transfer');
 }
 export async function loadTransferAck(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation, transfer: RetainedTransfer) {
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const ack = await loadOperationRecord<{ intent: ProtocolRef; entry: AgenticaOperationEntry }>(pages, transferStageKey(transfer.reference, 'ack'), 'agentica-transfer-ack');
   if (!ack) return null;
   fields(ack.data, 'intent entry');
@@ -88,6 +92,7 @@ export async function loadTransferAck(pages: OperationRead, identity: PreparedAc
   validateTransferAck(ack.data.entry, confirmed, transfer); return ack;
 }
 export async function loadTransferAuthority(pages: OperationRead, identity: PreparedAction, confirmed: ConfirmedOperation, ref: ProtocolRef) {
+  check(confirmed.bound.kind === 'navigation', 'interaction transfer is not supported');
   const authority = await loadOperationRecord<TransferAuthority>(pages, ref.key, 'agentica-transfer-authority', ref); check(authority, 'missing transfer authority');
   fields(authority.data, 'intent guardRevision operationRevision guardAdoption navigationAdoption');
   const transfer = await loadTransferIntent(pages, identity, confirmed, authority.data.intent);

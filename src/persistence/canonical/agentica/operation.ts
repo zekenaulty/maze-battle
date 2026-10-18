@@ -10,6 +10,7 @@ import { snapshotPrepared } from './validation';
 export { retainOperationConfirmation } from './operation.confirmation';
 export { retainOperationCustodyAck, loadOperationCustodyAck } from './operation.custody';
 export { operationProgressHooks, retainEventAcknowledgement } from './event';
+export { interactionProgressHooks } from './event.hooks';
 export type { OperationBinding, OperationConfirmation, OperationCustodyAck, OperationPredecessor, OperationEvent, EventAcknowledgement } from './operation.types';
 
 /** Bounded discovery only; never runs pending actions, movement, delivery or adoption. */
@@ -21,10 +22,12 @@ export async function loadAgenticaOperation(pages: OperationRead, input: Prepare
   const event = progress.sequence ? await loadOperationEvent(pages, identity, confirmation, progress.sequence) : null;
   check(!event || event.source.attemptId === progress.sourceAttemptId, 'latest progress lacks its original event');
   const acknowledgement = event ? await loadEventAcknowledgement(pages, identity, confirmation, event) : null;
-  return { confirmation: { reference: confirmation.reference, data: confirmation.data }, operation: confirmation.bound.operation, progress,
+  const common = { confirmation: { reference: confirmation.reference, data: confirmation.data }, operation: confirmation.bound.operation,
     custodyAck: custodyAck ? { reference: custodyAck.reference, data: custodyAck.data } : null,
     event: event ? { reference: event.reference, data: event.data } : null,
     acknowledgement: acknowledgement ? { reference: acknowledgement.reference, data: acknowledgement.data } : null };
+  return confirmation.bound.kind === 'interaction' ? { ...common, kind: 'interaction' as const, progress: confirmation.bound.progress }
+    : { ...common, kind: 'navigation' as const, progress: confirmation.bound.progress };
 }
 export function readAgenticaOperation(input: PreparedAction) {
   const identity = snapshotPrepared(input); return readCanonical(pages => loadAgenticaOperation(pages, identity));

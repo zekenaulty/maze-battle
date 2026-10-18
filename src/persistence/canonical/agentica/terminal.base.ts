@@ -1,5 +1,6 @@
 import type { HostOperationEvent } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { loadDestinationTerminal } from '../navigation/terminal';
+import { loadInteractionTerminal } from '../interaction/terminal';
 import { check, jsonBytes } from '../validation';
 import { assertBoundAction, loadOperationBinding, captureOperationBinding, type BoundOperation } from './operation.binding';
 import { loadOperationConfirmation } from './operation.confirmation';
@@ -15,7 +16,8 @@ export async function loadAgenticaTerminalBase(pages: OperationRead, input: Prep
   const bound = context ?? await loadOperationBinding(pages, identity, binding);
   assertBoundAction(bound, identity, binding);
   if (!bound.operation.terminal) return null;
-  const terminal = await loadDestinationTerminal(pages, bound.operation.id);
+  const terminal = bound.kind === 'interaction' ? await loadInteractionTerminal(pages, bound.operation.id)
+    : await loadDestinationTerminal(pages, bound.operation.id);
   const confirmed = await loadOperationConfirmation(pages, identity, undefined, bound);
   check(!bound.progress.sequence || confirmed, 'progress lacks original service confirmation');
   const latest = bound.progress.sequence ? await loadOperationEvent(pages, identity, confirmed!, bound.progress.sequence) : null;
@@ -28,18 +30,22 @@ export async function loadAgenticaTerminalBase(pages: OperationRead, input: Prep
     ? (await loadOperationEvent(pages, identity, confirmed!, bound.progress.sequence - 1, latest!.data.previous.reference)).data.event
     : confirmed?.data.probe;
   const kind = terminal.disposition === 'completed' ? 'decision' : terminal.disposition;
-  check(kind === 'decision' || kind === 'blocked' || kind === 'cancelled', 'unsupported navigation terminal');
+  check(kind === 'decision' || kind === 'blocked' || kind === 'cancelled', 'unsupported operation terminal');
   const event: HostOperationEvent = snapshotJson({ hostId: bound.start.hostId,
     sessionId: identity.action.sessionId, sessionEpoch: previous?.nextSessionEpoch ?? previous?.sessionEpoch ?? identity.action.sessionEpoch, actionId: identity.action.actionId,
     operationId: bound.operation.id, sequence: (previous?.sequence ?? 0) + 1, eventId: terminal.terminal.source.attemptId,
     kind, observation: previous?.observation ?? bound.result.observation!,
-    summary: kind === 'decision' ? bound.progress.binding.kind === 'frontier-exploration'
+    summary: bound.kind === 'interaction' ? kind === 'decision'
+      ? `Chest interaction ${bound.progress.status}. Further action requires an explicit decision; objective completion is not established.`
+      : kind === 'blocked' ? `Chest interaction blocked: ${bound.progress.reason}.`
+      : `Chest interaction cancelled by the host; ${bound.progress.sequence ? `retained outcome: ${bound.progress.status}` : 'not applied'}.`
+      : kind === 'decision' ? bound.progress.binding.kind === 'frontier-exploration'
       ? `Local exploration stopped: ${bound.progress.reason}. This is not proof of room or objective completion.`
       : identity.action.capabilityId === 'maze.explore'
       ? 'Selected frontier anchor reached. Further exploration requires an explicit decision; objective completion is not established.'
       : 'Destination reached. Objective completion requires a separate host proof.'
       : kind === 'blocked' ? `Navigation blocked: ${bound.progress.reason}.` : 'Navigation cancelled by the host.',
-    usage: { steps: bound.progress.steps, replans: bound.progress.replans },
+    usage: bound.kind === 'interaction' ? {} : { steps: bound.progress.steps, replans: bound.progress.replans },
   });
   jsonBytes(event, MAX_EVENT_BYTES);
   return { identity, binding, bound, confirmed, terminal, event, transfer,

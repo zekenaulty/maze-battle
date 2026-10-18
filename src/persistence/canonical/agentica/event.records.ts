@@ -1,5 +1,6 @@
 import type { AgenticaOperationEntry } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { navigationRecordRef } from '../navigation/host';
+import { operationRecordRef } from '../operationHost';
 import { fields } from '../roster/codec';
 import { check, integer, jsonBytes } from '../validation';
 import { loadOperationConfirmation } from './operation.confirmation';
@@ -10,6 +11,7 @@ import { MAX_EVENT_BYTES, type EventAcknowledgement, type OperationEvent, type O
 import type { PreparedAction, ProtocolRef } from './types';
 import { equal, snapshotJson, snapshotReference } from './validation';
 import { loadTransferAuthority } from './transfer.records';
+import { validateInteractionEventSource } from './event.interaction';
 
 export type ConfirmedOperation = NonNullable<Awaited<ReturnType<typeof loadOperationConfirmation>>>;
 export function eventKey(identity: PreparedAction, sequence: number, ack = false) {
@@ -37,16 +39,24 @@ async function loadEventRecord(pages: OperationRead, identity: PreparedAction, c
   check(row && row.indexes.length === 0 && (!ref || equal(ref, { key, id: row.id })), 'missing or replaced operation event');
   const value = fields(row.value, 'schema kind sourceAttemptId data'), data = snapshotJson(value.data) as unknown as OperationEvent;
   fields(data, 'confirmation custody previous event', 'authority');
-  check(value.schema === 1 && value.kind === 'agentica-operation-event' && equal(data.confirmation, confirmed.reference), 'operation event confirmation changed');
+  const interaction = confirmed.bound.kind === 'interaction';
+  check(value.schema === 1 && value.kind === (interaction ? 'agentica-interaction-event' : 'agentica-operation-event')
+    && equal(data.confirmation, confirmed.reference), 'operation event confirmation changed');
   check(equal(data.custody, custody.reference), 'operation event custody acknowledgement changed');
   const event = data.event, action = identity.action, start = confirmed.bound.launch.binding.start;
   fields(event, 'hostId sessionId sessionEpoch actionId operationId sequence eventId kind observation summary usage'); jsonBytes(event, MAX_EVENT_BYTES);
   const { receipt, source } = await pages.sourceReceipt(value.sourceAttemptId as string);
-  const result = fields(receipt.result, 'operationId status reason sequence steps replans startedAt recordId recordWitness host');
+  const result = fields(receipt.result, interaction ? 'operationId status reason sequence outcome recordId recordWitness host'
+    : 'operationId status reason sequence steps replans startedAt recordId recordWitness host');
   const host = fields(result.host, 'event');
-  check(equal(host.event, navigationRecordRef(row, source.attemptId)) && receipt.afterRevision === row.revision
-    && source.operation === 'navigation.advance' && equal(source.input, { operationId: confirmed.data.operationId, sequence: sequence - 1 })
+  check(equal(host.event, interaction ? operationRecordRef(row, source.attemptId, 'interaction') : navigationRecordRef(row, source.attemptId))
+    && receipt.afterRevision === row.revision
+    && source.operation === (interaction ? 'interaction.apply' : 'navigation.advance') && equal(source.input, { operationId: confirmed.data.operationId, sequence: sequence - 1 })
     && result.operationId === confirmed.data.operationId && result.sequence === sequence, 'operation event source changed');
+  if (confirmed.bound.kind === 'interaction') {
+    check(data.authority === undefined, 'interaction transfer is not supported');
+    validateInteractionEventSource(confirmed.bound.progress, source, result, event, sequence);
+  }
   const authority = data.authority ? await loadTransferAuthority(pages, identity, confirmed, snapshotReference(data.authority)) : null;
   const owner = authority?.source.expected ?? confirmed.source.expected;
   const wireSequence = authority ? authority.transfer.data.event.sequence + sequence - authority.transfer.data.navigationSequence : sequence + 1;
