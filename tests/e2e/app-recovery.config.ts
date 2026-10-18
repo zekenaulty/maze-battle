@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 export default defineConfig({
-  testDir: fileURLToPath(new URL('./', import.meta.url)), testMatch: ['app-recovery.spec.ts', 'canonical-app.spec.ts'],
+  testDir: fileURLToPath(new URL('./', import.meta.url)), testMatch: ['app-recovery.spec.ts', 'app-recovery-spatial.spec.ts', 'canonical-app.spec.ts'],
   workers: 1, retries: 0, timeout: 120_000, outputDir: root + '/test-results/app-recovery',
   reporter: [['list'], ['json', { outputFile: root + '/test-results/app-recovery/results.json' }]],
   use: { baseURL: 'http://127.0.0.1:5288', trace: 'retain-on-failure', launchOptions: existsSync(chrome) ? { executablePath: chrome } : {} },
