@@ -1,10 +1,13 @@
 # Pending Recovery Acceptance
 
-**Current result: 21/21 native PASS.** See [PENDING-RECOVERY.md](PENDING-RECOVERY.md)
-for the completed acceptance, exact commits, full evidence paths and failure
-history. The preparation and focused-run notes below are retained as history.
+**Current result: 22/22 native PASS after both parent repairs**, including the
+production-hook interim unresolved case. See
+[PENDING-RECOVERY-RERUN.md](PENDING-RECOVERY-RERUN.md) for exact sources, artifacts,
+scope and failure history. The earlier 21/21 stage remains valid historical
+evidence in [PENDING-RECOVERY.md](PENDING-RECOVERY.md); its artifacts are untouched.
+The preparation and focused-run notes below are retained as history.
 
-## Current Handoff
+## Original Repair Handoff (Historical)
 
 The user approved clean Agentica `90a8798ac45ee783991ccc993bd34faf573461e4` at
 `C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica`. The fixture pin,
@@ -26,7 +29,7 @@ production `recoverPregrantAction`, not a fixture substitute. Full cohort
 qualification subsequently passed at `5a3e752`. The HTTP loss hook throws only after the real service
 returns successful acceptance; negative/replay requests go to the actual service.
 
-Current checks:
+Original checks (historical):
 
 - PASS: exact service SHA and clean worktree before/after the isolated build.
 - PASS: Release fixture build with SDK `10.0.401`, 12.36 seconds, zero warnings or
