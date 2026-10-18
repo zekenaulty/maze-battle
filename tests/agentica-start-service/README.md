@@ -1,12 +1,13 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 27 cases, including two actual-App recovery cases,
+tests. Current cohort: 29 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
-successor navigation. This is not a parallel game or live-provider test.
-Mounted new-owner adoption remains separate work.
-[Current evidence and limits](../../docs/reviews/issue-11-mounted-continuation.md).
+successor navigation. Inspected-original new-owner adoption now has actual-App
+positive and stale-offer/takeover cases, including exact retained settings and
+validated exhausted allowance. This is not a parallel game or live-provider test.
+[Current evidence and limits](../../docs/reviews/issue-11-mounted-adoption.md).
 
 ## Sources and prerequisites
 

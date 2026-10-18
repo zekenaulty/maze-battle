@@ -2,6 +2,14 @@
 
 ## Active Priority: Persistence Replacement
 
+Current checkpoint, 2026-10-18: the [canonical plan, revision 30](canonical-persistence-plan.md)
+is the implementation ledger. Manual/Auto, explicit Agentic Start/Stop,
+same-owner Continue and inspected new-owner adoption now share the actual App's
+canonical GameSession. [Latest qualification and remaining gates](reviews/issue-11-mounted-adoption.md).
+Canonical frontier/quest integration and final Q remain open. The dated amendments
+and pre-cutover results below are historical evidence, not claims that retired
+stores or their prior Agentica implementations still run.
+
 Revision 33 amendment, 2026-10-13: owner issue
 [#11](https://github.com/zekenaulty/maze-battle/issues/11) supersedes ALL old-save
 preservation and parallel/isolate-persistence requirements below, including those

@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 29,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 30,
 2026-10-18. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -107,7 +107,7 @@ actual-App lost-reply rediscovery, with no new planner calls or gameplay effects
 The [initial Start increment](reviews/issue-11-mounted-start.md) now mounts explicit
 configured Start, scoped queries, bounded known-destination execution and urgent
 Stop in that same App-owned GameSession. No automatic wake, collection, provider
-selection or new-game harness. P3 adoption integration and P5 final
+selection or new-game harness. P3 frontier/quest integration and P5 final
 qualification remain open. This is not complete feature
 parity or closure of #11.
 The final 26-case provider-free service cohort includes exact reserved-to-parked
@@ -119,6 +119,12 @@ now mounts one same-owner successor window per explicit Continue, using the
 retained decision/claim/grant path and a verified predecessor handoff ACK.
 The 27-case provider-free service cohort includes this actual-App flow. No
 automatic wake, new root start, hidden collection or cold-reload adoption is implied.
+The [explicit adoption increment](reviews/issue-11-mounted-adoption.md) now mounts
+inspected-original new-owner adoption in the same App. Read-only inspection
+discloses retained settings; explicit input revalidates the exact offer after
+acquiring control. The canonical decision claim precedes guard adoption and
+successor admission. Continue uses validated retained service usage, not a local
+counter. Old-owner intentions/claims remain recovery-only; no automatic renewal.
 
 ## Authority and Supersession
 
@@ -188,8 +194,9 @@ roots reference immutable world, knowledge and execution records. P1a proves
 old-root reads and snapshot-scoped pagination after writes/reload without walking
 an overlay chain. Host roots are internal references, never provider capabilities.
 Named save/load now uses receipt-bound roots and rejects live allocations; it
-never restores custody, quota or execution roots. Agentica's cancellation and
-adoption flow still needs canonical integration before its controls can mount.
+never restores custody, quota or execution roots. Explicit Agentica Stop,
+reconciliation, same-owner continuation and inspected new-owner adoption now
+use canonical integration. These controls do not renew authority on load.
 
 ## Transaction Contract
 
@@ -332,8 +339,14 @@ P1 storage contracts are split as follows:
   context, retains/correlates intent and claim, selects a successor grant and
   ACKs only the predecessor. The same App/session performs bounded navigation;
   a next decision requires another explicit input. Stop remains immediate.
-- **P3 Agentica, remaining:** mount explicit inspected-original adoption controls,
-  bounded frontier exploration and ordinary quest collection. Preserve earned-only room/map/frontier scope and explicit
+- **P3 inspected adoption, checked:** local-only disclosure of the exact original,
+  explicit new-owner adoption with retained objective/provider/limits, canonical
+  claim then guard adoption, and bounded successor navigation. Changed control
+  withdraws stale offers. Validated service usage gates further continuation;
+  an exhausted allowance is distinguished from its pending read. An old-owner
+  intention/claim is not silently replaced with a new one.
+- **P3 Agentica, remaining:** bounded frontier exploration and ordinary quest
+  collection. Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
   never equate a navigation/root ACK with clearance of every remote action.
   Admission is not arrival; reconnect is not adoption; navigation is not loot.
@@ -468,10 +481,11 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 
 The historical 2,667-unit/196-native/14-App evidence qualifies the prior build
 only. Current manual/Auto and depth samples are documented above, not extrapolated
-to arbitrary history. Initial canonical Agentica execution and explicit same-owner
-continuation are now mounted; full multi-controller depth/revisit/Q and mounted
-new-owner adoption remain mandatory. The actual-App initial/recovery/continuation
-proofs do not qualify those remaining flows.
+to arbitrary history. Initial canonical Agentica execution, explicit same-owner
+continuation and inspected new-owner adoption are now mounted; bounded frontier,
+explicit ordinary quest collection and full multi-controller depth/revisit/Q
+remain mandatory. The actual-App execution/recovery proofs do not qualify those
+remaining flows or full RPG parity.
 Pending-action recovery now has exact durable rediscovery
 proof, not arbitrary session cleanup or permission for automatic continuation.
 The service page response is bounded, but its capped ledger is still read as a

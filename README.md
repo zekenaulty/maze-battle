@@ -5,8 +5,10 @@ combat and exploration, equipment, loot and guild quests. This branch is the
 React/TypeScript and IndexedDB rewrite.
 
 Current qualification build: manual noncombat play and Auto use one canonical
-IndexedDB game. Combat/Waves and Agentica activation are disabled while issue
-[#11](https://github.com/zekenaulty/maze-battle/issues/11) is completed. All earlier
+IndexedDB game. Combat/Waves remain disabled while issue
+[#11](https://github.com/zekenaulty/maze-battle/issues/11) is completed. Agentic play
+requires explicit host/provider configuration and user Start; without configuration
+the panel exposes recovery only. All earlier
 Maze Battle save formats are intentionally discarded, not migrated.
 
 ## Run and Verify
