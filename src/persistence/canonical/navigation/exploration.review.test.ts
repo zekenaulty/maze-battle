@@ -37,7 +37,8 @@ async function fixture(material: 'chest' | 'stairs' | 'none' = 'none') {
   const p: DestinationProgress = { schema: 1, operationId: 'trip', sourceAttemptId: 'admit', owner: 'owner', epoch: 1,
     binding, sequence: 0, steps: 0, replans: 0, startedAt: 1000, deadline: null, position: initial.position,
     route: Array.from({ length: 7 }, (_, i) => ({ direction: 'east', to: at(i + 1) })),
-    status: 'running', reason: null, exploration: { phase: 'approach', target: at(7) } };
+    status: 'running', reason: null, exploration: { phase: 'approach', target: at(7),
+      window: { floor: 1, row: -10, column: -10, rows: 21, columns: 21 } } };
   vi.mocked(resolveWorldStep).mockImplementation(async (_pages, from) => ({ moved: true, crossed: false,
     position: at(from.cell.column + 1) }));
   vi.mocked(commitExplorationCommand).mockImplementation(async (tx, input, review) => {
@@ -66,7 +67,7 @@ it.each(['chest', 'stairs'] as const)('stops on new %s during approach with the 
 it('keeps the original step and replan allowances across a local waypoint selection', async () => {
   const f = await fixture();
   f.p.sequence = f.p.steps = 63; f.p.replans = 4; f.p.route = [];
-  f.p.exploration = { phase: 'cross-frontier', target: f.at(0) };
+  f.p.exploration = { ...f.p.exploration!, phase: 'cross-frontier', target: f.at(0) };
   const { progress: p } = await advanceExploration(f.tx(), f.p);
   expect(p).toMatchObject({ status: 'running', steps: 64, replans: 4, route: [], startedAt: 1000,
     exploration: { phase: 'survey', target: f.at(7) } });
@@ -84,7 +85,7 @@ it('does not reset an exhausted replan allowance after owner invalidation', asyn
 
 it('keeps the original deadline at a waypoint boundary', async () => {
   const f = await fixture(); f.p.binding.limits.durationMs = 1; f.p.startedAt = Date.now() - 10;
-  f.p.deadline = f.p.startedAt + 1; f.p.route = []; f.p.exploration = { phase: 'cross-frontier', target: f.at(0) };
+  f.p.deadline = f.p.startedAt + 1; f.p.route = []; f.p.exploration = { ...f.p.exploration!, phase: 'cross-frontier', target: f.at(0) };
   expect((await advanceExploration(f.tx(), f.p)).progress).toMatchObject({ status: 'blocked', reason: 'time-limit', steps: 0,
     startedAt: f.p.startedAt, deadline: f.p.deadline });
   expect(commitExplorationCommand).not.toHaveBeenCalled(); expect(resolveWorldStep).not.toHaveBeenCalled();

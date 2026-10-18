@@ -3,6 +3,8 @@ import { fields } from '../roster/codec';
 import { check, integer, jsonBytes, validId } from '../validation';
 import { DIRECTIONS } from '../knowledge/types';
 import { cellSource } from '../knowledge/validation';
+import { validateRegionScope, type KnowledgeRegionScope } from '../knowledge/region';
+import { EXPLORATION_QUERY_SIDE } from './explorationPlan';
 import { position, same } from '../world/records';
 import { frontierSelection, type FrontierSelection } from '../knowledge/frontiers';
 import type { WorldPosition } from '../world/types';
@@ -46,8 +48,10 @@ export function destinationProgress(value: unknown): DestinationProgress {
     && !exceedsLimit(p.replans, limits.replans), 'invalid navigation limits');
   destinationPosition(p.position);
   if (binding.kind === 'frontier-exploration') {
-    const e = fields(p.exploration, 'phase target'); destinationPosition(e.target);
+    const e = fields(p.exploration, 'phase target window'); destinationPosition(e.target);
+    const w = fields(e.window, 'floor row column rows columns'); validateRegionScope(w as unknown as KnowledgeRegionScope);
     check(['approach', 'cross-frontier', 'survey'].includes(e.phase as string)
+      && w.floor === binding.target.level && w.rows === EXPLORATION_QUERY_SIDE && w.columns === EXPLORATION_QUERY_SIDE
       && e.target.level === binding.target.level && e.target.cell.spaceId === binding.target.cell.spaceId
       && (e.phase !== 'approach' || same(e.target, binding.target)), 'invalid exploration cursor');
   } else check(!Object.hasOwn(p, 'exploration'), 'destination cannot acquire exploration authority');

@@ -91,7 +91,7 @@ describe('independent rolling exploration policy review', () => {
       for (const step of route) { await f.observe(shape.sight(worldPoint(step.to))); moves++; }
       boundaries.push(worldPoint(f.checkpoint().position));
       if (key(boundaries.at(-1)!) === key(goal)) break;
-      const refill = await planScopedApproach(f.pages, f.checkpoint(), initial!.target);
+      const refill = await planScopedApproach(f.pages, f.checkpoint(), initial!.target, initial!.window);
       expect(refill?.length).toBeGreaterThan(0); route = refill!;
     }
     // The buggy draft produces [A, B, A, B, A] with no newly earned memory at all.
@@ -107,7 +107,7 @@ describe('independent rolling exploration policy review', () => {
     expect(initial?.target).toEqual(shape.position(goal)); expect(initial?.route).toHaveLength(16);
     for (const step of initial!.route) await f.observe(shape.sight(worldPoint(step.to)));
     expect(worldPoint(f.checkpoint().position)).toEqual([6, 2]);
-    const refill = await planScopedApproach(f.pages, f.checkpoint(), initial!.target);
+    const refill = await planScopedApproach(f.pages, f.checkpoint(), initial!.target, initial!.window);
     expect(refill).toHaveLength(16);
     expect(refill!.at(-1)!.to).toEqual(initial!.target);
   });

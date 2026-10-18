@@ -5,6 +5,7 @@ import type { WorldPosition } from '../world/types';
 import type { FrontierSelection } from '../knowledge/frontiers';
 import type { CellSource } from '../knowledge/types';
 import type { ExplorationMaterialChange } from '../knowledge/explorationPolicy';
+import type { KnowledgeRegionScope } from '../knowledge/region';
 
 interface NavigationBinding {
   schema: 1;
@@ -20,6 +21,7 @@ export type DestinationReason = 'arrived' | 'time-limit' | 'step-limit' | 'repla
 export interface ExplorationCursor {
   phase: 'approach' | 'cross-frontier' | 'survey';
   target: WorldPosition;
+  window: KnowledgeRegionScope;
 }
 export interface ExplorationNotice {
   kind: ExplorationMaterialChange['reason'];

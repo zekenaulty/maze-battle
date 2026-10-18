@@ -37,12 +37,12 @@ export async function advanceExploration(tx: CanonicalWork, input: DestinationPr
       const edge = actor.cell.edges[binding.frontier.direction];
       if (!edge || !edge.target) { p = stop(p, 'obstructed'); return done(); }
       if (edge.target.cell.spaceId !== scope) { p = stop(p, 'scope-boundary', true); return done(); }
-      cursor = p.exploration = { phase: 'cross-frontier', target: edge.target };
+      cursor = p.exploration = { phase: 'cross-frontier', target: edge.target, window: cursor.window };
       p.route = [{ direction: binding.frontier.direction, to: edge.target }];
     } else {
       const plan = await planLocalExploration(tx.pages, checkpoint, scope);
       if (!plan) { p = stop(p, 'scope-exhausted', true); return done(); }
-      cursor = p.exploration = { phase: 'survey', target: plan.target }; p.route = plan.route;
+      cursor = p.exploration = { phase: 'survey', target: plan.target, window: plan.window }; p.route = plan.route;
     }
   }
   const staleRoute = p.route.length > 0 && !await knownStep(tx.pages, checkpoint, p.route[0]);
@@ -52,7 +52,7 @@ export async function advanceExploration(tx: CanonicalWork, input: DestinationPr
       if (limitReached(p.replans, limits.replans)) { p = stop(p, 'replan-limit'); return done(); }
       check(integer(p.replans + 1), 'exploration replan counter exhausted'); p.replans++;
     }
-    const route = await planScopedApproach(tx.pages, checkpoint, cursor.target);
+    const route = await planScopedApproach(tx.pages, checkpoint, cursor.target, cursor.window);
     if (!route?.length) { p = stop(p, 'route-unavailable'); return done(); }
     p.route = route;
   }

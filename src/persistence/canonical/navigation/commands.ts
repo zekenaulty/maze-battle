@@ -13,7 +13,7 @@ import { json, same } from '../world/records';
 import { resolveWorldStep } from '../world/residency';
 import { destinationDisposition, NAVIGATION_WORK_LIMITS, type DestinationProgress, type DestinationReason } from './types';
 import { advanceExploration } from './exploration';
-import { planScopedApproach } from './explorationPlan';
+import { localExplorationWindow, planScopedApproach } from './explorationPlan';
 import { destinationBinding } from './validation';
 import { destinationKey, loadDestination, saveDestination } from './records';
 import { knownStep, planDestination } from './planner';
@@ -35,22 +35,23 @@ export function executeNavigationCommand(input: CanonicalRequest, options: Optio
       const commitHost = await prepareNavigationHost(tx, tx.operation, request, host);
       const checkpoint = gameCheckpoint(tx.head.checkpoint), startedAt = Date.now();
       let approach: Awaited<ReturnType<typeof planDestination>> | undefined;
+      const window = binding.kind === 'frontier-exploration' ? await localExplorationWindow(tx.pages, checkpoint) : null;
       if (binding.kind !== 'known-destination') {
         if (binding.kind === 'frontier-exploration') check(checkpoint.position.cell.spaceId === binding.target.cell.spaceId,
           'room exploration requires a frontier in the current space');
         check(await isCurrentFrontier(tx.pages, checkpoint, binding.frontier), 'frontier selection is stale or not an earned boundary');
-        approach = await planDestination(tx.pages, checkpoint, binding.target);
         if (binding.kind === 'frontier-exploration') {
-          const route = await planScopedApproach(tx.pages, checkpoint, binding.target);
+          check(window, 'exploration needs current sight');
+          const route = await planScopedApproach(tx.pages, checkpoint, binding.target, window);
           check(route?.length, 'frontier requires an earned approach inside the selected space');
           approach = { route, reason: null };
-        }
+        } else approach = await planDestination(tx.pages, checkpoint, binding.target);
         check(!approach.reason && approach.route.length > 0, 'frontier requires a nonzero earned approach');
       }
       let progress: DestinationProgress = { schema: 1, operationId: tx.operation.id, binding, sourceAttemptId: request.attemptId,
         owner: tx.head.owner, epoch: tx.head.epoch, sequence: 0, steps: 0, replans: 0, startedAt,
         deadline: destinationDeadline(startedAt, binding.limits), position: checkpoint.position, route: [], status: 'running', reason: null,
-        ...(binding.kind === 'frontier-exploration' ? { exploration: { phase: 'approach', target: binding.target } } : {}) };
+        ...(binding.kind === 'frontier-exploration' ? { exploration: { phase: 'approach', target: binding.target, window: window! } } : {}) };
       if (destinationExpired(progress, startedAt)) progress = stop(progress, 'time-limit');
       else {
         const plan = approach ?? await planDestination(tx.pages, checkpoint, binding.target);

@@ -50,7 +50,8 @@ describe('retained destination policy', () => {
   });
   it('validates exploration phases separately from destinations and requires material evidence', () => {
     const p = fixture(); p.binding = createExplorationBinding(frontier(), p.binding.limits);
-    p.exploration = { phase: 'approach', target }; expect(destinationProgress(p)).toEqual(p);
+    p.exploration = { phase: 'approach', target, window: { floor: 1, row: -10, column: -10, rows: 21, columns: 21 } };
+    expect(destinationProgress(p)).toEqual(p);
     expect(() => destinationProgress({ ...p, exploration: undefined })).toThrow();
     expect(() => destinationProgress({ ...fixture(), exploration: p.exploration })).toThrow();
     expect(() => destinationProgress({ ...p, exploration: { phase: 'survey', target: { ...target, level: 2 } } })).toThrow();
@@ -61,5 +62,13 @@ describe('retained destination policy', () => {
     expect(() => destinationProgress({ ...decision, notice: { ...notice, kind: 'traversability-changed' } })).toThrow('invalid exploration notice');
     expect(() => destinationProgress({ ...p, position: target, route: [], status: 'arrived', reason: 'arrived' })).toThrow();
     expect(destinationProgress({ ...decision, reason: 'scope-exhausted' })).toMatchObject({ status: 'decision' });
+  });
+  it.each([undefined,
+    { floor: 2, row: -10, column: -10, rows: 21, columns: 21 },
+    { floor: 1, row: -10, column: -10, rows: 20, columns: 21 },
+    { floor: 1, row: Number.MAX_SAFE_INTEGER, column: -10, rows: 21, columns: 21 },
+  ])('rejects a missing or malformed retained exploration window %j', window => {
+    const p = fixture(); p.binding = createExplorationBinding(frontier(), p.binding.limits);
+    expect(() => destinationProgress({ ...p, exploration: { phase: 'approach', target, window } })).toThrow();
   });
 });
