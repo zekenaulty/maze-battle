@@ -15,7 +15,8 @@ async function rootContext(pages: OperationRead, terminal: AgenticaTerminal, bef
   check(guard.state === 'acknowledged' && guard.terminal?.disposition === 'cancelled', 'decision cleanup needs verified root settlement');
   const root = await pages.sourceReceipt(guard.acknowledgementAttemptId!);
   const decision = await loadDecisionIntent(pages, terminal.identity, bound);
-  check(terminal.event.kind === 'decision' && terminal.terminal.disposition === 'completed'
+  check(terminal.event.kind === 'decision'
+    && terminal.terminal.disposition === (terminal.bound.kind === 'interaction' ? 'decision' : 'completed')
     && decision && equal(decision.data.binding, terminal.binding) && equal(decision.terminal.event, terminal.event),
   'root settlement lacks original decision evidence');
   check(decision.row.revision <= root.receipt.beforeRevision && root.receipt.afterRevision <= beforeRevision,

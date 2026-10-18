@@ -10,7 +10,8 @@ import { equal } from './validation';
 type Claim = NonNullable<Awaited<ReturnType<typeof loadDecisionClaim>>>;
 async function loadHandoff(pages: OperationRead, terminal: AgenticaTerminal) {
   const claim = await loadDecisionClaim(pages, terminal.identity);
-  check(terminal.event.kind === 'decision' && terminal.terminal.disposition === 'completed'
+  check(terminal.event.kind === 'decision'
+    && terminal.terminal.disposition === (terminal.bound.kind === 'interaction' ? 'decision' : 'completed')
     && claim && equal(claim.decision.data.binding, terminal.binding)
     && equal(claim.decision.terminal.event, terminal.event), 'decision handoff lacks exact retained intent and claim');
   return claim;

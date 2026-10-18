@@ -43,8 +43,9 @@ export async function loadDecisionIntent(pages: OperationRead, input: PreparedAc
   const d = record.data; fields(d, 'binding confirmation publication terminalAttemptId event adoption');
   jsonBytes(d, 6 * 1024); const binding = captureOperationBinding(d.binding);
   const terminal = await loadAgenticaTerminalBase(pages, identity, binding, context);
-  check(terminal?.event.kind === 'decision' && terminal.confirmed && terminal.terminal.disposition === 'completed',
-    'decision requires completed retained navigation');
+  check(terminal?.event.kind === 'decision' && terminal.confirmed
+    && terminal.terminal.disposition === (terminal.bound.kind === 'interaction' ? 'decision' : 'completed'),
+    'decision requires a retained domain decision terminal');
   check(record.source.operation === 'agentica.operation.decision' && equal(record.source.input,
     { action: identity.storageKey, binding, publication: d.publication })
     && equal(d.confirmation, terminal.confirmed.reference)
