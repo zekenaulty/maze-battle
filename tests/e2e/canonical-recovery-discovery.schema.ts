@@ -2,7 +2,7 @@ import { listAgenticaRecovery } from '../../src/persistence/canonical/agentica/r
 import { CANONICAL_DATABASE, CANONICAL_VERSION } from '../../src/persistence/canonical/database';
 import { readCanonicalHead } from '../../src/persistence/canonical/read';
 
-export async function unchangedSchema(legacy: boolean) {
+export async function unchangedSchema(legacy: boolean, work: () => Promise<unknown> = listAgenticaRecovery) {
   if (legacy) await new Promise<void>((resolve, reject) => {
     const open = indexedDB.open(CANONICAL_DATABASE, CANONICAL_VERSION - 1);
     open.onupgradeneeded = () => open.result.createObjectStore('sentinel').put('preserve', 'original');
@@ -13,7 +13,7 @@ export async function unchangedSchema(legacy: boolean) {
   const originals = methods.map(name => Object.getOwnPropertyDescriptor(IDBObjectStore.prototype, name)!);
   for (const name of methods) IDBObjectStore.prototype[name] = function () { writes.push(name); throw Error('Discovery wrote an object store'); };
   let error: string | undefined;
-  try { await listAgenticaRecovery(); } catch (cause) { error = String(cause); }
+  try { await work(); } catch (cause) { error = String(cause); }
   finally { methods.forEach((name, i) => Object.defineProperty(IDBObjectStore.prototype, name, originals[i])); }
   const after = await indexedDB.databases();
   const sentinel = legacy ? await new Promise<unknown>((resolve, reject) => {

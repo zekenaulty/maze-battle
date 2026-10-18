@@ -6,6 +6,13 @@ test('an absent database remains absent', async ({ page }) => {
   expect(await page.evaluate(() => window.canonicalPregrantProof.databases())).toEqual(before);
 });
 
+for (const legacy of [false, true]) test(`HTTP composition cannot ${legacy ? 'upgrade obsolete' : 'create absent'} canonical storage`, async ({ page }) => {
+  const result = await page.evaluate(legacy => window.canonicalPregrantProof.schemaRecovery(legacy), legacy);
+  expect(result.error).toContain('existing current canonical database');
+  expect(result.before).toEqual(result.after); expect(result.writes).toEqual([]);
+  expect(result.sentinel).toBe(legacy ? 'preserve' : null);
+});
+
 for (const [name, options, error] of [
   ['uncancelled guard', { cancel: false }, 'cancellation'],
   ['missing correlated claim', { claim: false }, 'correlated claim'],

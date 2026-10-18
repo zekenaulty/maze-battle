@@ -2,14 +2,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provePregrantNoEffect } from '../../../persistence/canonical/agentica/pregrant-proof';
 import { decisionState } from './decisionState';
+import { inRecoveryDatabase } from '../../../persistence/canonical/agentica/recovery.database';
 import { recoverPregrantAction } from './pendingRecovery';
 import { binding, decisionView, noEffect, parentAction, pendingAction, remoteEntry, reply, response } from './pendingRecovery.test-support';
 
 vi.mock('../../../persistence/canonical/agentica/pregrant-proof', () => ({ provePregrantNoEffect: vi.fn() }));
 vi.mock('./decisionState', () => ({ decisionState: vi.fn() }));
+vi.mock('../../../persistence/canonical/agentica/recovery.database', () => ({ inRecoveryDatabase: vi.fn() }));
 beforeEach(() => {
   vi.resetAllMocks(); vi.mocked(decisionState).mockResolvedValue(structuredClone(decisionView));
   vi.mocked(provePregrantNoEffect).mockImplementation(async () => structuredClone(noEffect));
+  vi.mocked(inRecoveryDatabase).mockImplementation(async (signal, read) => read(signal!));
 });
 const port = () => ({ hostSignal: new AbortController().signal });
 const network = () => vi.fn<typeof fetch>()
@@ -39,6 +42,26 @@ describe('explicit pregrant HTTP recovery composition', () => {
     vi.mocked(provePregrantNoEffect).mockRejectedValueOnce(new Error('not stopped')); const http = network();
     await expect(recoverPregrantAction(port(), parentAction, binding, pendingAction, { fetchImpl: http })).rejects.toThrow('not stopped');
     expect(http).not.toHaveBeenCalled();
+  });
+  it('checks the existing schema before the first canonical reader or network call', async () => {
+    vi.mocked(inRecoveryDatabase).mockRejectedValueOnce(new Error('no current schema')); const http = network();
+    await expect(recoverPregrantAction(port(), parentAction, binding, pendingAction, { fetchImpl: http })).rejects.toThrow('no current schema');
+    expect(decisionState).not.toHaveBeenCalled(); expect(provePregrantNoEffect).not.toHaveBeenCalled(); expect(http).not.toHaveBeenCalled();
+  });
+  it('accepts a bound interim unresolved result without using its observation', async () => {
+    const entry = remoteEntry(true); entry.recoveryRetention = 'reserved';
+    entry.result = { ...entry.result!, disposition: 'unresolved', evidenceId: 'interim', summary: 'Awaiting reconciliation' };
+    const http = vi.fn<typeof fetch>().mockResolvedValueOnce(response(entry))
+      .mockResolvedValueOnce(response(reply())).mockResolvedValueOnce(response(remoteEntry(true)));
+    const recovered = await recoverPregrantAction(port(), parentAction, binding, pendingAction, { fetchImpl: http });
+    expect(recovered.result).toEqual(noEffect); expect(recovered.result.observation).toBeUndefined();
+  });
+  it('rejects an interim result with another session before POST', async () => {
+    const entry = remoteEntry(true); entry.recoveryRetention = 'reserved';
+    entry.result = { ...entry.result!, disposition: 'unresolved', sessionId: 'foreign' };
+    const http = vi.fn<typeof fetch>().mockResolvedValue(response(entry));
+    await expect(recoverPregrantAction(port(), parentAction, binding, pendingAction, { fetchImpl: http })).rejects.toThrow('invalid interim');
+    expect(http).toHaveBeenCalledTimes(1);
   });
   it('captures caller input before yielding and does not let a callback replace the target', async () => {
     const action = structuredClone(pendingAction), parent = structuredClone(parentAction), originalBinding = structuredClone(binding), http = network();

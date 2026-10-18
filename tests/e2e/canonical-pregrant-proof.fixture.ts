@@ -13,6 +13,8 @@ import { dump, fillQuota, changeSource } from './canonical-decision-ack.storage'
 import { advanceControllerRevision } from './canonical-decision-controller.evidence';
 import { changeKey, deleteRow, observeReads } from './canonical-pregrant-proof.storage';
 import { fenceOldCallbacks } from './canonical-pregrant-proof.hooks';
+import { recoverPregrantAction } from '../../src/services/agentica/game/pendingRecovery';
+import { unchangedSchema } from './canonical-recovery-discovery.schema';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5268') throw Error('Isolated pregrant proof fixture only');
 let state: ProofSeed;
@@ -58,10 +60,15 @@ const api = {
     return provePregrantNoEffect(await fence(), state.identity, state.seed.binding, state.pending, { signal: abort.signal });
   },
   databases: async () => (await indexedDB.databases()).map(db => ({ name: db.name, version: db.version })),
-  async absent() {
+  schemaRecovery: (legacy: boolean) => unchangedSchema(legacy, () => api.absent(true)),
+  async absent(composition = false) {
     const action = { actionId: 'absent-action', runId: 'absent-run', runnerRunId: 'absent-runner', stepId: 'absent-step',
       sessionId: 'absent-session', sessionEpoch: '1', capabilityId: 'maze.navigate', manifestHash: `sha256:${'a'.repeat(64)}`,
       arguments: {}, expectedRevision: 1, deadlineAt: '2026-01-01T00:00:00.000Z' };
+    if (composition) return recoverPregrantAction({ hostSignal: new AbortController().signal }, action,
+      { grant: { key: 'agentica/absent/grant', id: 'absent-grant' },
+        publication: { key: 'agentica/absent/publication', id: 'absent-publication' } }, action,
+      { fetchImpl: async () => { throw Error('Schema refusal must not contact the service'); } });
     return provePregrantNoEffect({ generation: 'absent-generation', gameId: 'absent-game', owner: 'absent-owner', epoch: 1, revision: 1 },
       await prepareAction(action), { grant: { key: 'agentica/absent/grant', id: 'absent-grant' },
         publication: { key: 'agentica/absent/publication', id: 'absent-publication' } }, action);
