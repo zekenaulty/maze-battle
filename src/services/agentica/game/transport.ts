@@ -16,10 +16,11 @@ type Hooks = ReturnType<typeof createGameActionHooks>;
 export type GameSdk = Pick<AgenticaHost, 'connect' | 'startDurable' | 'close'>;
 export type GameSdkFactory = (options: AgenticaHostOptions) => GameSdk;
 export type TransportPhase = 'prepared' | 'connecting' | 'dispatching' | 'starting' | 'granting' | 'attached' | 'closed';
+export type TransportWithdrawal = 'closed' | 'outcome' | 'run.terminated' | 'cancelled' | 'cancel.requested';
 
 /** Initial attachment only. A retained dispatch is reconciled, never retried as a new start. */
 export async function createGameTransport(port: CanonicalHostPort, launchId: string,
-  factory: GameSdkFactory = options => new AgenticaHost(options)) {
+  factory: GameSdkFactory = options => new AgenticaHost(options), onWithdraw?: (reason: TransportWithdrawal) => void) {
   const release = claimTransportAttachment(launchId), gate = transportGate(port), ready = deferred<Hooks>();
   let launch: NonNullable<Awaited<ReturnType<typeof readLaunch>>['value']>;
   try {
@@ -28,10 +29,12 @@ export async function createGameTransport(port: CanonicalHostPort, launchId: str
   } catch (error) { release(); gate.close(); throw error; }
   let phase: TransportPhase = 'prepared', started = false, sdk: GameSdk | undefined;
   let observedRunId: string | undefined;
-  const close = () => {
+  const withdraw = (reason: TransportWithdrawal) => {
     if (phase === 'closed') return;
     phase = 'closed'; release(); gate.close(); ready.reject(gate.signal.reason); sdk?.close();
+    onWithdraw?.(reason);
   };
+  const close = () => withdraw('closed');
   gate.signal.addEventListener('abort', close, { once: true });
   try { sdk = factory({ url: launch.binding.endpoint, requestTimeoutMs: 15_000, maxMessages: 64,
     maxActions: 256, maxQueuedActions: 8, maxMessageBytes: 64 * 1024,
@@ -41,7 +44,9 @@ export async function createGameTransport(port: CanonicalHostPort, launchId: str
     onMessage(message) {
       // Terminal service notices withdraw this action channel, not the retained journey's cleanup funds.
       if (observedRunId && message.runId === observedRunId
-        && ['cancel.requested', 'cancelled', 'run.terminated', 'outcome'].includes(message.type)) { close(); return; }
+        && ['cancel.requested', 'cancelled', 'run.terminated', 'outcome'].includes(message.type)) {
+        withdraw(message.type as TransportWithdrawal); return;
+      }
       // Only start is in flight here. The pinned SDK correlates IDs but does not check its reply type.
       if (phase !== 'starting' || !message.requestId) return;
       if (!['started', 'error'].includes(message.type)

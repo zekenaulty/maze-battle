@@ -11,6 +11,7 @@ export interface AgenticPlayDialogProps {
   message?: string;
   error?: string;
   active: boolean;
+  activeObjective?: string;
   canStart: boolean;
   onStart: (objective: string) => void;
   onStop: () => void;
@@ -18,9 +19,9 @@ export interface AgenticPlayDialogProps {
   onClose: () => void;
 }
 
-export function AgenticPlayDialog({ profile, configurationError, phase, message, error, active, canStart,
+export function AgenticPlayDialog({ profile, configurationError, phase, message, error, active, activeObjective, canStart,
   onStart, onStop, onRecovery, onClose }: AgenticPlayDialogProps) {
-  const objectiveId = useId(), [objective, setObjective] = useState('');
+  const objectiveId = useId(), [objective, setObjective] = useState(activeObjective ?? '');
   const trimmed = objective.trim(), { provider, limits } = profile ?? {};
   const startEnabled = Boolean(profile && !configurationError && canStart && !active && trimmed && objective.length <= 512);
   const missing = 'Not configured';
@@ -30,7 +31,7 @@ export function AgenticPlayDialog({ profile, configurationError, phase, message,
         <span>{!profile ? missing : configurationError ? 'Unavailable' : 'Configured'}</span></div>
       {configurationError && <p className="agentic-error" role="alert">{configurationError}</p>}
       <label htmlFor={objectiveId}>Objective
-        <textarea id={objectiveId} name="objective" rows={3} maxLength={512} value={objective} disabled={active}
+        <textarea id={objectiveId} name="objective" rows={3} maxLength={512} value={active ? activeObjective ?? objective : objective} disabled={active}
           onChange={event => setObjective(event.target.value)} />
       </label>
       <dl className="agentic-status">

@@ -36,6 +36,7 @@ interface ExploreScreenProps {
   onDiagnostics?: () => void;
   onAgenticPlay?: () => void;
   onStopAgenticPlay?: () => void;
+  agenticActive?: boolean;
   onTileClick?: (position: GridPosition) => void;
   onStopWalking?: () => void;
   onOpenChest?: (id: string) => void;
@@ -61,7 +62,7 @@ export function ExploreScreen({
   onRandomBattlesChange,
   portalScrollCount,
   onDiagnostics,
-  onAgenticPlay, onStopAgenticPlay,
+  onAgenticPlay, onStopAgenticPlay, agenticActive = false,
   onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false,
 }: ExploreScreenProps) {
   const [mazeMode, setMazeMode] = useState<MazeRenderMode>('camera');
@@ -117,20 +118,20 @@ export function ExploreScreen({
           {onStopAgenticPlay && <button className="agentic-stop" data-agentic-control type="button" title="Stop Agentic play" aria-label="Stop Agentic play" onClick={onStopAgenticPlay}>
             <Square size={14} aria-hidden="true" />Stop
           </button>}
-          <button type="button" onClick={onTown} disabled={portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
+          <button type="button" onClick={onTown} disabled={agenticActive || portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
             Portal ({portalCount})
           </button>
           <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview (M)" aria-label="Map" aria-keyshortcuts="M" aria-pressed={isOverview} onClick={toggleMap}>
             <Map size={18} aria-hidden="true" />
           </button>
-          <button className="screen-icon" type="button" title="Party and inventory (I)" aria-label="Party" aria-keyshortcuts="I" onClick={onCharacters}>
+          <button className="screen-icon" type="button" disabled={agenticActive} title="Party and inventory (I)" aria-label="Party" aria-keyshortcuts="I" onClick={onCharacters}>
             <Users size={18} aria-hidden="true" />
           </button>
-          <button className="screen-icon" type="button" title="Saves" aria-label="Saves" onClick={onSaves}>
+          <button className="screen-icon" type="button" disabled={agenticActive} title="Saves" aria-label="Saves" onClick={onSaves}>
             <Save size={18} aria-hidden="true" />
           </button>
           {onDiagnostics && <button className="screen-icon" type="button" title="Diagnostics" aria-label="Diagnostics" onClick={onDiagnostics}><Activity size={18} aria-hidden="true" /></button>}
-          <button className="screen-icon" type="button" title="Expedition settings" aria-label="Expedition settings" onClick={() => setSettingsOpen(true)}>
+          <button className="screen-icon" type="button" disabled={agenticActive} title="Expedition settings" aria-label="Expedition settings" onClick={() => setSettingsOpen(true)}>
             <Settings size={18} aria-hidden="true" />
           </button>
         </nav>

@@ -1,0 +1,74 @@
+import { test, expect, serviceProof } from './canonical-start-service.decision.test';
+
+test('actual App explicitly starts earned navigation, survives panel close, and stops without another model activation', async ({ page, wire }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/');
+  await expect(page.getByText(/Dungeon 1 - Ready/)).toBeVisible();
+  await page.evaluate(async () => {
+    // @ts-expect-error Test-only reader attaches to the actual hook-owned GameSession.
+    await import('/tests/e2e/canonical-start-service.fixture.ts');
+    await window.canonicalStartService.boot();
+  });
+  const before = await page.evaluate(() => window.canonicalStartService.snapshot());
+  expect(before.launch).toBeNull(); expect(wire.sent).toEqual([]);
+  await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Agentic play', exact: true });
+  await expect(dialog.getByRole('button', { name: 'Start Agentic play', exact: true })).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Objective', exact: true }).fill('Inspect the earned map and room, observe, then navigate to one adjacent earned cell.');
+  await dialog.getByRole('button', { name: 'Start Agentic play', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Stop Agentic play', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Party', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Saves', exact: true })).toBeDisabled();
+  await expect.poll(() => wire.sent.filter(message => message.type === 'action.result').length).toBe(4);
+  await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
+  await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByRole('textbox', { name: 'Objective', exact: true })).toHaveValue('Inspect the earned map and room, observe, then navigate to one adjacent earned cell.');
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('agentic-decision-mobile.png') });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('agentic-decision-desktop.png') });
+  expect(wire.sent.filter(message => message.type === 'start.durable')).toHaveLength(1);
+  expect(wire.sent.filter(message => ['operation.wake', 'operation.adopt', 'resume'].includes(message.type))).toEqual([]);
+  const capabilities = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload.capabilityId);
+  expect(capabilities).toEqual(['maze.inspect', 'maze.inspect', 'maze.observe', 'maze.navigate']);
+  const arrived = await page.evaluate(() => window.canonicalStartService.snapshot()), counters = await serviceProof();
+  expect(arrived.head.checkpoint.position).not.toEqual(before.head.checkpoint.position);
+  expect(before.head.roots.world).not.toBeNull();
+  expect(arrived.head.roots.world).toEqual(before.head.roots.world);
+  expect(Object.keys(arrived.launch!.binding.start.observation.data)).toEqual(['scope', 'actor', 'source']);
+  expect(arrived.launch!.guard.terminal).toBeUndefined();
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect.poll(() => page.locator('canvas[aria-label="Dungeon map"]').evaluate((canvas: HTMLCanvasElement) => {
+    const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+    const colors = new Set<string>();
+    for (let i = 0; i < pixels.length; i += 128) colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`);
+    return colors.size;
+  })).toBeGreaterThan(10);
+  await page.screenshot({ path: info.outputPath('agentic-navigation-desktop.png') });
+  await page.getByRole('button', { name: 'Stop Agentic play', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Stop Agentic play', exact: true })).toHaveCount(0);
+  const stopped = await page.evaluate(() => window.canonicalStartService.snapshot());
+  expect(stopped.launch!.guard.state).toBe('settled');
+  expect(stopped.launch!.guard.terminal!.disposition).toBe('cancelled');
+  expect(stopped.head.checkpoint).toEqual(arrived.head.checkpoint);
+  expect(await serviceProof()).toEqual(counters);
+  await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Recovery', exact: true }).click();
+  const recovery = page.getByRole('dialog', { name: 'Agentica recovery', exact: true });
+  await recovery.getByRole('button', { name: 'Inspect original 1', exact: true }).click();
+  await recovery.getByRole('button', { name: 'Reconcile navigation', exact: true }).click();
+  await expect(recovery.getByRole('status').filter({ hasText: 'Navigation terminal prefix delivered through sequence 2' })).toBeVisible();
+  await recovery.getByRole('button', { name: 'Inspect original 1', exact: true }).click();
+  await recovery.getByRole('button', { name: 'Reconcile navigation', exact: true }).click();
+  await expect(recovery.getByRole('status').filter({ hasText: 'Navigation acknowledged' })).toBeVisible();
+  await recovery.getByRole('button', { name: 'Stop Agentic session', exact: true }).click();
+  await expect(recovery.getByRole('status').filter({ hasText: 'Root Stop acknowledged' })).toBeVisible();
+  const final = await page.evaluate(() => window.canonicalStartService.snapshot());
+  expect(final.launch!.guard.state).toBe('acknowledged');
+  expect(final.head.allocations).toEqual({}); expect(final.head.checkpoint).toEqual(arrived.head.checkpoint);
+  expect(await serviceProof()).toEqual(counters);
+  await page.screenshot({ path: info.outputPath('actual-app-start-stop-desktop.png') });
+  await info.attach('actual-app-start-stop.json', { body: JSON.stringify({ before, arrived, stopped, final, counters,
+    sent: wire.sent, http: wire.http }, null, 2), contentType: 'application/json' });
+});

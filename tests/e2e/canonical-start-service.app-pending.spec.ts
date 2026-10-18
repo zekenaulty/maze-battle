@@ -14,6 +14,8 @@ async function attachActualApp(page: Page) {
 async function openRecovery(page: Page) {
   await page.getByRole('button', { name: 'Agentica recovery', exact: true })
     .or(page.getByRole('button', { name: 'Agentic play', exact: true })).click();
+  if (await page.getByRole('dialog', { name: 'Agentic play', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Recovery', exact: true }).click();
   await page.getByRole('button', { name: 'Inspect original 1', exact: true }).click();
 }
 

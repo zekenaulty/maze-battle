@@ -2,6 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 export default defineConfig({
   cacheDir: 'node_modules/.vite-canonical-start-service', envDir: false,
+  define: Object.fromEntries(Object.entries({ ENDPOINT: 'ws://127.0.0.1:5259/api/host', PROVIDER: 'fixture',
+    MODEL: 'observation-sequence', MAX_STEPS: '4', MAX_REFINEMENTS: '3', MAX_PLAN_CONTINUATIONS: '0',
+    TIMEOUT_SECONDS: '60', ACTION_TIMEOUT_SECONDS: '10',
+  }).map(([key, value]) => ['import.meta.env.VITE_AGENTICA_' + key, JSON.stringify(value)])),
   plugins: [react(), {
     name: 'actual-app-service-controller', enforce: 'pre',
     transform(source, id) {

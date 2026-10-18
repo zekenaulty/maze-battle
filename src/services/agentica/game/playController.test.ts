@@ -11,9 +11,6 @@ import type { GameLaunchOptions } from './launch';
 import { deferred } from './transportGate';
 import { mazeCapabilities } from './capabilities';
 
-// The controller's pending GameSession lease contract, implemented by the parent independently.
-declare module '../../game/GameSession' { interface GameSession { acquireAgenticControl(): () => void; } }
-
 const m = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), execute: vi.fn(), publication: vi.fn(),
   hooks: vi.fn(), action: vi.fn(), save: vi.fn(), load: vi.fn(), reconcile: vi.fn(), driver: vi.fn(), stop: vi.fn() }));
 vi.mock('../../../persistence/canonical/agentica/launch', () => ({ readLaunch: m.read, executeLaunchCommand: m.execute }));

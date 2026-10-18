@@ -6,6 +6,8 @@ import { GameRecovery } from './components/GameRecovery';
 import { TownScreen } from './components/TownScreen';
 import { Dialog } from './components/Dialog';
 import { AgenticaRecovery } from './components/agentic/AgenticaRecovery';
+import { AgenticPlayDialog } from './components/agentic/AgenticPlayDialog';
+import { useGameAgenticPlay } from './hooks/useGameAgenticPlay';
 import { normalizeInventoryPolicy } from './domain/items/inventory';
 import { canUseTownPortal, portalScrollCount } from './domain/town/town';
 import { useGameSession } from './hooks/useGameSession';
@@ -13,13 +15,14 @@ import { useGameCommands } from './hooks/useGameCommands';
 import { useCanonicalMovement } from './hooks/useCanonicalMovement';
 import { useCanonicalAuto } from './hooks/useCanonicalAuto';
 
-type DialogName = 'characters' | 'saves' | 'diagnostics' | 'agentic' | undefined;
+type DialogName = 'characters' | 'saves' | 'diagnostics' | 'agentic' | 'agentic-recovery' | undefined;
 
 export function App() {
   const session = useGameSession(), { game } = session;
+  const agentic = useGameAgenticPlay(session.controller);
   const [dialog, setDialog] = useState<DialogName>();
   const recovering = Boolean(session.recoveryRequired || session.busy);
-  const blocked = recovering || Boolean(dialog) || !session.controlled;
+  const blocked = recovering || Boolean(dialog) || !session.controlled || agentic.active;
   const auto = useCanonicalAuto(game, blocked, session.controller);
   const navigation = useCanonicalMovement(game, blocked, session.controller, auto.cancel);
   const pause = useCallback(() => { navigation.cancel(); auto.cancel(); }, [navigation.cancel, auto.cancel]);
@@ -27,10 +30,12 @@ export function App() {
   const open = (name: DialogName) => { pause(); setDialog(name); };
   const openSaves = () => { open('saves'); void session.refreshSaves().catch(() => {}); };
   const newGame = async () => { pause(); await session.resetGame(); setDialog(undefined); };
-  const agenticaRecovery = dialog === 'agentic' && <AgenticaRecovery controller={session.controller}
+  const openRecovery = () => { agentic.recover(); open('agentic-recovery'); };
+  const openAgentic = () => open(agentic.profile || agentic.configurationError ? 'agentic' : 'agentic-recovery');
+  const agenticaRecovery = dialog === 'agentic-recovery' && <AgenticaRecovery controller={session.controller}
     game={game} controlled={session.controlled} onClose={() => setDialog(undefined)} />;
   if (!game || recovering) return <><GameRecovery status={session.status} busy={session.busy}
-    onRetry={session.retry} onReset={newGame} onAgenticaRecovery={() => open('agentic')} />{agenticaRecovery}</>;
+    onRetry={session.retry} onReset={newGame} onAgenticaRecovery={openRecovery} />{agenticaRecovery}</>;
   const shared = { onCharacters: () => open('characters'), onSaves: openSaves,
     onDiagnostics: () => open('diagnostics'), onAutoToggle: commands.toggleAuto };
   return <>
@@ -43,13 +48,18 @@ export function App() {
       onSellJunk={commands.sellJunk} onWithdrawStash={commands.withdraw} onStashItem={commands.stash}
       onToggleItemLock={commands.lock} onInventoryPolicyChange={commands.policy}
     /> : <ExploreScreen {...shared} game={game} status={game.mode === 'auto-play' ? auto.message || session.status : session.status} onMove={commands.move}
-      autoActive={game.mode === 'auto-play'} autoAvailable={session.controlled} wavesActive={false} autoThrottleMs={game.autoThrottleMs}
+      autoActive={game.mode === 'auto-play'} autoAvailable={session.controlled && !agentic.active} wavesActive={false} autoThrottleMs={game.autoThrottleMs}
       onWavesToggle={() => {}} onAutoThrottleChange={commands.throttle}
       onTown={commands.portal} portalScrollCount={portalScrollCount(game)} onNewGame={newGame}
       onRandomBattlesChange={() => {}} onTileClick={navigation.navigate} onStopWalking={pause}
       navigationMessage={navigation.message} onOpenChest={commands.openChest} controlsDisabled={blocked}
-      onAgenticPlay={() => open('agentic')}
+      onAgenticPlay={openAgentic} agenticActive={agentic.active}
+      onStopAgenticPlay={agentic.active ? agentic.stop : undefined}
     />}
+    {dialog === 'agentic' && <AgenticPlayDialog profile={agentic.profile} configurationError={agentic.configurationError}
+      phase={agentic.phase} active={agentic.active} activeObjective={agentic.objective} message={agentic.message} error={agentic.error}
+      canStart={session.controlled && !recovering && game.mode !== 'auto-play' && game.mode !== 'town'}
+      onStart={agentic.start} onStop={agentic.stop} onRecovery={openRecovery} onClose={() => setDialog(undefined)} />}
     {agenticaRecovery}
     {dialog === 'saves' && <SavesDialog readOnly={!session.controlled} saves={session.saves}
       onClose={() => setDialog(undefined)} onCreateSave={session.createManualSave}

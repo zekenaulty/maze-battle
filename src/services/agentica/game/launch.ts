@@ -14,8 +14,9 @@ export interface GameLaunchOptions {
   provider: AgenticaStart['provider']; limits: AgenticaStart['limits'];
 }
 /** Explicit caller configuration only: no model selection, hidden target selection, or network effects. */
-export async function prepareGameLaunch(port: CanonicalHostPort, input: GameLaunchOptions) {
-  const config = structuredClone(input), signal = port.hostSignal, launchId = crypto.randomUUID();
+export async function prepareGameLaunch(port: CanonicalHostPort, input: GameLaunchOptions, launchId: string = crypto.randomUUID()) {
+  const config = structuredClone(input), signal = port.hostSignal;
+  launchGuardId(launchId);
   signal.throwIfAborted();
   const published = await port.submitHostCommand({ kind: 'fresh', signal, operation: 'agentica.publish', input: {},
     execute: (request, options) => executeCanonical(request, async tx => (await retainPublication(tx, request)).receipt, options) });
