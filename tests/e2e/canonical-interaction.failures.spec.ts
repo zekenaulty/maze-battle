@@ -45,6 +45,44 @@ test('normal quota failure atomically retains the unapplied action and funded ca
   expect(r.final.head.quota.reservations).toBe(0); expect(r.final.head.quota.reservedBytes).toBe(0);
 });
 
+test('applied interaction settles a decision and acknowledges from funded allowance at ordinary quota', async ({ page }, info) => {
+  const r = await page.evaluate(async () => {
+    const c = window.canonicalInteraction, seed = await c.seed({ quota: { limitBytes: 3 * 1024 * 1024, reserveBytes: 128 * 1024 } });
+    const admission = await c.admit(seed.command), applied = await c.apply(admission.id), state = await c.readInteraction(admission.id);
+    const snapshot = await c.snapshot(), quest = await c.quest(seed.target.room.contractId!); await c.fillNormalCapacity();
+    const funded = await c.readInteraction(admission.id), beforeProbe = await c.dump();
+    const refusal = await c.refusal(() => c.executeCanonical(c.command(funded.head, 'fixture.quota-probe'), async tx => {
+      await tx.pages.set('execution', 'fixture/settle-probe', 'x'.repeat(8192)); return null;
+    }));
+    const afterProbe = await c.dump(), settled = await c.settle(admission.id), decision = await c.readInteraction(admission.id);
+    const afterSettle = await c.snapshot(), terminal = await c.readInteractionTerminal(admission.id);
+    const ack = await c.acknowledge(admission.id, settled.request.attemptId);
+    return { seed, applied, state, snapshot, quest, funded, beforeProbe, refusal, afterProbe, settled, decision, afterSettle, terminal, ack,
+      final: await c.readInteraction(admission.id), afterAck: await c.snapshot(), finalQuest: await c.quest(seed.target.room.contractId!) };
+  });
+  await evidence(info, 'applied-decision-at-quota.json', r);
+  expect(r.state.value.progress).toMatchObject({ status: 'applied', sequence: 1, result: { outcome: 'applied' } });
+  expect(r.quest!.quest.status).toBe('complete'); expect(r.quest!.award!.chestId).toBe(r.seed.command.chestId);
+  const quota = r.funded.head.quota, terminalBytes = r.funded.value.operation.terminalBytes;
+  expect(quota.limitBytes - quota.reserveBytes - quota.usedBytes - quota.reservedBytes).toBeLessThan(8192);
+  expect(r.refusal.rejected).toBe(true); expect(r.refusal.message).toContain('quota exhausted'); expect(r.afterProbe).toBe(r.beforeProbe);
+  expect(r.settled.outcome.replayed).toBe(false); expect(r.decision.value.operation).toMatchObject({ state: 'settled', terminal: { disposition: 'decision' } });
+  expect(quota.reservedBytes - r.decision.head.quota.reservedBytes).toBe(terminalBytes);
+  expect(r.decision.head.quota.usedBytes - quota.usedBytes).toBeGreaterThan(0);
+  expect(r.decision.head.quota.usedBytes - quota.usedBytes).toBeLessThanOrEqual(terminalBytes);
+  expect(r.decision.head.quota.reservations).toBe(1); expect(r.decision.head.quota.reservedBytes).toBeGreaterThan(0);
+  expect(r.terminal.value.disposition).toBe('decision'); expect(r.terminal.value.progressSource.receipt).toEqual(r.applied.outcome.receipt);
+  expect(r.terminal.value.terminal.receipt).toEqual(r.settled.outcome.receipt);
+  expect(r.ack.replayed).toBe(false); expect(r.final.value.operation.state).toBe('acknowledged');
+  expect(r.final.head.quota.usedBytes - r.decision.head.quota.usedBytes).toBeLessThanOrEqual(r.decision.head.quota.reservedBytes);
+  expect(r.final.head.quota.reservations).toBe(0); expect(r.final.head.quota.reservedBytes).toBe(0);
+  for (const current of [r.funded, r.decision, r.final]) {
+    expect(current.value.progress).toEqual(r.state.value.progress); expect(current.head.checkpoint).toEqual(r.state.head.checkpoint);
+  }
+  expect(r.decision.head.roots).toEqual(r.funded.head.roots); expect(r.final.head.roots).toEqual(r.funded.head.roots);
+  expect(r.afterSettle).toEqual(r.snapshot); expect(r.afterAck).toEqual(r.snapshot); expect(r.finalQuest).toEqual(r.quest);
+});
+
 test('bounded item-capacity failure leaves the accepted quest and unopened chest unchanged', async ({ page }, info) => {
   const r = await page.evaluate(async () => {
     const c = window.canonicalInteraction, seed = await c.seed();
