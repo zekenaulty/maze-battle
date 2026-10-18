@@ -28,6 +28,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "idb": "^8.0.3",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",

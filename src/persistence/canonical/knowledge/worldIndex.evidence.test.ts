@@ -1,10 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { jsonBytes } from '../validation';
+import type { Json } from '../types';
 import { earnedCell, knowledgeFixture } from './region.test-support';
 import { indexObservedWorldCells, loadWorldIndexBlock, worldBlockKey, worldCellKey, type WorldIndexBlock } from './worldIndex';
-import { worldIndexEvidenceKey } from './worldIndex.evidence';
+import { worldIndexDigest, worldIndexEvidenceKey } from './worldIndex.evidence';
 
 async function fixture() {
   const f = knowledgeFixture(), cells = [earnedCell(0, 0), earnedCell(0, 1, 'other-room')];
@@ -18,16 +20,17 @@ describe('complete spatial-block integrity evidence', () => {
   it('writes an exact bounded companion with the block, without changing the block shape', async () => {
     const f = await fixture(), block = f.records.get(f.key)!, proof = f.records.get(f.proofKey)!;
     expect(proof.revision).toBe(block.revision);
-    expect(proof.value).toEqual({ schema: 1, recordId: block.id, revision: block.revision, witness: canonicalJson(block.value) });
+    expect(proof.value).toEqual({ schema: 1, recordId: block.id, revision: block.revision,
+      digest: `sha256:${createHash('sha256').update(canonicalJson(block.value)).digest('hex')}` });
     expect(Object.keys(block.value as object).sort()).toEqual(['cells', 'column', 'floor', 'row', 'schema']);
     f.reads.length = f.writes.length = 0;
     expect(await f.read()).toEqual(block.value);
     expect(f.reads).toEqual([f.key, f.proofKey]); expect(f.writes).toEqual([]);
   });
   it.each(['omitted-member', 'emptied-block', 'missing-block', 'missing-proof', 'wrong-record', 'wrong-revision',
-    'proof-revision', 'wrong-witness', 'wrong-proof-shape'] as const)('refuses %s without scans or memory discovery', async damage => {
+    'proof-revision', 'wrong-digest', 'wrong-proof-shape', 'legacy-body-proof'] as const)('refuses %s without scans or memory discovery', async damage => {
     const f = await fixture(), block = f.records.get(f.key)!, proof = f.records.get(f.proofKey)!;
-    const value = proof.value as unknown as { schema: number; recordId: string; revision: number; witness: string };
+    const value = proof.value as unknown as { schema: number; recordId: string; revision: number; digest: string };
     if (damage === 'omitted-member') delete (block.value as unknown as WorldIndexBlock).cells[worldCellKey(f.cells[1].world)];
     if (damage === 'emptied-block') (block.value as unknown as WorldIndexBlock).cells = {};
     if (damage === 'missing-block') f.records.delete(f.key);
@@ -35,8 +38,9 @@ describe('complete spatial-block integrity evidence', () => {
     if (damage === 'wrong-record') value.recordId = 'other-record';
     if (damage === 'wrong-revision') value.revision++;
     if (damage === 'proof-revision') proof.revision++;
-    if (damage === 'wrong-witness') value.witness = '{}';
+    if (damage === 'wrong-digest') value.digest = `sha256:${'0'.repeat(64)}`;
     if (damage === 'wrong-proof-shape') Object.assign(value, { ignored: true });
+    if (damage === 'legacy-body-proof') { Reflect.deleteProperty(value, 'digest'); Object.assign(value, { witness: canonicalJson(block.value) }); }
     f.reads.length = f.writes.length = 0;
     await expect(f.read()).rejects.toThrow();
     expect(f.reads).toEqual([f.key, f.proofKey]); expect(f.writes).toEqual([]);
@@ -89,7 +93,13 @@ describe('complete spatial-block integrity evidence', () => {
     const key = worldBlockKey(1, cells[0].world), block = f.records.get(key)!.value as unknown as WorldIndexBlock;
     // Size qualification only, with worst-case retained source identifiers and safe sequence values.
     for (const cell of Object.values(block.cells)) cell.source = { ...cell.source, id: long, sequence: Number.MAX_SAFE_INTEGER };
-    const value = { schema: 1, recordId: long, revision: Number.MAX_SAFE_INTEGER, witness: canonicalJson(block) };
-    expect(jsonBytes(value)).toBeLessThan(16 * 1024);
+    const value = { schema: 1, recordId: long, revision: Number.MAX_SAFE_INTEGER, digest: worldIndexDigest(block as unknown as Json) };
+    expect(jsonBytes(value)).toBeLessThan(300);
+    expect(value.digest).toBe(`sha256:${createHash('sha256').update(canonicalJson(block)).digest('hex')}`);
+  });
+  const vectors: Json[] = [null, {}, { b: 2, a: 1 }, { text: '\u754c\\"\n', list: Array.from({ length: 113 }, (_, i) => i) }];
+  it.each(vectors)
+  ('computes a synchronous canonical SHA-256 commitment matching Node crypto for %j', value => {
+    expect(worldIndexDigest(value)).toBe(`sha256:${createHash('sha256').update(canonicalJson(value)).digest('hex')}`);
   });
 });
