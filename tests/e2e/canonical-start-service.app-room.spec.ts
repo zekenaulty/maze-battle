@@ -6,6 +6,8 @@ import type { Page } from '@playwright/test';
 import { ACKNOWLEDGEMENT_BYTES } from '../../src/persistence/canonical/types';
 import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
 import { parseFrontier } from '../../src/services/agentica/game/frontierSelection';
+import type { CellAddress } from '../../src/services/agentica/game/types';
+import type { CellSource } from '../../src/persistence/canonical/knowledge/types';
 
 const roomWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
 async function pack(page: Page) {
@@ -53,27 +55,37 @@ test('actual App explicitly explores one earned room until a source-bound materi
   await dialog.getByRole('textbox', { name: 'Objective', exact: true }).fill('Explore the selected earned room until something meaningful changes. Do not collect.');
   await dialog.getByRole('button', { name: 'Start Agentic play', exact: true }).click();
   await expect.poll(() => wire.sent.filter(frame => frame.type === 'action.result').length).toBe(2);
+  const actions = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload);
+  expect(actions.map(action => action.capabilityId)).toEqual(['maze.inspect', 'maze.explore']);
+  expect(actions[0].arguments).toEqual({ scope: 'frontiers' });
+  const query = wire.sent.find(frame => frame.type === 'action.result' && frame.payload.actionId === actions[0].actionId)!.payload;
+  expect(query.disposition).toBe('applied');
+  expect(query.observation.data.scope).toBe('frontiers'); expect(query.observation.data.frontiers.length).toBeGreaterThan(0);
+  const admission = await page.evaluate(() => window.canonicalStartService.snapshot());
+  const actor = admission.launch!.binding.start.observation.data.actor as CellAddress;
+  const candidates = query.observation.data.frontiers as { at: CellAddress; source: CellSource; frontier: string }[];
+  const selected = candidates.find(candidate => candidate.at.level === actor.level && candidate.at.spaceId === actor.spaceId);
+  expect(selected, 'The room fixture must offer a current-space token in its bounded public page').toBeDefined();
+  expect(candidates[0].at.spaceId).not.toBe(actor.spaceId);
+  expect(actions[1].arguments).toEqual({ frontier: selected!.frontier, mode: 'room' });
+  const selection = parseFrontier(selected!.frontier, admission.launch!.binding.publication);
+  expect(selection.at.cell.spaceId).toBe(gameCheckpoint(before.head.checkpoint).position.cell.spaceId);
+  expect(selected!.source).toEqual(selection.source);
+  const result = wire.sent.find(frame => frame.type === 'action.result' && frame.payload.actionId === actions[1].actionId)!.payload;
+  expect(result, 'Room selection must be admitted, not refined after an explicit refusal')
+    .toMatchObject({ disposition: 'applied', operation: { operationId: expect.any(String) } });
   const travelCounters = await serviceProof();
   expect(counterDelta(travelCounters, baseline)).toEqual({ created: 1, initial: roomWindow, successor: absentWindow });
   expect(travelCounters.paidProviderCalls).toBe(0);
   await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 30_000 });
   await expect(dialog.getByRole('alert')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
-  const actions = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload);
-  expect(actions.map(action => action.capabilityId)).toEqual(['maze.inspect', 'maze.explore']);
-  expect(actions[0].arguments).toEqual({ scope: 'frontiers' });
-  const query = wire.sent.find(frame => frame.type === 'action.result' && frame.payload.actionId === actions[0].actionId)!.payload;
-  expect(query.observation.data.scope).toBe('frontiers'); expect(query.observation.data.frontiers.length).toBeGreaterThan(0);
-  const first = query.observation.data.frontiers[0];
-  expect(actions[1].arguments).toEqual({ frontier: first.frontier, mode: 'room' });
   const after = await page.evaluate(() => window.canonicalStartService.snapshot());
-  const selection = parseFrontier(first.frontier, after.launch!.binding.publication);
-  expect(selection.at.cell.spaceId).toBe(gameCheckpoint(before.head.checkpoint).position.cell.spaceId);
-  expect(first.source).toEqual(selection.source);
   const proof = await evidence(page, actions[1] as AgenticaAction), p = proof.retained.parent.progress;
   expect(p.binding).toMatchObject({ kind: 'frontier-exploration', frontier: selection, target: selection.at });
-  expect(p.status).toBe('decision'); expect(['new-object', 'changed-evidence', 'scope-boundary']).toContain(p.reason);
-  expect(p.steps).toBeGreaterThan(1); expect(p.sequence).toBe(p.steps);
+  expect(p).toMatchObject({ status: 'decision', reason: 'scope-boundary', steps: 4,
+    notice: { kind: 'other-space-visible', previousSource: null } });
+  expect(p.sequence).toBe(p.steps); expect(p.position).not.toEqual(selection.at);
   expect(p.position).toEqual(after.head.checkpoint.position); expect(p.position.cell.spaceId).toBe(selection.at.cell.spaceId);
   const current = gameCheckpoint(after.head.checkpoint).knowledge!, previous = gameCheckpoint(before.head.checkpoint).knowledge!;
   expect(current.sequence - previous.sequence).toBe(p.steps);
@@ -146,5 +158,5 @@ test('actual App explicitly explores one earned room until a source-bound materi
   expect(wire.sent.filter(frame => ['operation.wake', 'operation.adopt', 'resume'].includes(frame.type))).toEqual([]);
   expect(await serviceProof()).toEqual(travelCounters); expect(await pack(page)).toEqual(initialPack);
   await info.attach('actual-app-room.json', { body: JSON.stringify({ before, after, stopped, acknowledged, final, proof, finalProof,
-    selection, initialPack, baseline, travelCounters, delivered, sent: wire.sent, received: wire.received, http: wire.http }, null, 2), contentType: 'application/json' });
+    admission, selection, initialPack, baseline, travelCounters, delivered, sent: wire.sent, received: wire.received, http: wire.http }, null, 2), contentType: 'application/json' });
 });

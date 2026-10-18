@@ -11,6 +11,8 @@ internal sealed class FrontierSequencePlanner(Action<bool> called, Action planne
 {
     private int _stage;
     private string? _observation;
+    private int _actorLevel;
+    private string? _actorSpace;
 
     public Task<WorkflowPlan> CreatePlanAsync(PlanningRequest request, CancellationToken cancellationToken = default)
     {
@@ -47,7 +49,13 @@ internal sealed class FrontierSequencePlanner(Action<bool> called, Action planne
         {
             var entries = data.GetProperty("frontiers").EnumerateArray().ToArray();
             if (entries.Length == 0) throw new InvalidOperationException("No frontier in this public query page.");
-            var token = entries[0].GetProperty("frontier");
+            // Room eligibility comes only from the earned actor and returned public addresses.
+            var selected = room ? entries.FirstOrDefault(entry =>
+                entry.GetProperty("at").GetProperty("level").GetInt32() == _actorLevel
+                && entry.GetProperty("at").GetProperty("spaceId").GetString() == _actorSpace) : entries[0];
+            if (selected.ValueKind == JsonValueKind.Undefined)
+                throw new InvalidOperationException("No current-space frontier in this bounded public query page.");
+            var token = selected.GetProperty("frontier");
             if (token.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(token.GetString()))
                 throw new InvalidOperationException("Missing public frontier selection token.");
             input["frontier"] = token.Clone();
@@ -58,6 +66,13 @@ internal sealed class FrontierSequencePlanner(Action<bool> called, Action planne
             if (data.GetProperty("actor").GetProperty("mode").GetString() == "town"
                 || data.GetProperty("source").ValueKind != JsonValueKind.Object)
                 throw new InvalidOperationException("Frontier exploration requires an earned dungeon actor.");
+            if (room)
+            {
+                _actorLevel = data.GetProperty("actor").GetProperty("level").GetInt32();
+                _actorSpace = data.GetProperty("actor").GetProperty("spaceId").GetString();
+                if (_actorLevel < 1 || string.IsNullOrEmpty(_actorSpace))
+                    throw new InvalidOperationException("Room exploration requires an earned actor scope.");
+            }
             input["scope"] = "frontiers";
         }
         _stage++; planned();

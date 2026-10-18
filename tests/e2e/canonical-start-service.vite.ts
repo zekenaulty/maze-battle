@@ -12,8 +12,8 @@ export default defineConfig({
       if (id.replaceAll('\\', '/').endsWith('/src/persistence/canonical/game/initialize.ts')) {
         const anchor = 'seed = crypto.getRandomValues(new Uint32Array(1))[0]';
         if (!source.includes(anchor)) throw Error('Actual game seed instrumentation no longer matches');
-        // Pin only the generator input. The actual App still generates, earns sight and persists normally.
-        return source.replace(anchor, 'seed = 2');
+        // Room-only input qualifies a first-page current-space frontier; the approach cohort stays on seed 2.
+        return source.replace(anchor, "seed = new URL(location.href).searchParams.has('roomProof') ? 5 : 2");
       }
       if (id.replaceAll('\\', '/').endsWith('/src/hooks/useGameAgenticPlay.ts')) {
         const anchor = 'const configuration = readGameAgenticaProfile(import.meta.env);';
