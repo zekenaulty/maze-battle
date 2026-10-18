@@ -9,12 +9,18 @@ SDK bytes were compared (CRLF-normalized) and are unchanged. The optional launch
 `--grep` argument permits bounded native qualification with full build/provenance
 capture; its default still runs the entire cohort.
 
-Parent pure proof `a6783f7` was imported unchanged as `18c9d6a`. The parent's
-uncommitted `pendingRecovery.ts` and `.wire.ts` were read for the expected API;
-they are not copied, replaced, or reimplemented in this fixture. The working
-fixture drafts quota recovery plus lost-reply/restart cases against
-`recoverPregrantAction`. No native browser/service execution has occurred yet.
-The parent composition commit remains the next integration prerequisite.
+Parent pure proof `a6783f7` was imported unchanged as `18c9d6a`. The approved
+composition `1d5ec56d92d1083ceac0249b28c7f22709f42c40` was imported as `bfab3b2`.
+This older checkout also lacked `recovery.database.ts`, a dependency of that
+proof. It was imported byte-for-byte from the same parent commit in `a576095`;
+no other recovery-discovery modules or runtime changes were made. A targeted
+diff confirms both proof files, both composition files, and the database helper
+match the approved parent exactly.
+
+The two actual browser-to-service pending recovery cases now PASS. They use
+production `recoverPregrantAction`, not a fixture substitute. Full cohort
+qualification is next. The HTTP loss hook throws only after the real service
+returns successful acceptance; negative/replay requests go to the actual service.
 
 Current checks:
 
@@ -26,13 +32,23 @@ Current checks:
 - PASS: `node --check tests/agentica-start-service/run.mjs`; `git diff --check`.
 - PASS: Playwright discovery lists 21 tests in 11 files without starting a
   browser/service or changing the prior storage used only for launcher metadata.
-- FAIL (expected missing prerequisite): the fixture TypeScript check returned
+- Historical FAIL (expected missing prerequisite): the fixture TypeScript check returned
   `TS2307` at `canonical-start-service.pending-repair.ts:3` because production
   `pendingRecovery` has not been imported. No fixture errors were otherwise
-  reported. Rerun after the supplied composition commit; do not count this as a pass.
-- Native quota/replay acceptance: NOT RUN. Initial listener check found neither
-  port 5258 nor 5259 occupied; repeat the process check immediately before running.
-- No paid provider calls, native failed runs, or push in this slice.
+  reported. A second check after importing composition returned `TS2307` for
+  `pregrant-proof.ts:9` (`./recovery.database`) and consequential `TS7006` at line
+  21. Importing the unchanged parent helper fixed both; the next check PASSed.
+- PASS: focused native quota/replay run, 2/2, zero failed/flaky/skipped, one worker,
+  zero retries. Exact command: `node tests/agentica-start-service/run.mjs
+  --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica
+  --grep "pending successor reload|lost production HTTP recovery"`.
+  Evidence: `test-results/maze-start-service-4iDXfV/` (`provenance.json`,
+  `results.json`, `service.log`, browser traces). Build 12.36 seconds with zero
+  warnings/errors; Playwright 27.003587 seconds (12.142 and 9.989 seconds).
+  Maze HEAD was `a57609564a9f7b51321d53a792f817b076cd63bd` plus fixture changes
+  identified individually in the captured source hashes.
+- Both ports were checked free before focused execution. No paid provider calls,
+  native failed runs, or push. Repeat the process check before full qualification.
 
 ## Original Preparation (Historical)
 

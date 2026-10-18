@@ -13,9 +13,9 @@ export async function serviceProof(): Promise<ServiceProof> {
 }
 export interface DecisionWire {
   sent: AgenticaMessage[]; received: { frame: AgenticaMessage; bytes: number }[];
-  http: { method: string; url: string; body?: unknown }[];
-  responses: { status: number; url: string; body: unknown }[]; errors: string[]; console: string[];
-  expectedRefusals: { path: string; status: 409; code: string }[];
+  http: { method: string; url: string; body?: unknown; serializedBody?: string }[];
+  responses: { method: string; status: number; url: string; body: unknown }[]; errors: string[]; console: string[];
+  expectedRefusals: { method: 'POST' | 'GET'; path: string; status: 409; code: string }[];
   before: ServiceProof;
 }
 export const test = base.extend<{ wire: DecisionWire }, { decisionService: void }>({
@@ -34,15 +34,17 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
       return route.fulfill({ contentType: 'application/javascript', body: '' });
     if (url.origin === serviceOrigin) {
       if (!['GET /api/operations', 'POST /api/operations/events', 'POST /api/operations/stop-decision',
-        'GET /api/starts', 'POST /api/starts/stop', 'GET /api/recovery'].includes(request.method() + ' ' + url.pathname))
+        'GET /api/starts', 'POST /api/starts/stop', 'GET /api/recovery', 'GET /api/recovery/action',
+        'POST /api/recovery'].includes(request.method() + ' ' + url.pathname))
         throw Error('Unexpected service request: ' + request.method() + ' ' + url.pathname);
-      wire.http.push({ method: request.method(), url: request.url(), ...(request.postData() ? { body: request.postDataJSON() } : {}) });
+      wire.http.push({ method: request.method(), url: request.url(), ...(request.postData()
+        ? { body: request.postDataJSON(), serializedBody: request.postData()! } : {}) });
     }
     return route.continue();
   });
   page.on('response', response => {
     if (new URL(response.url()).origin === serviceOrigin) pending.push((async () => {
-      wire.responses.push({ status: response.status(), url: response.url(), body: await response.json().catch(String) });
+      wire.responses.push({ method: response.request().method(), status: response.status(), url: response.url(), body: await response.json().catch(String) });
     })());
   });
   page.on('websocket', socket => {
@@ -65,10 +67,12 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
     await Promise.all(pending);
     await info.attach('native-decision-service-proof.json', { body: JSON.stringify({ wire, state, proof: await serviceProof() }, null, 2), contentType: 'application/json' });
     const names = ['decisionController', 'decisionChannel', 'decisionState', 'decisionCommit', 'decisionCleanup',
-      'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared'];
+      'decisionRemote', 'operationPrefix', 'operationTerminal', 'launchRecovery', 'launchRecovery.shared',
+      'pendingRecovery', 'pendingRecovery.wire'];
     const hashes = Object.fromEntries(names.map(name => [name, createHash('sha256')
       .update(readFileSync(`src/services/agentica/game/${name}.ts`)).digest('hex')]));
-    for (const name of ['decision.entry', 'decision.claim', 'terminal.decision', 'terminal.root-stop', 'terminal.ack', 'terminal']) {
+    for (const name of ['decision.entry', 'decision.claim', 'terminal.decision', 'terminal.root-stop', 'terminal.ack', 'terminal',
+      'pregrant-proof', 'pregrant-proof.records', 'recovery.database']) {
       const file = `src/persistence/canonical/agentica/${name}.ts`;
       hashes[file] = createHash('sha256').update(readFileSync(file)).digest('hex');
     }
@@ -77,7 +81,7 @@ export const test = base.extend<{ wire: DecisionWire }, { decisionService: void 
   expect(wire.errors).toEqual([]);
   expect(wire.console).toEqual(wire.expectedRefusals.map(() => 'Failed to load resource: the server responded with a status of 409 (Conflict)'));
   expect(wire.responses.filter(response => response.status >= 400).map(response => ({
-    path: new URL(response.url).pathname, status: response.status, code: (response.body as { code?: unknown })?.code,
+    method: response.method, path: new URL(response.url).pathname, status: response.status, code: (response.body as { code?: unknown })?.code,
   })), 'Every HTTP refusal must match an explicit negative assertion').toEqual(wire.expectedRefusals);
   expect(wire.received.filter(frame => frame.bytes > 64 * 1024), 'Unchanged receive bound').toEqual([]);
 }, { auto: true }] });

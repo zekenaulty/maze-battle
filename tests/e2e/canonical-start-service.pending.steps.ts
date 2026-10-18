@@ -25,6 +25,8 @@ export async function retainPendingSuccessor(page: Page, wire: DecisionWire, inf
   const custody = await page.evaluate(action => window.canonicalStartService.readPendingCustody(action), action);
   expect(custody.entries).toHaveLength(1);
   expect(custody.entries[0]).toMatchObject({ request: action, runId, sessionEpoch: action.sessionEpoch, result: null, resultHash: null });
+  expect(custody.entries[0].recoveryRetention).toBe('reserved');
+  expect(await page.evaluate(action => window.canonicalStartService.readExactPendingCustody(action), action)).toEqual(custody.entries[0]);
   expect(custody.entries[0].requestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
   expect(custody.entries[0].capabilityHash).toMatch(/^sha256:[a-f0-9]{64}$/);
   expect(custody.canonical).toBeNull(); expect(custody.reconciled).toBeNull();
