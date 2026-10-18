@@ -24,8 +24,9 @@ export async function loadOperationRecord<T>(pages: OperationRead, key: string, 
   const { receipt, source } = await pages.sourceReceipt(value.sourceAttemptId as string);
   jsonBytes(receipt.result, 12 * 1024);
   const claim = kind === 'agentica-decision-claim';
-  const result = fields(receipt.result, claim ? 'agenticaOperation claimedParent' : 'agenticaOperation');
-  if (claim) {
+  // Discovery evidence is additional to claim authority; only locator reads require it.
+  const result = fields(receipt.result, 'agenticaOperation', claim ? 'claimedParent' : '');
+  if (claim && Object.hasOwn(result, 'claimedParent')) {
     const companion = fields(result.claimedParent, 'key id recordWitness');
     snapshotReference({ key: companion.key as string, id: companion.id as string });
     check(typeof companion.recordWitness === 'string', 'invalid claimed parent witness');

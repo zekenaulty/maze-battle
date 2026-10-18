@@ -37,10 +37,14 @@ it('keeps claim data unchanged and returns its exact shared source receipt witho
   expect(claim!.data).toEqual(f.data); expect(claim!.receipt).toEqual(f.receipt);
   expect(f.get).toHaveBeenCalledOnce(); expect(f.sourceReceipt.mock.calls).toEqual([['source']]);
 });
-it.each(['missing companion', 'extra field', 'claim witness', 'claim revision', 'null companion', 'extra companion field', 'invalid companion id'])
+it('validates claim authority independently of optional discovery evidence', async () => {
+  const f = sourceFixture(); Reflect.deleteProperty(f.result, 'claimedParent');
+  expect((await f.load())!.data).toEqual(f.data);
+  expect(f.get).toHaveBeenCalledOnce(); expect(f.sourceReceipt).toHaveBeenCalledOnce();
+});
+it.each(['extra field', 'claim witness', 'claim revision', 'null companion', 'extra companion field', 'invalid companion id'])
 ('refuses damaged claim receipt: %s', async damage => {
   const f = sourceFixture();
-  if (damage === 'missing companion') Reflect.deleteProperty(f.result, 'claimedParent');
   if (damage === 'extra field') Object.assign(f.result, { unrecognized: null });
   if (damage === 'claim witness') f.result.agenticaOperation.recordWitness = '{}';
   if (damage === 'claim revision') f.receipt.afterRevision++;

@@ -34,6 +34,9 @@ test('actual App rediscovers a lost accepted action after both ACKs, page reload
   await page.getByRole('button', { name: 'Check action custody', exact: true }).click();
   await page.getByRole('button', { name: `Inspect action ${setup.action.actionId}`, exact: true }).click();
   await expect(page.getByRole('region', { name: 'Selected pending action' })).toContainText('maze.inspect');
+  await page.getByRole('button', { name: 'Reconcile pending action', exact: true }).scrollIntoViewIfNeeded();
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('pending-action-selected-mobile.png') });
   const before = await canonicalEvidence(page);
   await page.evaluate(() => {
     const original = window.fetch;
