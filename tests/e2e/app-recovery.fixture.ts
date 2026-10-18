@@ -1,5 +1,6 @@
 import type { GameSession } from '../../src/services/game/GameSession';
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
+import { CANONICAL_DATABASE, CANONICAL_VERSION } from '../../src/persistence/canonical/database';
 import { createGameActionHooks } from '../../src/services/agentica/game/actionHooks';
 import { actionFingerprint, actionKey } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { earnedTargets, fundLaunch } from './canonical-agentica-actions.setup';
@@ -31,4 +32,52 @@ export async function quotaFailure() {
   await fillQuota();
   await controller.execute('settings', { kind: 'auto', enabled: true }).catch(() => {});
   return { controlled: controller.view.controlled, recovery: controller.view.recoveryRequired, live: !lifetime.aborted };
+}
+
+let schemaProbe: { before: IDBDatabaseInfo[]; mutations: string[]; restore: () => void } | undefined;
+/** Replace only the isolated browser's fixture after the dialog captured its local root. */
+export async function prepareRootSchemaFailure(legacy: boolean) {
+  const controller = session();
+  // Keep the same live controller, but isolate this click from normal App refresh reads.
+  controller.refresh = async () => {};
+  await controller.flush();
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(CANONICAL_DATABASE);
+    request.onsuccess = () => resolve(); request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(Error('Isolated schema fixture deletion blocked'));
+  });
+  if (legacy) await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(CANONICAL_DATABASE, CANONICAL_VERSION - 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('sentinel').put('preserve', 'original');
+    request.onsuccess = () => { request.result.close(); resolve(); }; request.onerror = () => reject(request.error);
+  });
+  const before = await indexedDB.databases(), mutations: string[] = [], restores: (() => void)[] = [];
+  for (const [prototype, methods] of [[IDBDatabase.prototype, ['createObjectStore', 'deleteObjectStore']],
+    [IDBObjectStore.prototype, ['put', 'add', 'delete', 'clear']]] as const) {
+    for (const method of methods) {
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, method)!;
+      restores.push(() => Object.defineProperty(prototype, method, descriptor));
+      Object.defineProperty(prototype, method, { ...descriptor, value() {
+        mutations.push(method); throw Error('Recovery attempted to mutate the schema fixture');
+      } });
+    }
+  }
+  schemaProbe = { before, mutations, restore: () => restores.forEach(restore => restore()) };
+}
+
+export async function rootSchemaFailureEvidence() {
+  const controller = session(), probe = schemaProbe!;
+  const after = await indexedDB.databases();
+  const legacy = after.some(db => db.name === CANONICAL_DATABASE && db.version === CANONICAL_VERSION - 1);
+  const sentinel = legacy ? await new Promise<unknown>((resolve, reject) => {
+    const request = indexedDB.open(CANONICAL_DATABASE, CANONICAL_VERSION - 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const get = request.result.transaction('sentinel').objectStore('sentinel').get('original');
+      get.onsuccess = () => { request.result.close(); resolve(get.result); };
+      get.onerror = () => { request.result.close(); reject(get.error); };
+    };
+  }) : null;
+  probe.restore(); schemaProbe = undefined;
+  return { before: probe.before, after, mutations: probe.mutations, sentinel, live: !controller.hostSignal.aborted };
 }

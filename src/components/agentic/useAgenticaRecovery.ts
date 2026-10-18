@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { inspectAgenticaRecovery, listAgenticaRecovery, type RecoveryCandidate } from '../../persistence/canonical/agentica/recovery';
 import { readLaunch } from '../../persistence/canonical/agentica/launch';
+import { inRecoveryDatabase } from '../../persistence/canonical/agentica/recovery.database';
 import { createGrantedLaunchRecovery, createLaunchRecovery } from '../../services/agentica/game/launchRecovery';
 import type { GameSession } from '../../services/game/GameSession';
 import type { GameView } from '../../services/game/GameView';
@@ -67,28 +68,36 @@ export function useAgenticaRecovery({ controller, game, controlled }: RecoveryPr
     const inventory = view.inventory, active = inventory?.active;
     if (!active || !inventory) return;
     assertAlive(s); hostSignal.throwIfAborted(); patch(s, { service: undefined });
-    // Read the current root, not an editable endpoint/run or a historical selected successor.
-    const current = await readLaunch(); assertAlive(s);
-    if (!current.value || current.value.binding.launchId !== active.launchId
-      || (['generation', 'gameId', 'owner', 'epoch'] as const).some(field => current.head[field] !== inventory.fence[field]))
-      throw new Error('Root binding or custody changed. Refresh local records.');
-    const fetchBound: typeof fetch = (input, init) => {
-      assertAlive(s); hostSignal.throwIfAborted();
-      return fetch(input, { ...init, signal: AbortSignal.any([s.abort.signal, ...(init?.signal ? [init.signal] : [])]) });
-    };
-    const create = current.value.grant ? createGrantedLaunchRecovery : createLaunchRecovery;
-    const recovery = await create(controller, active.launchId, fetchBound);
-    try {
-      s.close = recovery.close; assertAlive(s); hostSignal.throwIfAborted();
-      const result = await recovery[action](); assertAlive(s);
-      const message = result.status === 'settled' ? 'Root Stop acknowledged.'
-        : result.status === 'stop-requested' ? 'Local Stop recorded; service Stop is pending.'
-          : result.status === 'identified' ? result.settled ? 'Original root is settled at the service.' : 'Original root is retained, not settled.'
-            : result.status === 'undispatched' ? 'Original root was not dispatched.'
-              : action === 'stop' ? 'Local Stop recorded; original service start is unknown.' : 'Original service start is unknown; absence does not prove no execution.';
-      patch(s, { service: message + ' Session clearance remains unknown.', detail: undefined });
-      if (action === 'stop') await load(s);
-    } finally { recovery.close(); s.close = undefined; }
+    // Hold the existing schema before any ordinary root/helper read can create or upgrade it.
+    const result = await inRecoveryDatabase(AbortSignal.any([s.abort.signal, hostSignal]), async signal => {
+      const check = () => { signal.throwIfAborted(); assertAlive(s); hostSignal.throwIfAborted(); };
+      check();
+      const current = await readLaunch(); check();
+      if (!current.value || current.value.binding.launchId !== active.launchId
+        || (['generation', 'gameId', 'owner', 'epoch'] as const).some(field => current.head[field] !== inventory.fence[field]))
+        throw new Error('Root binding or custody changed. Refresh local records.');
+      const fetchBound: typeof fetch = (input, init) => {
+        check();
+        return fetch(input, { ...init, signal: AbortSignal.any([signal, ...(init?.signal ? [init.signal] : [])]) });
+      };
+      const create = current.value.grant ? createGrantedLaunchRecovery : createLaunchRecovery;
+      const recovery = await create(controller, active.launchId, fetchBound);
+      let closed = false;
+      const close = () => { if (!closed) { closed = true; recovery.close(); } };
+      try {
+        s.close = close; signal.addEventListener('abort', close, { once: true }); check();
+        const found = await recovery[action](); check();
+        return found;
+      } finally { signal.removeEventListener('abort', close); close(); s.close = undefined; }
+    });
+    assertAlive(s); hostSignal.throwIfAborted();
+    const message = result.status === 'settled' ? 'Root Stop acknowledged.'
+      : result.status === 'stop-requested' ? 'Local Stop recorded; service Stop is pending.'
+        : result.status === 'identified' ? result.settled ? 'Original root is settled at the service.' : 'Original root is retained, not settled.'
+          : result.status === 'undispatched' ? 'Original root was not dispatched.'
+            : action === 'stop' ? 'Local Stop recorded; original service start is unknown.' : 'Original service start is unknown; absence does not prove no execution.';
+    patch(s, { service: message + ' Session clearance remains unknown.', detail: undefined });
+    if (action === 'stop') await load(s);
   });
   return { ...view, refresh, inspect, runService, serviceAvailable: !hostSignal.aborted };
 }

@@ -88,3 +88,21 @@ test('actual App storage loading failure still exposes local recovery without ne
   expect(network.calls).toEqual([]); expect(network.sockets).toEqual([]);
   await page.screenshot({ path: info.outputPath('storage-failure-mobile.png') });
 });
+
+for (const legacy of [false, true]) for (const button of ['Check service', 'Stop Agentic session']) {
+  test(`actual App ${button} refuses ${legacy ? 'obsolete' : 'missing'} schema before ordinary root reads`, async ({ page }) => {
+    const network = await auditNetwork(page); await ready(page);
+    await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).seedNavigation());
+    await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Agentica recovery' });
+    await expect(dialog.getByRole('button', { name: button })).toBeEnabled();
+    await page.evaluate(async old => (await import('./tests/e2e/app-recovery.fixture.ts')).prepareRootSchemaFailure(old), legacy);
+    await dialog.getByRole('button', { name: button }).click();
+    await expect(dialog.getByRole('alert')).toContainText('no upgrade was performed');
+    const evidence = await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).rootSchemaFailureEvidence());
+    expect(evidence.after).toEqual(evidence.before);
+    expect(evidence.mutations).toEqual([]); expect(evidence.sentinel).toBe(legacy ? 'preserve' : null);
+    expect(evidence.live).toBe(true); expect(network.calls).toEqual([]); expect(network.sockets).toEqual([]);
+    await expect(dialog.getByText('Session clearance').locator('..')).toContainText('Unknown');
+  });
+}

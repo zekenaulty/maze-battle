@@ -7,7 +7,7 @@ import type { useGameSession } from './hooks/useGameSession';
 import type { GameSession } from './services/game/GameSession';
 
 const mocks = vi.hoisted(() => ({ session: {} as ReturnType<typeof useGameSession>, list: vi.fn(), inspect: vi.fn(),
-  readLaunch: vi.fn(), initial: vi.fn(), granted: vi.fn(), cancel: vi.fn() }));
+  readLaunch: vi.fn(), database: vi.fn(), initial: vi.fn(), granted: vi.fn(), cancel: vi.fn() }));
 vi.mock('./hooks/useGameSession', () => ({ useGameSession: () => mocks.session }));
 vi.mock('./hooks/useCanonicalMovement', () => ({ useCanonicalMovement: () => ({ cancel: mocks.cancel }) }));
 vi.mock('./hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: mocks.cancel }) }));
@@ -16,6 +16,7 @@ vi.mock('./components/ExploreScreen', () => ({ ExploreScreen: ({ onAgenticPlay }
   <button onClick={onAgenticPlay}>Agentic play</button> }));
 vi.mock('./persistence/canonical/agentica/recovery', () => ({ listAgenticaRecovery: mocks.list, inspectAgenticaRecovery: mocks.inspect }));
 vi.mock('./persistence/canonical/agentica/launch', () => ({ readLaunch: mocks.readLaunch }));
+vi.mock('./persistence/canonical/agentica/recovery.database', () => ({ inRecoveryDatabase: mocks.database }));
 vi.mock('./services/agentica/game/launchRecovery', () => ({ createLaunchRecovery: mocks.initial, createGrantedLaunchRecovery: mocks.granted }));
 
 const candidate = { operationId: 'travel-original', original: { key: 'original-key', id: 'original-id' },
@@ -26,7 +27,7 @@ const inventory = (): RecoveryInventory => ({ fence: { generation: 'generation',
   pendingRemoteActions: 'unknown', sessionClear: 'unknown', stats: { reads: 3, writes: 0, readBytes: 100, writeBytes: 0 } });
 const detail = { action: { actionId: 'original-action', capabilityId: 'maze.navigate' }, operation: { state: 'admitted' },
   progress: { status: 'running', steps: 2 }, terminal: null, acknowledgement: null, decision: null, claim: null } as unknown as RecoveryInspection;
-let lifetime: AbortController;
+let lifetime: AbortController, schema: AbortController;
 let remote: { inspect: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes; }); return { promise, resolve }; };
 async function open() {
@@ -34,7 +35,11 @@ async function open() {
   await screen.findByRole('button', { name: 'Inspect original 1' });
 }
 beforeEach(() => {
-  vi.resetAllMocks(); lifetime = new AbortController();
+  vi.resetAllMocks(); lifetime = new AbortController(); schema = new AbortController();
+  mocks.database.mockImplementation(async (input: AbortSignal, read: (signal: AbortSignal) => Promise<unknown>) => {
+    const signal = AbortSignal.any([input, schema.signal]); signal.throwIfAborted();
+    const value = await read(signal); signal.throwIfAborted(); return value;
+  });
   mocks.session = { game: exploreView(), controlled: true, busy: false, recoveryRequired: false, status: 'Ready', saves: [], diagnostics: [],
     controller: { owner: 'owner', get hostSignal() { return lifetime.signal; }, stop: vi.fn(), cleanupHostOperation: vi.fn() } as unknown as GameSession,
     retry: vi.fn(), resetGame: vi.fn(), takeControl: vi.fn(), refreshSaves: vi.fn(), flush: vi.fn(),
@@ -59,6 +64,7 @@ describe('actual App recovery entry', () => {
     expect(mocks.list).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     expect(mocks.initial).not.toHaveBeenCalled(); expect(mocks.granted).not.toHaveBeenCalled();
+    expect(mocks.database).not.toHaveBeenCalled();
     expect(mocks.readLaunch).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
     expect(mocks.session.controller.stop).not.toHaveBeenCalled();
   });
@@ -108,6 +114,74 @@ describe('actual App recovery entry', () => {
     render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: 'Check service' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Root binding or custody changed');
     expect(mocks.initial).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['Check service', 'Stop Agentic session'])('guards every root read and the whole explicit %s operation', async button => {
+    let held = false;
+    mocks.database.mockImplementation(async (signal: AbortSignal, read: (signal: AbortSignal) => Promise<unknown>) => {
+      held = true;
+      try { return await read(signal); } finally { held = false; }
+    });
+    mocks.readLaunch.mockImplementation(async () => {
+      expect(held).toBe(true);
+      return { head: inventory().fence, value: { binding: { launchId: 'root-launch' }, grant: null } };
+    });
+    mocks.initial.mockImplementation(async () => { expect(held).toBe(true); return remote; });
+    const operation = button === 'Check service' ? remote.inspect : remote.stop;
+    operation.mockImplementation(async () => { expect(held).toBe(true); return { status: 'unknown' }; });
+    remote.close.mockImplementation(() => expect(held).toBe(true));
+    render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: button }));
+    await waitFor(() => expect(remote.close).toHaveBeenCalledOnce());
+    expect(mocks.database).toHaveBeenCalledOnce(); expect(held).toBe(false);
+    expect(mocks.session.controller.stop).not.toHaveBeenCalled();
+  });
+
+  it.each(['Check service', 'Stop Agentic session'])('rejects %s before ordinary reads when the schema guard fails', async button => {
+    mocks.database.mockRejectedValue(new Error('Recovery requires an existing current canonical database; no upgrade was performed.'));
+    render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: button }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('no upgrade was performed');
+    expect(mocks.readLaunch).not.toHaveBeenCalled();
+    expect(mocks.initial).not.toHaveBeenCalled(); expect(mocks.granted).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled(); expect(mocks.session.controller.cleanupHostOperation).not.toHaveBeenCalled();
+    expect(mocks.session.resetGame).not.toHaveBeenCalled();
+  });
+
+  it('does not initialize a handle after the schema changes during the root read', async () => {
+    const pending = deferred<unknown>(); mocks.readLaunch.mockReturnValue(pending.promise);
+    render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: 'Check service' }));
+    await waitFor(() => expect(mocks.readLaunch).toHaveBeenCalledOnce());
+    schema.abort(new Error('Recovery database schema changed.'));
+    await act(async () => { pending.resolve({ head: inventory().fence, value: { binding: { launchId: 'root-launch' } } }); });
+    expect(await screen.findByRole('alert')).toHaveTextContent('schema changed');
+    expect(mocks.initial).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['Check service', 'Stop Agentic session'])('closes a late %s handle after schema change without invoking it', async button => {
+    const pending = deferred<typeof remote>(); mocks.initial.mockReturnValue(pending.promise);
+    render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: button }));
+    await waitFor(() => expect(mocks.initial).toHaveBeenCalledOnce());
+    schema.abort(new Error('Recovery database schema changed.'));
+    await act(async () => { pending.resolve(remote); });
+    expect(await screen.findByRole('alert')).toHaveTextContent('schema changed');
+    expect(remote.close).toHaveBeenCalledOnce(); expect(remote.inspect).not.toHaveBeenCalled(); expect(remote.stop).not.toHaveBeenCalled();
+  });
+
+  it('aborts schema-invalidated service fetches and discards even a late successful response', async () => {
+    const pending = deferred<Response>(); let signal: AbortSignal | undefined;
+    vi.mocked(fetch).mockImplementation((_input, init) => { signal = init!.signal!; return pending.promise; });
+    mocks.initial.mockImplementation(async (_port, _id, fetchBound: typeof fetch) => {
+      remote.stop.mockImplementation(async () => { await fetchBound('http://localhost/service'); return { status: 'settled' }; });
+      return remote;
+    });
+    render(<App />); await open(); fireEvent.click(screen.getByRole('button', { name: 'Stop Agentic session' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    act(() => schema.abort(new Error('Recovery database schema changed.')));
+    expect(signal!.aborted).toBe(true); expect(remote.close).toHaveBeenCalledOnce();
+    await act(async () => { pending.resolve({} as Response); });
+    expect(await screen.findByRole('alert')).toHaveTextContent('schema changed');
+    expect(screen.queryByText(/Root Stop acknowledged/)).not.toBeInTheDocument();
+    expect(mocks.list).toHaveBeenCalledOnce(); expect(lifetime.signal.aborted).toBe(false);
+    expect(remote.close).toHaveBeenCalledOnce(); expect(mocks.session.controller.stop).not.toHaveBeenCalled();
   });
 
   it('closes the handle after service failure without clearing the retained work', async () => {
