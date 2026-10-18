@@ -9,14 +9,14 @@ export function mazeCapabilities(): AgenticaCapability[] {
     { name: 'column', type: 'integer' as const, required: true, minimum: 0, maximum: 511 },
   ];
   return [
-    { id: 'maze.observe', name: 'Observe', description: 'Actor and earned sight source.', kind: 'query', effect: 'readOnly',
+    { id: 'maze.observe', name: 'Observe', description: 'Earned actor/source.', kind: 'query', effect: 'readOnly',
       inputSchema: { fields: [], allowAdditionalProperties: false } },
-    { id: 'maze.inspect', name: 'Inspect', description: 'Map lists rooms. Cell needs all address fields. Room pages a 16x16 window, not room bounds. Frontiers accepts only scope and cursor; returns earned approach selections. Cursor continues the same query.', kind: 'query', effect: 'readOnly',
+    { id: 'maze.inspect', name: 'Inspect', description: 'Map: rooms only. Cell: full address. Room: 16x16 query, not bounds. Frontiers: scope/cursor only. Cursor stays in query.', kind: 'query', effect: 'readOnly',
       inputSchema: { fields: [{ name: 'scope', type: 'string', required: true, allowedValues: ['room', 'map', 'cell', 'frontiers'] },
         ...address.map(f => ({ ...f, required: false })), { name: 'cursor', type: 'string', required: false }], allowAdditionalProperties: false } },
-    { id: 'maze.navigate', name: 'Navigate', description: 'Navigate to an earned local address; arrival does not interact.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+    { id: 'maze.navigate', name: 'Navigate', description: 'Approach earned address; no interaction.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: address, allowAdditionalProperties: false } },
-    { id: 'maze.explore', name: 'Explore', description: 'Approach one inspected frontier anchor and stop for a decision. Does not cross an unknown edge or continue exploration.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+    { id: 'maze.explore', name: 'Explore', description: 'Approach selected frontier anchor; stop for decision.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true }], allowAdditionalProperties: false } },
   ];
 }

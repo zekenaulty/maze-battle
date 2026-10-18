@@ -29,7 +29,8 @@ async function fixture(capability = 'maze.explore', disposition: 'completed' | '
 it('reports an approach decision, never completion or a newly selected frontier', async () => {
   const terminal = await fixture(), event = terminal.event;
   expect(event).toMatchObject({ kind: 'decision', actionId: 'action', operationId: 'travel', eventId: 'terminal-original', sequence: 1 });
-  expect(event.summary).toBe('Frontier anchor reached. Further exploration requires an explicit decision; objective completion is not established.');
+  expect(event.summary).toBe('Selected frontier anchor reached. Further exploration requires an explicit decision; objective completion is not established.');
+  expect(event.summary).toContain('frontier');
   expect(event.observation).toEqual(terminal.bound.result.observation);
   expect(event).not.toHaveProperty('completion');
 });

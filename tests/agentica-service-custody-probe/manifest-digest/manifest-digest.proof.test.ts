@@ -36,7 +36,9 @@ it.skipIf(!probe)('matches typed ProtocolValidation.Digest in the hash-checked p
   add('explore-only', c => c.splice(0, c.length, c[3]));
   add('retained-three-capabilities', c => {
     c.splice(3);
+    c[0].description = 'Actor and earned sight source.';
     c[1].description = 'Map lists rooms only. Cell requires all address fields. Room pages a 16x16 query window, not room bounds. Cursor continues the same query.';
+    c[2].description = 'Navigate to an earned local address; arrival does not interact.';
     c[1].inputSchema.fields[0].allowedValues = ['room', 'map', 'cell'];
   });
   for (const code of [...Array.from({ length: 95 }, (_, i) => i + 32), 9, 10, 13]) {

@@ -8,7 +8,9 @@ import { launchStartFixture } from '../../../persistence/canonical/agentica/laun
 
 function retainedThreeCapabilities() {
   const capabilities = mazeCapabilities().slice(0, 3);
+  capabilities[0].description = 'Actor and earned sight source.';
   capabilities[1].description = 'Map lists rooms only. Cell requires all address fields. Room pages a 16x16 query window, not room bounds. Cursor continues the same query.';
+  capabilities[2].description = 'Navigate to an earned local address; arrival does not interact.';
   capabilities[1].inputSchema.fields[0].allowedValues = ['room', 'map', 'cell'];
   return capabilities;
 }
@@ -16,7 +18,7 @@ function retainedThreeCapabilities() {
 describe('capability-only pinned service digest', () => {
   it('hashes the current manifest without changing the caller input', async () => {
     const capabilities = mazeCapabilities(), before = structuredClone(capabilities);
-    expect(await mazeManifestDigest(capabilities)).toBe('sha256:7910bac86d4b41ab07749322e2c5308bd96f7af435245befb64799069ef8d4f2');
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:1401e517bb94b8288ae919dc7e22cec3028c03948b4a292c75cf2f7a2e762815');
     expect(capabilities).toEqual(before);
   });
   it('keeps retained three-capability roots exact without introducing explore authority', async () => {
