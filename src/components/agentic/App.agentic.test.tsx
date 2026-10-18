@@ -14,13 +14,17 @@ vi.mock('../../hooks/useGameCommands', () => ({ useGameCommands: () => ({}) }));
 vi.mock('../../hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: state.cancel, message: '' }) }));
 vi.mock('../../hooks/useMazePerception', () => ({ useMazePerception: () => ({ pending: false }) }));
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Dungeon map" /> }));
+vi.mock('../../persistence/canonical/agentica/recovery', () => ({
+  listAgenticaRecovery: vi.fn(async () => ({ fence: { generation: 'generation', gameId: 'canonical-game', revision: 0 },
+    active: null, selected: null, allocations: [] })),
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', vi.fn(() => { throw Error('Offline App attempted fetch'); }));
   vi.stubGlobal('WebSocket', vi.fn(() => { throw Error('Offline App attempted WebSocket'); }));
   state.session = { game: { ...exploreView(), autoThrottleMs: 500, randomBattles: false }, controlled: true,
-    status: 'Ready', saves: [], diagnostics: [], controller: { execute: state.execute } as unknown as GameSession,
+    status: 'Ready', saves: [], diagnostics: [], controller: { execute: state.execute, hostSignal: new AbortController().signal } as unknown as GameSession,
     retry: vi.fn(async () => {}), resetGame: vi.fn(async () => {}), takeControl: vi.fn(async () => {}),
     createManualSave: vi.fn(async () => {}), loadSave: vi.fn(async () => {}), removeSave: vi.fn(async () => {}),
     refreshSaves: vi.fn(async () => {}), flush: vi.fn(async () => {}),
@@ -29,19 +33,20 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('canonical App Agentic offline boundary', () => {
-  it('opens only an unavailable notice with no host, launch, recovery or adoption controls', () => {
+  it('opens local recovery without host, launch or adoption controls and does not contact a service', async () => {
     render(<App />);
     expect(screen.queryByRole('button', { name: 'Stop Agentic play' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
-    const dialog = screen.getByRole('dialog', { name: 'Agentic Play' });
-    expect(within(dialog).getByRole('status')).toHaveTextContent('Agentica is unavailable during the canonical storage cutover. No service or model calls will be made.');
+    const dialog = screen.getByRole('dialog', { name: 'Agentica recovery' });
+    expect(await within(dialog).findByText('No local recovery entries found.')).toBeVisible();
+    expect(within(dialog).getByText('Agentic launch').nextElementSibling).toHaveTextContent('Unavailable');
     expect(within(dialog).queryByLabelText('Host endpoint')).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /Start|Reconnect|Adopt|Stop/ })).not.toBeInTheDocument();
     expect(state.cancel).toHaveBeenCalledTimes(2); expect(state.execute).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
   });
 
-  it('blocks navigation while the notice is open and never activates on close or rerender', () => {
+  it('blocks navigation while recovery is open and never activates on close or rerender', () => {
     const { rerender } = render(<App />), game = state.session.game;
     expect(state.movement).toHaveBeenLastCalledWith(game, false, state.session.controller, state.cancel);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
@@ -54,11 +59,12 @@ describe('canonical App Agentic offline boundary', () => {
     expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
   });
 
-  it('remains offline in a read-only session without taking custody or changing quest state', () => {
+  it('remains offline in a read-only session without taking custody or changing quest state', async () => {
     state.session.controlled = false; state.session.status = 'Read only';
     const before = structuredClone(state.session.game); render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Agentic play' }));
-    expect(screen.getByRole('dialog', { name: 'Agentic Play' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Agentica recovery' })).toBeVisible();
+    expect(await screen.findByText('No local recovery entries found.')).toBeVisible();
     expect(state.session.game).toEqual(before); expect(state.session.takeControl).not.toHaveBeenCalled();
     expect(state.execute).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled(); expect(WebSocket).not.toHaveBeenCalled();
   });
