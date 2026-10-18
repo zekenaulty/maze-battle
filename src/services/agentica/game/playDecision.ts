@@ -15,7 +15,9 @@ export interface PlayDecisionOriginal { action: AgenticaAction; binding: ActionB
 export interface PlayDecisionStatus { phase: 'preparing' | 'starting' | 'running' | 'navigating' | 'decision'; message: string; canContinue?: boolean }
 export interface PlayDecisionOptions {
   session: GameSession; original: PlayDecisionOriginal; signal: AbortSignal;
-  update(status: PlayDecisionStatus): void; onDecision(original: PlayDecisionOriginal): void; fail(error: unknown): void;
+  update(status: PlayDecisionStatus): void;
+  onDecision(original: PlayDecisionOriginal, status: PlayDecisionStatus & { phase: 'decision'; canContinue: true }): void;
+  fail(error: unknown): void;
   factory?: DecisionSdkFactory;
 }
 
@@ -53,7 +55,8 @@ export function startPlayDecision(input: PlayDecisionOptions) {
     if (!current()) return;
     update(status); if (status.phase !== 'decision' || !current()) return;
     const next = status.canContinue === true && successor ? structuredClone(successor) : undefined; close();
-    if (next) { try { onDecision(next); } catch (error) { try { failed(error); } catch { /* Already withdrawn. */ } } }
+    if (next) { try { onDecision(next, { ...status, phase: 'decision', canContinue: true }); }
+      catch (error) { try { failed(error); } catch { /* Already withdrawn. */ } } }
   };
   async function pulse() {
     if (!current()) return;

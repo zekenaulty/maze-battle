@@ -17,8 +17,9 @@ describe('explicit mounted decision continuation', () => {
     expect(sdk.connect).toHaveBeenCalledOnce(); expect(sdk.wakeOperation).toHaveBeenCalledOnce(); expect(sdk.adoptDecision).not.toHaveBeenCalled();
     action.arguments.row = 999;
     expect(m.ack).toHaveBeenCalledOnce(); expect(m.ack.mock.invocationCallOrder[0]).toBeGreaterThan(m.grant.mock.invocationCallOrder[0]);
-    m.boundary({ phase: 'decision', message: 'Navigation reached a decision boundary.', canContinue: true });
-    expect(onDecision).toHaveBeenCalledExactlyOnceWith({ action: successorAction, binding: successorBinding });
+    const boundary = { phase: 'decision', message: 'Navigation reached a decision boundary.', canContinue: true };
+    m.boundary(boundary);
+    expect(onDecision).toHaveBeenCalledExactlyOnceWith({ action: successorAction, binding: successorBinding }, boundary);
     const reads = m.state.mock.calls.length;
     await vi.advanceTimersByTimeAsync(30_000);
     expect(m.state).toHaveBeenCalledTimes(reads); expect(sdk.wakeOperation).toHaveBeenCalledOnce();
