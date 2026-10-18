@@ -4,12 +4,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { parseArgs } from 'node:util';
 import { fixtureEnvironment } from './service.mjs';
 
-const pin = '577a214d020ba35ba3188761da6a114b978516b7';
-if (process.argv.length !== 4 || process.argv[2] !== '--agentica-root') throw Error('Usage: node run.mjs --agentica-root ABSOLUTE_ROOT');
-const external = process.argv[3];
-if (!path.isAbsolute(external)) throw Error('Agentica root must be absolute');
+const pin = '90a8798ac45ee783991ccc993bd34faf573461e4';
+const { values } = parseArgs({ options: { 'agentica-root': { type: 'string' }, grep: { type: 'string' } }, allowPositionals: false });
+const external = values['agentica-root'];
+if (!external || !path.isAbsolute(external)) throw Error('Usage: node run.mjs --agentica-root ABSOLUTE_ROOT [--grep PATTERN]');
 const git = (...args) => execFileSync('git', ['-C', external, ...args], { encoding: 'utf8', env: fixtureEnvironment() }).trim();
 if (git('rev-parse', 'HEAD') !== pin || git('status', '--porcelain')) throw Error('Agentica must be clean at ' + pin);
 const folder = path.dirname(fileURLToPath(import.meta.url)), maze = path.resolve(folder, '../..');
@@ -38,6 +39,7 @@ const assemblies = Object.fromEntries(['StartServiceFixture.dll', 'Agentica.Lab.
   .map(name => [name, createHash('sha256').update(readFileSync(path.join(path.dirname(dll), name))).digest('hex')]));
 const command = ['node_modules/@playwright/test/cli.js', 'test', '--config', 'tests/e2e/canonical-start-service.config.ts',
   '--workers=1', '--retries=0', '--trace=on', '--output', path.join(output, 'browser')];
+if (values.grep !== undefined) command.push('--grep', values.grep);
 const productionPath = 'src/services/agentica/game/actionContract.ts';
 const fixtureFiles = [
   ...readdirSync(folder).filter(name => /\.(cs|csproj|mjs|mts|Config)$/.test(name)).map(name => 'tests/agentica-start-service/' + name),

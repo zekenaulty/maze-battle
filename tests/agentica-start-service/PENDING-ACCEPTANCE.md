@@ -1,6 +1,42 @@
 # Pending Recovery Acceptance Preparation
 
-Preparation only. The twenty-case cohort remains pinned to clean Agentica
+## Current Handoff
+
+The user approved clean Agentica `90a8798ac45ee783991ccc993bd34faf573461e4` at
+`C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica`. The fixture pin,
+source assertion and exact recovery route allowlist now target that source.
+SDK bytes were compared (CRLF-normalized) and are unchanged. The optional launcher
+`--grep` argument permits bounded native qualification with full build/provenance
+capture; its default still runs the entire cohort.
+
+Parent pure proof `a6783f7` was imported unchanged as `18c9d6a`. The parent's
+uncommitted `pendingRecovery.ts` and `.wire.ts` were read for the expected API;
+they are not copied, replaced, or reimplemented in this fixture. The working
+fixture drafts quota recovery plus lost-reply/restart cases against
+`recoverPregrantAction`. No native browser/service execution has occurred yet.
+The parent composition commit remains the next integration prerequisite.
+
+Current checks:
+
+- PASS: exact service SHA and clean worktree before/after the isolated build.
+- PASS: Release fixture build with SDK `10.0.401`, 12.36 seconds, zero warnings or
+  errors. This is still not repository SDK `10.0.302` qualification.
+  `test-results/maze-pending-pin-build-3sfoAi/build.json` records arguments, source,
+  SDK comparison and exit code; `build.log` retains build output.
+- PASS: `node --check tests/agentica-start-service/run.mjs`; `git diff --check`.
+- PASS: Playwright discovery lists 21 tests in 11 files without starting a
+  browser/service or changing the prior storage used only for launcher metadata.
+- FAIL (expected missing prerequisite): the fixture TypeScript check returned
+  `TS2307` at `canonical-start-service.pending-repair.ts:3` because production
+  `pendingRecovery` has not been imported. No fixture errors were otherwise
+  reported. Rerun after the supplied composition commit; do not count this as a pass.
+- Native quota/replay acceptance: NOT RUN. Initial listener check found neither
+  port 5258 nor 5259 occupied; repeat the process check immediately before running.
+- No paid provider calls, native failed runs, or push in this slice.
+
+## Original Preparation (Historical)
+
+Preparation only. The original twenty-case cohort remained pinned to clean Agentica
 `577a214d020ba35ba3188761da6a114b978516b7`, with the pending-gap expectations
 unchanged. No service repair, new proof result, or retention API is emulated.
 

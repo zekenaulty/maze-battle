@@ -25,7 +25,7 @@ app.Use(async (context, next) =>
     var route = context.Request.Method + " " + context.Request.Path.Value;
     if (route is not ("GET /api/health" or "GET /api/host" or "GET /api/starts" or "POST /api/starts/stop" or "GET /fixture/proof"
         or "GET /api/operations" or "POST /api/operations/events" or "POST /api/operations/stop-decision" or "GET /api/recovery"
-        or "GET /fixture/run"))
+        or "GET /api/recovery/action" or "POST /api/recovery" or "GET /fixture/run"))
     {
         context.Response.StatusCode = 403;
         return;
@@ -40,7 +40,7 @@ app.MapGet("/fixture/run", (string runId, HostRunRegistry registry) =>
 });
 app.MapGet("/fixture/proof", () => new
 {
-    source = "577a214d020ba35ba3188761da6a114b978516b7",
+    source = "90a8798ac45ee783991ccc993bd34faf573461e4",
     processId = Environment.ProcessId,
     factory.Created, factory.Entered, factory.Cancelled,
     factory.ScriptedCreated, factory.ScriptedCreateCalls, factory.ScriptedRefineCalls, factory.ScriptedStepsPlanned,
