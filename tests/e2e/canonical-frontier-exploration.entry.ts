@@ -2,6 +2,8 @@ import * as navigation from '../../src/persistence/canonical/navigation/commands
 import * as transaction from '../../src/persistence/canonical/transaction';
 import * as reader from '../../src/persistence/canonical/read';
 import { destinationDisposition } from '../../src/persistence/canonical/navigation/types';
+import { destinationKey } from '../../src/persistence/canonical/navigation/records';
+import { observationKey } from '../../src/persistence/canonical/knowledge/keys';
 import { MIN_TERMINAL_BYTES } from '../../src/persistence/canonical/types';
 import { json } from '../../src/persistence/canonical/world/records';
 import type { FrontierSelection } from '../../src/persistence/canonical/knowledge/frontiers';
@@ -50,7 +52,7 @@ async function effects() {
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5291') throw Error('Isolated exploration fixture only');
 const api = { ...navigation, ...transaction, ...reader, seed, frame, admit, advance, capture, settle, acknowledge,
-  effects, command, dump, refusal, selectUnopenedObjectFrontier,
+  effects, command, dump, refusal, selectUnopenedObjectFrontier, destinationKey, observationKey,
   compare: (frames: Awaited<ReturnType<typeof frame>>[]) => frames.map(explorationComparison()) };
 declare global { interface Window { canonicalFrontierExploration: typeof api } }
 window.canonicalFrontierExploration = api;

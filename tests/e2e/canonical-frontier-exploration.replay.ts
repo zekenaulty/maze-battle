@@ -88,3 +88,57 @@ test('explicit Stop during survey survives reload and cannot resume movement', a
   expect(result.final.head.checkpoint).toEqual(stopped.before.head.checkpoint); expect(result.effects).toEqual(stopped.effects);
   expect(result.final.value.operation.state).toBe('acknowledged'); expect(result.final.head.quota.reservations).toBe(0);
 });
+
+for (const [phase, prefix] of [['approach', 2], ['survey', 9]] as const) {
+  test(`${phase} takeover requires explicit adoption and preserves the pending window, original scope and limits`, async ({ page }, info) => {
+    const initial = await page.evaluate(async prefix => {
+      const c = window.canonicalFrontierExploration, seeded = await c.seed('A', 'opened-chest');
+      const admission = await c.admit(seeded.page.value[0], { steps: 16, replans: 3, durationMs: 120_000 });
+      await c.capture(admission.id, prefix);
+      const original = await c.readDestination(admission.id), frame = await c.frame(), effects = await c.effects();
+      const stale = c.command(original.head, 'navigation.advance', { operationId: admission.id, sequence: original.value.progress.sequence });
+      await c.controlCanonical(c.command(original.head, 'control.takeover', { owner: 'successor' }), 'takeover');
+      const stopped = await c.readDestination(admission.id);
+      await c.controlCanonical(c.command(stopped.head, 'control.resume', { owner: 'successor' }), 'resume');
+      const resumed = await c.readDestination(admission.id), beforeRefusals = await c.dump();
+      const oldOwner = await c.refusal(() => c.executeNavigationCommand(stale)), unadopted = await c.refusal(() => c.advance(admission.id));
+      return { admission, original, frame, effects, stopped, resumed, beforeRefusals, oldOwner, unadopted, afterRefusals: await c.dump() };
+    }, prefix);
+    await attachEvidence(info, `${phase}-takeover-before-adoption.json`, initial);
+    const original = initial.original.value.progress;
+    expect(original).toMatchObject({ status: 'running', steps: prefix, replans: 0, exploration: { phase } });
+    expect(original.exploration!.window).toMatchObject({ floor: 1, rows: 21, columns: 21 });
+    const actor = initial.frame.sight.cells.find(cell => cell.at.cell.spaceId === original.position.cell.spaceId
+      && cell.at.cell.row === original.position.cell.row && cell.at.cell.column === original.position.cell.column)!;
+    expect(original.exploration!.window).not.toEqual({ floor: 1, row: actor.world.row - 10, column: actor.world.column - 10, rows: 21, columns: 21 });
+    expect(initial.stopped.head.status).toBe('stopped'); expect(initial.resumed.head.status).toBe('ready');
+    for (const state of [initial.stopped, initial.resumed]) {
+      expect(state.head.checkpoint).toEqual(initial.original.head.checkpoint); expect(state.value.progress).toEqual(original);
+      expect(state.head.roots).toEqual(initial.original.head.roots);
+    }
+    expect(initial.oldOwner.rejected).toBe(true); expect(initial.oldOwner.message).toContain('stale owner or revision');
+    expect(initial.unadopted.rejected).toBe(true); expect(initial.unadopted.message).toContain('needs explicit adoption');
+    expect(initial.afterRefusals).toBe(initial.beforeRefusals);
+    await reloadExploration(page);
+    const result = await page.evaluate(async id => {
+      const c = window.canonicalFrontierExploration, beforeRead = await c.dump(), loaded = await c.readDestination(id), afterRead = await c.dump();
+      const adoption = await c.operateCanonical(c.command(loaded.head, 'operation.adopt', { operationId: id }), 'adopt');
+      const adopted = await c.readDestination(id), effectsAfterAdopt = await c.effects(), step = await c.advance(id);
+      return { beforeRead, loaded, afterRead, adoption, adopted, effectsAfterAdopt, step, current: await c.readDestination(id), effects: await c.effects() };
+    }, initial.admission.id);
+    await attachEvidence(info, `${phase}-explicit-adoption.json`, result);
+    expect(result.beforeRead).toBe(initial.afterRefusals); expect(result.afterRead).toBe(result.beforeRead);
+    expect(result.loaded.value).toEqual(initial.resumed.value);
+    expect(result.adopted.value.progress).toEqual(original); expect(result.adopted.head.checkpoint).toEqual(initial.original.head.checkpoint);
+    expect(result.adopted.head.roots).toEqual(initial.original.head.roots); expect(result.effectsAfterAdopt).toEqual(initial.effects);
+    expect(result.adopted.value.operation).toMatchObject({ owner: 'successor', epoch: result.adopted.head.epoch, state: 'admitted' });
+    expect(result.current.value.progress).toMatchObject({ status: 'running', owner: 'successor', epoch: result.adopted.head.epoch,
+      steps: prefix + 1, sequence: original.sequence + 1, replans: original.replans + 1, binding: original.binding,
+      startedAt: original.startedAt, deadline: original.deadline, exploration: original.exploration });
+    expect(result.current.value.progress.position).not.toEqual(original.position);
+    expect(result.current.value.progress.position.cell.spaceId).toBe(original.binding.target.cell.spaceId);
+    expect(result.current.head.gameId).toBe(initial.original.head.gameId); expect(result.current.head.epoch).toBeGreaterThan(initial.original.head.epoch);
+    expect(result.current.head.quota.reservations).toBe(1); expect(result.effects).toEqual(initial.effects);
+    expect(result.current.head.roots.world).toEqual(initial.original.head.roots.world);
+  });
+}
