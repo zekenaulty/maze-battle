@@ -27,6 +27,8 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
   check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore'].includes(action.capabilityId)
     && cap.effect === (navigation ? 'writesLocalState' : 'readOnly') && cap.kind === (navigation ? 'action' : 'query')
     && (navigation ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
+  if (action.capabilityId === 'maze.explore' && action.arguments.mode === 'room') check(cap.inputSchema.fields
+    .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
   return grant;
 }
 export function actionResult(identity: PreparedAction, observation: AgenticaObservation, summary: string,

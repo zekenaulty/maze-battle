@@ -8,7 +8,7 @@ import { readPublication } from '../../../persistence/canonical/agentica/publica
 import { prepareAction } from '../../../persistence/canonical/agentica/validation';
 import { protocolAction, protocolHead } from '../../../persistence/canonical/agentica/types.test-support';
 import { isCurrentFrontier } from '../../../persistence/canonical/knowledge/frontiers';
-import { createFrontierBinding } from '../../../persistence/canonical/navigation/commands';
+import { createFrontierBinding, createExplorationBinding } from '../../../persistence/canonical/navigation/commands';
 import { actionGrant } from './actionContract';
 import { observeMaze } from './observation';
 import { executeGameAction } from './actionExecution';
@@ -68,6 +68,20 @@ it('owns the parsed selection before asynchronous preflight reads', async () => 
   vi.mocked(isCurrentFrontier).mockImplementation(async () => { args.frontier = JSON.stringify({ ...f.token, selection: { ...f.selection, direction: 'west' } }); return true; });
   await f.run(args);
   expect(f.submitHostCommand.mock.calls[0][0].input.binding).toEqual(createFrontierBinding(f.selection));
+});
+
+it('admits room coverage only when explicitly selected, keeping the original frontier frozen', async () => {
+  const f = fixture(); f.selection.at.cell.spaceId = 'room'; await f.run({ frontier: JSON.stringify(f.token), mode: 'room' });
+  expect(f.submitHostCommand.mock.calls[0][0].input.binding).toEqual(createExplorationBinding(f.selection));
+});
+it('refuses room coverage of another space without admitting movement', async () => {
+  const f = fixture(); f.selection.at.cell.spaceId = 'other';
+  await f.run({ frontier: JSON.stringify(f.token), mode: 'room' });
+  expect((await f.resolve()).disposition).toBe('refused'); expect(isCurrentFrontier).not.toHaveBeenCalled();
+});
+it.each(['auto', 'floor', null, false])('refuses unsupported exploration mode %j', async mode => {
+  const f = fixture(); await f.run({ frontier: JSON.stringify(f.token), mode });
+  expect((await f.resolve()).disposition).toBe('refused'); expect(navigationActionHooks).not.toHaveBeenCalled();
 });
 
 it.each(['publication id', 'publication key'])('refuses foreign %s before reading frontier evidence', async damage => {

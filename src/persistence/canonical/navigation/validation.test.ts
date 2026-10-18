@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDestinationBinding, createFrontierBinding, destinationBinding, destinationProgress } from './validation';
+import { createDestinationBinding, createFrontierBinding, createExplorationBinding, destinationBinding, destinationProgress } from './validation';
 import type { DestinationProgress } from './types';
 import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { jsonBytes } from '../validation';
@@ -47,5 +47,19 @@ describe('retained destination policy', () => {
     const row = { id: 'x'.repeat(128), revision: 1, gameId: 'g'.repeat(128), generation: 'v'.repeat(128), area: 'execution',
       key: 'navigation/destination/' + 't'.repeat(128), indexes: [], value: p };
     expect(jsonBytes({ recordId: row.id, recordWitness: canonicalJson(row) }, 16384)).toBeLessThan(16384);
+  });
+  it('validates exploration phases separately from destinations and requires material evidence', () => {
+    const p = fixture(); p.binding = createExplorationBinding(frontier(), p.binding.limits);
+    p.exploration = { phase: 'approach', target }; expect(destinationProgress(p)).toEqual(p);
+    expect(() => destinationProgress({ ...p, exploration: undefined })).toThrow();
+    expect(() => destinationProgress({ ...fixture(), exploration: p.exploration })).toThrow();
+    expect(() => destinationProgress({ ...p, exploration: { phase: 'survey', target: { ...target, level: 2 } } })).toThrow();
+    const decision = { ...p, status: 'decision', reason: 'new-object', route: [] };
+    expect(() => destinationProgress(decision)).toThrow('material decision needs');
+    const notice = { kind: 'unopened-chest', at: target, source: { sequence: 2, id: 'after', index: 3 }, previousSource: null };
+    expect(destinationProgress({ ...decision, notice })).toMatchObject({ status: 'decision', notice });
+    expect(() => destinationProgress({ ...decision, notice: { ...notice, kind: 'traversability-changed' } })).toThrow('invalid exploration notice');
+    expect(() => destinationProgress({ ...p, position: target, route: [], status: 'arrived', reason: 'arrived' })).toThrow();
+    expect(destinationProgress({ ...decision, reason: 'scope-exhausted' })).toMatchObject({ status: 'decision' });
   });
 });

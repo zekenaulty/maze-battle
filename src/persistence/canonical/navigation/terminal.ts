@@ -4,14 +4,14 @@ import { fields } from '../roster/codec';
 import { same } from '../world/records';
 import { destinationKey, loadDestination } from './records';
 import { navigationReceiptRef } from './host';
+import { destinationDisposition } from './types';
 
 /** Stable terminal inputs only. No current clock, owner observation, outbox write or synthetic event ID. */
 export async function loadDestinationTerminal(pages: Pick<CanonicalQuery, 'get' | 'sourceReceipt' | 'liveOperation'>, id: string) {
   destinationKey(id);
   const operation = await pages.liveOperation(id); check(operation?.terminal, 'destination has no terminal receipt');
   const progress = await loadDestination(pages, operation), disposition = operation.terminal.disposition;
-  check(disposition === 'cancelled' || disposition === (progress.status === 'arrived' ? 'completed'
-    : progress.status === 'blocked' ? 'blocked' : null), 'destination terminal disagrees with progress');
+  check(disposition === 'cancelled' || disposition === destinationDisposition(progress), 'destination terminal disagrees with progress');
   const admission = await pages.sourceReceipt(operation.admissionAttemptId);
   const progressSource = await pages.sourceReceipt(progress.sourceAttemptId);
   const terminal = await pages.sourceReceipt(operation.terminal.attemptId);

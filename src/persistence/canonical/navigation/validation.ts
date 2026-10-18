@@ -2,6 +2,7 @@ import { destinationDeadline, exceedsLimit, snapshotDestinationLimits, type Dest
 import { fields } from '../roster/codec';
 import { check, integer, jsonBytes, validId } from '../validation';
 import { DIRECTIONS } from '../knowledge/types';
+import { cellSource } from '../knowledge/validation';
 import { position, same } from '../world/records';
 import { frontierSelection, type FrontierSelection } from '../knowledge/frontiers';
 import type { WorldPosition } from '../world/types';
@@ -12,9 +13,9 @@ export function destinationPosition(value: unknown): asserts value is WorldPosit
 }
 export function destinationBinding(value: unknown): DestinationBinding {
   const row = fields(value, 'schema kind target limits', 'frontier');
-  check(row.schema === 1 && ['known-destination', 'frontier-approach'].includes(row.kind as string), 'invalid navigation binding');
+  check(row.schema === 1 && ['known-destination', 'frontier-approach', 'frontier-exploration'].includes(row.kind as string), 'invalid navigation binding');
   destinationPosition(row.target); check(row.limits !== undefined, 'missing navigation limits'); snapshotDestinationLimits(row.limits);
-  if (row.kind === 'frontier-approach') {
+  if (row.kind !== 'known-destination') {
     const selection = frontierSelection(row.frontier);
     check(same(selection.at, row.target), 'frontier target differs from selected anchor');
   } else check(!Object.hasOwn(row, 'frontier'), 'known destination cannot carry exploration authority');
@@ -30,9 +31,13 @@ export function createFrontierBinding(input: FrontierSelection, limits?: Destina
   return destinationBinding({ schema: 1, kind: 'frontier-approach', target: selection.at,
     limits: snapshotDestinationLimits(limits), frontier: selection });
 }
+/** Explicitly authorizes local coverage within the selected observed space, never a whole-floor solver. */
+export function createExplorationBinding(input: FrontierSelection, limits?: DestinationLimits) {
+  return destinationBinding({ ...createFrontierBinding(input, limits), kind: 'frontier-exploration' });
+}
 export function destinationProgress(value: unknown): DestinationProgress {
   jsonBytes(value, 12 * 1024);
-  const p = fields(value, 'schema operationId binding sourceAttemptId owner epoch sequence steps replans startedAt deadline position route status reason');
+  const p = fields(value, 'schema operationId binding sourceAttemptId owner epoch sequence steps replans startedAt deadline position route status reason', 'exploration notice');
   check(p.schema === 1 && validId(p.operationId) && validId(p.sourceAttemptId) && validId(p.owner)
     && integer(p.epoch, 1) && integer(p.sequence) && integer(p.steps) && integer(p.replans)
     && p.steps <= p.sequence && p.replans <= p.sequence, 'invalid navigation progress');
@@ -40,15 +45,35 @@ export function destinationProgress(value: unknown): DestinationProgress {
   check(p.deadline === destinationDeadline(p.startedAt as number, limits) && !exceedsLimit(p.steps, limits.steps)
     && !exceedsLimit(p.replans, limits.replans), 'invalid navigation limits');
   destinationPosition(p.position);
+  if (binding.kind === 'frontier-exploration') {
+    const e = fields(p.exploration, 'phase target'); destinationPosition(e.target);
+    check(['approach', 'cross-frontier', 'survey'].includes(e.phase as string)
+      && e.target.level === binding.target.level && e.target.cell.spaceId === binding.target.cell.spaceId
+      && (e.phase !== 'approach' || same(e.target, binding.target)), 'invalid exploration cursor');
+  } else check(!Object.hasOwn(p, 'exploration'), 'destination cannot acquire exploration authority');
+  if (Object.hasOwn(p, 'notice')) {
+    const notice = fields(p.notice, 'kind at source previousSource'); destinationPosition(notice.at); cellSource(notice.source);
+    if (notice.previousSource !== null) cellSource(notice.previousSource);
+    const reason = ['unopened-chest', 'stairs-discovered'].includes(notice.kind as string) ? 'new-object'
+      : ['chest-changed', 'traversability-changed'].includes(notice.kind as string) ? 'changed-evidence'
+        : ['space-entered', 'other-space-visible'].includes(notice.kind as string) ? 'scope-boundary' : null;
+    check(binding.kind === 'frontier-exploration' && p.status === 'decision' && reason && p.reason === reason
+      && notice.at.level === binding.target.level && (notice.previousSource === null || notice.previousSource.sequence < notice.source.sequence),
+    'invalid exploration notice');
+  }
+  check(!['new-object', 'changed-evidence'].includes(p.reason as string) || Object.hasOwn(p, 'notice'), 'material decision needs observation evidence');
   check(Array.isArray(p.route) && p.route.length <= RETAINED_ROUTE_STEPS && !exceedsLimit(p.steps + p.route.length, limits.steps), 'unbounded navigation route');
   for (const step of p.route) {
     const s = fields(step, 'direction to'); destinationPosition(s.to);
     check(DIRECTIONS.includes(s.direction as never) && s.to.level === binding.target.level, 'invalid navigation step');
   }
-  check(['running', 'arrived', 'blocked'].includes(p.status as string), 'invalid destination status');
+  check(['running', 'arrived', 'blocked', 'decision'].includes(p.status as string), 'invalid destination status');
   const reasons = ['time-limit', 'step-limit', 'replan-limit', 'unknown-destination', 'route-unavailable', 'scope-limit', 'unavailable', 'obstructed'];
   check(p.status === 'running' ? p.reason === null && p.position.level === binding.target.level
-    : p.route.length === 0 && (p.status === 'arrived' ? p.reason === 'arrived' && same(p.position, binding.target) : reasons.includes(p.reason as string)),
+    : p.route.length === 0 && (p.status === 'arrived' ? binding.kind !== 'frontier-exploration' && p.reason === 'arrived' && same(p.position, binding.target)
+      : p.status === 'decision' ? binding.kind === 'frontier-exploration'
+        && ['new-object', 'changed-evidence', 'scope-boundary', 'scope-exhausted'].includes(p.reason as string)
+        : reasons.includes(p.reason as string)),
   'invalid destination terminal');
   return structuredClone(value) as DestinationProgress;
 }

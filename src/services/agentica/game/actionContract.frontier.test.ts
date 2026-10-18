@@ -33,3 +33,12 @@ it('does not replace a retained grant which rejects the new capability', async (
   vi.mocked(assertLaunchGrant).mockRejectedValue(new Error('action capability is not granted'));
   await expect(actionGrant({} as LaunchGrantContext, binding, { ...protocolAction(), capabilityId: 'maze.explore' })).rejects.toThrow('not granted');
 });
+
+it('does not silently expand an approach-only grant into room exploration', async () => {
+  const capability = mazeCapabilities()[3]; capability.inputSchema.fields.splice(1);
+  vi.mocked(assertLaunchGrant).mockResolvedValue({ capability } as Awaited<ReturnType<typeof assertLaunchGrant>>);
+  await expect(actionGrant({} as LaunchGrantContext, binding,
+    { ...protocolAction(), capabilityId: 'maze.explore', arguments: { frontier: 'token', mode: 'room' } })).rejects.toThrow('room exploration was not granted');
+  expect((await actionGrant({} as LaunchGrantContext, binding,
+    { ...protocolAction(), capabilityId: 'maze.explore', arguments: { frontier: 'token' } })).capability).toEqual(capability);
+});

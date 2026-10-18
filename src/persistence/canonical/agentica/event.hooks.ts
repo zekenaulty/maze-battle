@@ -50,6 +50,8 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
         && p.operationId === view.operation.id && equal(p.position, cp.position), 'event was not prepared for this progress');
       await validateKnowledge(view.knowledge, cp.knowledge);
       const sight = cp.knowledge ? await loadObservation(view.knowledge, { sequence: cp.knowledge.sequence, id: cp.knowledge.id }) : null;
+      if (p.notice) check(sight && p.notice.source.sequence === cp.knowledge!.sequence && p.notice.source.id === cp.knowledge!.id
+        && equal(sight.cells[p.notice.source.index]?.at, p.notice.at), 'material notice differs from committed observation');
       const data: OperationEvent = { confirmation, custody: ready.custody, previous: ready.previous,
         ...(ready.authority ? { authority: ready.authority } : {}), event: {
         hostId: ready.hostId, sessionId: identity.action.sessionId, sessionEpoch: ready.epoch,
@@ -58,7 +60,8 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
           observedAt: sight?.header.observedAt ?? cp.updatedAt, data: {
             scope: 'actor', actor: { level: cp.position.level, ...cp.position.cell, facing: cp.facing, mode: cp.mode },
             source: sight ? { sequence: cp.knowledge!.sequence, id: cp.knowledge!.id, revision: sight.header.revision } : null,
-            navigation: { sequence: p.sequence, steps: p.steps, status: p.status, reason: p.reason },
+            navigation: { sequence: p.sequence, steps: p.steps, status: p.status, reason: p.reason,
+              ...(p.notice ? { notice: p.notice } : {}) },
           } }, summary: `Navigation ${p.status}; ${p.steps} steps.`, usage: { steps: p.steps },
       } };
       jsonBytes(data.event, MAX_EVENT_BYTES);

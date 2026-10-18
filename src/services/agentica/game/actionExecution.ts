@@ -8,14 +8,14 @@ import type { PreparedAction, ProtocolRef } from '../../../persistence/canonical
 import { gameCheckpoint } from '../../../persistence/canonical/game/checkpoint';
 import { readKnownCells } from '../../../persistence/canonical/knowledge/queries';
 import { isCurrentFrontier } from '../../../persistence/canonical/knowledge/frontiers';
-import { createDestinationBinding, createFrontierBinding, executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
+import { createDestinationBinding, createFrontierBinding, createExplorationBinding, executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
 import { destinationPosition } from '../../../persistence/canonical/navigation/validation';
 import { fields } from '../../../persistence/canonical/roster/codec';
 import { MIN_TERMINAL_BYTES } from '../../../persistence/canonical/types';
 import { check } from '../../../persistence/canonical/validation';
 import { json } from '../../../persistence/canonical/world/records';
 import { actionGrant, actionResult, pinDeadline, type ActionBinding } from './actionContract';
-import { parseFrontier } from './frontierSelection';
+import { exploreArgs } from './exploreArgs';
 import { observeMaze, inspectMaze } from './observation';
 import { cursorAfter, inspectArgs, inspectQuery, localPosition } from './validation';
 
@@ -23,8 +23,7 @@ function parse(action: AgenticaAction, publication: ProtocolRef) {
   if (action.capabilityId === 'maze.observe') { fields(action.arguments, ''); return { kind: 'observe' as const }; }
   if (action.capabilityId === 'maze.inspect') return { kind: 'inspect' as const, args: inspectArgs(action.arguments) };
   if (action.capabilityId === 'maze.explore') {
-    const args = fields(action.arguments, 'frontier');
-    return { kind: 'explore' as const, selection: parseFrontier(args.frontier, publication) };
+    return { kind: 'explore' as const, ...exploreArgs(action.arguments, publication) };
   }
   check(action.capabilityId === 'maze.navigate', 'unsupported capability');
   const args = fields(action.arguments, 'level spaceId row column');
@@ -48,16 +47,19 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
     if (!known.value) refusal = 'Destination is not an earned address on the current dungeon floor.';
   }
   if (command?.kind === 'explore') {
-    const selection = command.selection;
+    const { selection, room } = command;
     const current = await readCanonical(async pages => {
       const publication = await readPublication(pages, binding.publication);
-      return isCurrentFrontier(pages, gameCheckpoint(publication.snapshot.checkpoint), selection);
+      const checkpoint = gameCheckpoint(publication.snapshot.checkpoint);
+      return (!room || checkpoint.position.cell.spaceId === selection.at.cell.spaceId)
+        && isCurrentFrontier(pages, checkpoint, selection);
     });
     if (!current.value) refusal = 'Frontier selection is not a current earned approach.';
   }
   if ((command?.kind === 'navigate' || command?.kind === 'explore') && !refusal) {
     // The canonical executor rechecks frontier evidence inside the admission transaction.
-    const destination = command.kind === 'explore' ? createFrontierBinding(command.selection) : createDestinationBinding(command.target);
+    const destination = command.kind === 'explore' ? (command.room ? createExplorationBinding : createFrontierBinding)(command.selection)
+      : createDestinationBinding(command.target);
     const operationId = `travel-${identity.storageKey.slice(-64)}`, exploring = command.kind === 'explore';
     const hooks = navigationActionHooks(identity, async view => {
       const earned = await observeMaze({ ...view.knowledge, savedSnapshot: view.savedSnapshot, sourceReceipt: view.sourceReceipt },
@@ -65,8 +67,10 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
       const afterRevision = view.head.revision + 1;
       return { ...actionResult(identity, { ...earned, revision: afterRevision, data: { ...earned.data,
         revisionContext: { kind: 'navigation-admission', publicationRevision: earned.revision, commitRevision: afterRevision } } },
-      exploring ? 'Frontier approach admitted. Movement awaits service custody confirmation.' : 'Destination admitted. Movement awaits service custody confirmation.'),
-      operation: { operationId, summary: exploring ? 'Approach the selected earned frontier anchor only.' : 'Navigate to the chosen earned destination.' } };
+      exploring ? 'Frontier intention admitted. Movement awaits service custody confirmation.' : 'Destination admitted. Movement awaits service custody confirmation.'),
+      operation: { operationId, summary: destination.kind === 'frontier-exploration'
+        ? 'Explore the selected local space; stop for material evidence or scope boundaries, without interactions.'
+        : exploring ? 'Approach the selected earned frontier anchor only.' : 'Navigate to the chosen earned destination.' } };
     });
     return port.submitHostCommand({ kind: 'fresh', operation: 'operation.admit',
       input: { operationId, binding: json(destination), terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' },

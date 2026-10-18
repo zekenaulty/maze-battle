@@ -8,7 +8,7 @@ import { json, loadFloor, same } from '../world/records';
 import { resolveFloorTravel, resolveWorldStep } from '../world/residency';
 import { requireWorldContent } from '../content/preparation';
 import { recordRoomQuestVisit } from '../content/questActions';
-import { recordGameObservation } from '../knowledge/write';
+import { recordGameObservation, type ObservationReview } from '../knowledge/write';
 import { loadObservation, validateKnowledge } from '../knowledge/evidence';
 import { DIRECTIONS } from '../knowledge/types';
 import { checkpointJson, gameCheckpoint, type GameCheckpoint } from './checkpoint';
@@ -30,7 +30,7 @@ export function executeExplorationCommand(request: CanonicalRequest, options: { 
 }
 
 /** Noncombat game commands. Controller choice cannot change movement's interaction policy. */
-export async function commitExplorationCommand(tx: CanonicalWork, input: unknown) {
+export async function commitExplorationCommand(tx: CanonicalWork, input: unknown, review?: ObservationReview) {
   const command = explorationCommand(input), before = gameCheckpoint(tx.head.checkpoint);
   await validateKnowledge(tx.pages, before.knowledge);
   if (before.mode === 'town' || !(await loadParty(tx.pages)).some(actor => actor.hp > 0)) return { kind: command.kind, outcome: 'unavailable' };
@@ -68,7 +68,7 @@ export async function commitExplorationCommand(tx: CanonicalWork, input: unknown
     const visit = await recordRoomQuestVisit(tx.pages, next.position, now);
     if (visit) next = { ...next, activityLog: [`Quest complete: ${visit.quest.title}.`, ...next.activityLog].slice(0, 12) };
   }
-  if (next.mode !== 'town') next = await recordGameObservation(tx, next);
+  if (next.mode !== 'town') next = await recordGameObservation(tx, next, review);
   tx.setCheckpoint(checkpointJson(next));
   return json({ kind: command.kind, outcome: 'applied', moved, crossed, needsFloor, mode: next.mode,
     position: next.position, observation: next.knowledge ? { sequence: next.knowledge.sequence, id: next.knowledge.id } : null });

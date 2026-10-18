@@ -18,7 +18,7 @@ function retainedThreeCapabilities() {
 describe('capability-only pinned service digest', () => {
   it('hashes the current manifest without changing the caller input', async () => {
     const capabilities = mazeCapabilities(), before = structuredClone(capabilities);
-    expect(await mazeManifestDigest(capabilities)).toBe('sha256:1401e517bb94b8288ae919dc7e22cec3028c03948b4a292c75cf2f7a2e762815');
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:79431c29138b68e2b4808e073fe2190579b4be7923c7539efaea39070780ba61');
     expect(capabilities).toEqual(before);
   });
   it('keeps retained three-capability roots exact without introducing explore authority', async () => {
@@ -27,14 +27,15 @@ describe('capability-only pinned service digest', () => {
     expect(launchStart({ ...launchStartFixture(), capabilities }).capabilities).toEqual(capabilities);
     expect(capabilities.some(c => c.id === 'maze.explore')).toBe(false);
   });
-  it('fits four capabilities and a frontier-only argument within the unchanged start bound', () => {
+  it('fits four capabilities and an explicitly optional exploration policy within the unchanged start bound', () => {
     const capabilities = mazeCapabilities(), start = { ...launchStartFixture(), capabilities };
     expect(launchStart(start)).toEqual(start);
     expect(new TextEncoder().encode(JSON.stringify(start)).length).toBeLessThanOrEqual(3072);
     expect(capabilities).toHaveLength(4);
     expect(capabilities[1].inputSchema.fields).toHaveLength(6);
     expect(capabilities[3]).toMatchObject({ kind: 'action', effect: 'writesLocalState', durableHandoff: true,
-      inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true }], allowAdditionalProperties: false } });
+      inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true },
+        { name: 'mode', type: 'string', required: false, allowedValues: ['room'] }], allowAdditionalProperties: false } });
   });
   // Checked by manifest-digest/run-manifest-digest.ps1 against d65fb5b7 DLLs, not a copied service implementation.
   it.each([

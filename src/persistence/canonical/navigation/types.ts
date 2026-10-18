@@ -3,6 +3,8 @@ import type { Direction } from '../../../domain/types';
 import type { CanonicalWorkLimits } from '../types';
 import type { WorldPosition } from '../world/types';
 import type { FrontierSelection } from '../knowledge/frontiers';
+import type { CellSource } from '../knowledge/types';
+import type { ExplorationMaterialChange } from '../knowledge/explorationPolicy';
 
 interface NavigationBinding {
   schema: 1;
@@ -10,10 +12,21 @@ interface NavigationBinding {
   limits: DestinationLimits;
 }
 export type DestinationBinding = NavigationBinding & ({ kind: 'known-destination' }
-  | { kind: 'frontier-approach'; frontier: FrontierSelection });
+  | { kind: 'frontier-approach' | 'frontier-exploration'; frontier: FrontierSelection });
 export interface RouteStep { direction: Direction; to: WorldPosition }
 export type DestinationReason = 'arrived' | 'time-limit' | 'step-limit' | 'replan-limit' | 'unknown-destination'
-  | 'route-unavailable' | 'scope-limit' | 'unavailable' | 'obstructed';
+  | 'route-unavailable' | 'scope-limit' | 'unavailable' | 'obstructed'
+  | 'new-object' | 'changed-evidence' | 'scope-boundary' | 'scope-exhausted';
+export interface ExplorationCursor {
+  phase: 'approach' | 'cross-frontier' | 'survey';
+  target: WorldPosition;
+}
+export interface ExplorationNotice {
+  kind: ExplorationMaterialChange['reason'];
+  at: WorldPosition;
+  source: CellSource;
+  previousSource: CellSource | null;
+}
 export interface DestinationProgress {
   schema: 1;
   operationId: string;
@@ -28,9 +41,13 @@ export interface DestinationProgress {
   deadline: number | null;
   position: WorldPosition;
   route: RouteStep[];
-  status: 'running' | 'arrived' | 'blocked';
+  status: 'running' | 'arrived' | 'blocked' | 'decision';
   reason: DestinationReason | null;
+  exploration?: ExplorationCursor;
+  notice?: ExplorationNotice;
 }
+export const destinationDisposition = (p: DestinationProgress) => p.status === 'arrived' || p.status === 'decision'
+  ? 'completed' as const : p.status === 'blocked' ? 'blocked' as const : null;
 // Policy-unlimited never removes these per-call bounds or the kernel quota.
 export const RETAINED_ROUTE_STEPS = 16;
 export const NAVIGATION_WORK_LIMITS: Readonly<CanonicalWorkLimits> = { reads: 16384, writes: 512, bytes: 16 * 1024 * 1024 };

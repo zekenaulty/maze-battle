@@ -1,6 +1,6 @@
 import { loadDestination } from '../navigation/records';
 import { destinationBinding } from '../navigation/validation';
-import { parseFrontier } from '../../../services/agentica/game/frontierSelection';
+import { exploreArgs } from '../../../services/agentica/game/exploreArgs';
 import { fields } from '../roster/codec';
 import type { CanonicalHead } from '../types';
 import { check } from '../validation';
@@ -37,8 +37,10 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
     && value.sourceRequest.operation === 'operation.admit', 'operation is not original result admission');
   const destination = destinationBinding(operation.binding), target = destination.target;
   if (identity.action.capabilityId === 'maze.explore') {
-    const args = fields(identity.action.arguments, 'frontier'), selection = parseFrontier(args.frontier, binding.publication);
-    check(destination.kind === 'frontier-approach' && equal(destination.frontier, selection)
+    const { selection, room } = exploreArgs(identity.action.arguments, binding.publication);
+    if (room) check(launch.binding.start.capabilities.find(c => c.id === 'maze.explore')?.inputSchema.fields
+      .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
+    check(destination.kind === (room ? 'frontier-exploration' : 'frontier-approach') && equal(destination.frontier, selection)
       && equal(target, selection.at), 'operation frontier differs from original action');
   } else {
     const args = fields(identity.action.arguments, 'level spaceId row column');

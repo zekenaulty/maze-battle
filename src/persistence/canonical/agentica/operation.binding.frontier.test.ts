@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from 'vitest';
 import { mazeCapabilities } from '../../../services/agentica/game/capabilities';
-import { createDestinationBinding, createFrontierBinding } from '../navigation/validation';
+import { createDestinationBinding, createFrontierBinding, createExplorationBinding } from '../navigation/validation';
 import { loadDestination } from '../navigation/records';
 import type { CanonicalOperation, CanonicalRecord } from '../types';
 import { readAction } from './actions';
@@ -18,13 +18,13 @@ vi.mock('./run-grant.read', () => ({ loadRunGrant: vi.fn() }));
 vi.mock('../navigation/records', () => ({ loadDestination: vi.fn() }));
 beforeEach(() => vi.clearAllMocks());
 
-async function fixture(explore = true) {
+async function fixture(explore = true, room = false) {
   const binding = { grant: { key: 'agentica/grants/grant', id: 'grant' }, publication: { key: 'agentica/publications/pub', id: 'pub' } };
   const selection = { at: { level: 1, cell: { spaceId: 'room', row: 3, column: 4 } },
     direction: 'north' as const, source: { id: 'sight', sequence: 1, index: 2 } };
   const token = { schema: 1, publication: binding.publication, selection };
   const action = { ...protocolAction(), capabilityId: explore ? 'maze.explore' : 'maze.navigate',
-    arguments: explore ? { frontier: JSON.stringify(token) } : { level: selection.at.level, ...selection.at.cell } };
+    arguments: explore ? { frontier: JSON.stringify(token), ...(room ? { mode: 'room' } : {}) } : { level: selection.at.level, ...selection.at.cell } };
   const identity = await prepareAction(action), result = { ...protocolResult(action), operation: { operationId: 'travel', summary: 'Approach' } };
   const original = { original: { effect: 'writesLocalState', publication: binding.publication,
     sourceRequest: { operation: 'agentica.action.reserve', input: { action: identity.storageKey, ...binding } } },
@@ -32,7 +32,7 @@ async function fixture(explore = true) {
   const start = { capabilities: mazeCapabilities() }, certified = { record: { ref: binding.grant }, launch: { binding: { start } }, start,
     started: { runId: action.runId, sessionId: action.sessionId, sessionEpoch: action.sessionEpoch, manifestHash: action.manifestHash } };
   const operation = { id: 'travel', ackPolicy: 'verified-host', admissionAttemptId: 'admit',
-    binding: explore ? createFrontierBinding(selection) : createDestinationBinding(selection.at) };
+    binding: explore ? (room ? createExplorationBinding : createFrontierBinding)(selection) : createDestinationBinding(selection.at) };
   const resultRecord = { value: { proof: 'navigation', sourceAttemptId: 'admit', sourceRequest: { operation: 'operation.admit' } } };
   vi.mocked(readAction).mockResolvedValue(original as unknown as Awaited<ReturnType<typeof readAction>>);
   vi.mocked(loadRunGrant).mockResolvedValue(certified as unknown as Awaited<ReturnType<typeof loadRunGrant>>);
@@ -54,6 +54,14 @@ it('replays the exact explore selection without requiring it to remain a current
 it('preserves exact known-destination replay for retained navigate roots', async () => {
   const f = await fixture(false); f.certified.start.capabilities.splice(3);
   expect((await f.load()).operation.binding).toEqual(createDestinationBinding(f.selection.at));
+});
+
+it('retains explicit coverage authority and rejects a widened approach grant or narrowed action', async () => {
+  const f = await fixture(true, true); expect((await f.load()).progress.sequence).toBe(2);
+  f.certified.start.capabilities[3].inputSchema.fields.splice(1);
+  await expect(f.load()).rejects.toThrow('room exploration was not granted');
+  const approach = await fixture(); approach.operation.binding = createExplorationBinding(approach.selection);
+  await expect(approach.load()).rejects.toThrow('frontier differs');
 });
 
 it.each(['direction', 'source id', 'source sequence', 'source index', 'anchor', 'kind', 'publication id', 'publication key', 'token schema', 'token extra'])

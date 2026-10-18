@@ -7,13 +7,19 @@ import { observePosition } from './observe';
 import { validateKnowledge } from './evidence';
 import { rememberObservation } from './memory';
 import { indexObservedWorldCells } from './worldIndex';
-import { OBSERVATION_CHUNK_SIZE, VISION_RADIUS, type ObservationHeader } from './types';
+import { OBSERVATION_CHUNK_SIZE, VISION_RADIUS, type KnowledgeRead, type ObservedCell, type ObservationHeader } from './types';
+
+export type ObservationReview = (pages: KnowledgeRead, cells: ObservedCell[]) => Promise<void>;
 
 /** Position/effects, sight, memory and source receipts share the caller's transaction. */
-export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameCheckpoint): Promise<GameCheckpoint> {
+export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameCheckpoint, review?: ObservationReview): Promise<GameCheckpoint> {
   check(checkpoint.mode !== 'town', 'town has no dungeon observation');
   await validateKnowledge(tx.pages, checkpoint.knowledge);
   const cells = await observePosition(tx.pages, checkpoint.position), sequence = (checkpoint.knowledge?.sequence ?? 0) + 1;
+  // Compare legitimate new sight against prior memory before the memory projection is updated.
+  if (review) await review({ get: (area, key) => { check(area === 'knowledge', 'observation review requires knowledge only'); return tx.pages.get(area, key); },
+    scan: (area, prefix, after, limit) => { check(area === 'knowledge', 'observation review requires knowledge only'); return tx.pages.scan(area, prefix, after, limit); },
+    witness: (area, prefix) => { check(area === 'knowledge', 'observation review requires knowledge only'); return tx.pages.witness(area, prefix); } }, structuredClone(cells));
   check(integer(sequence, 1), 'observation sequence exhausted');
   const key = observationKey(sequence);
   check(!await tx.pages.get('knowledge', key), 'observation sequence already exists');

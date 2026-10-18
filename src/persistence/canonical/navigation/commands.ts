@@ -11,12 +11,14 @@ import type { CanonicalRequest, Json } from '../types';
 import { check, integer, isObject, request as validateRequest, validId } from '../validation';
 import { json, same } from '../world/records';
 import { resolveWorldStep } from '../world/residency';
-import { NAVIGATION_WORK_LIMITS, type DestinationProgress, type DestinationReason } from './types';
+import { destinationDisposition, NAVIGATION_WORK_LIMITS, type DestinationProgress, type DestinationReason } from './types';
+import { advanceExploration } from './exploration';
+import { planScopedApproach } from './explorationPlan';
 import { destinationBinding } from './validation';
 import { destinationKey, loadDestination, saveDestination } from './records';
 import { knownStep, planDestination } from './planner';
 import { prepareNavigationHost, type NavigationHostHooks } from './host';
-export { createDestinationBinding, createFrontierBinding } from './validation';
+export { createDestinationBinding, createFrontierBinding, createExplorationBinding } from './validation';
 export { readDestinationTerminal, loadDestinationTerminal } from './terminal';
 export type { NavigationHostHooks, NavigationPreparation, NavigationCommit, NavigationHostRefs, NavigationRecordRef, NavigationReceiptRef } from './host';
 
@@ -33,14 +35,22 @@ export function executeNavigationCommand(input: CanonicalRequest, options: Optio
       const commitHost = await prepareNavigationHost(tx, tx.operation, request, host);
       const checkpoint = gameCheckpoint(tx.head.checkpoint), startedAt = Date.now();
       let approach: Awaited<ReturnType<typeof planDestination>> | undefined;
-      if (binding.kind === 'frontier-approach') {
+      if (binding.kind !== 'known-destination') {
+        if (binding.kind === 'frontier-exploration') check(checkpoint.position.cell.spaceId === binding.target.cell.spaceId,
+          'room exploration requires a frontier in the current space');
         check(await isCurrentFrontier(tx.pages, checkpoint, binding.frontier), 'frontier selection is stale or not an earned boundary');
         approach = await planDestination(tx.pages, checkpoint, binding.target);
+        if (binding.kind === 'frontier-exploration') {
+          const route = await planScopedApproach(tx.pages, checkpoint, binding.target);
+          check(route?.length, 'frontier requires an earned approach inside the selected space');
+          approach = { route, reason: null };
+        }
         check(!approach.reason && approach.route.length > 0, 'frontier requires a nonzero earned approach');
       }
       let progress: DestinationProgress = { schema: 1, operationId: tx.operation.id, binding, sourceAttemptId: request.attemptId,
         owner: tx.head.owner, epoch: tx.head.epoch, sequence: 0, steps: 0, replans: 0, startedAt,
-        deadline: destinationDeadline(startedAt, binding.limits), position: checkpoint.position, route: [], status: 'running', reason: null };
+        deadline: destinationDeadline(startedAt, binding.limits), position: checkpoint.position, route: [], status: 'running', reason: null,
+        ...(binding.kind === 'frontier-exploration' ? { exploration: { phase: 'approach', target: binding.target } } : {}) };
       if (destinationExpired(progress, startedAt)) progress = stop(progress, 'time-limit');
       else {
         const plan = approach ?? await planDestination(tx.pages, checkpoint, binding.target);
@@ -55,7 +65,7 @@ export function executeNavigationCommand(input: CanonicalRequest, options: Optio
     const input = operationInput(request, 'settle');
     return operateCanonical(request, 'settle', async tx => {
       const progress = await loadDestination(tx.pages, tx.operation);
-      check(progress.status !== 'running' && input.disposition === (progress.status === 'arrived' ? 'completed' : 'blocked'), 'destination not ready for settlement');
+      check(input.disposition === destinationDisposition(progress), 'destination not ready for settlement');
       const commitHost = await prepareNavigationHost(tx, tx.operation, request, host);
       return commitHost({ progress, checkpoint: gameCheckpoint(tx.head.checkpoint), result: json({ operationId: progress.operationId,
         status: progress.status, reason: progress.reason, sequence: progress.sequence, steps: progress.steps, replans: progress.replans }) });
@@ -74,6 +84,10 @@ async function advance(tx: CanonicalWork, request: CanonicalRequest, id: string,
   let p = await loadDestination(tx.pages, operation);
   check(p.status === 'running' && p.sequence === sequence && integer(sequence + 1), 'destination step changed');
   const commitHost = await prepareNavigationHost(tx, operation, request, host);
+  if (p.binding.kind === 'frontier-exploration') {
+    const next = await advanceExploration(tx, p);
+    return commitHost({ ...await saveDestination(tx.pages, next.progress, request), checkpoint: next.checkpoint });
+  }
   const before = gameCheckpoint(tx.head.checkpoint), limits = p.binding.limits;
   let checkpoint = before;
   const invalidated = p.owner !== tx.head.owner || p.epoch !== tx.head.epoch || !same(p.position, before.position);
@@ -123,7 +137,7 @@ export function readDestination(id: string) {
     const operation = await pages.liveOperation(id); check(operation, 'missing destination operation');
     const progress = await loadDestination(pages, operation);
     check(!operation.terminal || operation.terminal.disposition === 'cancelled'
-      || operation.terminal.disposition === (progress.status === 'arrived' ? 'completed' : progress.status === 'blocked' ? 'blocked' : null), 'destination terminal disagrees with progress');
+      || operation.terminal.disposition === destinationDisposition(progress), 'destination terminal disagrees with progress');
     return { operation, progress, status: operation.terminal?.disposition === 'cancelled' ? 'cancelled' as const : progress.status };
   });
 }

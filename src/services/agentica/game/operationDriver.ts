@@ -6,6 +6,7 @@ import { readCanonical } from '../../../persistence/canonical/read';
 import { prepareAction } from '../../../persistence/canonical/agentica/actions';
 import { readAgenticaOperation, retainOperationConfirmation, retainOperationCustodyAck, operationProgressHooks, retainEventAcknowledgement } from '../../../persistence/canonical/agentica/operation';
 import { executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
+import { destinationDisposition } from '../../../persistence/canonical/navigation/types';
 import { executeCanonical } from '../../../persistence/canonical/transaction';
 import { loadOperationBinding } from '../../../persistence/canonical/agentica/operation.binding';
 import { validateReservedOperationEntry } from '../../../persistence/canonical/agentica/operation.wire';
@@ -69,7 +70,7 @@ export async function createGameOperationDriver(port: CanonicalHostPort & Canoni
       }
       if (state.progress.status !== 'running') {
         await gate.port.submitHostCommand({ kind: 'fresh', operation: 'operation.settle',
-          input: { operationId: state.operation.id, disposition: state.progress.status === 'arrived' ? 'completed' : 'blocked' },
+          input: { operationId: state.operation.id, disposition: destinationDisposition(state.progress)! },
           execute: (request, options) => executeNavigationCommand(request, { ...options, host: operationSettlementHooks(identity, binding) }) });
         return { status: 'locally-settled' as const, progress: state.progress.status };
       }
