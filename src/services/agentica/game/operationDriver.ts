@@ -8,6 +8,7 @@ import { readAgenticaOperation, retainOperationConfirmation, retainOperationCust
 import { executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
 import { executeCanonical } from '../../../persistence/canonical/transaction';
 import { loadOperationBinding } from '../../../persistence/canonical/agentica/operation.binding';
+import { validateReservedOperationEntry } from '../../../persistence/canonical/agentica/operation.wire';
 import { operationSettlementHooks } from '../../../persistence/canonical/agentica/terminal.settle';
 import { json } from '../../../persistence/canonical/world/records';
 import { check } from '../../../persistence/canonical/validation';
@@ -26,7 +27,7 @@ export async function createGameOperationDriver(port: CanonicalHostPort & Canoni
   if (delivery.signal.aborted) { release(); delivery.signal.throwIfAborted(); }
   const targets = await readCanonical(async pages => {
     const bound = await loadOperationBinding(pages, identity, binding), { generation, gameId, id } = bound.operation;
-    return { operation: { generation, gameId, operationId: id }, guard: { generation, gameId, operationId: bound.launch.guard.id } };
+    return { start: bound.start, operation: { generation, gameId, operationId: id }, guard: { generation, gameId, operationId: bound.launch.guard.id } };
   }).then(r => r.value).catch(error => { gate.close(); delivery.close(); throw error; });
   const network = boundedGameFetch(gate.signal, fetchImpl);
   const terminalNetwork = boundedGameFetch(delivery.signal, fetchImpl);
@@ -57,6 +58,10 @@ export async function createGameOperationDriver(port: CanonicalHostPort & Canoni
         check(matches.length <= 1, 'ambiguous service operation custody');
         if (!matches.length) return { status: 'awaiting-service' as const };
         const entry = structuredClone(matches[0]);
+        if (entry.state === 'reserved') {
+          validateReservedOperationEntry(entry, targets.start, identity.action);
+          return { status: 'awaiting-service' as const };
+        }
         await gate.port.submitHostCommand({ kind: 'fresh', operation: 'agentica.operation.confirm',
           input: json({ action: identity.storageKey, binding, entry }), execute: (request, options) => executeCanonical(request,
             async tx => (await retainOperationConfirmation(tx, request, identity, binding, entry)).receipt, options) });

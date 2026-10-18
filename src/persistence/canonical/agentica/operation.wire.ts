@@ -72,6 +72,15 @@ export function operationEntry(input: AgenticaOperationEntry) {
     && (entry as unknown as ObjectValue).settledUsage == null, 'service operation is not parked in original custody');
   return entry;
 }
+/** A matching reservation is only pending service admission, never confirmation or custody. */
+export function validateReservedOperationEntry(input: AgenticaOperationEntry, start: AgenticaStart, action: AgenticaAction) {
+  const entry = operationEntryShape(input);
+  check(entry.state === 'reserved' && entry.admission == null && entry.latestEvent == null && entry.wakeRunId == null
+    && entry.wakeAdoption == null && entry.stopDecision == null && (entry as unknown as ObjectValue).settledUsage == null,
+  'service reservation contains admission or later custody');
+  check(equivalentOperationStart(entry.request, start) && equal(entry.action, action) && entry.activeEpoch === action.sessionEpoch,
+    'service reservation differs from original request, action or epoch');
+}
 export function validateOperationEntry(entry: AgenticaOperationEntry, start: AgenticaStart, action: AgenticaAction, admission: AgenticaResult, activeEpoch = action.sessionEpoch) {
   check(equivalentOperationStart(entry.request, start) && equal(entry.action, action)
     && equivalentOperationWire(entry.admission, admission, 'result') && entry.activeEpoch === activeEpoch,
