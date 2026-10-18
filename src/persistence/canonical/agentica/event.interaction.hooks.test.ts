@@ -13,6 +13,7 @@ import { readPublicationSelection } from './publication-selection.records';
 import { loadTransfer } from './transfer.records';
 import { prepareAction } from './validation';
 import { protocolAction, protocolHead } from './types.test-support';
+import { chestArgs, resolveChestSelection } from '../../../services/agentica/game/chestSelection';
 
 vi.mock('./operation.confirmation', () => ({ loadOperationConfirmation: vi.fn() }));
 vi.mock('./operation.custody', () => ({ loadOperationCustodyAck: vi.fn() }));
@@ -20,10 +21,11 @@ vi.mock('./transfer.records', () => ({ loadTransfer: vi.fn() }));
 vi.mock('./publication-selection.records', () => ({ readPublicationSelection: vi.fn() }));
 vi.mock('./publication', async original => ({ ...await original<typeof import('./publication')>(), readPublication: vi.fn() }));
 vi.mock('../knowledge/evidence', () => ({ validateKnowledge: vi.fn(), loadObservation: vi.fn() }));
+vi.mock('../../../services/agentica/game/chestSelection', () => ({ chestArgs: vi.fn(), resolveChestSelection: vi.fn() }));
 beforeEach(() => vi.clearAllMocks());
 
 async function fixture() {
-  const identity = await prepareAction({ ...protocolAction(), capabilityId: 'maze.interact', arguments: { chest: 'public-token' } });
+  const identity = await prepareAction({ ...protocolAction(), capabilityId: 'maze.interact', arguments: { target: 'public-token' } });
   const head = protocolHead(), cp = gameCheckpoint(head.checkpoint);
   const pending: InteractionProgress = { schema: 1, operationId: 'interact', sourceAttemptId: 'admit', owner: head.owner,
     epoch: head.epoch, sequence: 0, status: 'pending', reason: null, result: null,
@@ -42,6 +44,8 @@ async function fixture() {
   vi.mocked(readPublicationSelection).mockResolvedValue({ value: { data: binding } } as unknown as NonNullable<Awaited<ReturnType<typeof readPublicationSelection>>>);
   vi.mocked(readPublication).mockResolvedValue(publication as unknown as Awaited<ReturnType<typeof readPublication>>);
   vi.mocked(loadTransfer).mockResolvedValue(null);
+  vi.mocked(chestArgs).mockReturnValue({ publication: binding.publication, source: { sequence: 1, id: 'sight', index: 0 }, chestIndex: 0 });
+  vi.mocked(resolveChestSelection).mockResolvedValue({ command: { kind: 'open-chest', chestId: 'private-chest' }, position: structuredClone(cp.position) });
   vi.mocked(validateKnowledge).mockResolvedValue(undefined);
   vi.mocked(loadObservation).mockResolvedValue({ header: { revision: 8, observedAt: '2026-10-18T00:00:00.000Z' } } as Awaited<ReturnType<typeof loadObservation>>);
   const appendExecution = vi.fn(async () => ({ key: 'event', recordId: 'event', revision: 8, sourceAttemptId: 'apply', recordWitness: '{}' }));
@@ -106,5 +110,41 @@ it('fails closed when post-effect knowledge is corrupt', async () => {
   const f = await fixture(); await f.hooks.prepare(f.view);
   vi.mocked(validateKnowledge).mockRejectedValue(new Error('corrupt sight'));
   await expect(f.hooks.commit(f.view)).rejects.toThrow('corrupt sight');
+  expect(f.appendExecution).not.toHaveBeenCalled();
+});
+
+it.each(['ineligible', 'foreign-chest', 'foreign-position', 'corrupt-source'])('revalidates %s original selection before an effect-capable apply', async defect => {
+  const f = await fixture();
+  if (defect === 'ineligible') vi.mocked(resolveChestSelection).mockResolvedValue(null);
+  if (defect === 'foreign-chest') vi.mocked(resolveChestSelection).mockResolvedValue({ command: { kind: 'open-chest', chestId: 'other' }, position: f.view.checkpoint.position });
+  if (defect === 'foreign-position') vi.mocked(resolveChestSelection).mockResolvedValue({ command: { kind: 'open-chest', chestId: 'private-chest' },
+    position: { level: 1, cell: { spaceId: 'other', row: 0, column: 0 } } });
+  if (defect === 'corrupt-source') vi.mocked(resolveChestSelection).mockRejectedValue(new Error('corrupt original sight'));
+  await expect(f.hooks.prepare(f.view)).rejects.toThrow();
+  expect(chestArgs).toHaveBeenCalledExactlyOnceWith({ target: 'public-token' }, f.bound.binding.publication);
+  expect(f.appendExecution).not.toHaveBeenCalled();
+});
+
+it.each(['position-changed', 'unavailable'] as const)('allows only a no-effect %s domain result after harmless state drift', async reason => {
+  const f = await fixture(), checkpoint = structuredClone(f.view.head.checkpoint);
+  if (reason === 'position-changed') (checkpoint.position as { cell: { row: number } }).cell.row++;
+  else checkpoint.mode = 'town';
+  f.view.head.checkpoint = checkpoint;
+  Object.assign(f.view, { checkpoint: gameCheckpoint(checkpoint) });
+  Object.assign(f.view.progress, { status: 'blocked', reason, result: null });
+  await f.hooks.prepare(f.view);
+  expect(resolveChestSelection).not.toHaveBeenCalled();
+  await f.hooks.commit(f.view);
+  expect(f.appendExecution).toHaveBeenCalledTimes(1);
+});
+
+it.each(['position-changed', 'unavailable'] as const)('a stale %s prepare cannot commit an applied result', async reason => {
+  const f = await fixture(), checkpoint = structuredClone(f.view.head.checkpoint);
+  if (reason === 'position-changed') (checkpoint.position as { cell: { row: number } }).cell.row++;
+  else checkpoint.mode = 'town';
+  f.view.head.checkpoint = checkpoint;
+  Object.assign(f.view, { checkpoint: gameCheckpoint(checkpoint) });
+  await f.hooks.prepare(f.view);
+  await expect(f.hooks.commit(f.view)).rejects.toThrow('must remain a no-effect blocked result');
   expect(f.appendExecution).not.toHaveBeenCalled();
 });

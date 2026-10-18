@@ -15,6 +15,8 @@ import { equal, snapshotJson, snapshotPrepared, snapshotReference } from './vali
 import { assertPublicationCurrent, readPublication } from './publication';
 import { readPublicationSelection } from './publication-selection.records';
 import { interactionObservationData, interactionSummary } from './event.interaction';
+import { gameCheckpoint } from '../game/checkpoint';
+import { chestArgs, resolveChestSelection } from '../../../services/agentica/game/chestSelection';
 
 function reader(view: OperationPreparation): OperationRead {
   const { getExecution, savedSnapshot, sourceReceipt, liveOperation } = view;
@@ -79,10 +81,11 @@ export function operationProgressHooks(input: PreparedAction, inputConfirmation:
   };
 }
 
-/** Exactly one apply, under the original publication and owner; never a transfer or a fresh action. */
+/** One original-owner apply. Effects require original current sight; stale position/town can only block. */
 export function interactionProgressHooks(input: PreparedAction, inputConfirmation: ProtocolRef): OperationHostHooks<InteractionProgress> {
   const identity = snapshotPrepared(input), confirmation = snapshotReference(inputConfirmation);
-  let prepared: { request: CanonicalRequest; progress: InteractionProgress; custody: ProtocolRef; hostId: string } | undefined;
+  let prepared: { request: CanonicalRequest; progress: InteractionProgress; custody: ProtocolRef; hostId: string;
+    blocked: InteractionProgress['reason'] } | undefined;
   return {
     async prepare(view) {
       prepared = undefined;
@@ -98,8 +101,18 @@ export function interactionProgressHooks(input: PreparedAction, inputConfirmatio
       const selected = await readPublicationSelection(pages, bound.launch.binding.launchId);
       check(selected && equal(selected.value.data.grant, bound.binding.grant)
         && equal(selected.value.data.publication, bound.binding.publication), 'interaction original publication is no longer selected');
-      assertPublicationCurrent(await readPublication(pages, bound.binding.publication), view.head);
-      prepared = { request, progress: snapshotJson(bound.progress), custody: custody.reference, hostId: bound.start.hostId };
+      const publication = await readPublication(pages, bound.binding.publication), cp = gameCheckpoint(view.head.checkpoint);
+      const blocked = !equal(cp.position, bound.progress.binding.position) ? 'position-changed' : cp.mode === 'town' ? 'unavailable' : null;
+      // These two domain branches cannot call content mutation. All effect-capable applies require fresh original sight.
+      if (!blocked) {
+        assertPublicationCurrent(publication, view.head);
+        const { generation, gameId, revision, roots, checkpoint } = view.head;
+        const selected = await resolveChestSelection({ ...view.knowledge, savedSnapshot: view.savedSnapshot, sourceReceipt: view.sourceReceipt },
+          { generation, gameId, revision, roots, checkpoint }, bound.binding.publication, chestArgs(identity.action.arguments, bound.binding.publication));
+        check(selected && equal(selected.command, bound.progress.binding.command) && equal(selected.position, bound.progress.binding.position),
+          'interaction original chest selection is no longer eligible');
+      }
+      prepared = { request, progress: snapshotJson(bound.progress), custody: custody.reference, hostId: bound.start.hostId, blocked };
     },
     async commit(view) {
       const ready = prepared; prepared = undefined;
@@ -107,6 +120,8 @@ export function interactionProgressHooks(input: PreparedAction, inputConfirmatio
       check(ready && equal(ready.request, request) && p.sequence === 1 && p.sourceAttemptId === request.attemptId
         && p.operationId === view.operation.id && p.owner === ready.progress.owner && p.epoch === ready.progress.epoch
         && equal(p.binding, ready.progress.binding), 'event was not prepared for this interaction');
+      check(!ready.blocked || p.status === 'blocked' && p.reason === ready.blocked && p.result === null,
+        'stale interaction must remain a no-effect blocked result');
       await validateKnowledge(view.knowledge, cp.knowledge);
       const sight = cp.knowledge ? await loadObservation(view.knowledge, { sequence: cp.knowledge.sequence, id: cp.knowledge.id }) : null;
       const data: OperationEvent = { confirmation, custody: ready.custody, previous: { kind: 'custody-probe', reference: confirmation }, event: {
