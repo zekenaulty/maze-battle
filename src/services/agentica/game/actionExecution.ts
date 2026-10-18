@@ -4,22 +4,28 @@ import { readCanonical, snapshotOf } from '../../../persistence/canonical/read';
 import { executeCanonical } from '../../../persistence/canonical/transaction';
 import { navigationActionHooks, retainActionResult } from '../../../persistence/canonical/agentica/actions';
 import { readPublication } from '../../../persistence/canonical/agentica/publication';
-import type { PreparedAction } from '../../../persistence/canonical/agentica/types';
+import type { PreparedAction, ProtocolRef } from '../../../persistence/canonical/agentica/types';
 import { gameCheckpoint } from '../../../persistence/canonical/game/checkpoint';
 import { readKnownCells } from '../../../persistence/canonical/knowledge/queries';
-import { createDestinationBinding, executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
+import { isCurrentFrontier } from '../../../persistence/canonical/knowledge/frontiers';
+import { createDestinationBinding, createFrontierBinding, executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
 import { destinationPosition } from '../../../persistence/canonical/navigation/validation';
 import { fields } from '../../../persistence/canonical/roster/codec';
 import { MIN_TERMINAL_BYTES } from '../../../persistence/canonical/types';
 import { check } from '../../../persistence/canonical/validation';
 import { json } from '../../../persistence/canonical/world/records';
 import { actionGrant, actionResult, pinDeadline, type ActionBinding } from './actionContract';
+import { parseFrontier } from './frontierSelection';
 import { observeMaze, inspectMaze } from './observation';
 import { cursorAfter, inspectArgs, inspectQuery, localPosition } from './validation';
 
-function parse(action: AgenticaAction) {
+function parse(action: AgenticaAction, publication: ProtocolRef) {
   if (action.capabilityId === 'maze.observe') { fields(action.arguments, ''); return { kind: 'observe' as const }; }
   if (action.capabilityId === 'maze.inspect') return { kind: 'inspect' as const, args: inspectArgs(action.arguments) };
+  if (action.capabilityId === 'maze.explore') {
+    const args = fields(action.arguments, 'frontier');
+    return { kind: 'explore' as const, selection: parseFrontier(args.frontier, publication) };
+  }
   check(action.capabilityId === 'maze.navigate', 'unsupported capability');
   const args = fields(action.arguments, 'level spaceId row column');
   const target = localPosition(args as unknown as Parameters<typeof localPosition>[0]); destinationPosition(target);
@@ -29,7 +35,7 @@ function parse(action: AgenticaAction) {
 /** One reserved action only. The transport controls continuation after admission, not this dispatcher. */
 export async function executeGameAction(port: CanonicalHostPort, binding: ActionBinding, identity: PreparedAction) {
   let command: ReturnType<typeof parse> | undefined;
-  try { command = parse(identity.action); } catch { /* Invalid arguments produce an explicit, non-effect refusal. */ }
+  try { command = parse(identity.action, binding.publication); } catch { /* Invalid arguments produce an explicit, non-effect refusal. */ }
   let refusal = command ? undefined : 'Invalid arguments for this capability.';
   if (command?.kind === 'navigate') {
     const target = command.target;
@@ -41,18 +47,29 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
     });
     if (!known.value) refusal = 'Destination is not an earned address on the current dungeon floor.';
   }
-  if (command?.kind === 'navigate' && !refusal) {
-    const target = command.target, operationId = `travel-${identity.storageKey.slice(-64)}`;
+  if (command?.kind === 'explore') {
+    const selection = command.selection;
+    const current = await readCanonical(async pages => {
+      const publication = await readPublication(pages, binding.publication);
+      return isCurrentFrontier(pages, gameCheckpoint(publication.snapshot.checkpoint), selection);
+    });
+    if (!current.value) refusal = 'Frontier selection is not a current earned approach.';
+  }
+  if ((command?.kind === 'navigate' || command?.kind === 'explore') && !refusal) {
+    // The canonical executor rechecks frontier evidence inside the admission transaction.
+    const destination = command.kind === 'explore' ? createFrontierBinding(command.selection) : createDestinationBinding(command.target);
+    const operationId = `travel-${identity.storageKey.slice(-64)}`, exploring = command.kind === 'explore';
     const hooks = navigationActionHooks(identity, async view => {
       const earned = await observeMaze({ ...view.knowledge, savedSnapshot: view.savedSnapshot, sourceReceipt: view.sourceReceipt },
         snapshotOf(view.head), binding.publication);
       const afterRevision = view.head.revision + 1;
       return { ...actionResult(identity, { ...earned, revision: afterRevision, data: { ...earned.data,
         revisionContext: { kind: 'navigation-admission', publicationRevision: earned.revision, commitRevision: afterRevision } } },
-      'Destination admitted. Movement awaits service custody confirmation.'), operation: { operationId, summary: 'Navigate to the chosen earned destination.' } };
+      exploring ? 'Frontier approach admitted. Movement awaits service custody confirmation.' : 'Destination admitted. Movement awaits service custody confirmation.'),
+      operation: { operationId, summary: exploring ? 'Approach the selected earned frontier anchor only.' : 'Navigate to the chosen earned destination.' } };
     });
     return port.submitHostCommand({ kind: 'fresh', operation: 'operation.admit',
-      input: { operationId, binding: json(createDestinationBinding(target)), terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' },
+      input: { operationId, binding: json(destination), terminalBytes: MIN_TERMINAL_BYTES, ackPolicy: 'verified-host' },
       execute: (input, options) => executeNavigationCommand(pinDeadline(input, identity.action), { ...options, host: {
         async prepare(view) {
           await actionGrant({ head: view.head, pages: { get: (_area, key) => view.getExecution(key),

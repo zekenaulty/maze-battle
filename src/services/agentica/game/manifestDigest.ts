@@ -32,8 +32,8 @@ function range(value: unknown): number | null {
 }
 function materialize(input: AgenticaCapability): WireValue {
   const c = fields(input, 'id name description kind effect inputSchema', 'durableHandoff');
-  check(['maze.observe', 'maze.inspect', 'maze.navigate'].includes(c.id as string), 'unsupported launch capability');
-  const navigation = c.id === 'maze.navigate';
+  check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore'].includes(c.id as string), 'unsupported launch capability');
+  const navigation = c.id === 'maze.navigate' || c.id === 'maze.explore';
   check(c.kind === (navigation ? 'action' : 'query') && c.effect === (navigation ? 'writesLocalState' : 'readOnly')
     && (navigation ? c.durableHandoff === true : c.durableHandoff === undefined), 'invalid launch capability effect');
   const name = ascii(c.name, 128, true), description = ascii(c.description, 512);
@@ -68,7 +68,7 @@ function materialize(input: AgenticaCapability): WireValue {
  */
 export async function mazeManifestDigest(capabilities: AgenticaCapability[]): Promise<string> {
   jsonBytes(capabilities, MAX_LAUNCH_START_BYTES);
-  check(Array.isArray(capabilities) && capabilities.length > 0 && capabilities.length <= 3, 'invalid launch manifests');
+  check(Array.isArray(capabilities) && capabilities.length > 0 && capabilities.length <= 4, 'invalid launch manifests');
   const manifest = capabilities.map(materialize);
   check(new Set(capabilities.map(c => c.id)).size === capabilities.length, 'duplicate launch capabilities');
   // Materialize and encode before the first await, so caller mutations cannot change this attempt.

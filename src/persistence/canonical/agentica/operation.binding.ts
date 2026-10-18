@@ -1,5 +1,6 @@
 import { loadDestination } from '../navigation/records';
 import { destinationBinding } from '../navigation/validation';
+import { parseFrontier } from '../../../services/agentica/game/frontierSelection';
 import { fields } from '../roster/codec';
 import type { CanonicalHead } from '../types';
 import { check } from '../validation';
@@ -16,7 +17,7 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
   const identity = snapshotPrepared(input), binding = captureOperationBinding(inputBinding);
   const original = await readAction(pages, identity), result = original?.result;
   check(original && result?.operation && result.disposition === 'applied' && !result.completion
-    && original.original.effect === 'writesLocalState' && identity.action.capabilityId === 'maze.navigate', 'operation requires original navigation admission');
+    && original.original.effect === 'writesLocalState' && ['maze.navigate', 'maze.explore'].includes(identity.action.capabilityId), 'operation requires original navigation admission');
   const reserved = fields(original.original.sourceRequest.input, 'action grant publication');
   check(original.original.sourceRequest.operation === 'agentica.action.reserve'
     && reserved.action === identity.storageKey && equal(reserved.grant, binding.grant)
@@ -27,14 +28,22 @@ export async function loadOperationBinding(pages: OperationRead, input: Prepared
   check(equal(grant.ref, binding.grant)
     && identity.action.runId === run.runId && identity.action.sessionId === run.sessionId
     && identity.action.sessionEpoch === run.sessionEpoch && identity.action.manifestHash === run.manifestHash
-    && launch.binding.start.capabilities.some(c => c.id === 'maze.navigate' && c.durableHandoff && c.effect === 'writesLocalState'), 'operation launch binding changed');
+    && launch.binding.start.capabilities.some(c => c.id === identity.action.capabilityId && c.kind === 'action'
+      && c.durableHandoff && c.effect === 'writesLocalState'), 'operation launch binding changed');
   const operation = await pages.liveOperation(result.operation.operationId); check(operation, 'missing funded navigation operation');
   check(operation.ackPolicy === 'verified-host', 'operation lacks verified acknowledgement policy');
   const record = await pages.get('execution', original.resultReference!.key), value = record!.value as unknown as ActionResult;
   check(value.proof === 'navigation' && value.sourceAttemptId === operation.admissionAttemptId
     && value.sourceRequest.operation === 'operation.admit', 'operation is not original result admission');
-  const args = fields(identity.action.arguments, 'level spaceId row column'), target = destinationBinding(operation.binding).target;
-  check(equal({ level: target.level, ...target.cell }, args), 'operation target differs from original action');
+  const destination = destinationBinding(operation.binding), target = destination.target;
+  if (identity.action.capabilityId === 'maze.explore') {
+    const args = fields(identity.action.arguments, 'frontier'), selection = parseFrontier(args.frontier, binding.publication);
+    check(destination.kind === 'frontier-approach' && equal(destination.frontier, selection)
+      && equal(target, selection.at), 'operation frontier differs from original action');
+  } else {
+    const args = fields(identity.action.arguments, 'level spaceId row column');
+    check(destination.kind === 'known-destination' && equal({ level: target.level, ...target.cell }, args), 'operation target differs from original action');
+  }
   const progress = await loadDestination(pages, operation);
   return { binding, original, result, grant, launch, start, active, operation, progress };
 }

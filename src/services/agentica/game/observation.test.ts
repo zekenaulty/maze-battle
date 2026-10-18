@@ -20,7 +20,7 @@ describe('canonical scoped Agentica perception', () => {
     expect(view.data).not.toHaveProperty('cells'); expect(view.data).not.toHaveProperty('rooms'); expect(jsonBytes(view)).toBeLessThanOrEqual(768);
     const start = { ...launchStartFixture(view.revision), observation: view, capabilities: mazeCapabilities() };
     expect(() => launchStart(start)).not.toThrow(); expect(jsonBytes(start)).toBeLessThanOrEqual(3072);
-    expect(start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate']);
+    expect(start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore']);
     start.capabilities[0].name = 'mutated'; expect(mazeCapabilities()[0].name).toBe('Observe');
   });
   it('returns signed earned coordinates and preserves original cell and edge sources without refreshing sight', async () => {

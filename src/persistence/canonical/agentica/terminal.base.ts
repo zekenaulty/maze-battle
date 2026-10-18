@@ -33,7 +33,9 @@ export async function loadAgenticaTerminalBase(pages: OperationRead, input: Prep
     sessionId: identity.action.sessionId, sessionEpoch: previous?.nextSessionEpoch ?? previous?.sessionEpoch ?? identity.action.sessionEpoch, actionId: identity.action.actionId,
     operationId: bound.operation.id, sequence: (previous?.sequence ?? 0) + 1, eventId: terminal.terminal.source.attemptId,
     kind, observation: previous?.observation ?? bound.result.observation!,
-    summary: kind === 'decision' ? 'Destination reached. Objective completion requires a separate host proof.'
+    summary: kind === 'decision' ? identity.action.capabilityId === 'maze.explore'
+      ? 'Frontier anchor reached. Further exploration requires an explicit decision; objective completion is not established.'
+      : 'Destination reached. Objective completion requires a separate host proof.'
       : kind === 'blocked' ? `Navigation blocked: ${bound.progress.reason}.` : 'Navigation cancelled by the host.',
     usage: { steps: bound.progress.steps, replans: bound.progress.replans },
   });

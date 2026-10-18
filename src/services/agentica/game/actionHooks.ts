@@ -19,8 +19,10 @@ export function createGameActionHooks(port: CanonicalHostPort, input: ActionBind
     signal.throwIfAborted(); return port.submitHostCommand({ ...command, signal });
   } };
   function sameReservation(retained: RetainedAction) {
-    check(equal(retained.original.publication, binding.publication)
-      && retained.original.effect === (retained.original.action.capabilityId === 'maze.navigate' ? 'writesLocalState' : 'readOnly'),
+    const id = retained.original.action.capabilityId, navigation = id === 'maze.navigate' || id === 'maze.explore';
+    check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore'].includes(id)
+      && equal(retained.original.publication, binding.publication)
+      && retained.original.effect === (navigation ? 'writesLocalState' : 'readOnly'),
     'original action publication or effect changed');
   }
   async function saveAction(key: string, value: AgenticaActionRecord) {

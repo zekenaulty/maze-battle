@@ -25,7 +25,7 @@ export async function recoveryOriginal(pages: OperationRead, input: ProtocolRef)
   const args = fields(pending.sourceRequest.input, 'action grant publication');
   const binding = captureOperationBinding({ grant: args.grant as unknown as ProtocolRef, publication: args.publication as unknown as ProtocolRef });
   const identity = await restoreRetainedAction(pages, ref, binding);
-  check(identity.action.capabilityId === 'maze.navigate' && pending.effect === 'writesLocalState', 'recovery requires original navigation');
+  check(['maze.navigate', 'maze.explore'].includes(identity.action.capabilityId) && pending.effect === 'writesLocalState', 'recovery requires original navigation');
   return { identity, candidate: { operationId: recoveryOperationId(ref.key), original: ref, binding } satisfies RecoveryCandidate };
 }
 

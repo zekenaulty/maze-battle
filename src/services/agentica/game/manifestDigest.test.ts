@@ -3,12 +3,36 @@ import { describe, expect, it } from 'vitest';
 import type { AgenticaCapability } from '../contracts';
 import { mazeCapabilities } from './capabilities';
 import { mazeManifestDigest } from './manifestDigest';
+import { launchStart } from '../../../persistence/canonical/agentica/launch.wire';
+import { launchStartFixture } from '../../../persistence/canonical/agentica/launch.test-support';
+
+function retainedThreeCapabilities() {
+  const capabilities = mazeCapabilities().slice(0, 3);
+  capabilities[1].description = 'Map lists rooms only. Cell requires all address fields. Room pages a 16x16 query window, not room bounds. Cursor continues the same query.';
+  capabilities[1].inputSchema.fields[0].allowedValues = ['room', 'map', 'cell'];
+  return capabilities;
+}
 
 describe('capability-only pinned service digest', () => {
   it('hashes the current manifest without changing the caller input', async () => {
     const capabilities = mazeCapabilities(), before = structuredClone(capabilities);
-    expect(await mazeManifestDigest(capabilities)).toBe('sha256:ce89f3ef265d785b00d5a5c7c8ab75c4addc1e933c644447f942f8653412edbf');
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:7910bac86d4b41ab07749322e2c5308bd96f7af435245befb64799069ef8d4f2');
     expect(capabilities).toEqual(before);
+  });
+  it('keeps retained three-capability roots exact without introducing explore authority', async () => {
+    const capabilities = retainedThreeCapabilities();
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:ce89f3ef265d785b00d5a5c7c8ab75c4addc1e933c644447f942f8653412edbf');
+    expect(launchStart({ ...launchStartFixture(), capabilities }).capabilities).toEqual(capabilities);
+    expect(capabilities.some(c => c.id === 'maze.explore')).toBe(false);
+  });
+  it('fits four capabilities and a frontier-only argument within the unchanged start bound', () => {
+    const capabilities = mazeCapabilities(), start = { ...launchStartFixture(), capabilities };
+    expect(launchStart(start)).toEqual(start);
+    expect(new TextEncoder().encode(JSON.stringify(start)).length).toBeLessThanOrEqual(3072);
+    expect(capabilities).toHaveLength(4);
+    expect(capabilities[1].inputSchema.fields).toHaveLength(6);
+    expect(capabilities[3]).toMatchObject({ kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+      inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true }], allowAdditionalProperties: false } });
   });
   // Checked by manifest-digest/run-manifest-digest.ps1 against d65fb5b7 DLLs, not a copied service implementation.
   it.each([
@@ -23,7 +47,7 @@ describe('capability-only pinned service digest', () => {
     ['combined escaping', '11c68cc49da9929bb469663231af7534448566eb2de3069c49afbceacac4ad20',
       (c: AgenticaCapability[]) => { c[0].description = '"\\&\'<+>`\t\r\n' + String.fromCharCode(...Array.from({ length: 95 }, (_, i) => i + 32)); }],
   ] as const)('matches pinned .NET golden: %s', async (_, expected, change) => {
-    const capabilities = mazeCapabilities(); change(capabilities);
+    const capabilities = retainedThreeCapabilities(); change(capabilities);
     expect(await mazeManifestDigest(capabilities)).toBe(`sha256:${expected}`);
   });
   it('uses ordinal object keys, independently of insertion order', async () => {
@@ -62,6 +86,9 @@ describe('capability-only pinned service digest', () => {
     ['changed kind', c => { c[0].kind = 'action'; }],
     ['changed effect', c => { c[0].effect = 'writesLocalState'; }],
     ['missing handoff', c => { delete c[2].durableHandoff; }],
+    ['missing explore handoff', c => { delete c[3].durableHandoff; }],
+    ['read-only explore', c => { c[3].effect = 'readOnly'; }],
+    ['query explore', c => { c[3].kind = 'query'; }],
     ['explicit false handoff', c => { c[0].durableHandoff = false; }],
     ['additional properties', c => { Object.assign(c[0].inputSchema, { allowAdditionalProperties: true }); }],
     ['duplicate field', c => { c[1].inputSchema.fields[1].name = 'scope'; }],

@@ -23,8 +23,8 @@ export function pinDeadline(request: CanonicalRequest, action: AgenticaAction): 
 }
 export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding, action: AgenticaAction) {
   const grant = await assertLaunchGrant(tx, binding.grant, action, binding.publication), cap = grant.capability;
-  const navigation = action.capabilityId === 'maze.navigate';
-  check(['maze.observe', 'maze.inspect', 'maze.navigate'].includes(action.capabilityId)
+  const navigation = action.capabilityId === 'maze.navigate' || action.capabilityId === 'maze.explore';
+  check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore'].includes(action.capabilityId)
     && cap.effect === (navigation ? 'writesLocalState' : 'readOnly') && cap.kind === (navigation ? 'action' : 'query')
     && (navigation ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
   return grant;
