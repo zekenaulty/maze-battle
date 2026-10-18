@@ -3,6 +3,7 @@ import { fields } from '../roster/codec';
 import { check, integer, jsonBytes, validId } from '../validation';
 import { DIRECTIONS } from '../knowledge/types';
 import { position, same } from '../world/records';
+import { frontierSelection, type FrontierSelection } from '../knowledge/frontiers';
 import type { WorldPosition } from '../world/types';
 import { RETAINED_ROUTE_STEPS, type DestinationBinding, type DestinationProgress } from './types';
 
@@ -10,14 +11,24 @@ export function destinationPosition(value: unknown): asserts value is WorldPosit
   const at = fields(value, 'level cell'); fields(at.cell, 'spaceId row column'); position(value as WorldPosition);
 }
 export function destinationBinding(value: unknown): DestinationBinding {
-  const row = fields(value, 'schema kind target limits');
-  check(row.schema === 1 && row.kind === 'known-destination', 'invalid navigation binding');
+  const row = fields(value, 'schema kind target limits', 'frontier');
+  check(row.schema === 1 && ['known-destination', 'frontier-approach'].includes(row.kind as string), 'invalid navigation binding');
   destinationPosition(row.target); check(row.limits !== undefined, 'missing navigation limits'); snapshotDestinationLimits(row.limits);
+  if (row.kind === 'frontier-approach') {
+    const selection = frontierSelection(row.frontier);
+    check(same(selection.at, row.target), 'frontier target differs from selected anchor');
+  } else check(!Object.hasOwn(row, 'frontier'), 'known destination cannot carry exploration authority');
   return structuredClone(value) as DestinationBinding;
 }
 /** Host supplies a known cell, never a route or hidden objective. Limits are frozen at admission. */
 export function createDestinationBinding(target: WorldPosition, limits?: DestinationLimits) {
   return destinationBinding({ schema: 1, kind: 'known-destination', target, limits: snapshotDestinationLimits(limits) });
+}
+/** Explicit approach permission only. The original source/direction never becomes a dynamic target. */
+export function createFrontierBinding(input: FrontierSelection, limits?: DestinationLimits) {
+  const selection = frontierSelection(input);
+  return destinationBinding({ schema: 1, kind: 'frontier-approach', target: selection.at,
+    limits: snapshotDestinationLimits(limits), frontier: selection });
 }
 export function destinationProgress(value: unknown): DestinationProgress {
   jsonBytes(value, 12 * 1024);

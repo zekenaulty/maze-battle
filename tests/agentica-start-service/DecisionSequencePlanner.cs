@@ -6,9 +6,9 @@ using Agentica.Planning;
 namespace Maze.StartServiceFixture;
 
 // Only the real host continuation context distinguishes the two bounded activations.
-internal sealed class DecisionSequencePlanner(bool fastTerminal, DecisionPlannerCounters counters) : IWorkflowPlanner
+internal sealed class DecisionSequencePlanner(bool fastTerminal, DecisionPlannerCounters counters, bool frontier = false) : IWorkflowPlanner
 {
-    private ObservationSequencePlanner? _script;
+    private IWorkflowPlanner? _script;
     private bool? _successor;
 
     public Task<WorkflowPlan> CreatePlanAsync(PlanningRequest request, CancellationToken cancellationToken = default)
@@ -25,7 +25,8 @@ internal sealed class DecisionSequencePlanner(bool fastTerminal, DecisionPlanner
             return Task.FromResult(new WorkflowPlan("explicit-decision-terminal", 1, [],
                 "No successor action is proposed. This empty plan is not objective completion."));
         }
-        _script = new ObservationSequencePlanner(window.Called, window.Planned);
+        _script = frontier ? new FrontierSequencePlanner(window.Called, window.Planned)
+            : new ObservationSequencePlanner(window.Called, window.Planned);
         return _script.CreatePlanAsync(request, cancellationToken);
     }
 

@@ -9,6 +9,12 @@ export default defineConfig({
   plugins: [react(), {
     name: 'actual-app-service-controller', enforce: 'pre',
     transform(source, id) {
+      if (id.replaceAll('\\', '/').endsWith('/src/persistence/canonical/game/initialize.ts')) {
+        const anchor = 'seed = crypto.getRandomValues(new Uint32Array(1))[0]';
+        if (!source.includes(anchor)) throw Error('Actual game seed instrumentation no longer matches');
+        // Pin only the generator input. The actual App still generates, earns sight and persists normally.
+        return source.replace(anchor, 'seed = 2');
+      }
       if (id.replaceAll('\\', '/').endsWith('/src/hooks/useGameAgenticPlay.ts')) {
         const anchor = 'const configuration = readGameAgenticaProfile(import.meta.env);';
         if (!source.includes(anchor)) throw Error('Actual App profile instrumentation no longer matches');
@@ -16,6 +22,11 @@ export default defineConfig({
           ...(new URL(location.href).searchParams.has('decisionProof') ? {
             VITE_AGENTICA_MODEL: 'decision-navigation', VITE_AGENTICA_MAX_STEPS: '8',
             VITE_AGENTICA_MAX_REFINEMENTS: '6', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1',
+            VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
+          } : {}),
+          ...(new URL(location.href).searchParams.has('frontierProof') ? {
+            VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4',
+            VITE_AGENTICA_MAX_REFINEMENTS: '2', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1',
             VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
           } : {}),
         });`);

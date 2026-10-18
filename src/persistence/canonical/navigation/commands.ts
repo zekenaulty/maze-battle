@@ -5,6 +5,7 @@ import { readCanonical } from '../read';
 import { executeCanonical, operateCanonical, type CanonicalWork } from '../transaction';
 import { operationInput } from '../operationValidation';
 import { readKnownCells } from '../knowledge/queries';
+import { isCurrentFrontier } from '../knowledge/frontiers';
 import { fields } from '../roster/codec';
 import type { CanonicalRequest, Json } from '../types';
 import { check, integer, isObject, request as validateRequest, validId } from '../validation';
@@ -15,7 +16,7 @@ import { destinationBinding } from './validation';
 import { destinationKey, loadDestination, saveDestination } from './records';
 import { knownStep, planDestination } from './planner';
 import { prepareNavigationHost, type NavigationHostHooks } from './host';
-export { createDestinationBinding } from './validation';
+export { createDestinationBinding, createFrontierBinding } from './validation';
 export { readDestinationTerminal, loadDestinationTerminal } from './terminal';
 export type { NavigationHostHooks, NavigationPreparation, NavigationCommit, NavigationHostRefs, NavigationRecordRef, NavigationReceiptRef } from './host';
 
@@ -31,12 +32,18 @@ export function executeNavigationCommand(input: CanonicalRequest, options: Optio
       check(!await tx.pages.get('execution', destinationKey(tx.operation.id)), 'destination already exists');
       const commitHost = await prepareNavigationHost(tx, tx.operation, request, host);
       const checkpoint = gameCheckpoint(tx.head.checkpoint), startedAt = Date.now();
+      let approach: Awaited<ReturnType<typeof planDestination>> | undefined;
+      if (binding.kind === 'frontier-approach') {
+        check(await isCurrentFrontier(tx.pages, checkpoint, binding.frontier), 'frontier selection is stale or not an earned boundary');
+        approach = await planDestination(tx.pages, checkpoint, binding.target);
+        check(!approach.reason && approach.route.length > 0, 'frontier requires a nonzero earned approach');
+      }
       let progress: DestinationProgress = { schema: 1, operationId: tx.operation.id, binding, sourceAttemptId: request.attemptId,
         owner: tx.head.owner, epoch: tx.head.epoch, sequence: 0, steps: 0, replans: 0, startedAt,
         deadline: destinationDeadline(startedAt, binding.limits), position: checkpoint.position, route: [], status: 'running', reason: null };
       if (destinationExpired(progress, startedAt)) progress = stop(progress, 'time-limit');
       else {
-        const plan = await planDestination(tx.pages, checkpoint, binding.target);
+        const plan = approach ?? await planDestination(tx.pages, checkpoint, binding.target);
         if (plan.reason) progress = stop(progress, plan.reason);
         else if (limitReached(0, binding.limits.steps)) progress = stop(progress, 'step-limit');
         else progress.route = plan.route.slice(0, binding.limits.steps ?? plan.route.length);

@@ -2,13 +2,15 @@ import type { DestinationLimits } from '../../../domain/directed/destinationLimi
 import type { Direction } from '../../../domain/types';
 import type { CanonicalWorkLimits } from '../types';
 import type { WorldPosition } from '../world/types';
+import type { FrontierSelection } from '../knowledge/frontiers';
 
-export interface DestinationBinding {
+interface NavigationBinding {
   schema: 1;
-  kind: 'known-destination';
   target: WorldPosition;
   limits: DestinationLimits;
 }
+export type DestinationBinding = NavigationBinding & ({ kind: 'known-destination' }
+  | { kind: 'frontier-approach'; frontier: FrontierSelection });
 export interface RouteStep { direction: Direction; to: WorldPosition }
 export type DestinationReason = 'arrived' | 'time-limit' | 'step-limit' | 'replan-limit' | 'unknown-destination'
   | 'route-unavailable' | 'scope-limit' | 'unavailable' | 'obstructed';

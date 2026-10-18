@@ -14,6 +14,8 @@ import { worldBlockKey } from '../../src/persistence/canonical/knowledge/worldIn
 import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
 import { json, same } from '../../src/persistence/canonical/world/records';
 import { movePosition } from '../../src/domain/maze/movement';
+import { rollChestLoot } from '../../src/domain/items/chestRules';
+import { encodeItem } from '../../src/persistence/canonical/roster/itemValidation';
 import type { DestinationLimits } from '../../src/domain/directed/destinationLimits';
 import { dump, query, current, refusal, knowledgeOnly } from './canonical-frontier.support';
 
@@ -60,6 +62,6 @@ async function effects() {
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5290') throw Error('Isolated frontier fixture only');
 const api = { ...navigation, ...transaction, ...reader, readFrontiers, isCurrentFrontier, frontierSelection, roster, content, knowledge, command, openCanonicalDatabase,
   seed, admitBinding, admit, advance, finish, settle, acknowledge, effects, dump, query, current, refusal, knowledgeOnly,
-  DIRECTIONS, MIN_TERMINAL_BYTES, REGION_WORK_LIMITS, readKnowledgeRegion, worldBlockKey, gameCheckpoint, json, same, movePosition };
+  DIRECTIONS, MIN_TERMINAL_BYTES, REGION_WORK_LIMITS, readKnowledgeRegion, worldBlockKey, gameCheckpoint, json, same, movePosition, rollChestLoot, encodeItem };
 declare global { interface Window { canonicalFrontier: typeof api } }
 window.canonicalFrontier = api;

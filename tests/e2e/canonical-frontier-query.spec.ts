@@ -30,7 +30,8 @@ test('hidden chest state cannot change a source-bound page or trigger hidden rea
     const hidden = (await c.content.targets()).find(t => t.chest && !seeded.sight.cells.some(cell => cell.at.cell.spaceId === t.room.spaceId));
     if (!hidden?.chest) throw Error('Fixture requires a genuinely unseen chest');
     await c.executeCanonical(c.command((await c.readCanonicalHead()).head, 'fixture.hidden-chest'), async tx => {
-      await c.content.records.saveChest(tx.pages, { ...hidden.chest!, chest: { ...hidden.chest!.chest, opened: true, loot: [] } });
+      await c.content.records.saveChest(tx.pages, { ...hidden.chest!, chest: { ...hidden.chest!.chest, opened: true,
+        loot: c.rollChestLoot(hidden.chest!.chest, () => 0.5).map(c.encodeItem) } });
       return null;
     });
     const before = await c.dump(), changed = await c.query(), pinned = await c.query(original.snapshot);
