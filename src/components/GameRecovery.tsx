@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RotateCcw, Trash2 } from 'lucide-react';
+import { RotateCcw, Trash2, History } from 'lucide-react';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
 
 interface GameRecoveryProps {
@@ -7,9 +7,10 @@ interface GameRecoveryProps {
   busy?: boolean;
   onRetry: () => Promise<unknown>;
   onReset: () => Promise<unknown>;
+  onAgenticaRecovery?: () => void;
 }
 
-export function GameRecovery({ status, busy, onRetry, onReset }: GameRecoveryProps) {
+export function GameRecovery({ status, busy, onRetry, onReset, onAgenticaRecovery }: GameRecoveryProps) {
   const [confirming, setConfirming] = useState(false);
   return <main className="loading-screen" aria-busy={Boolean(busy)}>
     <section aria-label="Game recovery" style={{ maxWidth: '36rem', padding: 16, overflowWrap: 'anywhere' }}>
@@ -21,6 +22,9 @@ export function GameRecovery({ status, busy, onRetry, onReset }: GameRecoveryPro
       <button type="button" disabled={busy} onClick={() => setConfirming(true)}>
         <Trash2 size={16} aria-hidden="true" /> Reset and start new game
       </button>
+      {onAgenticaRecovery && <button type="button" onClick={onAgenticaRecovery}>
+        <History size={16} aria-hidden="true" /> Agentica recovery
+      </button>}
     </div>
     </section>
     {confirming && <ConfirmActionDialog

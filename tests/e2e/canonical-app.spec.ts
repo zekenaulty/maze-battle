@@ -92,7 +92,8 @@ test('all former preview query routes use the same game and no Agentica network'
     await page.goto(`/${query}`); await ready(page); expect((await head(page)).gameId).toBe(original.gameId);
   }
   await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
-  await expect(page.getByText(/Agentica is unavailable/)).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Agentica recovery' })).toBeVisible();
+  await expect(page.getByText('No local recovery entries found.')).toBeVisible();
   expect(requests).toEqual([]);
 });
 

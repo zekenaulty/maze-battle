@@ -1,0 +1,22 @@
+.agentica-recovery { padding: 16px; display: grid; gap: 14px; overflow-wrap: anywhere; }
+.agentica-recovery h3 { font-size: 16px; margin: 0; letter-spacing: 0; }
+.agentica-recovery p { margin: 0; }
+.agentica-recovery-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.agentica-recovery-heading button { width: 36px; height: 36px; padding: 8px; }
+.agentica-recovery-section { border-top: 1px solid var(--color-border); padding-top: 14px; display: grid; gap: 12px; }
+.agentica-recovery-facts { margin: 0; display: grid; grid-template-columns: minmax(110px, 1fr) minmax(0, 3fr); gap: 6px 12px; }
+.agentica-recovery-facts dt, .agentica-recovery-revision, .agentica-recovery-list small { color: var(--color-muted); }
+.agentica-recovery-facts dd { margin: 0; min-width: 0; }
+.agentica-recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.agentica-recovery button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.agentica-recovery button svg { flex-shrink: 0; }
+.agentica-recovery-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.agentica-recovery-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.agentica-recovery-list li > span { min-width: 0; }
+.agentica-recovery-list small { display: block; font-size: 12px; }
+.agentica-recovery-list button { flex-shrink: 0; }
+@media (max-width: 520px) {
+  .agentica-recovery { padding: 12px; }
+  .agentica-recovery-facts { grid-template-columns: minmax(100px, 1fr) minmax(0, 1.5fr); }
+  .agentica-recovery-list li { flex-wrap: wrap; align-items: flex-start; }
+}

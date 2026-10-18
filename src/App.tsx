@@ -5,6 +5,7 @@ import { SavesDialog } from './components/SavesDialog';
 import { GameRecovery } from './components/GameRecovery';
 import { TownScreen } from './components/TownScreen';
 import { Dialog } from './components/Dialog';
+import { AgenticaRecovery } from './components/agentic/AgenticaRecovery';
 import { normalizeInventoryPolicy } from './domain/items/inventory';
 import { canUseTownPortal, portalScrollCount } from './domain/town/town';
 import { useGameSession } from './hooks/useGameSession';
@@ -26,7 +27,10 @@ export function App() {
   const open = (name: DialogName) => { pause(); setDialog(name); };
   const openSaves = () => { open('saves'); void session.refreshSaves().catch(() => {}); };
   const newGame = async () => { pause(); await session.resetGame(); setDialog(undefined); };
-  if (!game || recovering) return <GameRecovery status={session.status} busy={session.busy} onRetry={session.retry} onReset={newGame} />;
+  const agenticaRecovery = dialog === 'agentic' && <AgenticaRecovery controller={session.controller}
+    game={game} controlled={session.controlled} onClose={() => setDialog(undefined)} />;
+  if (!game || recovering) return <><GameRecovery status={session.status} busy={session.busy}
+    onRetry={session.retry} onReset={newGame} onAgenticaRecovery={() => open('agentic')} />{agenticaRecovery}</>;
   const shared = { onCharacters: () => open('characters'), onSaves: openSaves,
     onDiagnostics: () => open('diagnostics'), onAutoToggle: commands.toggleAuto };
   return <>
@@ -46,9 +50,7 @@ export function App() {
       navigationMessage={navigation.message} onOpenChest={commands.openChest} controlsDisabled={blocked}
       onAgenticPlay={() => open('agentic')}
     />}
-    {dialog === 'agentic' && <Dialog title="Agentic Play" onClose={() => setDialog(undefined)}>
-      <p role="status">Agentica is unavailable during the canonical storage cutover. No service or model calls will be made.</p>
-    </Dialog>}
+    {agenticaRecovery}
     {dialog === 'saves' && <SavesDialog readOnly={!session.controlled} saves={session.saves}
       onClose={() => setDialog(undefined)} onCreateSave={session.createManualSave}
       onLoadSave={async id => { pause(); await session.loadSave(id); setDialog(undefined); }}
