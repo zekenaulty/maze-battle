@@ -11,7 +11,7 @@ import { check } from '../../../persistence/canonical/validation';
 import { captureBinding, type ActionBinding } from './actionContract';
 import { boundedGameFetch } from './network';
 import { claimTransportAttachment, transportGate } from './transportGate';
-import { decisionChannel, type DecisionSdkFactory } from './decisionChannel';
+import { decisionChannel, type DecisionSdkFactory, type DecisionWithdrawal } from './decisionChannel';
 import { decisionState, assertDecisionCurrent, assertDecisionCustody } from './decisionState';
 import { decisionCommits } from './decisionCommit';
 import { decisionCleanup } from './decisionCleanup';
@@ -19,23 +19,30 @@ import { deliverDecisionPrefix, readDecisionRemote } from './decisionRemote';
 
 /** Explicit bounded decision continuation. Construction, preparation and navigation never wake the planner. */
 export async function createGameDecisionController(port: CanonicalHostPort & CanonicalRecoveryPort,
-  input: AgenticaAction, inputBinding: ActionBinding, options: { factory?: DecisionSdkFactory; fetchImpl?: typeof fetch } = {}) {
-  const binding = captureBinding(inputBinding), hostSignal = port.hostSignal, identity = await prepareAction(input);
-  check(port.hostSignal === hostSignal, 'decision game lifetime changed'); hostSignal.throwIfAborted();
+  input: AgenticaAction, inputBinding: ActionBinding, options: { factory?: DecisionSdkFactory; fetchImpl?: typeof fetch;
+    signal?: AbortSignal; onWithdraw?: (reason: DecisionWithdrawal) => void; sameOwnerOnly?: boolean } = {}) {
+  const binding = captureBinding(inputBinding), hostSignal = port.hostSignal;
+  const lifetime = AbortSignal.any([hostSignal, ...(options.signal ? [options.signal] : [])]); lifetime.throwIfAborted();
+  const identity = await prepareAction(input);
+  check(port.hostSignal === hostSignal, 'decision game lifetime changed'); lifetime.throwIfAborted();
   const state = () => decisionState(identity, binding);
   const initial = await state(), launch = initial.value.terminal.bound.launch;
-  check(port.hostSignal === hostSignal, 'decision game lifetime changed'); hostSignal.throwIfAborted();
+  check(port.hostSignal === hostSignal, 'decision game lifetime changed'); lifetime.throwIfAborted();
+  if (options.sameOwnerOnly) check(launch.guard.owner === initial.head.owner && launch.guard.epoch === initial.head.epoch
+    && identity.action.sessionEpoch === String(initial.head.epoch) && !initial.value.decision?.data.adoption,
+  'mounted decision requires the original owner and epoch');
   const release = claimTransportAttachment(launch.binding.launchId);
   const work = transportGate(port), recovery = transportGate(port);
   let channel: ReturnType<typeof decisionChannel>;
-  try { channel = decisionChannel(port, launch.binding.endpoint, options.factory); }
+  try { channel = decisionChannel(port, launch.binding.endpoint, options.factory, options.onWithdraw); }
   catch (error) { release(); work.close(); recovery.close(); throw error; }
   const network = boundedGameFetch(work.signal, options.fetchImpl), cleanup = decisionCleanup(port, identity, binding,
     channel.sdk, boundedGameFetch(recovery.signal, options.fetchImpl), recovery.signal, hostSignal);
   const commands = decisionCommits(work.port, identity, binding);
   let phase = 'prepared', busy = false, connected = false, announcement: LaunchStarted | undefined;
-  const close = () => { phase = 'closed'; work.close(); recovery.close(); channel.close(); release(); hostSignal.removeEventListener('abort', close); };
-  hostSignal.addEventListener('abort', close, { once: true });
+  const close = () => { if (phase === 'closed') return; phase = 'closed'; work.close(); recovery.close(); channel.close(); release(); lifetime.removeEventListener('abort', close); };
+  lifetime.addEventListener('abort', close, { once: true });
+  if (lifetime.aborted) { close(); lifetime.throwIfAborted(); }
   async function exclusive<T>(action: () => Promise<T>) {
     check(!busy, 'decision command already in flight'); recovery.signal.throwIfAborted(); busy = true;
     try { return await action(); } finally { busy = false; }
@@ -52,6 +59,7 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
         : { status: 'attached' as const, binding: channel.binding, runId: announcement!.runId };
     }
     assertDecisionCurrent(view); const decision = view.value.decision!;
+    if (options.sameOwnerOnly) check(!decision.data.adoption, 'mounted decision cannot adopt another owner or epoch');
     if (!connected) {
       await channel.sdk.connect(); work.signal.throwIfAborted(); connected = true; phase = 'connected';
       return { status: 'connected' as const };
