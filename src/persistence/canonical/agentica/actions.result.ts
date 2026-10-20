@@ -9,7 +9,7 @@ import { readSource, snapshotRequest, source, writeSource } from './validation.s
 import { validateResult } from './validation.result';
 import type { ActionResult, PreparedAction, ProtocolRead, ProtocolRef, ProtocolWrite } from './types';
 import { MAX_RESULT_BYTES } from './types';
-import { validateQuestResult, type QuestQueryProof } from './quest.proof';
+import { questQueryProof, validateQuestResult, type QuestQueryProof } from './quest.proof';
 import { gameCheckpoint } from '../game/checkpoint';
 
 /** Missing result references throw. Only discovery of an as-yet-unwritten result may return null. */
@@ -42,6 +42,7 @@ export async function actionResultWrite(pages: ProtocolRead, head: CanonicalHead
   Promise<{ key: string; value: ActionResult } | { existing: ProtocolRef }> {
   identity = snapshotPrepared(identity); input = snapshotJson(input, MAX_RESULT_BYTES);
   head = snapshotJson(head); request = snapshotRequest(request);
+  query = query === undefined ? undefined : questQueryProof(query);
   check(proof === 'standalone' || proof === 'navigation' || proof === 'interaction', 'invalid action proof format');
   const pending = await loadOriginalAction(pages, identity); check(pending, 'missing original action');
   const result = validateResult(input, identity.action, pending.original.effect), key = `${identity.storageKey}/result`;
