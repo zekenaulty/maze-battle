@@ -121,7 +121,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
         }); return sdk;
       }, reason => {
         if (reason === 'outcome' && completionSeen && current()) {
-          satisfied('Host objective satisfied; Agentica acknowledged the result. Retained cleanup still requires Stop.');
+          satisfied('Host objective satisfied; Agentica outcome received. Retained cleanup still requires Stop.');
           return;
         }
         // A parked run closes its model channel. The separate driver still must prove exact HTTP custody before moving.

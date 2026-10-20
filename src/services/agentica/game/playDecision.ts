@@ -51,7 +51,7 @@ export function startPlayDecision(input: PlayDecisionOptions) {
   const completed = () => {
     satisfied = true;
     update({ phase: 'satisfied', message: parked
-      ? 'Host objective satisfied; Agentica acknowledged the result. Retained cleanup still requires Stop.'
+      ? 'Host objective satisfied; Agentica outcome received. Retained cleanup still requires Stop.'
       : 'Host objective satisfied. Stop remains available for retained cleanup.' });
   };
   const withdraw = (reason: DecisionWithdrawal) => {

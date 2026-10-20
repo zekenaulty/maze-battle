@@ -196,18 +196,28 @@ describe('canonical host completion without releasing cleanup custody', () => {
   const completed: AgenticaResult = { ...protocolResult(inspection),
     completion: { objectiveId: start.objectiveId, evidenceId: 'host-proof', summary: 'Selected item carried to the earned entrance.' } };
 
-  it('preserves the completion reply and socket until outcome while keeping control and Stop separate', async () => {
+  it.each([{}, { status: 'failed' }, { status: 'succeeded', reason: 'complete' }])(
+    'preserves completion custody without interpreting outcome %j as acknowledgement', async payload => {
     await attached(); m.action.mockResolvedValueOnce(completed);
     const reply = await options.onAction(inspection);
     expect(reply).toBe(completed); expect(sdkClose).not.toHaveBeenCalled();
     expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
     expect(releaseControl).not.toHaveBeenCalled(); expect(m.stop).not.toHaveBeenCalled(); expect(m.driver).not.toHaveBeenCalled();
     expect(() => controller.continueDecision()).toThrow();
-    // A correlated outcome comes after the SDK has had the result available to persist/send.
-    notice('outcome'); expect(sdkClose).toHaveBeenCalledOnce();
+    notice('outcome', inspection.runId, payload); expect(sdkClose).toHaveBeenCalledOnce();
     expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
-    expect(controller.state.message).toContain('acknowledged');
+    expect(controller.state.message).toBe('Host objective satisfied; Agentica outcome received. Retained cleanup still requires Stop.');
     expect(releaseControl).not.toHaveBeenCalled(); expect(m.stop).not.toHaveBeenCalled();
+    await controller.stop(); expect(m.stop).toHaveBeenCalledOnce(); expect(releaseControl).toHaveBeenCalledOnce();
+  });
+
+  it('keeps local proof and explicit Stop when the SDK reports a post-hook result failure', async () => {
+    await attached(); m.action.mockResolvedValueOnce(completed);
+    await expect(options.onAction(inspection)).resolves.toBe(completed);
+    options.onStatus?.({ state: 'action.error', detail: 'Post-hook storage read failed.' });
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(controller.state.message).not.toContain('acknowledged');
+    expect(sdkClose).not.toHaveBeenCalled(); expect(releaseControl).not.toHaveBeenCalled();
     await controller.stop(); expect(m.stop).toHaveBeenCalledOnce(); expect(releaseControl).toHaveBeenCalledOnce();
   });
 

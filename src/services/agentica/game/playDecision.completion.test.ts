@@ -8,16 +8,28 @@ const completed = { ...result, operation: undefined,
   completion: { objectiveId: start.objectiveId, evidenceId: 'host-proof', summary: 'Host return proof satisfied.' } };
 
 describe('successor host completion after predecessor handoff', () => {
-  it('satisfies from the canonical hook only, preserving its exact reply and an open socket', async () => {
+  it.each([{}, { status: 'failed' }, { status: 'succeeded', reason: 'complete' }])(
+    'preserves completion custody without interpreting outcome %j as acknowledgement', async payload => {
     m.action.mockResolvedValue(completed); await attach();
     await expect(options.onAction(successorAction)).resolves.toBe(completed);
     expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false }));
     expect(m.ack).toHaveBeenCalledOnce(); expect(m.driver).not.toHaveBeenCalled(); expect(sdk.close).not.toHaveBeenCalled();
     expect(m.cleanup).not.toHaveBeenCalled(); expect(onDecision).not.toHaveBeenCalled(); expect(fail).not.toHaveBeenCalled();
-    notice('outcome'); expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', message: expect.stringContaining('acknowledged') }));
+    options.onMessage?.({ protocolVersion: 1, type: 'outcome', runId: successorAction.runId, payload });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied',
+      message: 'Host objective satisfied; Agentica outcome received. Retained cleanup still requires Stop.' }));
     expect(fail).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
     const changes = update.mock.calls.length; await vi.advanceTimersByTimeAsync(30_000);
     expect(update).toHaveBeenCalledTimes(changes); expect(sdk.wakeOperation).toHaveBeenCalledOnce();
+  });
+
+  it('retains local proof and an open reply channel after a post-hook SDK result failure', async () => {
+    m.action.mockResolvedValue(completed); const runner = await attach();
+    await expect(options.onAction(successorAction)).resolves.toBe(completed);
+    options.onStatus?.({ state: 'action.error', detail: 'Post-hook storage read failed.' });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false }));
+    expect(fail).not.toHaveBeenCalled(); expect(sdk.close).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
+    runner.close(); expect(sdk.close).toHaveBeenCalledOnce();
   });
 
   it.each([false, true])('holds completion behind predecessor ACK, including early outcome=%s', async earlyOutcome => {
