@@ -43,7 +43,8 @@ if (values.grep !== undefined) command.push('--grep', values.grep);
 const productionPath = 'src/services/agentica/game/actionContract.ts';
 const fixtureFiles = [
   ...readdirSync(folder).filter(name => /\.(cs|csproj|mjs|mts|Config)$/.test(name)).map(name => 'tests/agentica-start-service/' + name),
-  ...readdirSync(path.join(maze, 'tests/e2e')).filter(name => name.startsWith('canonical-start-service.') && !name.endsWith('.md'))
+  ...readdirSync(path.join(maze, 'tests/e2e')).filter(name =>
+    (name.startsWith('canonical-start-service.') || name.startsWith('canonical-corpus.')) && !name.endsWith('.md'))
     .map(name => 'tests/e2e/' + name),
 ];
 const fixtureSourceSha256 = Object.fromEntries(fixtureFiles.sort().map(file =>
