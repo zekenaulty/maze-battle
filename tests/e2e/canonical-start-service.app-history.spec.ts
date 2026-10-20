@@ -92,8 +92,8 @@ for (const mode of ['same-owner', 'adoption', 'post-transfer'] as const) test(mo
 
     const reloaded = adoption ? await adoptHistory(page, wire, after) : null;
     if (!adoption) await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
-    await expect.poll(() => wire.sent.filter(frame => frame.type === 'action.result').length).toBe(5);
     await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 30_000 });
+    expect(wire.sent.filter(frame => frame.type === 'action.result')).toHaveLength(5);
     await expect(dialog.getByRole('alert')).toHaveCount(0);
     await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
     const actions = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload as AgenticaAction);
