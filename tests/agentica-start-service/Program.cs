@@ -4,8 +4,11 @@ using Agentica.Lab.Web.Providers;
 using Agentica.Lab.Web.Runtime;
 using Maze.StartServiceFixture;
 
-if (args.Length != 1 || !Path.IsPathFullyQualified(args[0]))
-    throw new ArgumentException("Supply one absolute isolated storage directory.");
+if (args.Length is < 1 or > 2 || !Path.IsPathFullyQualified(args[0]))
+    throw new ArgumentException("Supply an absolute isolated storage directory and optional loopback port.");
+var port = 5259;
+if (args.Length == 2 && (!int.TryParse(args[1], out port) || port is < 1024 or > 65535))
+    throw new ArgumentException("Invalid isolated loopback port.");
 var storage = Path.GetFullPath(args[0]);
 if (!storage.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
     throw new ArgumentException("Fixture storage must be below TEMP.");
@@ -13,7 +16,7 @@ Directory.CreateDirectory(storage);
 Directory.CreateDirectory(Path.Combine(storage, "wwwroot"));
 var factory = new WaitingPlannerFactory();
 await using var app = LabWebApplication.Create(
-    ["--urls", "http://127.0.0.1:5259", "--contentRoot", storage, "--environment", "Production"],
+    ["--urls", $"http://127.0.0.1:{port}", "--contentRoot", storage, "--environment", "Production"],
     factory, storage, new OpenAiProviderConfiguration(_ => throw new InvalidOperationException("Provider environment access forbidden.")));
 app.Use(async (context, next) =>
 {

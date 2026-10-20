@@ -19,7 +19,7 @@ import { readPendingCanonicalEvidence } from './canonical-start-service.pending-
 import { recoverPendingNoEffect, producePendingInterim, postPendingRecovery, readLostPendingReply, readPendingRecoveryTransactions } from './canonical-start-service.pending-repair';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 
-if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5258') throw Error('Isolated start-service origin required');
+if (!import.meta.env.DEV || location.origin !== import.meta.env.VITE_START_SERVICE_ORIGIN) throw Error('Isolated start-service origin required');
 let session: GameSession;
 let client: Awaited<ReturnType<typeof createGameTransport>> | undefined;
 let recovery: Awaited<ReturnType<typeof createLaunchRecovery>> | undefined;
@@ -36,7 +36,7 @@ const decisionSource = () => {
   return source;
 };
 const options = (): GameLaunchOptions => ({
-  endpoint: 'ws://127.0.0.1:5259/api/host', objectiveId: crypto.randomUUID(),
+  endpoint: import.meta.env.VITE_AGENTICA_ENDPOINT, objectiveId: crypto.randomUUID(),
   objective: 'Wait for explicit cancellation. This fixture never produces actions.',
   provider: { provider: 'fixture', model: 'wait-only', contextWindowTokens: 8192, maxOutputTokens: 256 },
   limits: { maxSteps: 1, maxRefinements: 0, maxPlanContinuations: 0, timeoutSeconds: 120, actionTimeoutSeconds: 15 },

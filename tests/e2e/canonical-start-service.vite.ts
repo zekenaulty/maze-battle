@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { browserOrigin, serviceOrigin } from '../agentica-start-service/service.mjs';
 export default defineConfig({
   cacheDir: 'node_modules/.vite-canonical-start-service', envDir: false,
-  define: Object.fromEntries(Object.entries({ ENDPOINT: 'ws://127.0.0.1:5259/api/host', PROVIDER: 'fixture',
+  define: { 'import.meta.env.VITE_START_SERVICE_ORIGIN': JSON.stringify(browserOrigin),
+    ...Object.fromEntries(Object.entries({ ENDPOINT: serviceOrigin.replace('http:', 'ws:') + '/api/host', PROVIDER: 'fixture',
     MODEL: 'observation-sequence', MAX_STEPS: '4', MAX_REFINEMENTS: '3', MAX_PLAN_CONTINUATIONS: '0',
     TIMEOUT_SECONDS: '60', ACTION_TIMEOUT_SECONDS: '10',
-  }).map(([key, value]) => ['import.meta.env.VITE_AGENTICA_' + key, JSON.stringify(value)])),
+  }).map(([key, value]) => ['import.meta.env.VITE_AGENTICA_' + key, JSON.stringify(value)])) },
   plugins: [react(), {
     name: 'actual-app-service-controller', enforce: 'pre',
     transform(source, id) {
@@ -33,6 +35,11 @@ export default defineConfig({
             VITE_AGENTICA_MODEL: 'decision-room', VITE_AGENTICA_MAX_STEPS: '4',
             VITE_AGENTICA_MAX_REFINEMENTS: '2', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '0',
             VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
+          } : {}),
+          ...(new URL(location.href).searchParams.has('historyProof') ? {
+            VITE_AGENTICA_MODEL: 'decision-history', VITE_AGENTICA_MAX_STEPS: '5',
+            VITE_AGENTICA_MAX_REFINEMENTS: '3', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1',
+            VITE_AGENTICA_TIMEOUT_SECONDS: '180', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '30',
           } : {}),
           ...(new URL(location.href).searchParams.has('chestProof') ? {
             VITE_AGENTICA_MODEL: 'decision-chest', VITE_AGENTICA_MAX_STEPS: '4',
@@ -62,6 +69,6 @@ export default defineConfig({
       return source.replace(anchor, 'globalThis.__canonicalStartAppSession = session;\n  ' + anchor);
     },
   }],
-  server: { host: '127.0.0.1', port: 5258, strictPort: true },
+  server: { host: '127.0.0.1', port: Number(new URL(browserOrigin).port), strictPort: true },
   optimizeDeps: { entries: ['tests/e2e/canonical-start-service.html'] },
 });

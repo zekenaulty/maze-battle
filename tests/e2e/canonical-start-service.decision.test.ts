@@ -1,11 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { ServiceProcess, serviceOrigin, type ServiceProof } from '../agentica-start-service/service.mjs';
+import { ServiceProcess, browserOrigin, serviceOrigin, type ServiceProof } from '../agentica-start-service/service.mjs';
 import type { AgenticaMessage } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import type {} from './canonical-start-service.fixture';
 
-const browserOrigin = 'http://127.0.0.1:5258';
 export const service = new ServiceProcess(process.env.MAZE_START_SERVICE_DLL, process.env.MAZE_START_SERVICE_STORAGE, process.env.MAZE_START_SERVICE_LOG);
 export async function serviceProof(): Promise<ServiceProof> {
   const response = await fetch(serviceOrigin + '/fixture/proof');
@@ -50,8 +49,8 @@ export const test = base.extend<{ wire: DecisionWire; roomProof: boolean; freshC
   page.on('websocket', socket => {
     // The actual App needs Vite's CSS/React client; its dev socket is not Agentica traffic.
     const url = new URL(socket.url());
-    if (url.origin === 'ws://127.0.0.1:5258') { expect(url.pathname).toBe('/'); return; }
-    expect(socket.url()).toBe('ws://127.0.0.1:5259/api/host');
+    if (url.origin === browserOrigin.replace('http:', 'ws:')) { expect(url.pathname).toBe('/'); return; }
+    expect(socket.url()).toBe(serviceOrigin.replace('http:', 'ws:') + '/api/host');
     socket.on('framesent', event => {
       const frame = JSON.parse(String(event.payload));
       expect(['start.durable', 'action.result', 'operation.wake', 'operation.adopt', 'resume', 'cancel']).toContain(frame.type);
