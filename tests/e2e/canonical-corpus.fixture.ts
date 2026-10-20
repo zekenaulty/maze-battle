@@ -10,7 +10,7 @@ import { corpusSurface } from './canonical-corpus.projection';
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5266') throw Error('Isolated corpus fixture only');
 let session: GameSession, genesis: Awaited<ReturnType<typeof initializeCorpus>>;
 const outbound: Direction[] = [];
-async function boot(variant: CorpusVariant) {
+async function boot(variant: CorpusVariant, traceStorage = false) {
   session = new GameSession(() => {});
   genesis = await initializeCorpus(variant, session.owner);
   const before = await corpusAudit();
@@ -23,7 +23,7 @@ async function boot(variant: CorpusVariant) {
   if (!survey || offers.filter(offer => offer.task.objective === 'fetch').length !== 1) throw Error('Expected one public survey fetch offer');
   const accepted = await session.execute('content', { kind: 'accept-quest', contractId: survey.id });
   const leave = await session.execute('roster', { kind: 'leave-town' });
-  return { before, genesis, firstSight, offers, setupReceipts: [town, accepted, leave], surface: await corpusSurface(session) };
+  return { before, genesis, firstSight, offers, setupReceipts: [town, accepted, leave], surface: await corpusSurface(session, traceStorage) };
 }
 async function move(direction: Direction, count = 1, remember = true) {
   if (!Number.isSafeInteger(count) || count < 1 || count > 32) throw Error('Bounded manual step count required');
@@ -61,7 +61,7 @@ async function returnAlongReceipts() {
 }
 const api = { boot, move, branch, collect, returnAlongReceipts, audit: corpusAudit,
   reinitialize: (variant: CorpusVariant) => initializeCorpus(variant, session.owner),
-  surface: () => corpusSurface(session),
+  surface: (traceStorage = false) => corpusSurface(session, traceStorage),
   async resume() { session = new GameSession(() => {}); await session.start(); return corpusSurface(session); },
   stop() { session?.stop(); } };
 declare global { interface Window { canonicalCorpus: typeof api } }

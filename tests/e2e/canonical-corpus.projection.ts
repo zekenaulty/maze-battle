@@ -7,14 +7,19 @@ import type { JsonObject } from '../../src/persistence/canonical/types';
 import { observeMaze, inspectMaze } from '../../src/services/agentica/game/observation';
 import { mazeCapabilities } from '../../src/services/agentica/game/capabilities';
 import type { InspectArgs } from '../../src/services/agentica/game/types';
+import type { CorpusNativeRead } from './canonical-corpus.control';
 
 /** Actual earned projections only. A separate oracle owns all raw world inspection. */
-export async function corpusSurface(session: GameSession) {
+export async function corpusSurface(session: GameSession, traceStorage = false) {
   const published = await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.publish', input: {},
     execute: (request, options) => executeCanonical(request, async tx => (await retainPublication(tx, request)).receipt, options) });
   const ref = (published.result as JsonObject).reference as unknown as ProtocolRef;
   const reads: { method: string; area: string; key: string }[] = [];
   const game = session.view.game!, at = game.checkpoint.position;
+  const control = traceStorage ? window.corpusControl : undefined;
+  if (traceStorage && !control) throw Error('Controlled corpus storage trace is not installed');
+  let nativeReads: CorpusNativeRead[] | undefined;
+  control?.begin();
   const projection = await readCanonical(async (pages, snapshot) => {
     const earned = new Proxy(pages, { get(target, method) {
       if (['get', 'scan', 'witness'].includes(String(method))) return (area: string, key: string, ...args: unknown[]) => {
@@ -40,7 +45,7 @@ export async function corpusSurface(session: GameSession) {
       }
     }
     return { actor, scopes };
-  });
+  }).finally(() => { nativeReads = control?.end(); });
   return {
     raw: { sight: structuredClone(game.observation), position: structuredClone(at), facing: game.checkpoint.facing,
       mode: game.mode, party: structuredClone(game.party), inventory: structuredClone(game.inventory),
@@ -48,7 +53,7 @@ export async function corpusSurface(session: GameSession) {
       quests: game.quests.map(({ title, description, task, reward, status, acceptedAt, completedAt, claimedAt }) =>
         ({ title, description, task, reward, status, acceptedAt, completedAt, claimedAt })),
       capabilities: mazeCapabilities(), ...projection.value },
-    metrics: { reads, stats: projection.stats,
+    metrics: { reads, stats: projection.stats, ...(nativeReads ? { nativeReads } : {}),
       frameBytes: [projection.value.actor, ...Object.values(projection.value.scopes).flat()]
         .map(frame => new TextEncoder().encode(JSON.stringify(frame)).byteLength) },
   };

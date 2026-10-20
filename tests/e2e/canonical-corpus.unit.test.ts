@@ -8,6 +8,7 @@ import { materializeSpace } from '../../src/domain/expedition/schematic';
 import { corpusLayout, type CorpusVariant } from './canonical-corpus.layout';
 import { seedCorpusWorld, authorSurveyContract } from './canonical-corpus.initialize';
 import { corpusNormalizer } from './canonical-corpus.normalize';
+import { corpusDifferences } from './canonical-corpus.diff';
 
 async function prepared(variant: CorpusVariant) {
   const m = qualityMemory(); await seedCorpusWorld(m.pages, variant);
@@ -65,5 +66,21 @@ describe('authored corpus uses current canonical primitives', () => {
   });
   it('does not normalize opaque tokens without their exact publication-scoped structure', () => {
     expect(() => corpusNormalizer().normalize({ frontier: '{"schema":1,"hidden":"answer"}' })).toThrow('Unrecognized');
+  });
+  it('retains every cost, coordinate and error difference in native evidence', () => {
+    const left = { readBytes: 10, reads: 1, at: { row: -1 }, error: 'first', quota: { usedBytes: 99 } };
+    const right = { readBytes: 11, reads: 2, at: { row: 1 }, error: 'second', quota: { usedBytes: 100 } };
+    expect(corpusDifferences(left, right)).toEqual([
+      ['/readBytes', 10, 11], ['/reads', 1, 2], ['/at/row', -1, 1], ['/error', 'first', 'second'], ['/quota/usedBytes', 99, 100],
+    ].map(([path, a, b]) => ({ path, left: { present: true, value: a }, right: { present: true, value: b } })));
+    expect(corpusNormalizer().normalize(left)).toEqual(left);
+    expect(corpusNormalizer().normalize(right)).toEqual(right);
+  });
+  it('retains missing fields, array order, types and escaped evidence paths', () => {
+    expect(corpusDifferences({ 'a/b~': undefined }, {})).toEqual([{ path: '/a~1b~0',
+      left: { present: true, value: undefined }, right: { present: false, value: undefined } }]);
+    expect(corpusDifferences([1, 2], [2, 1]).map(diff => diff.path)).toEqual(['/0', '/1']);
+    expect(corpusDifferences([], {})).toHaveLength(1);
+    expect(corpusDifferences({ rows: [1, 2] }, { rows: [1, 2] })).toEqual([]);
   });
 });

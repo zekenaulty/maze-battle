@@ -1,5 +1,10 @@
 # Canonical Authored A/B Corpus
 
+The later [controlled storage-work report](canonical-corpus.disclosure.report.md)
+qualifies equal pre-divergence query work with identical test-only identities.
+It preserves this random-ID baseline and separately records private quota-value
+inequality; neither report qualifies timing or full-Q.
+
 This document records the isolated native baseline. The subsequent parent
 [actual-App and service composition report](../../docs/reviews/issue-11-canonical-corpus.md)
 adds on-demand visible objects, cold-start planning, explicit collection and
