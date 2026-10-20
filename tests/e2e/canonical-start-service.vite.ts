@@ -39,6 +39,11 @@ export default defineConfig({
             VITE_AGENTICA_MAX_REFINEMENTS: '2', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1',
             VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
           } : {}),
+          ...(new URL(location.href).searchParams.has('journalProof') ? {
+            VITE_AGENTICA_MODEL: 'decision-journal', VITE_AGENTICA_MAX_STEPS: '3',
+            VITE_AGENTICA_MAX_REFINEMENTS: '2', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '0',
+            VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
+          } : {}),
         });`);
       }
       if (!id.replaceAll('\\', '/').endsWith('/src/hooks/useGameSession.ts')) return;
