@@ -1,5 +1,11 @@
 # Canonical Authored A/B Corpus
 
+This document records the isolated native baseline. The subsequent parent
+[actual-App and service composition report](../../docs/reviews/issue-11-canonical-corpus.md)
+adds on-demand visible objects, cold-start planning, explicit collection and
+host-proven return. The historical source/measurement values below are retained,
+not silently relabeled as the later build.
+
 Source: parent `cdb173484b1f3644d69dfd75c6625e20f3710895`, isolated merge
 `7553f08420d83d9887986d7f3353fc604b67e342`. Scenario `canonical-survey-v1`,
 audit-only seed `731`, modules-v3/branching-v1/stone-room-v1.

@@ -1,7 +1,7 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 34 cases, including two actual-App recovery cases,
+tests. Current cohort: 36 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
@@ -16,7 +16,23 @@ reading undisclosed targets or changing gameplay state.
 The return case explicitly selects an accepted quest, collects its item,
 travels nine earned steps back, and performs a separate host completion check.
 This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-return-objective-completion.md).
+[Current evidence and limits](../../docs/reviews/issue-11-canonical-corpus.md).
+
+## Canonical Cold-Start A/B Increment (2026-10-20)
+
+`decision-corpus` chooses from public objective, visible-object, current-cell
+and frontier observations only. Both authored worlds initialize an empty
+canonical schema, accept the ordinary guild quest without exploration, and use
+the actual App session for movement/collection/return. The first sight has
+30 cells under normal radius seven; no hidden target or route is provided.
+
+Each case makes 22 tool choices across seven explicitly continued windows.
+The third approach actually follows the differing branch; one ordinary seal is
+carried back 24 local steps before host proof and succeeded/complete outcome.
+The same offline first-frontier policy is not a live reasoning benchmark.
+The full 36-case cohort passes at `5ba9c97` with evidence in
+`test-results/maze-start-service-yj7oBO/` (536.39s, no failures/retries/skips).
+The linked report separates later assertion hardening and remaining Q gates.
 
 ## Return Completion Increment (2026-10-20)
 

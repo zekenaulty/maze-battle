@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 37,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 38,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -153,6 +153,12 @@ The actual App collects one ordinary quest item and returns nine local steps
 before a separate check establishes completion. This known-return fixture does
 not qualify cold-start exploration or the two-dungeon matrix; no reward claim
 is implied.
+The [canonical cold-start corpus](reviews/issue-11-canonical-corpus.md) now
+composes earned-frontier selection, explicit ordinary collection and host-proven
+return through the actual App and pinned service in both authored worlds.
+On-demand visible-object inspection exposes committed sight only. The same
+offline planner follows different disclosed branches; this is affordance-driven
+adaptation, not live-model or whole-Q qualification.
 
 ## Authority and Supersession
 
@@ -399,9 +405,14 @@ P1 storage contracts are split as follows:
   objective inspection, shared-game collection, nonzero earned return and
   source-bound host completion. Native replay retains the original answer after
   custody changes; current stash contents do not satisfy a fresh check.
-- **P3 Agentica, remaining:** compose sustained coverage, remembered off-window
-  return and observation-driven intention revision from an earned cold start.
-  Qualify this integrated loop in the two-dungeon matrix. Explicit guild reward
+- **P3 Agentica, checked cold-start composition:** both authored canonical worlds
+  start without discovery movement, follow earned branches, explicitly collect
+  the ordinary item and return under host proof. The actual-service cohort has
+  36 cases; the scoped objects query and small offline policy do not establish
+  strategic model reasoning or sustained room coverage.
+- **P3 Agentica, remaining:** qualify sustained coverage and material-notice
+  retrieval across decision renewal, then the complete two-dungeon matrix.
+  Explicit guild reward
   tooling is a later RPG workflow, not implied by retrieve-return completion.
   An empty current-sight page is not proof that the floor is fully explored.
   Preserve earned-only room/map/frontier scope and explicit
@@ -553,8 +564,9 @@ continuation, inspected new-owner adoption and source-bound frontier approach
 are now mounted; explicit local exploration/material decisions have runtime,
 native and actual-service proof. Explicit collection of a preaccepted ordinary
 quest item, nonzero earned return and a separate host completion check are now
-checked. The cold-start exploration/adaptation/collection/return composition and
-full multi-controller depth/revisit/Q remain mandatory. The actual-App
+checked, including the small authored cold-start A/B composition. The full
+cross-surface knowledge/recovery matrix and multi-controller depth/revisit/Q
+remain mandatory. The actual-App
 execution/recovery proofs do not qualify those remaining flows or full RPG parity.
 Pending-action recovery now has exact durable rediscovery
 proof, not arbitrary session cleanup or permission for automatic continuation.

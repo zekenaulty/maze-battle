@@ -1,4 +1,5 @@
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
+import { matchesQuestItem } from '../../src/domain/quests/questItems';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { counterDelta } from './canonical-start-service.decision.steps';
 
@@ -61,18 +62,25 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App cold-sta
     expect(decisions.at(-1)!.phase).toBe('satisfied');
     const choices = actions(), results = replies();
     const frontiers = choices.filter(a => a.capabilityId === 'maze.explore').map(action => JSON.parse(action.arguments.frontier as string).selection);
-    expect(frontiers.length).toBeGreaterThanOrEqual(2);
+    expect(frontiers).toHaveLength(3);
     expect(frontiers[0].direction).toBe('east');
     expect(frontiers[1].direction).toBe(variant === 'A' ? 'east' : 'north');
+    // The second approach reaches a shared junction tile; the third actually enters the different branch.
+    expect(frontiers[2]).toMatchObject({ direction: variant === 'A' ? 'east' : 'north',
+      at: { level: 1, cell: { spaceId: 'socket-1:passage', row: 0, column: variant === 'A' ? 2 : 0 } } });
     for (const action of choices.filter(a => a.capabilityId === 'maze.explore')) {
       const index = choices.indexOf(action), previous = results.find(r => r.actionId === choices[index - 1].actionId)!;
       expect(previous.observation.data.scope).toBe('frontiers');
       expect(previous.observation.data.frontiers.some((f: { frontier: string }) => f.frontier === action.arguments.frontier)).toBe(true);
+      const reached = decisions.find(decision => decision.actions.at(-1)?.actionId === action.actionId)!;
+      expect(reached.state.checkpoint.position).toEqual(JSON.parse(action.arguments.frontier as string).selection.at);
     }
     expect(choices.filter(a => a.capabilityId === 'maze.interact')).toHaveLength(1);
     const final = await effects(), completion = results.at(-1)!;
     const collected = decisions.find(d => d.actions.some(a => a.capabilityId === 'maze.interact'))!.state;
     expect(final.questItems).toHaveLength(1); expect(final.questItems[0].quantity).toBe(1);
+    expect(final.inventory.items.filter(item => matchesQuestItem(item, final.quest.quest))).toEqual(final.questItems);
+    expect(final.stash.items.filter(item => matchesQuestItem(item, final.quest.quest))).toEqual([]);
     expect(final.quest.quest.status).toBe('complete');
     expect(final.checkpoint.position).toEqual(setup.position);
     expect(completion).toMatchObject({ disposition: 'applied', completion: { evidenceId: completion.evidenceId },
@@ -81,6 +89,8 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App cold-sta
       expect(final[field]).toEqual(collected[field]);
     expect(final.head.roots.world).toEqual(collected.head.roots.world);
     await expect.poll(() => wire.received.some(({ frame }) => frame.type === 'outcome' && frame.runId === choices.at(-1)!.runId)).toBe(true);
+    const outcome = wire.received.find(({ frame }) => frame.type === 'outcome' && frame.runId === choices.at(-1)!.runId)!;
+    expect(outcome.frame.payload).toMatchObject({ outcome: { status: 'succeeded', stopReason: 'complete' } });
     const counters = await serviceProof(), delta = counterDelta(counters, baseline);
     expect(counters.paidProviderCalls).toBe(0);
     expect(delta.created).toBe(decisions.length);

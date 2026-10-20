@@ -6,15 +6,32 @@ schema; old-format save compatibility is no longer an acceptance requirement.
 Prior PASS entries are historical, not qualification of the replacement.
 
 Status: acceptance specification with PARTIAL provider-free implementation.
-Integrated revision 4, 2026-10-12. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
+Integrated revision 5, 2026-10-20. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
 sequenced behind the dungeon repair in [the next-slices plan](agentic-play-next-slices.md).
 This is a game-owned scenario configuration, not a separate game implementation.
+
+## Current Canonical Evidence
+
+The [canonical cold-start report](reviews/issue-11-canonical-corpus.md) records
+the replacement-schema A/B baseline and actual-App/service composition. Both
+start with normal 30-cell sight and no discovery prelude. A bounded offline
+policy follows different disclosed branches, explicitly collects the ordinary
+seal and returns under host proof: 22 tool choices across seven explicit windows
+per world, no per-cell planning or paid calls. The integrated service cohort
+passes 36 cases. Native fixed-action comparisons cover selected earned semantic
+projections through first lawful divergence, not the complete surface matrix.
+
+Corpus-wide interruption/replay/takeover/quota, storage-work equivalence,
+generated-world scaling and live competence remain unqualified. See the report
+for original evidence, source pins, SDK limits and independently found test gaps.
+
+## Historical Pre-Cutover Evidence
 
 The [A3 evidence report](reviews/a3-quest-retrieval.md) qualifies the authored A/B
 trajectory through actual-game collection and return, including selected recovery
 cases. It does not qualify the entire matrix below or live model competence.
 
-| Current gate | Evidence level / disposition |
+| Historical gate | Evidence level / disposition at the earlier schema |
 | --- | --- |
 | Cold start, earned junction evidence and changed intention | PASS in authored native/real-service A/B fixtures; three initially disclosed cells, no discovery prelude. |
 | Explicit collection and host-proven return | PASS at `3b54d9b`; real pack collectible, ordinary quest progress and return position jointly required. |
