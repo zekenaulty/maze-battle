@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 33,
-2026-10-18. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 34,
+2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
@@ -133,7 +133,10 @@ at the selected anchor, not at an invented hidden destination. The newer
 explicit current-space continuation and source-bound material decisions. Unit,
 native and the complete 31-case provider-free real-service cohort pass, including
 the actual-App material stop. The report retains the intermediate fixture
-failures. Quest collection and the full qualification corpus remain below.
+failures. The [explicit chest increment](reviews/issue-11-agentica-chest-interaction.md)
+now mounts source-bound interaction through the shared game and durable service
+protocol, including an accepted ordinary quest collectible. The integrated
+quest-return/completion loop and full qualification corpus remain below.
 
 ## Authority and Supersession
 
@@ -366,8 +369,13 @@ P1 storage contracts are split as follows:
   Local scope exhaustion is not a room/floor completion claim. The actual-App
   service case proves four local moves and one source-bound material stop with
   no per-cell planner entry; it does not prove sustained multi-room coverage.
+- **P3 explicit chest, checked increment:** inspected current-tile selection,
+  effect-free admission, confirmed custody, atomic shared loot/quest effect,
+  sanitized event and explicit decision. The 17-case native fixture and complete
+  32-case actual-service cohort pass; collection and continuation custody are
+  covered, not quest-return completion.
 - **P3 Agentica, remaining:** sustained coverage/remembered off-window return,
-  observation-driven intention revision and ordinary quest collection.
+  observation-driven intention revision and the integrated ordinary quest loop.
   An empty current-sight page is not proof that the floor is fully explored.
   Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
@@ -503,9 +511,11 @@ repair arbitrary corrupt data or touch unrelated applications on the same origin
 The [explicit interaction operation prerequisite](reviews/issue-11-explicit-interaction-operation.md)
 now composes one-shot shared quest acceptance, chest loot and reward claiming with
 canonical operation custody, atomic host evidence and effect-preserving recovery.
-It is not yet a mounted Agentica interaction capability: disclosed target binding,
-service custody, sanitized results and fresh decision publication remain next.
-Navigation still does not authorize voluntary interaction.
+Its chest path is now a [mounted Agentica capability](reviews/issue-11-agentica-chest-interaction.md):
+disclosed target binding, verified service custody, sanitized results and fresh
+decision publication use the actual game. Quest acceptance/reward capabilities
+remain unmounted; their disclosure and location policy must not inherit Auto's
+automation authority. Navigation still does not authorize voluntary interaction.
 
 ## Acceptance Not Yet Met
 
@@ -514,8 +524,9 @@ only. Current manual/Auto and depth samples are documented above, not extrapolat
 to arbitrary history. Initial canonical Agentica execution, explicit same-owner
 continuation, inspected new-owner adoption and source-bound frontier approach
 are now mounted; explicit local exploration/material decisions have runtime,
-native and actual-service proof. Ordinary quest
-collection and full multi-controller depth/revisit/Q
+native and actual-service proof. Explicit collection of a preaccepted ordinary
+quest item is now checked; the integrated objective/return/completion loop and
+full multi-controller depth/revisit/Q
 remain mandatory. The actual-App execution/recovery proofs do not qualify those
 remaining flows or full RPG parity.
 Pending-action recovery now has exact durable rediscovery

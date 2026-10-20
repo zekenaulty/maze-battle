@@ -1,7 +1,7 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 31 cases, including two actual-App recovery cases,
+tests. Current cohort: 32 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
@@ -9,8 +9,32 @@ positive and stale-offer/takeover cases, including exact retained settings and
 validated exhausted allowance. The earned-frontier case adds current-sight
 inspection and explicit source-bound approach through the same mounted game.
 The bounded-room case adds explicit same-space exploration and a material stop.
+The chest case adds explicit current-tile interaction, actual accepted-quest item
+collection and a separately granted, zero-step Continue successor for custody.
 This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-bounded-space-exploration.md).
+[Current evidence and limits](../../docs/reviews/issue-11-agentica-chest-interaction.md).
+
+## Explicit Interaction Increment (2026-10-20)
+
+The complete cohort passes 32/32 at Maze `2bb0315`, pinned Agentica `27cb2ce`,
+with evidence at `test-results/maze-start-service-LY6B77/` (313.48s, zero
+skips/retries). Production and fixture TypeScript/build checks pass. The same
+alternate SDK and no-paid-provider boundaries below still apply.
+
+`decision-chest` makes inspect/interact choices in the first window and
+observe/navigate choices after explicit Continue. Its only target selector comes
+from the bounded public current-cell inspection. Ordinary App commands prepare an
+accepted guild fetch objective and approach the unopened chest using earned
+cells; setup does not teleport or grant knowledge. Holding the real admission
+reply proves it cannot loot. The eventual shared-game command grants the quest
+item exactly once and produces a decision, not objective completion.
+
+The successor targets the occupied cell deliberately: it checks the retained
+intent, exact child grant and predecessor ACK, not a return journey. Explicit
+Stop/recovery releases both local reservations. Whole-session remote clearance,
+autonomous quest acceptance, meaningful return and quest reward claims are not
+established by this fixture. The report above retains the identical-fixture
+red/green reproduction of the interaction-terminal reader defect.
 
 ## Bounded Space Increment (2026-10-18)
 

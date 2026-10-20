@@ -6,6 +6,18 @@ The isolated branch fast-forwarded from `4a9efef` through `d418186`, `d04667a`,
 `76936fd`, and `f0523b5`. No runtime files were changed by this fixture lane.
 All fixture changes are new `tests/e2e/canonical-agentica-interaction*` files.
 
+## Integrated Requalification (2026-10-20)
+
+Parent `codex/agentic-game-a1` at `2bb0315` passes all 17 cases again: 37.79s,
+zero failures, retries or skips. Evidence:
+`C:/Users/Zythis/.codex/worktrees/dungeon-d0/maze-battle/test-results/canonical-agentica-interaction-final/results.json`.
+The fixture typecheck passes without a dependency-root override in the parent.
+The historical runs below belong to the isolated
+`C:/Users/Zythis/.codex/worktrees/navigation-recovery-ui/maze-battle` worktree.
+The [separate complete service cohort](../../docs/reviews/issue-11-agentica-chest-interaction.md)
+now has actual-App interaction/Continue proof; this native fixture still uses
+only its fake remote peer and does not establish that boundary by itself.
+
 ## Verified Boundary
 
 Native browser persistence with actual `GameSession`, production action hooks,
