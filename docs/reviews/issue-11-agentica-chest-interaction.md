@@ -101,6 +101,10 @@ not relabel that historical full run as passing.
 
 ## Next Required Vertical
 
+The [quest-context source audit](issue-11-quest-context-boundary.md) maps the
+current reader, disclosure and return boundaries. Its query names and completion
+predicate are implementation proposals, not existing capabilities or proof.
+
 1. Expose bounded, player-equivalent accepted-quest state and explicitly available
    guild opportunities without dumping authoritative target IDs or unearned maps.
    The current tool opens chests only; it does not inherit Auto's acceptance,

@@ -137,6 +137,10 @@ failures. The [explicit chest increment](reviews/issue-11-agentica-chest-interac
 now mounts source-bound interaction through the shared game and durable service
 protocol, including an accepted ordinary quest collectible. The integrated
 quest-return/completion loop and full qualification corpus remain below.
+The [next-boundary source audit](reviews/issue-11-quest-context-boundary.md)
+identifies the narrow accepted-quest reader, opaque paging and explicit return
+proof still required. Current authoritative quest helpers must not be forwarded
+directly to agent tools; their integrity checks also traverse hidden targets.
 
 ## Authority and Supersession
 
