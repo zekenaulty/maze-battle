@@ -43,6 +43,12 @@ into fresh contexts fixed fixture sequencing without changing runtime behavior.
 Run 2 and all 17 JSON evidence attachments:
 `test-results/canonical-return-objective-run2/results.json`.
 
+Integrated parent rerun at `93c7617`: **17/17 PASS**, zero retries/skips, 32.3
+seconds. Evidence: `test-results/canonical-return-objective-integrated/results.json`.
+Parent fixture typecheck also passes with the normal installed dependencies:
+`node node_modules/typescript/bin/tsc -p tests/e2e/canonical-return-objective.tsconfig.json --noEmit`.
+Runtime is unchanged from `821f09a`; the parent additions are tests and docs.
+
 ## Reproduce
 
 From the isolated checkout, with installed Chrome and existing local dependencies:

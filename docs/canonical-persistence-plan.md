@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 35,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 36,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -144,6 +144,11 @@ a separate restricted reader over the same canonical records, explicit paged
 `maze.inspect` scopes and source-bound opaque selectors. It does not embed
 quests in initial context or authorize collection, return or reward claims.
 The ordinary target-validating helpers remain engine-only.
+The [owner-bound return objective](reviews/issue-11-return-objective-binding.md)
+now retains an explicit selected fetch quest and an earned town entrance in the
+original publication, with bounded pack/stash custody readers. It is a foundation,
+not mounted objective inspection or host completion. Those operations and a
+nonzero actual-App return proof remain next; no reward claim is implied.
 
 ## Authority and Supersession
 
