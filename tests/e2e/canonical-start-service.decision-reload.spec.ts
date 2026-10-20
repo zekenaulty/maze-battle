@@ -47,6 +47,7 @@ for (const stage of ['intent', 'claim', 'grant'] as const) {
       expect(await page.evaluate(() => window.canonicalStartService.stopDecisionRoot())).toMatchObject({ status: 'stop-requested', settled: false });
       await page.evaluate(reference => window.canonicalStartService.attachNavigationCleanup(reference), child?.reference ?? reference);
       const pending = await page.evaluate(() => window.canonicalStartService.readRetainedNavigation());
+      if (!('steps' in pending.progress)) throw Error('Expected pending navigation progress');
       expect(pending.original).toEqual(child ?? original.originals[3]);
       expect(pending.progress.steps).toBe(stage === 'grant' ? 0 : 1);
       await page.evaluate(() => window.canonicalStartService.cancelRetainedNavigation());
@@ -56,6 +57,7 @@ for (const stage of ['intent', 'claim', 'grant'] as const) {
         expect(result.status).toBe('terminal-prefix-delivered');
       }
       const recovered = await page.evaluate(() => window.canonicalStartService.readRetainedNavigation());
+      if (!('steps' in recovered.progress)) throw Error('Expected recovered navigation progress');
       expect(recovered.operation.state).toBe('acknowledged');
       expect(recovered.progress.steps).toBe(pending.progress.steps);
       expect(recovered.head.allocations[recovered.operation.id]).toBeUndefined();

@@ -60,6 +60,7 @@ test('actual App selects earned frontiers and approaches locally across two expl
       return (await import('/tests/e2e/canonical-start-service.app-evidence.ts')).appNavigationEvidence(initial, successor);
     }, [actions[1], actions[3]] as unknown as AgenticaAction[]);
   for (const operation of [evidence.parent!, evidence.child!]) {
+    if (operation.kind !== 'navigation') throw Error('Expected frontier navigation');
     expect(operation.progress.binding.kind).toBe('frontier-approach');
     expect(operation.progress.status).toBe('arrived');
     expect(operation.progress.steps).toBeGreaterThan(1);
@@ -69,6 +70,7 @@ test('actual App selects earned frontiers and approaches locally across two expl
   expect(evidence.childTerminal!.event.kind).toBe('decision');
   expect(evidence.childTerminal!.event.summary).toContain('frontier');
   expect(evidence.selection!.value.data.grant).toEqual(evidence.child!.confirmation.data.binding.grant);
+  if (evidence.parent?.kind !== 'navigation' || evidence.child?.kind !== 'navigation') throw Error('Expected two frontier operations');
   expect(first.head.checkpoint.position).toEqual(evidence.parent!.progress.binding.target);
   expect(after.head.checkpoint.position).toEqual(evidence.child!.progress.binding.target);
   expect(gameCheckpoint(first.head.checkpoint).knowledge!.sequence).toBeGreaterThan(gameCheckpoint(before.head.checkpoint).knowledge!.sequence);

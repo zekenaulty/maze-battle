@@ -30,6 +30,18 @@ describe('bounded App navigation scheduler', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ phase: 'decision', canContinue: false }));
     expect(driver.pulse).toHaveBeenCalledOnce();
   });
+  it('labels an interaction without reporting movement or scheduling another choice', async () => {
+    driver.pulse.mockResolvedValueOnce({ status: 'applied-interaction', sequence: 1 }).mockResolvedValueOnce({ status: 'decision-required' });
+    const update = vi.fn(), fail = vi.fn();
+    await startPlayNavigation(session, sdk, { ...action, capabilityId: 'maze.interact' }, binding,
+      new AbortController().signal, update, fail);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(update.mock.calls.map(([status]) => status.message)).toEqual([
+      'Interaction applied; reconciling result', 'Interaction reached a decision boundary.',
+    ]);
+    expect(driver.pulse).toHaveBeenCalledTimes(2); expect(driver.close).toHaveBeenCalledOnce();
+    expect(fail).not.toHaveBeenCalled();
+  });
   it('does not overlap an unresolved pulse or reschedule a late response after withdrawal', async () => {
     let resolve!: (value: unknown) => void;
     driver.pulse.mockImplementation(() => new Promise(done => { resolve = done; }));

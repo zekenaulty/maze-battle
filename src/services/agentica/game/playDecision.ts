@@ -86,13 +86,13 @@ export function startPlayDecision(input: PlayDecisionOptions) {
               const action = structuredClone(value), result = await hooks.onAction(action);
               if (result.operation && current()) {
                 try {
-                  const binding = controller?.binding; check(binding, 'Successor navigation requires an attached decision controller.');
-                  if (successor) { check(equal(successor.action, action), 'Another successor navigation requires recovery.'); return result; }
+                  const binding = controller?.binding; check(binding, 'Successor operation requires an attached decision controller.');
+                  if (successor) { check(equal(successor.action, action), 'Another successor operation requires recovery.'); return result; }
                   successor = { action: validateAction(action), binding: captureBinding(binding) };
                   await handoff.promise; if (!current()) return result;
                   const driver = await startPlayNavigation(session, sdk, successor.action, successor.binding, signal, navigationUpdate, fail);
                   if (!current()) { driver.close(); return result; }
-                  navigation = driver; update({ phase: 'navigating', message: 'Awaiting successor navigation custody' });
+                  navigation = driver; update({ phase: 'navigating', message: 'Awaiting successor operation custody' });
                 } catch (error) { fail(error); }
               }
               return result;

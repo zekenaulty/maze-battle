@@ -21,6 +21,7 @@ export async function retainedNavigation(input: ProtocolRef) {
     const binding = captureOperationBinding({ grant: reserved.grant, publication: reserved.publication });
     const grant = await loadRunGrant(pages, binding.grant);
     const bound = await loadOperationBinding(pages, identity, binding, grant);
+    if (bound.kind !== 'navigation') throw Error('Expected retained navigation, not an interaction');
     return { binding, started: grant.started, launchId: grant.launch.binding.launchId, bound };
   })).value;
   return { identity, ...context };

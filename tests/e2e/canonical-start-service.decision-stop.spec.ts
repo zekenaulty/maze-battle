@@ -68,6 +68,7 @@ test('real admitted child is recovered before root Stop discharges its unacknowl
   await page.evaluate(() => window.canonicalStartService.cancelDecisionSuccessor());
   expect(await page.evaluate(() => window.canonicalStartService.pulseDecisionSuccessor())).toMatchObject({ status: 'terminal-acknowledged', disposition: 'cancelled' });
   const childStopped = await page.evaluate(() => window.canonicalStartService.readDecisionController());
+  if (childStopped.terminal?.bound.kind !== 'navigation') throw Error('Expected stopped navigation');
   expect(childStopped.terminal!.bound.operation.state).toBe('acknowledged');
   expect(childStopped.terminal!.bound.progress.steps).toBe(0);
   await refuseBeforeRootAck(page);

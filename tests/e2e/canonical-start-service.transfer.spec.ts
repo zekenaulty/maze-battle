@@ -42,6 +42,7 @@ test('real service explicit unfinished-navigation takeover binds both receipts, 
     observation: { observationId: `transfer-${retained.source.attemptId}`, revision: retained.publication.wireRevision, data: { source: retained.publication.observation } } });
   for (const expected of ['transfer-acknowledged', 'kernel-adopted', 'kernel-adopted', 'navigation-authorized']) {
     const prior = await page.evaluate(() => window.canonicalStartService.readTransfer());
+    if (prior.value?.kind !== 'navigation') throw Error('Expected transferable navigation');
     expect(prior.records.authority).toBeFalsy(); expect(prior.value!.progress.steps).toBe(0);
     expect((await page.evaluate(() => window.canonicalStartService.pulseTransfer())).status).toBe(expected);
     expect(await serviceProof()).toEqual(baseline);

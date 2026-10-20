@@ -81,7 +81,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
               // Scheduling cannot change an already committed action result, including replay.
               try {
                 const key = JSON.stringify([action.runId, action.actionId]);
-                if (operationSeen) { check(operationKey === key, 'Another navigation requires recovery.'); return result; }
+                if (operationSeen) { check(operationKey === key, 'Another operation requires recovery.'); return result; }
                 operationSeen = true; operationKey = key;
                 const launch = (await readLaunch(launchId)).value!; localGate.signal.throwIfAborted();
                 check(launch.grant, 'Navigation lacks a committed launch grant.');
@@ -95,7 +95,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
                   }, report);
                 if (!current() || localGate.signal.aborted) { driver.close(); return result; }
                 navigation = driver;
-                update({ phase: 'navigating', message: 'Awaiting service navigation custody' });
+                update({ phase: 'navigating', message: 'Awaiting service operation custody' });
               } catch (error) { report(error); }
             }
             return result;
