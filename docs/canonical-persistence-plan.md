@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 36,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 37,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -146,9 +146,13 @@ quests in initial context or authorize collection, return or reward claims.
 The ordinary target-validating helpers remain engine-only.
 The [owner-bound return objective](reviews/issue-11-return-objective-binding.md)
 now retains an explicit selected fetch quest and an earned town entrance in the
-original publication, with bounded pack/stash custody readers. It is a foundation,
-not mounted objective inspection or host completion. Those operations and a
-nonzero actual-App return proof remain next; no reward claim is implied.
+original publication, with bounded pack/stash custody readers. The subsequent
+[explicit return-completion increment](reviews/issue-11-return-objective-completion.md)
+mounts owner selection, on-demand objective inspection and retained host proof.
+The actual App collects one ordinary quest item and returns nine local steps
+before a separate check establishes completion. This known-return fixture does
+not qualify cold-start exploration or the two-dungeon matrix; no reward claim
+is implied.
 
 ## Authority and Supersession
 
@@ -391,10 +395,14 @@ P1 storage contracts are split as follows:
   old/narrow-grant refusal. No hidden geometry/content reads or new persistent
   store. Original launch/result byte limits remain. The service proof queries
   one accepted quest and parks on the original tile; it is not meaningful return.
-- **P3 Agentica, remaining:** sustained coverage/remembered off-window return,
-  observation-driven intention revision and the integrated ordinary quest loop.
-  Bind an explicit quest objective to carried-item evidence and an earned return
-  destination, then qualify nonzero return and explicit guild reward claims.
+- **P3 Agentica, checked return boundary:** explicit owner selection, scoped
+  objective inspection, shared-game collection, nonzero earned return and
+  source-bound host completion. Native replay retains the original answer after
+  custody changes; current stash contents do not satisfy a fresh check.
+- **P3 Agentica, remaining:** compose sustained coverage, remembered off-window
+  return and observation-driven intention revision from an earned cold start.
+  Qualify this integrated loop in the two-dungeon matrix. Explicit guild reward
+  tooling is a later RPG workflow, not implied by retrieve-return completion.
   An empty current-sight page is not proof that the floor is fully explored.
   Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;
@@ -544,10 +552,10 @@ to arbitrary history. Initial canonical Agentica execution, explicit same-owner
 continuation, inspected new-owner adoption and source-bound frontier approach
 are now mounted; explicit local exploration/material decisions have runtime,
 native and actual-service proof. Explicit collection of a preaccepted ordinary
-quest item is now checked; the integrated objective/return/completion loop and
-full multi-controller depth/revisit/Q
-remain mandatory. The actual-App execution/recovery proofs do not qualify those
-remaining flows or full RPG parity.
+quest item, nonzero earned return and a separate host completion check are now
+checked. The cold-start exploration/adaptation/collection/return composition and
+full multi-controller depth/revisit/Q remain mandatory. The actual-App
+execution/recovery proofs do not qualify those remaining flows or full RPG parity.
 Pending-action recovery now has exact durable rediscovery
 proof, not arbitrary session cleanup or permission for automatic continuation.
 The service page response is bounded, but its capped ledger is still read as a

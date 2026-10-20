@@ -1,7 +1,7 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 33 cases, including two actual-App recovery cases,
+tests. Current cohort: 34 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
@@ -13,8 +13,29 @@ The chest case adds explicit current-tile interaction, actual accepted-quest ite
 collection and a separately granted, zero-step Continue successor for custody.
 The journal case queries an accepted-quest page and its selected detail without
 reading undisclosed targets or changing gameplay state.
+The return case explicitly selects an accepted quest, collects its item,
+travels nine earned steps back, and performs a separate host completion check.
 This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-accepted-quest-context.md).
+[Current evidence and limits](../../docs/reviews/issue-11-return-objective-completion.md).
+
+## Return Completion Increment (2026-10-20)
+
+`decision-return` makes five tool choices across three explicit windows:
+current-cell inspect / interact, objective inspect / navigate to its disclosed
+return address, then objective inspect. The actual App-owned canonical game
+provides all effects and source evidence. Ordinary guild acceptance and manual
+exploration prepare this known-return fixture; it is not the cold-start A/B corpus.
+
+The existing Agentica completion contract receives proof only when the selected
+collectible is in the pack and the actor is at the earned town entrance. Earlier
+admissions and arrival remain decisions. The final real-service outcome is
+`succeeded / complete`; explicit Stop/recovery settles the retained root without
+new choices or repeat loot. No reward claim is implicit. Desktop/mobile bounds,
+unchanged domain state during return/checking, exact retained evidence and
+five-action/two-refinement/two-continuation counters are asserted.
+
+The report above records candidate/final qualification, independent review,
+retained failures and the unchanged alternate-SDK/provider-free limitations.
 
 ## Accepted Journal Increment (2026-10-20)
 
