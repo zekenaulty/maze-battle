@@ -18,7 +18,7 @@ export function source(tx: Pick<CanonicalWork, 'head'>, input: CanonicalRequest,
 }
 
 /** Kernel readers own receipt/fence validation; this layer checks only protocol-specific bindings. */
-export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: ProtocolSource['kind'], extra: string) {
+export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: ProtocolSource['kind'], extra: string, optional = '') {
   ref = snapshotReference(ref);
   let record, original;
   if (kind === 'agentica-publication') {
@@ -39,7 +39,7 @@ export async function readSource(pages: ProtocolRead, ref: ProtocolRef, kind: Pr
         && equal(receipt.result.reference, ref), 'Agentica record source changed');
     }
   }
-  const row = fields(record.value, `schema kind sourceAttemptId sourceRequest owner epoch ${extra}`);
+  const row = fields(record.value, `schema kind sourceAttemptId sourceRequest owner epoch ${extra}`, optional);
   check(record.id === ref.id && record.key === ref.key && record.indexes.length === 0 && row.schema === 1 && row.kind === kind, 'Agentica source reference changed');
   jsonBytes(row.sourceRequest, MAX_SOURCE_REQUEST_BYTES);
   check(equal(row.sourceRequest, original) && row.sourceAttemptId === original.attemptId

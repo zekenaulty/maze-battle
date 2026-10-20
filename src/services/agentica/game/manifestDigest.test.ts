@@ -12,13 +12,14 @@ function retainedThreeCapabilities() {
   capabilities[1].description = 'Map lists rooms only. Cell requires all address fields. Room pages a 16x16 query window, not room bounds. Cursor continues the same query.';
   capabilities[2].description = 'Navigate to an earned local address; arrival does not interact.';
   capabilities[1].inputSchema.fields[0].allowedValues = ['room', 'map', 'cell'];
+  capabilities[1].inputSchema.fields = capabilities[1].inputSchema.fields.slice(0, 6);
   return capabilities;
 }
 
 describe('capability-only pinned service digest', () => {
   it('hashes the current manifest without changing the caller input', async () => {
     const capabilities = mazeCapabilities(), before = structuredClone(capabilities);
-    expect(await mazeManifestDigest(capabilities)).toBe('sha256:a62808cec9c3fe540352ce187ed95682fb3f1e4ee379bad1790b04506a5392b2');
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:cb6cb478e1c34ed7e214bc00279e309a8655c3d2e6c6c7701ab6edeadb8bf73a');
     expect(capabilities).toEqual(before);
   });
   it('keeps retained three-capability roots exact without introducing explore authority', async () => {
@@ -32,7 +33,7 @@ describe('capability-only pinned service digest', () => {
     expect(launchStart(start)).toEqual(start);
     expect(new TextEncoder().encode(JSON.stringify(start)).length).toBeLessThanOrEqual(3584);
     expect(capabilities).toHaveLength(5);
-    expect(capabilities[1].inputSchema.fields).toHaveLength(6);
+    expect(capabilities[1].inputSchema.fields).toHaveLength(8);
     expect(capabilities[3]).toMatchObject({ kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true },
         { name: 'mode', type: 'string', required: false, allowedValues: ['room'] }], allowAdditionalProperties: false } });

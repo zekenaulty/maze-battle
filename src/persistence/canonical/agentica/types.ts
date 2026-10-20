@@ -2,6 +2,7 @@ import type { AgenticaAction, AgenticaResult } from '../../../services/agentica/
 import type { KnowledgeAnchor } from '../knowledge/types';
 import type { CanonicalQuery } from '../read';
 import type { CanonicalGameSnapshot, CanonicalRequest, JsonObject } from '../types';
+import type { QuestQueryProof } from './quest.proof';
 
 export const MAX_ACTION_BYTES = 4096;
 export const MAX_RESULT_BYTES = 4096;
@@ -31,6 +32,7 @@ export interface PendingAction extends ProtocolSource {
 }
 export interface ActionResult extends ProtocolSource {
   kind: 'agentica-result'; proof: 'standalone' | 'navigation' | 'interaction'; original: ProtocolRef; result: AgenticaResult;
+  query?: QuestQueryProof;
 }
 export interface RetainedAction {
   reference: ProtocolRef; original: PendingAction; publication: Publication;

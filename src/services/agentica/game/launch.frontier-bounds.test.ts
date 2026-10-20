@@ -40,10 +40,10 @@ async function actualStart(objective: string, env: Record<string, string> = {}) 
 }
 
 it.each([
-  ['default fixture', 3310, {}],
-  ['decision-frontier', 3313, { VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4', VITE_AGENTICA_MAX_REFINEMENTS: '2',
+  ['default fixture', 3491, {}],
+  ['decision-frontier', 3494, { VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4', VITE_AGENTICA_MAX_REFINEMENTS: '2',
     VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1', VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20' }],
-  ['configured OpenAI', 3336, { VITE_AGENTICA_PROVIDER: 'openai', VITE_AGENTICA_MODEL: 'configured-model', VITE_AGENTICA_THINKING_EFFORT: 'high' }],
+  ['configured OpenAI', 3517, { VITE_AGENTICA_PROVIDER: 'openai', VITE_AGENTICA_MODEL: 'configured-model', VITE_AGENTICA_THINKING_EFFORT: 'high' }],
 ] as const)('fits actual %s start with a 512-character ASCII objective', async (name, expectedBytes, env) => {
   const f = await actualStart('x'.repeat(512), env);
   console.info(`${name}: ${f.bytes} bytes; objective 512; session ${f.start.sessionId.length}; observation ${JSON.stringify(f.start.observation).length}`);

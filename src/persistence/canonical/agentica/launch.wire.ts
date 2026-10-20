@@ -12,7 +12,8 @@ function capability(input: AgenticaCapability) {
   check(c.kind === (navigation ? 'action' : 'query') && c.effect === (navigation ? 'writesLocalState' : 'readOnly')
     && (navigation ? c.durableHandoff === true : c.durableHandoff === undefined), 'invalid launch capability effect');
   const schema = fields(c.inputSchema, 'fields allowAdditionalProperties');
-  check(schema.allowAdditionalProperties === false && Array.isArray(schema.fields) && schema.fields.length <= 6, 'invalid launch schema');
+  check(schema.allowAdditionalProperties === false && Array.isArray(schema.fields)
+    && schema.fields.length <= (c.id === 'maze.inspect' ? 8 : 6), 'invalid launch schema');
   const names = new Set<string>();
   for (const input of schema.fields) {
     const f = fields(input, 'name type required', 'description allowedValues minimum maximum'); wireId(f.name);

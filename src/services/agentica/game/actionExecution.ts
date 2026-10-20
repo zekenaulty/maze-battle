@@ -20,10 +20,14 @@ import { chestArgs } from './chestSelection';
 import { exploreArgs } from './exploreArgs';
 import { observeMaze, inspectMaze } from './observation';
 import { cursorAfter, inspectArgs, inspectQuery, localPosition } from './validation';
+import { questArgs } from '../../../persistence/canonical/agentica/quest.proof';
+import { queryQuests } from './questContext';
+import { QuestQueryRefusal } from './questSelection';
 
 function parse(action: AgenticaAction, publication: ProtocolRef) {
   if (action.capabilityId === 'maze.observe') { fields(action.arguments, ''); return { kind: 'observe' as const }; }
-  if (action.capabilityId === 'maze.inspect') return { kind: 'inspect' as const, args: inspectArgs(action.arguments) };
+  if (action.capabilityId === 'maze.inspect') return ['quests', 'quest'].includes(action.arguments.scope as string)
+    ? { kind: 'quest' as const, args: questArgs(action.arguments) } : { kind: 'inspect' as const, args: inspectArgs(action.arguments) };
   if (action.capabilityId === 'maze.interact') return { kind: 'interact' as const, selection: chestArgs(action.arguments, publication) };
   if (action.capabilityId === 'maze.explore') {
     return { kind: 'explore' as const, ...exploreArgs(action.arguments, publication) };
@@ -102,11 +106,17 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
           try { cursorAfter(selected.args.cursor, binding.publication, inspectQuery(selected.args, gameCheckpoint(tx.head.checkpoint))); }
           catch { rejected = 'Inspection cursor or query does not belong to this publication.'; }
         }
-        const observation = !rejected && selected?.kind === 'inspect'
+        let journal: Awaited<ReturnType<typeof queryQuests>> | undefined;
+        if (!rejected && selected?.kind === 'quest') {
+          try { journal = await queryQuests(tx.pages, snapshotOf(tx.head), binding, identity, selected.args); }
+          catch (error) { if (!(error instanceof QuestQueryRefusal)) throw error; rejected = error.message; }
+        }
+        const observation = journal?.observation ?? (!rejected && selected?.kind === 'inspect'
           ? await inspectMaze(tx.pages, snapshotOf(tx.head), binding.publication, selected.args)
-          : await observeMaze(tx.pages, snapshotOf(tx.head), binding.publication);
-        const result = actionResult(identity, observation, rejected ?? 'Earned observation returned without refreshing sight.', rejected ? 'refused' : 'applied');
-        return (await retainActionResult(tx, request, identity, result)).receipt;
+          : await observeMaze(tx.pages, snapshotOf(tx.head), binding.publication));
+        const result = actionResult(identity, observation, rejected ?? (journal ? 'Accepted quest information returned without looking at its target.'
+          : 'Earned observation returned without refreshing sight.'), rejected ? 'refused' : 'applied');
+        return (await retainActionResult(tx, request, identity, result, journal?.query)).receipt;
       }, options);
     } });
 }

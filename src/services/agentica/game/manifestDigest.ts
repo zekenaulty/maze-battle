@@ -39,7 +39,8 @@ function materialize(input: AgenticaCapability): WireValue {
   const name = ascii(c.name, 128, true), description = ascii(c.description, 512);
   check(description.trim().length > 0, 'empty manifest description');
   const schema = fields(c.inputSchema, 'fields allowAdditionalProperties');
-  check(schema.allowAdditionalProperties === false && Array.isArray(schema.fields) && schema.fields.length <= 6, 'invalid launch schema');
+  check(schema.allowAdditionalProperties === false && Array.isArray(schema.fields)
+    && schema.fields.length <= (c.id === 'maze.inspect' ? 8 : 6), 'invalid launch schema');
   const names = new Set<string>();
   const schemaFields = schema.fields.map(input => {
     const f = fields(input, 'name type required', 'description allowedValues minimum maximum');
