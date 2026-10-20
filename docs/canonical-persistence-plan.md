@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 40,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 41,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -162,13 +162,19 @@ adaptation, not live-model or whole-Q qualification.
 The [explicit decision-history query](reviews/issue-11-decision-history-query.md)
 now retrieves the original material notice from a successor's immediate
 predecessor evidence without refreshing unseen state or expanding initial
-context. Same-owner actual-service and changed-sight replay pass; adoption and
-post-transfer variants remain a separate qualification boundary.
+context. Same-owner, explicit adoption and one post-transfer actual-service
+variants now pass, including changed-sight completed-hook replay. Arbitrary
+ancestry and remote replay remain separate qualification boundaries.
 The [bounded App revisit qualification](../tests/e2e/canonical-revisit.report.md)
 now proves two complete two-floor round trips with real collected content,
 reload and explicit tab takeover. A separate keyboard-action measurement holds
 history fixed while varying retained depth, then adds 128 ordinary moves at
 fixed depth. Neither uses hidden routing or relocates the actor during traversal.
+The [corpus quota/reload increment](reviews/issue-11-canonical-corpus.md#quota-and-reload-at-collection-boundaries)
+now qualifies settled decisions before/after collection in both authored worlds,
+including failed-load recovery, original child/root ACKs and exact game-state
+preservation. Seven focused actual-service cases pass with history/adoption.
+This does not qualify active-step interruption or the full Q matrix.
 
 ## Authority and Supersession
 
@@ -423,8 +429,8 @@ P1 storage contracts are split as follows:
 - **P3 Agentica, checked historical query:** on-demand immediate-predecessor
   notice retrieval, retained source proof and no-effect changed-sight replay
   pass for same-owner continuation. No persistent context dump or format change.
-- **P3 Agentica, remaining:** qualify sustained coverage, adopted/post-transfer
-  history retrieval, then the complete two-dungeon matrix.
+- **P3 Agentica, remaining:** qualify sustained coverage, broader history
+  source/replay combinations, then the complete two-dungeon matrix.
   Explicit guild reward
   tooling is a later RPG workflow, not implied by retrieve-return completion.
   An empty current-sight page is not proof that the floor is fully explored.

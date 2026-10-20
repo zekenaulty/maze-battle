@@ -96,6 +96,49 @@ This uses the real pinned service but an offline planner and isolated cached
 .NET SDK 10.0.401, not qualification of repository SDK pin 10.0.302. The owner
 preview on 5198, its existing build and its browser data were not changed.
 
+## Quota And Reload At Collection Boundaries
+
+2026-10-20: fixture `ab099ee`, with history/adoption fixtures through `3e8a110`.
+The parent seven-case focused cohort passes **7/7**, 299.48 seconds, zero
+failures/skips/retries: `test-results/maze-start-service-2gbJUv/`. Four cases
+cover A/B before and after explicit collection; three cover historical notice
+retrieval after Continue, reload/adoption, and transferred navigation/adoption.
+Production and service-fixture TypeScript checks pass. Production code is
+unchanged by this increment; this is not a fresh full-unit or full-service run.
+
+Each quota case traverses the ordinary cold-start journey to the unopened chest
+or its just-applied collection decision. Audit-only world data checks the
+reached location but never selects the route. The fixture saturates the logical
+ordinary-work allowance by setting its ceiling to used bytes plus the existing
+control reserve and outstanding operation reservations. Manual settings remain
+excluded while Agentic Play owns control. On reload, takeover succeeds but
+ordinary resume refuses at capacity, exposing the real failed-load recovery UI.
+
+Explicit local Stop preserves the settled original. Root Stop is initially
+pending at the service; the UI delivers and acknowledges the original parked
+action before the second root Stop can acknowledge it. Exact original bindings,
+terminal events, progress, admission IDs and both ACK source receipts are checked.
+Both allocations are released and reserved bytes/count reach zero. The ceiling
+and control reserve remain unchanged. Checkpoint, game/generation, world and
+knowledge roots, inventory, stash, quest and chest state remain exact. Before
+collection there is no seal; after collection exactly one is retained in the
+pack. No new planner activity or WebSocket action is authorized by recovery.
+
+Intermediate evidence is retained: `vqE1DA` expected a quota error from a
+manual command that correctly refused Agentic control; `qAfq0G` incorrectly
+expected Ready rather than failed-load recovery; `3ogagf` assumed immediate root
+Stop completion rather than pending custody; `EGUVhj` passed both pre-collection
+cases but used the navigation button label for interaction cleanup. The final
+fixture follows the actual protocol and distinct UI labels. No runtime guards,
+quotas, or test timeouts were weakened. Independent source review found no
+remaining evidence gaps after exact-custody/quota/checkpoint assertions were added.
+
+This proves settled decision-boundary recovery in the authored journeys. It
+does not prove interruption during a step/effect, browser physical quota,
+unbounded history, whole-session remote clearance, or the complete Q matrix.
+SDK 10.0.401 remains alternate-pin evidence; paid calls are zero and the owner
+preview/database remain untouched.
+
 ## Still Open
 
 - Full fixed-action A/B UI/tool/memory/progress and storage-work comparison.
@@ -107,7 +150,9 @@ preview on 5198, its existing build and its browser data were not changed.
 - Material-notice retrieval was not included in this corpus increment. The
   subsequent [decision-history query](issue-11-decision-history-query.md) now
   qualifies explicit same-owner retrieval separately; adoption/post-transfer
-  variants remain open. Renewed actor context does not silently become history.
+  variants now have composed proof in the focused cohort above. Renewed actor
+  context does not silently become history. Arbitrary transfer ancestry and
+  remote query replay remain unqualified.
 - Sustained room coverage beyond this small corpus, generated-world retrieval,
   depth/revisit/storage-growth and multi-controller final qualification.
 - Live model competence only under separately confirmed provider limits and

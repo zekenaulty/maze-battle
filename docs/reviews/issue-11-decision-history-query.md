@@ -106,12 +106,35 @@ normalizing away any value, identity, timestamp, notice or source.
 The fixture uses offline planning and isolated cached SDK 10.0.401, not repository
 SDK pin 10.0.302. No paid provider or owner preview/database was touched.
 
+## Adopted And Transferred History
+
+Parent fixtures `306df26` and `3e8a110` integrate the isolated adoption/transfer
+proofs. The focused seven-case parent run (three history cases plus four corpus
+quota cases) passes in 299.48 seconds with no failures/skips/retries:
+`test-results/maze-start-service-2gbJUv/`. Fixture and production typechecks pass;
+independent read-only review found no actionable gaps. No runtime change.
+
+Reload preserves the original terminal and grants. Local inspection has no
+network or write effect; explicit Adopt and continue supplies a separate fresh
+actor observation. New actions bind the new owner/epoch while the planner's
+two historical query receipts remain exact originals. The transfer case first
+pauses scheduling after real custody confirmation, reloads, performs the real
+HTTP transfer and both canonical adoptions, then moves four local steps to a
+material decision. A second reload/adoption queries that transferred progress
+source, not its older transfer anchor. No planner activation occurs during
+transfer or local travel. Funded cleanup and no-effect completed-hook replay
+after changed sight remain checked in all three cases.
+
+Detailed source identities, isolated results and initial fixture assertion
+failures are retained in [the service history notes](../../tests/agentica-start-service/HISTORY.md).
+This is one transfer plus adoption, not arbitrary ancestry, a transfer UI,
+remote query replay, or qualification of repository SDK 10.0.302.
+
 ## Remaining
 
-This case qualifies same-owner progress-sourced history after one renewal.
-Adopted/post-transfer queries, zero-progress source variants and deeper ancestry
-still need composed native/service proof. Existing takeover regressions pass,
-but do not qualify the new query in every ownership state.
+Same-owner, adopted and one post-transfer progress-sourced history now have
+composed proof. Zero-progress source variants and deeper ancestry still need
+composed native/service proof; this is not every possible ownership state.
 
 The wider A/B information/recovery/capacity matrix, repeated actual-App
 backtracking across owners, and separated depth/history-growth measurements
