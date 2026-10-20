@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 34,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 35,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -138,9 +138,12 @@ now mounts source-bound interaction through the shared game and durable service
 protocol, including an accepted ordinary quest collectible. The integrated
 quest-return/completion loop and full qualification corpus remain below.
 The [next-boundary source audit](reviews/issue-11-quest-context-boundary.md)
-identifies the narrow accepted-quest reader, opaque paging and explicit return
-proof still required. Current authoritative quest helpers must not be forwarded
-directly to agent tools; their integrity checks also traverse hidden targets.
+identified hidden-target traversals in the authoritative quest helpers. The
+[accepted-journal increment](reviews/issue-11-accepted-quest-context.md) now uses
+a separate restricted reader over the same canonical records, explicit paged
+`maze.inspect` scopes and source-bound opaque selectors. It does not embed
+quests in initial context or authorize collection, return or reward claims.
+The ordinary target-validating helpers remain engine-only.
 
 ## Authority and Supersession
 
@@ -378,8 +381,15 @@ P1 storage contracts are split as follows:
   sanitized event and explicit decision. The 17-case native fixture and complete
   32-case actual-service cohort pass; collection and continuation custody are
   covered, not quest-return completion.
+- **P3 accepted journal, bounded increment:** explicit current-floor accepted
+  pages/detail, private canonical row witnesses, exact historical replay and
+  old/narrow-grant refusal. No hidden geometry/content reads or new persistent
+  store. Original launch/result byte limits remain. The service proof queries
+  one accepted quest and parks on the original tile; it is not meaningful return.
 - **P3 Agentica, remaining:** sustained coverage/remembered off-window return,
   observation-driven intention revision and the integrated ordinary quest loop.
+  Bind an explicit quest objective to carried-item evidence and an earned return
+  destination, then qualify nonzero return and explicit guild reward claims.
   An empty current-sight page is not proof that the floor is fully explored.
   Preserve earned-only room/map/frontier scope and explicit
   voluntary interactions. Keep tested recovery usable during quota failure;

@@ -1,7 +1,7 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 32 cases, including two actual-App recovery cases,
+tests. Current cohort: 33 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
@@ -11,8 +11,36 @@ inspection and explicit source-bound approach through the same mounted game.
 The bounded-room case adds explicit same-space exploration and a material stop.
 The chest case adds explicit current-tile interaction, actual accepted-quest item
 collection and a separately granted, zero-step Continue successor for custody.
+The journal case queries an accepted-quest page and its selected detail without
+reading undisclosed targets or changing gameplay state.
 This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-agentica-chest-interaction.md).
+[Current evidence and limits](../../docs/reviews/issue-11-accepted-quest-context.md).
+
+## Accepted Journal Increment (2026-10-20)
+
+The complete cohort passes **33/33** at Maze `05fe98f`, pinned Agentica `27cb2ce`,
+with evidence at `test-results/maze-start-service-wP4Eyc/` (353.08s, zero skips,
+retries or failures). Production and fixture typechecks/build pass. The isolated
+alternate-SDK and provider-free limitations below still apply.
+
+`decision-journal` uses three actions and no continuation: `maze.inspect` with
+`scope: "quests"` and explicit status, `maze.inspect` with `scope: "quest"` and
+the returned opaque selector, then `maze.navigate` to the initial earned tile.
+The offline planner receives only real public observations. Shared GameSession
+commands accept the ordinary fetch quest during setup; no hidden target or
+fixture state is injected into planner context.
+
+The fixture verifies unchanged world/knowledge roots, checkpoint, inventory and
+quest state, bounded disclosure without raw target/item identifiers, private
+canonical result witnesses excluded from wire output, and exact counters
+(one create, two refinements, three choices). Explicit Stop/recovery settles
+the funded reservations without another action or planner activation.
+
+The same-cell third action is custody evidence only. No meaningful return,
+collection, reward claim or host objective completion is inferred. The original
+five-capability launch/result byte limits remain unchanged; journal scopes are
+part of the existing inspect descriptor. The linked report retains failures,
+repairs and the final integrated cohort result separately.
 
 ## Explicit Interaction Increment (2026-10-20)
 

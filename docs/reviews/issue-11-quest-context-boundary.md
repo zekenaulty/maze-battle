@@ -5,6 +5,11 @@ Design only: no runtime edits, tests, services or providers executed. The parent
 integration qualification is separate. Issue #11 supersedes **all old-save
 compatibility**, not protection of current unresolved funded obligations.
 
+Follow-through: the [accepted-journal increment](issue-11-accepted-quest-context.md)
+implements the restricted reader and opaque paged inspection at `05fe98f`.
+This audit's source references and proposed APIs remain historical; return,
+reward and host-objective completion remain unqualified.
+
 ## Findings and Current Source
 
 1. **Accepted quest state exists, but no current agent quest query exists.**

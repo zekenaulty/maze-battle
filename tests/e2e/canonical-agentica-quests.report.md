@@ -1,5 +1,13 @@
 # Native accepted-quest query proof
 
+Integrated parent rerun: **18/18 PASS** at `05fe98f`, 48.54s, zero retries,
+skips or failures; `test-results/canonical-agentica-quests-final/results.json`
+in `C:/Users/Zythis/.codex/worktrees/dungeon-d0/maze-battle`. Fixture TypeScript
+passes after spelling the publication reference as a JSON object at the host
+command boundary. The [combined report](../../docs/reviews/issue-11-accepted-quest-context.md)
+records independent review fixes and the separate real-service/full-unit proof.
+The initial isolated evidence below is retained as historical qualification.
+
 ## Identity and result
 
 - Runtime: `f0e75270968b28fe6a6f434830011ad28a0a86d0` (includes reader `e97bacc`).
