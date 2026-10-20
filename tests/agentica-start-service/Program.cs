@@ -28,7 +28,7 @@ app.Use(async (context, next) =>
     var route = context.Request.Method + " " + context.Request.Path.Value;
     if (route is not ("GET /api/health" or "GET /api/host" or "GET /api/starts" or "POST /api/starts/stop" or "GET /fixture/proof"
         or "GET /api/operations" or "POST /api/operations/events" or "POST /api/operations/stop-decision" or "GET /api/recovery"
-        or "GET /api/recovery/action" or "GET /api/recovery/run" or "POST /api/recovery" or "GET /fixture/run"))
+        or "GET /api/recovery/action" or "GET /api/recovery/run" or "POST /api/recovery" or "GET /fixture/run" or "GET /fixture/history"))
     {
         context.Response.StatusCode = 403;
         return;
@@ -50,4 +50,5 @@ app.MapGet("/fixture/proof", () => new
     decision = factory.Decision.Snapshot(),
     paidProviderCalls = 0, paidProviderCallsEvidence = "by-construction: injected offline planners only; not billing telemetry"
 });
+app.MapGet("/fixture/history", () => new { events = factory.HistoryEvents() });
 await app.RunAsync();

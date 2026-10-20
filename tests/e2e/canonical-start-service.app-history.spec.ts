@@ -2,13 +2,25 @@ import type { Page } from '@playwright/test';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { ACKNOWLEDGEMENT_BYTES, DEFAULT_WORK_LIMITS } from '../../src/persistence/canonical/types';
 import { MAX_DECISION_READS, MAX_DECISION_LOOKUPS, MAX_DECISION_READ_BYTES } from '../../src/persistence/canonical/agentica/decision.query.read';
+import { MAX_EVENT_BYTES } from '../../src/persistence/canonical/agentica/operation.types';
 import type { GameSession } from '../../src/services/game/GameSession';
 import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
+import { serviceOrigin } from '../agentica-start-service/service.mjs';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { counterDelta, absentWindow } from './canonical-start-service.decision.steps';
 
 test.use({ roomProof: true });
 const initialWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
+async function plannerHistory() {
+  // Fixture output read by the test runner only; never an App or planner input.
+  const response = await fetch(serviceOrigin + '/fixture/history');
+  expect(response.ok).toBe(true);
+  const output: { events: unknown[] } = await response.json();
+  expect(Object.keys(output)).toEqual(['events']);
+  expect(Array.isArray(output.events)).toBe(true); expect(output.events.length).toBeLessThanOrEqual(2);
+  for (const event of output.events) expect(Buffer.byteLength(JSON.stringify(event), 'utf8')).toBeLessThanOrEqual(MAX_EVENT_BYTES);
+  return output;
+}
 async function operation(page: Page, original: AgenticaAction, successor?: AgenticaAction) {
   return page.evaluate(async ({ original, successor }) => {
     // @ts-expect-error Read-only native evidence, never a replacement session or planner input.
@@ -55,6 +67,7 @@ test('actual App explicitly queries historical decision after room Continue then
       notice: { kind: 'other-space-visible', source: { sequence: expect.any(Number), id: expect.any(String), index: expect.any(Number) } } });
     expect(terminal.observation).toEqual(retained.parent.event!.data.event.observation);
     expect(terminal.observation!.data.navigation).toMatchObject({ notice: retained.parent.progress.notice });
+    expect(await plannerHistory()).toEqual({ events: [] });
     expect(after.head.roots.world).toEqual(before.head.roots.world);
     const paused = await serviceProof();
     expect(counterDelta(paused, baseline)).toEqual({ created: 1, initial: initialWindow, successor: absentWindow });
@@ -91,6 +104,9 @@ test('actual App explicitly queries historical decision after room Continue then
       expect(JSON.stringify(reply.observation.data.event)).toBe(JSON.stringify(terminal));
     }
     expect(history[0].observation.observationId).not.toBe(history[1].observation.observationId);
+    const plannerReceived = await plannerHistory();
+    // Agentica's planning-frame snapshot sorts object keys, but must preserve every value.
+    expect(plannerReceived).toStrictEqual({ events: [terminal, terminal] });
     expect(continued.parent.operation.state).toBe('acknowledged');
     expect(continued.parent.progress).toEqual(retained.parent.progress);
     expect(continued.child.progress).toMatchObject({ sequence: 0, steps: 0, status: 'arrived', position: retained.parent.progress.position });
@@ -183,8 +199,9 @@ test('actual App explicitly queries historical decision after room Continue then
     expect(wire.sent.filter(frame => ['operation.adopt', 'resume'].includes(frame.type))).toEqual([]);
     expect(wire.received.filter(({ frame }) => frame.type === 'action.request')).toHaveLength(5);
     expect(await serviceProof()).toEqual(counters);
+    expect(await plannerHistory()).toEqual(plannerReceived);
     await info.attach('actual-app-history-proof.json', { body: JSON.stringify({ before, after, continuedHead, childAck, final,
-      retained, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters }, null, 2), contentType: 'application/json' });
+      retained, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters, plannerReceived }, null, 2), contentType: 'application/json' });
   } finally {
     await info.attach('history-final-state.json', { body: JSON.stringify({
       snapshot: await page.evaluate(() => window.canonicalStartService.snapshot()).catch(String),
@@ -192,7 +209,7 @@ test('actual App explicitly queries historical decision after room Continue then
         const session = Reflect.get(globalThis, '__canonicalStartAppSession');
         return { status: session.view.status, recoveryRequired: session.view.recoveryRequired, diagnostics: session.view.diagnostics };
       }),
-      counters: await serviceProof(), sent: wire.sent, received: wire.received, http: wire.http,
+      counters: await serviceProof(), plannerReceived: await plannerHistory().catch(String), sent: wire.sent, received: wire.received, http: wire.http,
       alerts: await page.getByRole('alert').allTextContents(),
     }, null, 2), contentType: 'application/json' });
   }

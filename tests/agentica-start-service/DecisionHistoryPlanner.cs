@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Agentica.Lab.Web.Contracts;
 using Agentica.Observations;
@@ -10,9 +11,27 @@ namespace Maze.StartServiceFixture;
 internal sealed class DecisionHistoryPlanner(DecisionPlannerCounters counters) : IWorkflowPlanner
 {
     private IWorkflowPlanner? _initial;
-    private JsonElement _actor, _event;
+    private JsonElement _actor;
+    private readonly List<JsonElement> _receivedEvents = new(2);
     private string? _parentOperation, _observation;
     private int _stage;
+
+    public JsonElement[] ReceivedEvents()
+    {
+        lock (_receivedEvents) return _receivedEvents.Select(value => value.Clone()).ToArray();
+    }
+
+    private void CaptureReceivedEvent(JsonElement terminal)
+    {
+        lock (_receivedEvents)
+        {
+            if (_receivedEvents.Count >= 2 || Encoding.UTF8.GetByteCount(terminal.GetRawText()) > 4096)
+                throw new InvalidOperationException("Planner history output exceeds two 4 KiB events.");
+            _receivedEvents.Add(terminal.Clone());
+            if (_receivedEvents.Count == 2 && _receivedEvents[0].GetRawText() != terminal.GetRawText())
+                throw new InvalidOperationException("Repeated historical query changed the original event.");
+        }
+    }
 
     public Task<WorkflowPlan> CreatePlanAsync(PlanningRequest request, CancellationToken cancellationToken = default)
     {
@@ -62,14 +81,12 @@ internal sealed class DecisionHistoryPlanner(DecisionPlannerCounters counters) :
             if (data.GetProperty("scope").GetString() != "decision" || data.GetProperty("state").GetString() != "historical")
                 throw new InvalidOperationException("Explicit historical decision evidence required.");
             var terminal = data.GetProperty("event");
+            CaptureReceivedEvent(terminal);
             if (terminal.GetProperty("kind").GetString() != "decision"
                 || terminal.GetProperty("operationId").GetString() != _parentOperation
                 || terminal.GetProperty("observation").GetProperty("data").GetProperty("navigation")
                     .GetProperty("notice").GetProperty("source").ValueKind != JsonValueKind.Object)
                 throw new InvalidOperationException("Missing original material notice/source.");
-            if (_stage == 1) _event = terminal.Clone();
-            else if (_event.GetRawText() != terminal.GetRawText())
-                throw new InvalidOperationException("Repeated historical query changed the original event.");
         }
         var navigate = _stage == 2;
         var input = new Dictionary<string, object?>();

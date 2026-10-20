@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Agentica.Clients.Llm;
 using Agentica.Lab.Web.Providers;
 using Agentica.Observations;
@@ -7,6 +8,7 @@ namespace Maze.StartServiceFixture;
 
 internal sealed class WaitingPlannerFactory : ILabPlannerFactory
 {
+    private DecisionHistoryPlanner? _history;
     private int _created, _entered, _cancelled, _scriptedCreated, _scriptedCreateCalls, _scriptedRefineCalls, _scriptedStepsPlanned;
     public int Created => Volatile.Read(ref _created);
     public int Entered => Volatile.Read(ref _entered);
@@ -16,6 +18,7 @@ internal sealed class WaitingPlannerFactory : ILabPlannerFactory
     public int ScriptedRefineCalls => Volatile.Read(ref _scriptedRefineCalls);
     public int ScriptedStepsPlanned => Volatile.Read(ref _scriptedStepsPlanned);
     public DecisionPlannerCounters Decision { get; } = new();
+    public JsonElement[] HistoryEvents() => Volatile.Read(ref _history)?.ReceivedEvents() ?? [];
     public IReadOnlyList<ProviderMetadata> GetProviders() => [new("fixture", "wait-only", true, null, "cancellable-or-scripted-offline-fixture")];
     public IWorkflowPlanner Create(ProviderSettings settings, Action<LlmStreamEvent> onStreamEvent)
     {
@@ -25,7 +28,9 @@ internal sealed class WaitingPlannerFactory : ILabPlannerFactory
         if (settings.Model == "decision-history")
         {
             Decision.Created();
-            return new DecisionHistoryPlanner(Decision);
+            var planner = new DecisionHistoryPlanner(Decision);
+            Volatile.Write(ref _history, planner);
+            return planner;
         }
         if (settings.Model == "decision-corpus")
         {
