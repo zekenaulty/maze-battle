@@ -10,6 +10,7 @@ import { decisionQueryProof, validateDecisionQueryResult } from './decision.quer
 import { decisionPages, MAX_DECISION_LOOKUPS, MAX_DECISION_READS, readPreviousDecision } from './decision.query.read';
 import { decisionQueryFixture } from './decision.query.test-support';
 import type { JsonObject } from '../types';
+import type { ProtocolRead } from './types';
 
 vi.mock('./launch.grant', () => ({ assertLaunchGrant: vi.fn() }));
 vi.mock('./run-grant.certificate', () => ({ readRunGrantCertificate: vi.fn() }));
@@ -105,6 +106,22 @@ describe('explicit historical decision inspection', () => {
 });
 
 describe('retained decision source proof', () => {
+  it('preserves prototype methods and their receiver for real canonical page readers', async () => {
+    const f = await fixture(), checked = await queryDecision(f.tx, f.queryIdentity, f.queryBinding);
+    class Pages implements ProtocolRead {
+      private readonly source: ProtocolRead;
+      constructor(source: ProtocolRead) { this.source = source; }
+      get(area: Parameters<ProtocolRead['get']>[0], key: string) { return this.source.get(area, key); }
+      sourceReceipt(id: string) { return this.source.sourceReceipt(id); }
+      savedSnapshot(key: string) { return this.source.savedSnapshot(key); }
+    }
+    const pages = new Pages(f.pages);
+    expect(Object.hasOwn(pages, 'get')).toBe(false);
+    expect(await validateDecisionQueryResult(pages, checked.proof, f.queryIdentity, f.pending, checked.result)).toEqual(checked.proof);
+    const ref = await f.store(checked.result, checked.proof);
+    expect(await readActionResult(pages, f.queryIdentity, ref)).toEqual(checked.result);
+  });
+
   it.each(['grant', 'intent', 'anchor', 'terminal', 'witness', 'game', 'output', 'operation', 'completion', 'missing'] as const)(
     'rejects %s tampering', async defect => {
       const f = await fixture(), checked = await queryDecision(f.tx, f.queryIdentity, f.queryBinding);

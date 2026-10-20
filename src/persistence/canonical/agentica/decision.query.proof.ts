@@ -35,7 +35,12 @@ export const decisionQueryData = (event: HostOperationEvent | null) => event
 export async function historicalDecision(pages: ProtocolRead, input: DecisionQueryProof,
   inputIdentity: PreparedAction, inputPending: NonNullable<Awaited<ReturnType<typeof loadOriginalAction>>>) {
   const proof = decisionQueryProof(input), identity = snapshotPrepared(inputIdentity), pending = snapshotJson(inputPending);
-  const immutable = { ...pages, liveOperation: async () => { throw Error('Historical query cannot read live operations'); } };
+  const immutable = {
+    get: (area: Parameters<ProtocolRead['get']>[0], key: string) => pages.get(area, key),
+    sourceReceipt: (id: string) => pages.sourceReceipt(id),
+    savedSnapshot: (key: string) => pages.savedSnapshot(key),
+    liveOperation: async () => { throw Error('Historical query cannot read live operations'); },
+  };
   const original = fields(pending.original.sourceRequest.input, 'action grant publication');
   check(original.action === identity.storageKey && equal(original.grant, proof.grant)
     && equal(original.publication, pending.original.publication), 'decision query original grant changed');
