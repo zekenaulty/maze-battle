@@ -108,6 +108,7 @@ test('actual App collects a selected quest item, returns on earned paths and pro
     expect(mobile!.y).toBeGreaterThanOrEqual(0); expect(mobile!.y + mobile!.height).toBeLessThanOrEqual(844);
     await page.screenshot({ path: info.outputPath('actual-app-return-mobile.png') });
     await dialog.getByRole('button', { name: 'Stop Agentic play', exact: true }).click();
+    await expect(dialog.getByRole('status').filter({ hasText: /^stopped$/ })).toBeVisible();
     await dialog.getByRole('button', { name: 'Recovery', exact: true }).click();
     const recovery = page.getByRole('dialog', { name: 'Agentica recovery', exact: true });
     await recovery.getByRole('button', { name: 'Stop Agentic session', exact: true }).click();
