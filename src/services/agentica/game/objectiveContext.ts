@@ -6,9 +6,11 @@ import { readPublication } from '../../../persistence/canonical/agentica/publica
 import { jsonBytes } from '../../../persistence/canonical/validation';
 import { actionResult, captureBinding, type ActionBinding } from './actionContract';
 import { MAX_OBSERVATION_BYTES } from './types';
+import { snapshotPrepared } from '../../../persistence/canonical/agentica/validation';
 
 /** Explicit player-equivalent objective check; no interaction, navigation, reward, or new sight. */
 export async function queryObjective(tx: CanonicalWork, identity: PreparedAction, input: ActionBinding) {
+  identity = snapshotPrepared(identity);
   const binding = captureBinding(input);
   const { objective, proof } = await prepareObjectiveProof(tx, identity, binding);
   const publication = await readPublication(tx.pages, binding.publication);

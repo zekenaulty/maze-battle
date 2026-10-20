@@ -1,5 +1,12 @@
 # Objective Check Qualification
 
+Parent follow-through: `queryObjective` now snapshots the prepared action at
+entry. The previously failing mutation regression passes with the other 28
+focused cases (`test-results/objective-context-repaired.json`). The report below
+preserves the isolated review's original red result; integrated native/service
+verification is recorded in
+[the completion report](../../docs/reviews/issue-11-return-objective-completion.md).
+
 Runtime candidate: `06946e9`; isolated merge: `eaea357`.
 Only new tests and fixture files changed. Native Chrome used fresh IndexedDB on
 strict loopback port 5266. No provider, real service, owner preview, or build.
