@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
-import { ACKNOWLEDGEMENT_BYTES } from '../../src/persistence/canonical/types';
+import { ACKNOWLEDGEMENT_BYTES, DEFAULT_WORK_LIMITS } from '../../src/persistence/canonical/types';
+import { MAX_DECISION_READS, MAX_DECISION_LOOKUPS, MAX_DECISION_READ_BYTES } from '../../src/persistence/canonical/agentica/decision.query.read';
+import type { GameSession } from '../../src/services/game/GameSession';
+import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { counterDelta, absentWindow } from './canonical-start-service.decision.steps';
 
@@ -101,6 +104,24 @@ test('actual App explicitly queries historical decision after room Continue then
       expect(replay[i].source.decision).toMatchObject({ schema: 1, grant: continued.selection.value.data.grant,
         previous: { intent: continued.claim.decision.reference } });
     }
+    const metrics = await page.evaluate(async () => {
+      // @ts-expect-error Test-only observation of real counters and committed transaction diagnostics.
+      const { historyReadMetrics }: typeof import('./canonical-start-service.history-evidence') = await import('/tests/e2e/canonical-start-service.history-evidence.ts');
+      return historyReadMetrics();
+    });
+    // Each fresh query has a shared authorization meter and a nested preparer meter.
+    expect(metrics.fresh).toHaveLength(4);
+    for (const meter of metrics.fresh) {
+      expect(meter.reads).toBeGreaterThan(0); expect(meter.reads).toBeLessThanOrEqual(MAX_DECISION_READS);
+      expect(meter.lookups).toBeLessThanOrEqual(MAX_DECISION_LOOKUPS);
+      expect(meter.bytes).toBeLessThanOrEqual(MAX_DECISION_READ_BYTES);
+    }
+    const freshCommits = replay.map(row => metrics.commits.find(commit => commit.revision === row.source.sourceRequest.expected.revision + 1));
+    for (const commit of freshCommits) {
+      expect(commit).toBeDefined(); expect(commit!.replayed).toBe(false);
+      expect(commit!.stats.reads).toBeLessThanOrEqual(DEFAULT_WORK_LIMITS.reads);
+      expect(commit!.stats.readBytes + commit!.stats.writeBytes).toBeLessThanOrEqual(DEFAULT_WORK_LIMITS.bytes);
+    }
     expect(await page.evaluate(() => window.canonicalStartService.snapshot())).toEqual(continuedHead);
     const counters = await serviceProof();
     expect(counterDelta(counters, baseline)).toEqual({ created: 2, initial: initialWindow,
@@ -133,14 +154,37 @@ test('actual App explicitly queries historical decision after room Continue then
     expect(finalProtocol.child!.operation.state).toBe('acknowledged');
     expect(finalProtocol.parentTerminal!.event).toEqual(terminal);
     expect(await queries(page, actions.slice(2, 4))).toEqual(replay);
-    expect(await page.evaluate(() => window.canonicalStartService.snapshot())).toEqual(final);
+    expect(final.head.revision).toBeGreaterThan(continuedHead.head.revision);
+    const manualLook = await page.evaluate(async () => {
+      const session = Reflect.get(globalThis, '__canonicalStartAppSession') as GameSession;
+      return session.execute('exploration', { kind: 'look' });
+    });
+    const changed = await page.evaluate(() => window.canonicalStartService.snapshot());
+    expect(gameCheckpoint(changed.head.checkpoint).knowledge!.sequence).toBe(gameCheckpoint(final.head.checkpoint).knowledge!.sequence + 1);
+    expect(changed.head.roots.knowledge).not.toEqual(final.head.roots.knowledge);
+    expect(changed.head.roots.world).toEqual(final.head.roots.world);
+    expect(changed.head.allocations).toEqual({});
+    const retry = await page.evaluate(async ({ actions, binding }) => {
+      // @ts-expect-error Original completed SDK hooks only, with fresh command submission forbidden.
+      const { retryHistory, historyReadMetrics }: typeof import('./canonical-start-service.history-evidence') = await import('/tests/e2e/canonical-start-service.history-evidence.ts');
+      return { ...await retryHistory(actions, binding), meters: historyReadMetrics().fresh };
+    }, { actions: actions.slice(2, 4), binding: { grant: continued.selection.value.data.grant, publication: continued.selection.value.data.publication } });
+    expect(retry.submissions).toBe(0); expect(retry.meters).toEqual(metrics.fresh);
+    for (let i = 0; i < retry.results.length; i++) {
+      const result = retry.results[i];
+      expect(result.original.result).toEqual(history[i]); expect(result.after).toEqual(result.original);
+      expect(result.reconciled).toEqual(history[i]); expect(result.actionResult).toEqual(history[i]);
+      expect(JSON.stringify(result.actionResult)).toBe(JSON.stringify(history[i]));
+    }
+    expect(await queries(page, actions.slice(2, 4))).toEqual(replay);
+    expect(await page.evaluate(() => window.canonicalStartService.snapshot())).toEqual(changed);
     expect(wire.sent.filter(frame => frame.type === 'start.durable')).toHaveLength(1);
     expect(wire.sent.filter(frame => frame.type === 'operation.wake')).toHaveLength(1);
     expect(wire.sent.filter(frame => ['operation.adopt', 'resume'].includes(frame.type))).toEqual([]);
     expect(wire.received.filter(({ frame }) => frame.type === 'action.request')).toHaveLength(5);
     expect(await serviceProof()).toEqual(counters);
     await info.attach('actual-app-history-proof.json', { body: JSON.stringify({ before, after, continuedHead, childAck, final,
-      retained, continued, finalProtocol, replay, baseline, counters }, null, 2), contentType: 'application/json' });
+      retained, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters }, null, 2), contentType: 'application/json' });
   } finally {
     await info.attach('history-final-state.json', { body: JSON.stringify({
       snapshot: await page.evaluate(() => window.canonicalStartService.snapshot()).catch(String),

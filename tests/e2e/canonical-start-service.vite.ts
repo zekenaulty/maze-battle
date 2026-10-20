@@ -11,6 +11,14 @@ export default defineConfig({
   plugins: [react(), {
     name: 'actual-app-service-controller', enforce: 'pre',
     transform(source, id) {
+      if (id.replaceAll('\\', '/').endsWith('/src/persistence/canonical/agentica/decision.query.read.ts')) {
+        const anchor = 'return { pages, usage };';
+        if (!source.includes(anchor)) throw Error('Decision query read-meter instrumentation no longer matches');
+        // Observe the real counters without replacing reads, budgets, authority or query results.
+        return source.replace(anchor, `if (new URL(location.href).searchParams.has('historyProof'))
+          (globalThis.__canonicalDecisionReadMeters ??= []).push(usage);
+          ${anchor}`);
+      }
       if (id.replaceAll('\\', '/').endsWith('/src/persistence/canonical/game/initialize.ts')) {
         const anchor = 'seed = crypto.getRandomValues(new Uint32Array(1))[0]';
         if (!source.includes(anchor)) throw Error('Actual game seed instrumentation no longer matches');
