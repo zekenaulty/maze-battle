@@ -65,6 +65,11 @@ describe('snapshot bounded earned navigation', () => {
     expect(route.steps).toHaveLength(NAVIGATION_STEPS);
     expect(route.complete).toBe(false);
     expect(route.steps.at(-1)?.to).toEqual(cells[64].at);
+    const full = findKnownRoute(region, cells[0].at, cells.at(-1)!.world, NAVIGATION_CELLS)!;
+    expect(full.complete).toBe(true); expect(full.steps).toHaveLength(99);
+    expect(full.steps.slice(0, NAVIGATION_STEPS)).toEqual(route.steps);
+    for (const limit of [0, -1, 1.5, NaN, Infinity, NAVIGATION_CELLS + 1])
+      expect(() => findKnownRoute(region, cells[0].at, cells.at(-1)!.world, limit)).toThrow('prefix bound');
     expect(findKnownRoute(region, cells[0].at, cells[0].world)).toEqual({ steps: [], complete: true });
     expect(() => findKnownRoute({ ...region, cells: [...region.cells, region.cells[0]] }, cells[0].at, cells[0].world)).toThrow('duplicate');
     expect(() => findKnownRoute({ ...region, cells: Array(513).fill(region.cells[0]) }, cells[0].at, cells[0].world)).toThrow('bound');

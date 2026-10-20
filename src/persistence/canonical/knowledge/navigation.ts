@@ -30,7 +30,9 @@ export function navigationScope(floor: number, start: GridPosition, target: Grid
     column: Math.min(start.column, target.column) - Math.floor((columns - baseColumns) / 2), rows, columns };
 }
 
-export function findKnownRoute(region: KnowledgeRegion, start: WorldPosition, target: GridPosition): KnownRoute | null {
+export function findKnownRoute(region: KnowledgeRegion, start: WorldPosition, target: GridPosition,
+  stepLimit = NAVIGATION_STEPS): KnownRoute | null {
+  check(Number.isSafeInteger(stepLimit) && stepLimit > 0 && stepLimit <= NAVIGATION_CELLS, 'invalid route prefix bound');
   check(region.cells.length <= NAVIGATION_CELLS, 'navigation region exceeds cell bound');
   const cells = new Map(region.cells.map(({ cell }) => [cellKey(cell.at), cell]));
   check(cells.size === region.cells.length, 'duplicate navigation cell');
@@ -47,7 +49,7 @@ export function findKnownRoute(region: KnowledgeRegion, start: WorldPosition, ta
         const step = previous.get(key)!; steps.push(step); key = cellKey(step.from);
       }
       steps.reverse();
-      return { steps: steps.slice(0, NAVIGATION_STEPS), complete: steps.length <= NAVIGATION_STEPS };
+      return { steps: steps.slice(0, stepLimit), complete: steps.length <= stepLimit };
     }
     for (const direction of DIRECTIONS) {
       const target = cell.edges[direction]?.target;

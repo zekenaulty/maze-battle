@@ -1,6 +1,6 @@
 import { movePosition } from '../../../domain/maze/movement';
 import type { GameCheckpoint } from '../game/checkpoint';
-import { findKnownRoute } from '../knowledge/navigation';
+import { findKnownRoute, NAVIGATION_CELLS } from '../knowledge/navigation';
 import { readKnowledgeRegion, type KnowledgeRegionScope } from '../knowledge/region';
 import { readKnownCells } from '../knowledge/queries';
 import { DIRECTIONS, type KnowledgeRead } from '../knowledge/types';
@@ -38,7 +38,8 @@ export async function planLocalExploration(pages: KnowledgeRead, checkpoint: Gam
         && !Object.hasOwn(cell.edges, d) && !all.has(`${next.row}:${next.column}`);
     });
     if (!unresolved) continue;
-    const route = findKnownRoute(scoped, checkpoint.position, cell.world);
+    // Rank by full bounded path length, not equal-length truncated prefixes.
+    const route = findKnownRoute(scoped, checkpoint.position, cell.world, NAVIGATION_CELLS);
     if (!route?.complete || !route.steps.length) continue;
     const candidate = { target: cell.at, route: route.steps.map(({ direction, to }) => ({ direction, to })),
       row: cell.world.row, column: cell.world.column };
@@ -56,5 +57,6 @@ export async function planScopedApproach(pages: KnowledgeRead, checkpoint: GameC
   const window = retainedWindow ?? (await localExplorationWindow(pages, checkpoint))!;
   const region = await readKnowledgeRegion(pages, checkpoint, window);
   const route = findKnownRoute({ ...region, cells: region.cells.filter(c => c.cell.at.cell.spaceId === target.cell.spaceId) }, checkpoint.position, goal.cell.world);
-  return route?.complete ? route.steps.slice(0, RETAINED_ROUTE_STEPS).map(({ direction, to }) => ({ direction, to })) : null;
+  // A non-null route proves reachability; complete describes only its returned prefix.
+  return route ? route.steps.slice(0, RETAINED_ROUTE_STEPS).map(({ direction, to }) => ({ direction, to })) : null;
 }
