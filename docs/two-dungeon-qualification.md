@@ -17,8 +17,8 @@ the replacement-schema A/B baseline and actual-App/service composition. Both
 start with normal 30-cell sight and no discovery prelude. A bounded offline
 policy follows different disclosed branches, explicitly collects the ordinary
 seal and returns under host proof: 22 tool choices across seven explicit windows
-per world, no per-cell planning or paid calls. The integrated service cohort
-passes 36 cases. Native fixed-action comparisons cover selected earned semantic
+per world, no per-cell planning or paid calls. The latest integrated service cohort
+passes 43 cases at `16279ff`. Native fixed-action comparisons cover selected earned semantic
 projections through first lawful divergence, not the complete surface matrix.
 
 Before/after-collection settled-boundary quota/reload now has four actual-service

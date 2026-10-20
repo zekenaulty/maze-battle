@@ -605,6 +605,12 @@ without separate limits/authorization. Issue #11 is not complete.
 runtime defects. These are planning ranges, not a promised completion time or
 an extrapolation from test duration. The active goal remains incomplete.
 
+Latest checked baseline: full units at `316212d` **4,485 PASS / one existing
+optional SKIP**; **101 native** frontier/exploration/known-route regressions;
+production/fixture types and isolated build; full actual-App/pinned-service
+cohort at `16279ff` **43/43 PASS** (1,065.74s). Intermediate failures and the
+test-only fixes are retained in the linked reports. No paid provider was used.
+
 The six bounded sprints below replace an open-ended interpretation of "full
 matrix." Do not run every fault at every checkpoint. Use a declared set whose
 cases collectively cover the listed invariants, preserving failed attempts.
@@ -630,6 +636,21 @@ Room-detail and known-room/connection map scopes are required operations, not
 an always-present map dump; their pagination and distant recall cannot be
 substituted by bounded coordinate windows. Unlimited room coverage is a separate
 deferred capability, not an excuse to omit these scoped operations.
+
+Sprint 1 source handoff at `16279ff`: existing `KnownRoom` membership and four-node
+`map` pages describe observed **spaces**, including passages. There is no earned
+adjacency index or sourced room/passage classification. An honest space-link
+pager is a useful intermediate, not proof of the requested room-only map.
+Store bounded reciprocal links only when ordinary observation earns them,
+under the same knowledge witness, with stable endpoint identities and exact
+source evidence. Query one known space's links explicitly; never read world
+ports or scan historical rooms to answer it. Add earned classification before
+collapsing passages into room-level connections; do not infer it from IDs.
+Historical replay must return its original receipt without refreshing unseen
+facts. Missing/inconsistent provenance refuses rather than becoming an empty
+graph. Preserve existing disclosure, transaction and payload limits. UI graph
+selection and desktop/mobile parity remain part of the scoped-map exit gate,
+not a claim established by backend readers alone.
 
 Each remaining test must name its missing invariant before it is added. A new
 unrelated feature, arbitrary ancestry depth, unlimited room coverage or another

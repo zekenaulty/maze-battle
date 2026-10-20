@@ -202,8 +202,12 @@ that the unobserved remainder completed.
 Fixture-only `751f051` waits for that existing terminal boundary first, then
 requires exactly five results and all original custody/source checks. The three
 history modes pass in `maze-start-service-AsasYp/`; no timeout, authority or
-result assertion was relaxed. A complete post-repair service rerun is still
-required; the earlier aggregate is retained as failed rather than relabelled.
+result assertion was relaxed. The complete post-repair cohort at `16279ff`
+passes **43/43**, 1,065.74 seconds, no failures/skips/retries:
+`test-results/maze-start-service-q79iK8/`. Source/fixture/assembly hashes are
+retained in its provenance and browser attachments. The earlier failed
+aggregate remains unchanged. Agentica stays at clean `27cb2ce`, with isolated
+SDK 10.0.401 rather than repository pin 10.0.302; paid calls remain zero.
 
 ## Remaining Boundaries
 

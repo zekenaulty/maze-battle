@@ -139,9 +139,11 @@ The fourth applied result arrived about 3ms later, both history queries were
 accepted, and navigation planning started before teardown. The existing
 30-second terminal-decision assertion was never reached. Fixture `751f051`
 waits for that same terminal decision first and then requires exactly five
-results. All three history modes pass in `maze-start-service-AsasYp/`; the failed
-aggregate remains retained pending a complete post-repair regression. No
-production change, timeout increase, paid call or weakened identity check.
+results. All three history modes pass in `maze-start-service-AsasYp/` (77.10s).
+The complete post-repair cohort at `16279ff` passes **43/43**, 1,065.74 seconds,
+zero failures/skips/retries, in `maze-start-service-q79iK8/`. The earlier failed
+aggregate remains retained. No production change, timeout increase, paid call
+or weakened identity check was required for this history fixture repair.
 
 Same-owner, adopted and one post-transfer progress-sourced history now have
 composed proof. Zero-progress source variants and deeper ancestry still need

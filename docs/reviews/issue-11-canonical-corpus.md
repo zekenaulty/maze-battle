@@ -141,6 +141,14 @@ preview/database remain untouched.
 
 ## Still Open
 
+Latest integrated regression at `16279ff`: **43/43 actual-App/pinned-service
+cases PASS**, 1,065.74 seconds, no failures/skips/retries;
+`test-results/maze-start-service-q79iK8/`. This includes the four corpus
+quota/reload cases and three history modes. The first expanded cohort passed
+42 and failed a premature history-test assertion, repaired without runtime or
+timeout changes; [the history report](issue-11-decision-history-query.md)
+retains that failed evidence. A green regression does not close the gates below.
+
 - Full fixed-action A/B UI/tool/memory/progress and storage-work comparison.
   The native baseline compares selected earned semantic projections through
   first lawful divergence; raw timing/read differences remain unqualified.
