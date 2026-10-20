@@ -5,7 +5,7 @@ import config from '../e2e/canonical-start-service.vite';
 const registration = vi.hoisted(() => ({ extend: vi.fn(), use: vi.fn() }));
 vi.mock('@playwright/test', async () => ({ expect: (await import('vitest')).expect,
   test: { extend: registration.extend.mockImplementation(() => Object.assign(vi.fn(), { use: registration.use })) } }));
-vi.mock('./service.mjs', () => ({ serviceOrigin: 'http://127.0.0.1:5259',
+vi.mock('./service.mjs', () => ({ browserOrigin: 'http://127.0.0.1:5258', serviceOrigin: 'http://127.0.0.1:5259',
   ServiceProcess: class { start() { throw Error('No services in boot regression'); } } }));
 
 afterEach(() => { vi.unstubAllGlobals(); });
