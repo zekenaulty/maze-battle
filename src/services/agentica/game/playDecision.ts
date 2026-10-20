@@ -10,6 +10,7 @@ import type { DecisionSdk } from './decisionRemote';
 import { publishGamePublication } from './publication';
 import { startPlayNavigation, type PlayNavigationStatus } from './playNavigation';
 import { deferred, transportGate } from './transportGate';
+import { completionHooks, completionMessage } from './playCompletion';
 
 export interface PlayDecisionOriginal { action: AgenticaAction; binding: ActionBinding }
 export interface PlayDecisionStatus { phase: 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'satisfied'; message: string; canContinue?: boolean }
@@ -35,6 +36,7 @@ export function startPlayDecision(input: PlayDecisionOptions) {
   let navigation: Awaited<ReturnType<typeof startPlayNavigation>> | undefined, successor: PlayDecisionOriginal | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined, deadline: ReturnType<typeof setTimeout> | undefined;
   let closed = false, parked = false, acknowledged = false, completionSeen = false, satisfied = false;
+  let deliveryUnconfirmed = false;
   const current = () => { if (session.hostSignal !== hostSignal) close(); return !closed && !signal.aborted; };
   const close = () => {
     if (closed) return; closed = true; clearTimeout(timer); clearTimeout(deadline);
@@ -50,9 +52,7 @@ export function startPlayDecision(input: PlayDecisionOptions) {
   };
   const completed = () => {
     satisfied = true;
-    update({ phase: 'satisfied', message: parked
-      ? 'Host objective satisfied; Agentica outcome received. Retained cleanup still requires Stop.'
-      : 'Host objective satisfied. Stop remains available for retained cleanup.' });
+    update({ phase: 'satisfied', message: completionMessage(parked, deliveryUnconfirmed) });
   };
   const withdraw = (reason: DecisionWithdrawal) => {
     if (!current()) return;
@@ -87,7 +87,8 @@ export function startPlayDecision(input: PlayDecisionOptions) {
     try {
       const attached = await createGameDecisionController(session, original.action, original.binding, {
         signal, sameOwnerOnly: mode === 'continue', adoptionOnly: mode === 'adopt', onWithdraw: withdraw,
-        factory: hooks => {
+        factory: originalHooks => {
+          const hooks = completionHooks(originalHooks);
           const sdk: DecisionSdk = factory({ ...hooks,
             async onAction(value) {
               const action = structuredClone(value), result = await hooks.onAction(action);
@@ -108,7 +109,13 @@ export function startPlayDecision(input: PlayDecisionOptions) {
               }
               return result;
             },
-            onStatus(status) { hooks.onStatus?.(status); if (status.state === 'action.error') fail(new Error('Successor action requires recovery.')); },
+            onStatus(status) {
+              hooks.onStatus?.(status);
+              if (status.state === 'action.error' && current()) {
+                if (completionSeen) { deliveryUnconfirmed = true; if (satisfied) completed(); }
+                else fail(new Error('Successor action requires recovery.'));
+              }
+            },
           });
           return sdk;
         },

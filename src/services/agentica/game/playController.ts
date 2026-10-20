@@ -11,6 +11,7 @@ import { startPlayDecision, type PlayDecisionOriginal } from './playDecision';
 import { inspectPlayAdoption, type PlayAdoptionOffer } from './playAdoption';
 import { readPlayDecisionAllowance } from './playAllowance';
 import { stopGamePlay } from './playStop';
+import { completionHooks, completionMessage } from './playCompletion';
 
 export interface GamePlayState {
   phase: 'idle' | 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'satisfied' | 'stopping' | 'stopped' | 'recovery';
@@ -72,7 +73,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   async function launch(config: GameLaunchOptions, launchId: string, token: number, localGate: ReturnType<typeof transportGate>) {
     const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && session.hostSignal === hostSignal;
     const report = (error: unknown) => { if (current()) fail(error); };
-    let sdk: AgenticaHost, completionSeen = false;
+    let sdk: AgenticaHost, completionSeen = false, deliveryUnconfirmed = false;
     try {
       await session.flush(); localGate.signal.throwIfAborted();
       check(session.view.controlled && !session.view.busy && !session.view.recoveryRequired
@@ -82,14 +83,15 @@ export function createGamePlayController(session: GameSession, changed: (state: 
       check(!previous.value || previous.value.guard.state === 'acknowledged', 'Recover the previous Agentic session before starting another.');
       await prepareGameLaunch(localGate.port, config, launchId); localGate.signal.throwIfAborted();
       update({ phase: 'starting', message: 'Starting Agentica' });
-      const attached = await createGameTransport(localGate.port, launchId, hooks => {
+      const attached = await createGameTransport(localGate.port, launchId, originalHooks => {
+        const hooks = completionHooks(originalHooks);
         sdk = factory({ ...hooks,
           async onAction(action) {
             const result = await hooks.onAction(action);
             if (result.completion && current() && !terminal) {
               // The canonical hook owns proof. Keep the socket alive for the SDK's result persistence and reply.
               completionSeen = true;
-              satisfied('Host objective satisfied. Stop remains available for retained cleanup.');
+              satisfied(completionMessage(false, deliveryUnconfirmed));
             }
             if (result.operation && current() && !terminal) {
               // Scheduling cannot change an already committed action result, including replay.
@@ -116,12 +118,15 @@ export function createGamePlayController(session: GameSession, changed: (state: 
           },
           onStatus(status) {
             hooks.onStatus?.(status);
-            if (status.state === 'action.error') report(new Error('Agentica action requires recovery.'));
+            if (status.state === 'action.error' && current()) {
+              if (completionSeen) { deliveryUnconfirmed = true; satisfied(completionMessage(false, true)); }
+              else report(new Error('Agentica action requires recovery.'));
+            }
           },
         }); return sdk;
       }, reason => {
         if (reason === 'outcome' && completionSeen && current()) {
-          satisfied('Host objective satisfied; Agentica outcome received. Retained cleanup still requires Stop.');
+          satisfied(completionMessage(true, deliveryUnconfirmed));
           return;
         }
         // A parked run closes its model channel. The separate driver still must prove exact HTTP custody before moving.

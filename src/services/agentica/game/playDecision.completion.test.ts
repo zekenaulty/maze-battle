@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { m, run, attach, drain, hold, notice, options, sdk, scope, host, update, onDecision, fail,
   successorAction, result, start } from './playDecision.test-support';
 import { deferred } from './transportGate';
+import { actionFingerprint, actionKey, type AgenticaHostOptions } from '../sdk/agentica-host.mjs';
+import { completionSdk, completionStore } from './playCompletion.test-support';
+import { protocolResult } from '../../../persistence/canonical/agentica/types.test-support';
 
 const completed = { ...result, operation: undefined,
   completion: { objectiveId: start.objectiveId, evidenceId: 'host-proof', summary: 'Host return proof satisfied.' } };
@@ -27,8 +30,11 @@ describe('successor host completion after predecessor handoff', () => {
     m.action.mockResolvedValue(completed); const runner = await attach();
     await expect(options.onAction(successorAction)).resolves.toBe(completed);
     options.onStatus?.({ state: 'action.error', detail: 'Post-hook storage read failed.' });
-    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false }));
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false,
+      message: expect.stringContaining('Service delivery is unconfirmed') }));
     expect(fail).not.toHaveBeenCalled(); expect(sdk.close).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
+    notice('outcome');
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ message: expect.stringContaining('Service delivery is unconfirmed') }));
     runner.close(); expect(sdk.close).toHaveBeenCalledOnce();
   });
 
@@ -81,5 +87,83 @@ describe('successor host completion after predecessor handoff', () => {
       payload: { completion: completed.completion } });
     expect(fail).toHaveBeenCalledOnce(); expect(update.mock.calls.some(([s]) => s.phase === 'satisfied')).toBe(false);
     expect(m.action).not.toHaveBeenCalled(); expect(onDecision).not.toHaveBeenCalled();
+  });
+});
+
+describe('successor completion through the real SDK', () => {
+  async function setup() {
+    const inspection = { ...successorAction, capabilityId: 'maze.inspect', arguments: { scope: 'objective' },
+      deadlineAt: new Date(Date.now() + 60_000).toISOString() };
+    const completed = { ...protocolResult(inspection),
+      completion: { objectiveId: start.objectiveId, evidenceId: 'host-proof', summary: 'Satisfied locally.' } };
+    const store = completionStore(inspection, completed);
+    m.load.mockImplementation(store.load); m.save.mockImplementation(store.save);
+    m.action.mockImplementation(store.execute); m.reconcile.mockImplementation(store.reconcile);
+    let wire!: ReturnType<typeof completionSdk>, hooks!: AgenticaHostOptions;
+    const runner = run({ factory: options => {
+      hooks = options; wire = completionSdk(options, inspection, start.objectiveId);
+      wire.sdk.wakeOperation = sdk.wakeOperation; return wire.sdk;
+    } });
+    await vi.advanceTimersByTimeAsync(500);
+    const extra = { ...successorAction, actionId: 'fresh-after-completion', deadlineAt: inspection.deadlineAt };
+    return { inspection, completed, extra, store, wire, hooks, runner };
+  }
+  it('seals before predecessor ACK while preserving the delayed SDK reply and exact replay', async () => {
+    const barrier = hold(m.ack), f = await setup(); await barrier.entered;
+    const delivery = f.wire.deliver(f.inspection); await drain();
+    expect(m.action).toHaveBeenCalledOnce(); expect(f.wire.frames).toHaveLength(0);
+    expect(update.mock.calls.some(([state]) => state.phase === 'satisfied')).toBe(false);
+    await expect(f.hooks.saveAction(actionKey(f.extra), { fingerprint: actionFingerprint(f.extra), status: 'pending' })).rejects.toThrow('sealed');
+    const extraDelivery = f.wire.deliver(f.extra); barrier.release(); await delivery; await extraDelivery;
+    expect(f.wire.frames.map(frame => frame.payload.disposition)).toEqual(['applied', 'unresolved']);
+    expect(f.wire.frames[0].payload).toEqual(f.completed); expect(f.wire.close).not.toHaveBeenCalled();
+    expect(m.save).toHaveBeenCalledOnce(); expect(m.action).toHaveBeenCalledOnce();
+    expect(f.store.records.has(actionKey(f.extra))).toBe(false); expect(f.store.effect).not.toHaveBeenCalled();
+    expect(m.driver).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
+    await expect(f.hooks.onAction(f.extra)).rejects.toThrow('sealed fresh action execution');
+    await expect(f.hooks.onAction({ ...f.inspection, arguments: { scope: 'cell' } })).rejects.toThrow('sealed');
+    const record = f.store.records.get(actionKey(f.inspection))!;
+    await expect(f.hooks.saveAction(actionKey(f.inspection), record)).resolves.toBeUndefined();
+    await expect(f.hooks.reconcileAction!(f.inspection, record)).resolves.toEqual(f.completed);
+    await f.wire.deliver(f.inspection, 'action.reconcile');
+    expect(f.wire.frames.at(-1)!.payload).toEqual(f.completed); expect(m.action).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false }));
+    expect(fail).not.toHaveBeenCalled(); f.runner.close(); expect(f.wire.close).toHaveBeenCalledOnce();
+  });
+  it('signals a real SDK delivery failure without closing the reply channel or discarding local proof', async () => {
+    const f = await setup(); let failed = false;
+    m.load.mockImplementation(async key => {
+      if (!failed && f.store.records.get(key)?.status === 'completed') { failed = true; throw Error('Storage read failed'); }
+      return f.store.load(key);
+    });
+    await f.wire.deliver(f.inspection);
+    expect(f.wire.frames[0].payload.disposition).toBe('unresolved');
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false,
+      message: expect.stringContaining('Service delivery is unconfirmed') }));
+    expect(f.wire.close).not.toHaveBeenCalled(); expect(fail).not.toHaveBeenCalled();
+    await f.wire.deliver(f.inspection); expect(f.wire.frames.at(-1)!.payload).toEqual(f.completed);
+    f.wire.notice('outcome', { status: 'failed' });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ message: expect.stringContaining('Service delivery is unconfirmed') }));
+    expect(m.action).toHaveBeenCalledOnce(); expect(m.cleanup).not.toHaveBeenCalled();
+  });
+  it('also seals when the SDK loads and replays an already committed completion', async () => {
+    const f = await setup();
+    f.store.records.set(actionKey(f.inspection), { fingerprint: actionFingerprint(f.inspection), status: 'completed', result: f.completed });
+    await f.wire.deliver(f.inspection);
+    expect(f.wire.frames[0].payload).toEqual(f.completed);
+    await expect(f.hooks.onAction(f.extra)).rejects.toThrow('sealed');
+    await f.wire.deliver(f.extra);
+    expect(m.save).not.toHaveBeenCalled(); expect(m.action).not.toHaveBeenCalled(); expect(f.store.effect).not.toHaveBeenCalled();
+  });
+  it.each(['stop', 'takeover'])('ignores late SDK completion/error on %s while preserving completed persistence', async kind => {
+    const f = await setup(), barrier = hold(m.action), delivery = f.wire.deliver(f.inspection); await barrier.entered;
+    if (kind === 'stop') scope.abort(); else host.abort();
+    const updates = update.mock.calls.length; barrier.release(); await delivery;
+    f.hooks.onStatus?.({ state: 'action.error', detail: 'Late failure' }); f.wire.notice('outcome', { status: 'failed' });
+    expect(update).toHaveBeenCalledTimes(updates); expect(update.mock.calls.some(([state]) => state.phase === 'satisfied')).toBe(false);
+    await expect(f.hooks.saveAction(actionKey(f.inspection), f.store.records.get(actionKey(f.inspection))!)).resolves.toBeUndefined();
+    await f.wire.deliver(f.extra);
+    expect(m.save).toHaveBeenCalledOnce(); expect(m.action).toHaveBeenCalledOnce(); expect(f.store.effect).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
   });
 });

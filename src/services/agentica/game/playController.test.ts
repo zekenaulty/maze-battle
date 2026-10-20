@@ -13,6 +13,8 @@ import { deferred } from './transportGate';
 import { mazeCapabilities } from './capabilities';
 import type { PlayDecisionOptions } from './playDecision';
 import type { PlayAdoptionOffer } from './playAdoption';
+import { actionFingerprint, actionKey } from '../sdk/agentica-host.mjs';
+import { completionSdk, completionStore } from './playCompletion.test-support';
 
 const m = vi.hoisted(() => ({ read: vi.fn(), prepare: vi.fn(), execute: vi.fn(), publication: vi.fn(),
   hooks: vi.fn(), action: vi.fn(), save: vi.fn(), load: vi.fn(), reconcile: vi.fn(), driver: vi.fn(), stop: vi.fn(), decision: vi.fn(),
@@ -216,8 +218,9 @@ describe('canonical host completion without releasing cleanup custody', () => {
     await expect(options.onAction(inspection)).resolves.toBe(completed);
     options.onStatus?.({ state: 'action.error', detail: 'Post-hook storage read failed.' });
     expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
-    expect(controller.state.message).not.toContain('acknowledged');
-    expect(sdkClose).not.toHaveBeenCalled(); expect(releaseControl).not.toHaveBeenCalled();
+    expect(controller.state.message).toContain('Service delivery is unconfirmed');
+    notice('outcome'); expect(controller.state.message).toContain('Service delivery is unconfirmed');
+    expect(releaseControl).not.toHaveBeenCalled();
     await controller.stop(); expect(m.stop).toHaveBeenCalledOnce(); expect(releaseControl).toHaveBeenCalledOnce();
   });
 
@@ -245,6 +248,82 @@ describe('canonical host completion without releasing cleanup custody', () => {
     const input = { ...config, returnQuestId: 'owner-selection' }, barrier = hold(flush), startup = controller.start(input);
     await barrier.entered; input.returnQuestId = 'changed'; barrier.release(); await startup;
     expect(m.prepare.mock.calls[0][1]).toMatchObject({ returnQuestId: 'owner-selection', objective: config.objective });
+  });
+});
+
+describe('initial completion through the real SDK', () => {
+  async function setup() {
+    const inspection = { ...action, actionId: 'completion', capabilityId: 'maze.inspect', arguments: { scope: 'objective' },
+      deadlineAt: new Date(Date.now() + 60_000).toISOString() };
+    const completed = { ...protocolResult(inspection),
+      completion: { objectiveId: start.objectiveId, evidenceId: 'host-proof', summary: 'Satisfied locally.' } };
+    const store = completionStore(inspection, completed);
+    m.load.mockImplementation(store.load); m.save.mockImplementation(store.save);
+    m.action.mockImplementation(store.execute); m.reconcile.mockImplementation(store.reconcile);
+    let wire!: ReturnType<typeof completionSdk>;
+    controller.close(); controller = createGamePlayController(session, changed, hooks => {
+      options = hooks; wire = completionSdk(hooks, inspection, start.objectiveId);
+      wire.sdk.startDurable = startDurable; return wire.sdk;
+    });
+    await controller.start(config);
+    const extra = { ...action, actionId: 'fresh-after-completion', deadlineAt: inspection.deadlineAt };
+    return { inspection, completed, extra, store, wire };
+  }
+  it('seals extra action admission without blocking the reply, completed saves or original replay', async () => {
+    const f = await setup();
+    await f.wire.deliver(f.inspection); await f.wire.deliver(f.extra);
+    expect(f.wire.frames.map(frame => frame.payload.disposition)).toEqual(['applied', 'unresolved']);
+    expect(f.wire.frames[0].payload).toEqual(f.completed); expect(f.wire.close).not.toHaveBeenCalled();
+    expect(m.save).toHaveBeenCalledOnce(); expect(m.action).toHaveBeenCalledOnce();
+    expect(f.store.records.has(actionKey(f.extra))).toBe(false); expect(f.store.effect).not.toHaveBeenCalled();
+    expect(m.driver).not.toHaveBeenCalled(); expect(m.stop).not.toHaveBeenCalled();
+    await expect(options.onAction(f.extra)).rejects.toThrow('sealed fresh action execution');
+    await expect(options.onAction({ ...f.inspection, arguments: { scope: 'cell' } })).rejects.toThrow('sealed');
+    const record = f.store.records.get(actionKey(f.inspection))!;
+    await expect(options.saveAction(actionKey(f.inspection), record)).resolves.toBeUndefined();
+    await expect(options.saveAction(actionKey(f.inspection), { ...record, fingerprint: actionFingerprint(f.extra) })).rejects.toThrow('manufacture');
+    await expect(options.reconcileAction!(f.inspection, record)).resolves.toEqual(f.completed);
+    await f.wire.deliver(f.inspection, 'action.reconcile');
+    expect(f.wire.frames.at(-1)!.payload).toEqual(f.completed);
+    expect(m.action).toHaveBeenCalledOnce(); expect(m.save).toHaveBeenCalledOnce();
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    await controller.stop(); expect(m.stop).toHaveBeenCalledOnce(); expect(releaseControl).toHaveBeenCalledOnce();
+  });
+  it('reports a real post-hook SDK failure without losing proof, Stop, or the unresolved reply', async () => {
+    const f = await setup(); let failed = false;
+    m.load.mockImplementation(async key => {
+      if (!failed && f.store.records.get(key)?.status === 'completed') { failed = true; throw Error('Storage read failed'); }
+      return f.store.load(key);
+    });
+    await f.wire.deliver(f.inspection);
+    expect(f.wire.frames[0].payload.disposition).toBe('unresolved');
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(controller.state.message).toContain('Service delivery is unconfirmed'); expect(f.wire.close).not.toHaveBeenCalled();
+    await f.wire.deliver(f.inspection);
+    expect(f.wire.frames.at(-1)!.payload).toEqual(f.completed); expect(m.action).toHaveBeenCalledOnce();
+    f.wire.notice('outcome', { status: 'failed' });
+    expect(controller.state.message).toContain('Service delivery is unconfirmed');
+    await controller.stop(); expect(m.stop).toHaveBeenCalledOnce();
+  });
+  it('also seals when the SDK loads and replays an already committed completion', async () => {
+    const f = await setup();
+    f.store.records.set(actionKey(f.inspection), { fingerprint: actionFingerprint(f.inspection), status: 'completed', result: f.completed });
+    await f.wire.deliver(f.inspection);
+    expect(f.wire.frames[0].payload).toEqual(f.completed);
+    await expect(options.onAction(f.extra)).rejects.toThrow('sealed');
+    await f.wire.deliver(f.extra);
+    expect(m.save).not.toHaveBeenCalled(); expect(m.action).not.toHaveBeenCalled(); expect(f.store.effect).not.toHaveBeenCalled();
+  });
+  it.each(['stop', 'takeover', 'new lifetime'])('fences late SDK completion/status on %s while retaining completed persistence', async kind => {
+    const f = await setup(), barrier = hold(m.action), delivery = f.wire.deliver(f.inspection); await barrier.entered;
+    if (kind === 'stop') await controller.stop(); else if (kind === 'takeover') host.abort(); else host = new AbortController();
+    const updates = changes.length;
+    barrier.release(); await delivery;
+    options.onStatus?.({ state: 'action.error', detail: 'Late failure' }); f.wire.notice('outcome', { status: 'failed' });
+    expect(changes).toHaveLength(updates); expect(changes.some(s => s.phase === 'satisfied')).toBe(false);
+    await expect(options.saveAction(actionKey(f.inspection), f.store.records.get(actionKey(f.inspection))!)).resolves.toBeUndefined();
+    await f.wire.deliver(f.extra);
+    expect(m.save).toHaveBeenCalledOnce(); expect(m.action).toHaveBeenCalledOnce(); expect(f.store.effect).not.toHaveBeenCalled();
   });
 });
 
