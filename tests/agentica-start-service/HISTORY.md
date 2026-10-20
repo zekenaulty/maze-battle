@@ -34,3 +34,28 @@ event equality but failed an extra cross-boundary serialized-order assertion.
 Its trace and payloads retain the same values with sorted planner-side keys.
 That fixture assertion was corrected to strict structural equality; no service
 or production behavior was changed.
+
+## Reload Adoption
+
+The history spec also reloads the actual App at the material decision, inspects
+the retained operation locally, and clicks `Adopt and continue`. Inspection
+neither writes nor sends service traffic. The original root settings/grant and
+terminal remain exact; the separate adoption observation supplies fresh actor
+context. The successor's actions, guard receipt and selected grant use the new
+owner/epoch, while both planner-received history events retain the original
+epoch, notice and progress source. Existing predecessor ACK, zero-step custody,
+funded Stop and changed-sight completed-retry assertions run in both cases.
+
+Focused same-owner/adoption run `test-results/maze-start-service-EwF47x` passed
+2/2 in 45.6s, zero skips/retries. Adoption advanced epoch 3 to 5, preserved the
+epoch-3 event, and used 41 source reads per fresh query (96/97 transaction reads).
+Both cases ended with no allocations and zero retry submissions. Fixture
+TypeScript and service build passed; SDK 10.0.401 remains alternate-pin evidence.
+Planner logic/output, counters and production code are unchanged; the spec
+registers one additional case without changing corpus assertions.
+
+Retained first candidate `test-results/maze-start-service-QUU1R7` passed the
+same-owner case but failed an adoption assertion that incorrectly expected the
+original `decision.observation` to be renewed. Production intentionally puts
+the fresh projection in `adoption.observation`; the test now checks both exact
+historical decision and separate current observation. No runtime repair.

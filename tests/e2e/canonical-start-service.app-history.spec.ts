@@ -8,6 +8,7 @@ import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint'
 import { serviceOrigin } from '../agentica-start-service/service.mjs';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { counterDelta, absentWindow } from './canonical-start-service.decision.steps';
+import { adoptHistory } from './canonical-start-service.history-adoption';
 
 test.use({ roomProof: true });
 const initialWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
@@ -36,7 +37,9 @@ async function queries(page: Page, actions: AgenticaAction[]) {
   }, actions);
 }
 
-test('actual App explicitly queries historical decision after room Continue then settles zero-step custody', async ({ page, wire }, info) => {
+for (const adoption of [false, true]) test(adoption
+  ? 'actual App explicitly queries historical decision after reload adoption then settles zero-step custody'
+  : 'actual App explicitly queries historical decision after room Continue then settles zero-step custody', async ({ page, wire }, info) => {
   test.setTimeout(120_000);
   await page.goto('/?roomProof=1&historyProof=1');
   await expect(page.getByText(/Dungeon 1 - Ready/)).toBeVisible();
@@ -77,7 +80,8 @@ test('actual App explicitly queries historical decision after room Continue then
     expect(await serviceProof()).toEqual(paused);
     expect(await page.evaluate(() => window.canonicalStartService.snapshot())).toEqual(after);
 
-    await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
+    const reloaded = adoption ? await adoptHistory(page, wire, after) : null;
+    if (!adoption) await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect.poll(() => wire.sent.filter(frame => frame.type === 'action.result').length).toBe(5);
     await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 30_000 });
     await expect(dialog.getByRole('alert')).toHaveCount(0);
@@ -91,11 +95,29 @@ test('actual App explicitly queries historical decision after room Continue then
     const continued = await operation(page, initial[1], actions[4]), continuedHead = await page.evaluate(() => window.canonicalStartService.snapshot());
     if (!continued.claim || !continued.selection || !continued.parent || continued.child?.kind !== 'navigation' || !continued.childTerminal)
       throw Error('Missing continued custody evidence.');
-    const wake = wire.sent.find(frame => frame.type === 'operation.wake')!.payload;
+    const continuation = wire.sent.find(frame => frame.type === (adoption ? 'operation.adopt' : 'operation.wake'))!.payload;
+    const wake = adoption ? continuation.decision : continuation;
     expect(wake).toEqual(continued.claim.decision.data.event);
-    expect(wake.observation.data.scope).toBe('actor'); expect(wake.observation.data.navigation).toBeUndefined();
-    expect(wake.observation).not.toEqual(terminal.observation);
-    const actor = wake.observation.data.actor;
+    const epoch = reloaded?.head.epoch ?? after.head.epoch;
+    expect(actions.slice(2).map(action => action.sessionEpoch)).toEqual(Array(3).fill(String(epoch)));
+    expect(terminal.sessionEpoch).toBe(String(after.head.epoch));
+    expect(continued.selection.value.data.grant).toEqual(continued.child.confirmation.data.binding.grant);
+    expect(continued.child.operation).toMatchObject({ owner: reloaded?.head.owner ?? after.head.owner, epoch });
+    expect(continuedHead.launch!.binding).toEqual(after.launch!.binding);
+    expect(continuedHead.launch!.grant).toEqual(after.launch!.grant);
+    if (reloaded) {
+      expect(wake).toStrictEqual(terminal);
+      expect(continued.claim.decision.data.adoption).toMatchObject({ nextSessionEpoch: String(epoch) });
+      expect(continuation).toEqual({ decision: wake, adoption: continued.claim.decision.data.adoption });
+      expect(continued.guardAdoption!.source).toMatchObject({ operation: 'operation.adopt',
+        attemptId: `${continued.claim.decision.reference.id}:guard`, expected: { owner: reloaded.head.owner, epoch } });
+      expect(continued.guardAdoption!.receipt.beforeRevision).toBeGreaterThanOrEqual(continued.claim.row.revision);
+      expect(continuedHead.launch!.guard).toMatchObject({ owner: reloaded.head.owner, epoch, state: 'admitted' });
+    }
+    const currentObservation = adoption ? continuation.adoption.observation : wake.observation;
+    expect(currentObservation.data.scope).toBe('actor'); expect(currentObservation.data.navigation).toBeUndefined();
+    expect(currentObservation).not.toEqual(terminal.observation);
+    const actor = currentObservation.data.actor;
     expect(actions[4].arguments).toEqual({ level: actor.level, spaceId: actor.spaceId, row: actor.row, column: actor.column });
     const history = replies.slice(2, 4);
     for (const reply of history) {
@@ -118,7 +140,8 @@ test('actual App explicitly queries historical decision after room Continue then
     for (let i = 0; i < replay.length; i++) {
       expect(replay[i].result).toEqual(history[i]);
       expect(replay[i].source.decision).toMatchObject({ schema: 1, grant: continued.selection.value.data.grant,
-        previous: { intent: continued.claim.decision.reference } });
+        previous: { intent: continued.claim.decision.reference,
+          observation: { kind: 'progress', reference: retained.parent.event!.reference } } });
     }
     const metrics = await page.evaluate(async () => {
       // @ts-expect-error Test-only observation of real counters and committed transaction diagnostics.
@@ -195,13 +218,13 @@ test('actual App explicitly queries historical decision after room Continue then
     expect(await queries(page, actions.slice(2, 4))).toEqual(replay);
     expect(await page.evaluate(() => window.canonicalStartService.snapshot())).toEqual(changed);
     expect(wire.sent.filter(frame => frame.type === 'start.durable')).toHaveLength(1);
-    expect(wire.sent.filter(frame => frame.type === 'operation.wake')).toHaveLength(1);
-    expect(wire.sent.filter(frame => ['operation.adopt', 'resume'].includes(frame.type))).toEqual([]);
+    expect(wire.sent.filter(frame => frame.type === (adoption ? 'operation.adopt' : 'operation.wake'))).toHaveLength(1);
+    expect(wire.sent.filter(frame => [adoption ? 'operation.wake' : 'operation.adopt', 'resume'].includes(frame.type))).toEqual([]);
     expect(wire.received.filter(({ frame }) => frame.type === 'action.request')).toHaveLength(5);
     expect(await serviceProof()).toEqual(counters);
     expect(await plannerHistory()).toEqual(plannerReceived);
     await info.attach('actual-app-history-proof.json', { body: JSON.stringify({ before, after, continuedHead, childAck, final,
-      retained, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters, plannerReceived }, null, 2), contentType: 'application/json' });
+      retained, reloaded, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters, plannerReceived }, null, 2), contentType: 'application/json' });
   } finally {
     await info.attach('history-final-state.json', { body: JSON.stringify({
       snapshot: await page.evaluate(() => window.canonicalStartService.snapshot()).catch(String),
