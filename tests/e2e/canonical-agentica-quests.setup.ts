@@ -82,7 +82,7 @@ export async function fundJournal(session: GameSession, oldManifest = false) {
     input: { launchId, dispatch: { ...dispatched.dispatch!.ref }, ...proof }, execute: executeLaunchCommand });
   const announced = (await readLaunch()).value!;
   await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.launch.grant',
-    input: { launchId, run: { ...announced.run!.ref }, publication }, execute: executeLaunchCommand });
+    input: { launchId, run: { ...announced.run!.ref }, publication: { ...publication } }, execute: executeLaunchCommand });
   return { publication, start, guard: launchGuardId(launchId) };
 }
 

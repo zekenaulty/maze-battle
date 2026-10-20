@@ -41,7 +41,8 @@ function capability(input: unknown) {
   const value = fields(snapshotJson(input, 16 * 1024), 'id name description kind effect inputSchema', 'durableHandoff');
   if (value.durableHandoff === false) delete value.durableHandoff;
   const schema = fields(value.inputSchema, 'fields allowAdditionalProperties');
-  check(Array.isArray(schema.fields) && schema.fields.length <= 6, 'invalid recovery capability fields');
+  check(Array.isArray(schema.fields) && schema.fields.length <= (value.id === 'maze.inspect' ? 8 : 6),
+    'invalid recovery capability fields');
   for (const field of schema.fields) {
     const f = fields(field, 'name type required', 'description allowedValues example minimum maximum');
     for (const key of ['description', 'allowedValues', 'example', 'minimum', 'maximum']) if (f[key] === null) delete f[key];
