@@ -13,7 +13,7 @@ import { readPlayDecisionAllowance } from './playAllowance';
 import { stopGamePlay } from './playStop';
 
 export interface GamePlayState {
-  phase: 'idle' | 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'stopping' | 'stopped' | 'recovery';
+  phase: 'idle' | 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'satisfied' | 'stopping' | 'stopped' | 'recovery';
   active: boolean; message?: string; error?: string; launchId?: string; objective?: string; canContinue?: boolean;
   profile?: Pick<GameLaunchOptions, 'endpoint' | 'provider' | 'limits'>;
 }
@@ -32,7 +32,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   let pending: Promise<void> = Promise.resolve(), stopPending: Promise<void> | undefined;
   let attempt = 0, operationSeen = false, operationKey: string | undefined, releaseControl: (() => void) | undefined;
   const update = (patch: Partial<GamePlayState>) => {
-    if (!closed && !hostSignal.aborted) {
+    if (!closed && !hostSignal.aborted && session.hostSignal === hostSignal) {
       state = { ...state, ...patch };
       try { changed({ ...state }); } catch { /* Display observers never own action results. */ }
     }
@@ -43,9 +43,13 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     terminal = true; withdraw();
     update({ phase: 'recovery', active: true, canContinue: false, error: error instanceof Error ? error.message.slice(0, 240) : 'Agentic play requires recovery.' });
   };
+  const satisfied = (message: string) => {
+    terminal = true;
+    update({ phase: 'satisfied', active: true, canContinue: false, error: undefined, message });
+  };
   function boundary(candidate: PlayDecisionOriginal | undefined, status: PlayNavigationStatus,
     current: () => boolean, signal: AbortSignal) {
-    if (!current()) return;
+    if (!current() || state.phase === 'satisfied') return;
     original = candidate && structuredClone(candidate); terminal = true; transport?.close();
     update({ ...status, canContinue: false, message: original ? 'Checking retained execution allowance.' : status.message });
     if (original) void readPlayDecisionAllowance(session, original, { signal }).then(remaining => {
@@ -55,15 +59,20 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   }
   function mountDecision(next: PlayDecisionOriginal, mode: 'continue' | 'adopt', current: () => boolean, signal: AbortSignal) {
     decision = startPlayDecision({ session, original: next, mode, signal, factory,
-      update: status => { if (current()) update({ ...status, canContinue: false }); },
+      update: status => { if (current()) {
+        if (status.phase === 'satisfied') {
+          if (!terminal || state.phase === 'satisfied') satisfied(status.message);
+        }
+        else if (!terminal) update({ ...status, canContinue: false });
+      } },
       onDecision: (candidate, status) => boundary(candidate, status, current, signal),
       fail: error => { if (current()) fail(error); },
     });
   }
   async function launch(config: GameLaunchOptions, launchId: string, token: number, localGate: ReturnType<typeof transportGate>) {
-    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted;
+    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && session.hostSignal === hostSignal;
     const report = (error: unknown) => { if (current()) fail(error); };
-    let sdk: AgenticaHost;
+    let sdk: AgenticaHost, completionSeen = false;
     try {
       await session.flush(); localGate.signal.throwIfAborted();
       check(session.view.controlled && !session.view.busy && !session.view.recoveryRequired
@@ -77,6 +86,11 @@ export function createGamePlayController(session: GameSession, changed: (state: 
         sdk = factory({ ...hooks,
           async onAction(action) {
             const result = await hooks.onAction(action);
+            if (result.completion && current() && !terminal) {
+              // The canonical hook owns proof. Keep the socket alive for the SDK's result persistence and reply.
+              completionSeen = true;
+              satisfied('Host objective satisfied. Stop remains available for retained cleanup.');
+            }
             if (result.operation && current() && !terminal) {
               // Scheduling cannot change an already committed action result, including replay.
               try {
@@ -88,7 +102,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
                 const binding = { grant: launch.grant.ref, publication: launch.binding.publication };
                 const driver = await startPlayNavigation(session, sdk, action, binding, localGate.signal,
                   status => {
-                    if (!current()) return;
+                    if (!current() || state.phase === 'satisfied') return;
                     if (status.phase === 'decision') {
                       boundary(status.canContinue ? { action, binding } : undefined, status, current, localGate.signal);
                     } else update({ ...status, canContinue: false });
@@ -106,6 +120,10 @@ export function createGamePlayController(session: GameSession, changed: (state: 
           },
         }); return sdk;
       }, reason => {
+        if (reason === 'outcome' && completionSeen && current()) {
+          satisfied('Host objective satisfied; Agentica acknowledged the result. Retained cleanup still requires Stop.');
+          return;
+        }
         // A parked run closes its model channel. The separate driver still must prove exact HTTP custody before moving.
         if (reason === 'outcome' && operationSeen) return;
         report(new Error('Agentica channel ended. Host objective completion is not established; recovery is available.'));
@@ -136,7 +154,8 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     const next = structuredClone(original);
     withdraw(); terminal = false; original = undefined; gate = transportGate(session);
     const token = ++attempt, localGate = gate;
-    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted;
+    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted
+      && session.hostSignal === hostSignal;
     update({ phase: 'preparing', canContinue: false, error: undefined, message: 'Preparing the next explicit decision' });
     pending = (async () => {
       try {
@@ -157,7 +176,8 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     releaseControl = session.acquireAgenticControl();
     stopping = false; terminal = false; stopPending = undefined; original = undefined;
     gate = transportGate(session); const localGate = gate, token = ++attempt;
-    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted;
+    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted
+      && session.hostSignal === hostSignal;
     update({ phase: 'preparing', active: true, launchId: undefined, objective: undefined, profile: undefined,
       canContinue: false, error: undefined, message: 'Revalidating inspected adoption' });
     pending = (async () => {

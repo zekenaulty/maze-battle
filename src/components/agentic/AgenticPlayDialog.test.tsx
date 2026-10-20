@@ -83,7 +83,8 @@ describe('explicit Agentic play controls', () => {
     mount();
     for (const text of [profile.endpoint, 'openai', 'configured-model', '12 steps / 2 refinements / 3 continuations',
       '90 s run / 15 s action', '8192 context / 1024 output']) expect(screen.getByText(text)).toBeVisible();
-    expect(screen.getAllByRole('textbox')).toHaveLength(1); expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.getByRole('combobox', { name: 'Return quest (optional)' })).toHaveValue('');
   });
   it('shows honest missing configuration/model states and separate runtime feedback', () => {
     props = { ...props, profile: undefined, phase: 'Unavailable', configurationError: 'No launch profile.', message: 'No active run.', error: 'Previous run failed.' };
@@ -118,7 +119,7 @@ describe('explicit same-owner decision continuation control', () => {
     for (const callback of [props.onStart, props.onStop, props.onRecovery, props.onClose]) expect(callback).not.toHaveBeenCalled();
   });
 
-  it.each(['idle', 'preparing', 'starting', 'running', 'navigating', 'stopping', 'stopped', 'recovery'])
+  it.each(['idle', 'preparing', 'starting', 'running', 'navigating', 'satisfied', 'stopping', 'stopped', 'recovery'])
     ('disables Continue in active nondecision phase %s even with stale permission', phase => {
       props.phase = phase; mount(); expect(continueButton()).toBeDisabled(); fireEvent.click(continueButton());
       expect(props.onContinue).not.toHaveBeenCalled(); expect(stop()).toBeEnabled();
@@ -174,5 +175,44 @@ describe('explicit same-owner decision continuation control', () => {
     mount(); fireEvent.click(continueButton()); fireEvent.click(continueButton());
     expect(props.onContinue).toHaveBeenCalledTimes(2); expect(continueButton()).toBeEnabled();
     expect(screen.getByRole('textbox', { name: 'Objective' })).toHaveValue(props.activeObjective);
+  });
+});
+
+describe('optional owner return-quest selection', () => {
+  const select = () => screen.getByRole('combobox', { name: 'Return quest (optional)' });
+  beforeEach(() => { props.returnQuests = [{ id: 'selected-fetch', title: 'Recover the seal' }]; });
+
+  it('defaults to no selected quest and never starts or accepts on selection alone', () => {
+    const view = mount(); expect(select()).toHaveValue('');
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['None', 'Recover the seal']);
+    fireEvent.change(select(), { target: { value: 'selected-fetch' } });
+    expect(props.onStart).not.toHaveBeenCalled(); expect(start()).toBeDisabled();
+    objective('Carry the seal back.'); fireEvent.click(start());
+    expect(props.onStart).toHaveBeenCalledExactlyOnceWith('Carry the seal back.', 'selected-fetch');
+    view.unmount(); expect(props.onStop).not.toHaveBeenCalled();
+  });
+
+  it('clearing a selection preserves the ordinary free-text launch', () => {
+    mount(); objective('Explore.');
+    fireEvent.change(select(), { target: { value: 'selected-fetch' } });
+    fireEvent.change(select(), { target: { value: '' } }); fireEvent.click(start());
+    expect(props.onStart).toHaveBeenCalledExactlyOnceWith('Explore.');
+  });
+
+  it('does not silently drop or replace a selection removed from the current view', () => {
+    const view = mount(); objective('Return with the seal.');
+    fireEvent.change(select(), { target: { value: 'selected-fetch' } });
+    view.rerender(<AgenticPlayDialog {...props} returnQuests={[{ id: 'other', title: 'Another fetch' }]} />);
+    expect(select()).toHaveValue('selected-fetch'); expect(start()).toBeDisabled();
+    fireEvent.click(start()); expect(props.onStart).not.toHaveBeenCalled();
+    fireEvent.change(select(), { target: { value: '' } }); expect(start()).toBeEnabled();
+  });
+
+  it('keeps a satisfied run active with Stop available and no editable launch selection', () => {
+    props = { ...props, phase: 'satisfied', active: true, canContinue: false, onContinue: vi.fn() };
+    mount(); expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(start()).toBeDisabled(); expect(stop()).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled(); expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(stop()); expect(props.onStop).toHaveBeenCalledOnce(); expect(props.onContinue).not.toHaveBeenCalled();
   });
 });

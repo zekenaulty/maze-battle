@@ -12,7 +12,7 @@ import { startPlayNavigation, type PlayNavigationStatus } from './playNavigation
 import { deferred, transportGate } from './transportGate';
 
 export interface PlayDecisionOriginal { action: AgenticaAction; binding: ActionBinding }
-export interface PlayDecisionStatus { phase: 'preparing' | 'starting' | 'running' | 'navigating' | 'decision'; message: string; canContinue?: boolean }
+export interface PlayDecisionStatus { phase: 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'satisfied'; message: string; canContinue?: boolean }
 export interface PlayDecisionOptions {
   session: GameSession; original: PlayDecisionOriginal; signal: AbortSignal;
   update(status: PlayDecisionStatus): void;
@@ -34,7 +34,7 @@ export function startPlayDecision(input: PlayDecisionOptions) {
   let controller: Awaited<ReturnType<typeof createGameDecisionController>> | undefined;
   let navigation: Awaited<ReturnType<typeof startPlayNavigation>> | undefined, successor: PlayDecisionOriginal | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined, deadline: ReturnType<typeof setTimeout> | undefined;
-  let closed = false, parked = false, acknowledged = false;
+  let closed = false, parked = false, acknowledged = false, completionSeen = false, satisfied = false;
   const current = () => { if (session.hostSignal !== hostSignal) close(); return !closed && !signal.aborted; };
   const close = () => {
     if (closed) return; closed = true; clearTimeout(timer); clearTimeout(deadline);
@@ -45,17 +45,24 @@ export function startPlayDecision(input: PlayDecisionOptions) {
     catch { /* Display observers do not own execution. */ }
   } };
   const fail = (error: unknown) => {
-    if (!current()) return; close();
+    if (!current() || satisfied) return; close();
     try { failed(error); } catch { /* Failure reporting cannot revive this runner. */ }
+  };
+  const completed = () => {
+    satisfied = true;
+    update({ phase: 'satisfied', message: parked
+      ? 'Host objective satisfied; Agentica acknowledged the result. Retained cleanup still requires Stop.'
+      : 'Host objective satisfied. Stop remains available for retained cleanup.' });
   };
   const withdraw = (reason: DecisionWithdrawal) => {
     if (!current()) return;
     // A committed operation may outlive the model socket, but still needs exact HTTP custody.
+    if (reason === 'outcome' && completionSeen) { parked = true; if (satisfied) completed(); return; }
     if (reason === 'outcome' && successor) { parked = true; if (acknowledged) controller?.close(); return; }
     fail(new Error(`Decision channel ended (${reason}). Explicit recovery is required; objective completion is not established.`));
   };
   const navigationUpdate = (status: PlayNavigationStatus & { canContinue?: boolean }) => {
-    if (!current()) return;
+    if (!current() || completionSeen) return;
     update(status); if (status.phase !== 'decision' || !current()) return;
     const next = status.canContinue === true && successor ? structuredClone(successor) : undefined; close();
     if (next) { try { onDecision(next, { ...status, phase: 'decision', canContinue: true }); }
@@ -68,8 +75,8 @@ export function startPlayDecision(input: PlayDecisionOptions) {
       if (result.status === 'attached') {
         await controller!.acknowledge(); if (!current()) return;
         acknowledged = true; clearTimeout(deadline); handoff.resolve();
-        if (parked) controller!.close();
-        if (!successor) update({ phase: 'running', message: 'Agentica is choosing a successor action' });
+        if (parked && !completionSeen) controller!.close();
+        if (!successor && !completionSeen) update({ phase: 'running', message: 'Agentica is choosing a successor action' });
         return;
       }
       check(result.status !== 'recovery-required' && result.status !== 'successor-settled', 'Decision continuation requires explicit recovery.');
@@ -84,7 +91,11 @@ export function startPlayDecision(input: PlayDecisionOptions) {
           const sdk: DecisionSdk = factory({ ...hooks,
             async onAction(value) {
               const action = structuredClone(value), result = await hooks.onAction(action);
-              if (result.operation && current()) {
+              if (result.completion && current()) {
+                // Reply only after the predecessor handoff, without closing the socket before the SDK sends it.
+                completionSeen = true;
+                try { await handoff.promise; if (current()) completed(); } catch (error) { fail(error); }
+              } else if (result.operation && current() && !completionSeen) {
                 try {
                   const binding = controller?.binding; check(binding, 'Successor operation requires an attached decision controller.');
                   if (successor) { check(equal(successor.action, action), 'Another successor operation requires recovery.'); return result; }

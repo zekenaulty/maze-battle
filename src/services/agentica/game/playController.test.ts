@@ -6,6 +6,7 @@ import type { GameSession } from '../../game/GameSession';
 import type { CanonicalHostCommand, CanonicalHostPort } from '../../game/CanonicalHostCommand';
 import type { CanonicalRequest } from '../../../persistence/canonical/types';
 import { launchEntryFixture, launchStartFixture, launchStartedFixture } from '../../../persistence/canonical/agentica/launch.test-support';
+import { protocolResult } from '../../../persistence/canonical/agentica/types.test-support';
 import { createGamePlayController, type GamePlayState } from './playController';
 import type { GameLaunchOptions } from './launch';
 import { deferred } from './transportGate';
@@ -146,6 +147,26 @@ describe('explicit same-owner continuation mount', () => {
     input.update({ phase: 'running', message: 'Late' }); input.fail(Error('Late'));
     expect(changes).toHaveLength(updates); expect(controller.state.phase).toBe('stopped');
   });
+  it('holds control after successor satisfaction and ignores later running pulses or boundaries', async () => {
+    await boundary(); await controller.continueDecision(); const input = runner();
+    input.update({ phase: 'satisfied', message: 'Host objective satisfied.' });
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(releaseControl).not.toHaveBeenCalled(); expect(m.decision.mock.results[0].value.close).not.toHaveBeenCalled();
+    const updates = changes.length;
+    input.update({ phase: 'running', message: 'Late pulse' });
+    input.onDecision(input.original, { phase: 'decision', message: 'Late boundary', canContinue: true });
+    input.fail(Error('Late failure'));
+    expect(changes).toHaveLength(updates); expect(() => controller.continueDecision()).toThrow();
+    await controller.stop(); expect(controller.state.phase).toBe('stopped'); expect(releaseControl).toHaveBeenCalledOnce();
+    input.update({ phase: 'satisfied', message: 'Late completion' }); expect(controller.state.phase).toBe('stopped');
+  });
+  it('does not accept late satisfaction from a runner that already returned a decision boundary', async () => {
+    await boundary(); await controller.continueDecision(); const input = runner();
+    input.onDecision(input.original, { phase: 'decision', message: 'Next decision', canContinue: true });
+    await vi.advanceTimersByTimeAsync(0);
+    const updates = changes.length; input.update({ phase: 'satisfied', message: 'Late completion' });
+    expect(changes).toHaveLength(updates); expect(controller.state.phase).toBe('decision');
+  });
   it('a stale lifetime cannot continue a retained boundary', async () => {
     await boundary(); host.abort(); expect(() => controller.continueDecision()).toThrow();
     expect(m.decision).not.toHaveBeenCalled(); expect(releaseControl).toHaveBeenCalledOnce();
@@ -167,6 +188,53 @@ describe('explicit same-owner continuation mount', () => {
     if (outcome === 'resolve') allowance.resolve(1); else allowance.reject(Error('Old allowance failure'));
     await vi.advanceTimersByTimeAsync(0);
     expect(controller.state).toEqual(before); expect(changes).toHaveLength(updates);
+  });
+});
+
+describe('canonical host completion without releasing cleanup custody', () => {
+  const inspection = { ...action, actionId: 'completion-inspect', capabilityId: 'maze.inspect', arguments: { scope: 'objective' } };
+  const completed: AgenticaResult = { ...protocolResult(inspection),
+    completion: { objectiveId: start.objectiveId, evidenceId: 'host-proof', summary: 'Selected item carried to the earned entrance.' } };
+
+  it('preserves the completion reply and socket until outcome while keeping control and Stop separate', async () => {
+    await attached(); m.action.mockResolvedValueOnce(completed);
+    const reply = await options.onAction(inspection);
+    expect(reply).toBe(completed); expect(sdkClose).not.toHaveBeenCalled();
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(releaseControl).not.toHaveBeenCalled(); expect(m.stop).not.toHaveBeenCalled(); expect(m.driver).not.toHaveBeenCalled();
+    expect(() => controller.continueDecision()).toThrow();
+    // A correlated outcome comes after the SDK has had the result available to persist/send.
+    notice('outcome'); expect(sdkClose).toHaveBeenCalledOnce();
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(controller.state.message).toContain('acknowledged');
+    expect(releaseControl).not.toHaveBeenCalled(); expect(m.stop).not.toHaveBeenCalled();
+    await controller.stop(); expect(m.stop).toHaveBeenCalledOnce(); expect(releaseControl).toHaveBeenCalledOnce();
+  });
+
+  it('does not turn an outcome payload into host completion', async () => {
+    await attached();
+    options.onMessage?.({ protocolVersion: 1, type: 'outcome', runId: inspection.runId,
+      payload: { completion: completed.completion, objectiveId: start.objectiveId } });
+    expect(controller.state).toMatchObject({ phase: 'recovery', active: true });
+    expect(changes.some(state => state.phase === 'satisfied')).toBe(false); expect(m.stop).not.toHaveBeenCalled();
+  });
+
+  it.each(['stop', 'close', 'host abort', 'new lifetime'])('fences a late completion after %s without changing its committed reply', async kind => {
+    await attached(); m.action.mockResolvedValue(completed);
+    const barrier = hold(m.action), delivery = options.onAction(inspection); await barrier.entered;
+    if (kind === 'stop') await controller.stop();
+    else if (kind === 'close') controller.close();
+    else if (kind === 'host abort') host.abort();
+    else host = new AbortController();
+    const updates = changes.length;
+    barrier.release(); await expect(delivery).resolves.toBe(completed);
+    expect(changes).toHaveLength(updates); expect(changes.some(state => state.phase === 'satisfied')).toBe(false);
+  });
+
+  it('retains an explicit selected quest through pending launch preparation without selecting one by default', async () => {
+    const input = { ...config, returnQuestId: 'owner-selection' }, barrier = hold(flush), startup = controller.start(input);
+    await barrier.entered; input.returnQuestId = 'changed'; barrier.release(); await startup;
+    expect(m.prepare.mock.calls[0][1]).toMatchObject({ returnQuestId: 'owner-selection', objective: config.objective });
   });
 });
 

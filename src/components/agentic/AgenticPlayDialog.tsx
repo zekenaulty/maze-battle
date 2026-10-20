@@ -12,20 +12,23 @@ export interface AgenticPlayDialogProps {
   error?: string;
   active: boolean;
   activeObjective?: string;
+  returnQuests?: readonly { id: string; title: string }[];
   canStart: boolean;
   canContinue?: boolean;
-  onStart: (objective: string) => void;
+  onStart: (objective: string, returnQuestId?: string) => void;
   onContinue?: () => void;
   onStop: () => void;
   onRecovery: () => void;
   onClose: () => void;
 }
 
-export function AgenticPlayDialog({ profile, configurationError, phase, message, error, active, activeObjective, canStart, canContinue,
+export function AgenticPlayDialog({ profile, configurationError, phase, message, error, active, activeObjective, returnQuests = [], canStart, canContinue,
   onStart, onContinue, onStop, onRecovery, onClose }: AgenticPlayDialogProps) {
-  const objectiveId = useId(), [objective, setObjective] = useState(activeObjective ?? '');
+  const objectiveId = useId(), questId = useId(), [objective, setObjective] = useState(activeObjective ?? '');
+  const [returnQuestId, setReturnQuestId] = useState('');
+  const available = !returnQuestId || returnQuests.some(quest => quest.id === returnQuestId);
   const trimmed = objective.trim(), { provider, limits } = profile ?? {};
-  const startEnabled = Boolean(profile && !configurationError && canStart && !active && trimmed && objective.length <= 512);
+  const startEnabled = Boolean(profile && !configurationError && canStart && !active && available && trimmed && objective.length <= 512);
   const continueEnabled = Boolean(canContinue && onContinue && active && phase === 'decision');
   const missing = 'Not configured';
   return <Dialog title="Agentic play" onClose={onClose}>
@@ -37,6 +40,13 @@ export function AgenticPlayDialog({ profile, configurationError, phase, message,
         <textarea id={objectiveId} name="objective" rows={3} maxLength={512} value={active ? activeObjective ?? objective : objective} disabled={active}
           onChange={event => setObjective(event.target.value)} />
       </label>
+      {!active && <label htmlFor={questId}>Return quest (optional)
+        <select id={questId} value={returnQuestId} onChange={event => setReturnQuestId(event.target.value)}>
+          <option value="">None</option>
+          {!available && <option value={returnQuestId} disabled>Selected quest unavailable</option>}
+          {returnQuests.map(quest => <option key={quest.id} value={quest.id}>{quest.title}</option>)}
+        </select>
+      </label>}
       <dl className="agentic-status">
         <div><dt>Endpoint</dt><dd>{profile?.endpoint ?? missing}</dd></div>
         <div><dt>Provider</dt><dd>{provider?.provider ?? missing}</dd></div>
@@ -51,7 +61,9 @@ export function AgenticPlayDialog({ profile, configurationError, phase, message,
       {message && <p className="agentic-detail" role="status">{message}</p>}
       {error && <p className="agentic-error" role="alert">{error}</p>}
       <div className="agentic-actions">
-        <button type="button" disabled={!startEnabled} onClick={() => { if (startEnabled) onStart(trimmed); }}>
+        <button type="button" disabled={!startEnabled} onClick={() => {
+          if (startEnabled) { if (returnQuestId) onStart(trimmed, returnQuestId); else onStart(trimmed); }
+        }}>
           <Play size={16} aria-hidden="true" /> Start Agentic play</button>
         <button type="button" disabled={!active} onClick={onStop}>
           <Square size={16} aria-hidden="true" /> Stop Agentic play</button>

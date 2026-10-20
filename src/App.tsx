@@ -60,6 +60,7 @@ export function App() {
     {dialog === 'agentic' && <AgenticPlayDialog profile={agentic.profile} configurationError={agentic.configurationError}
       phase={agentic.phase} active={agentic.active} activeObjective={agentic.objective} message={agentic.message} error={agentic.error}
       canStart={session.controlled && !recovering && game.mode !== 'auto-play' && game.mode !== 'town'}
+      returnQuests={agentic.returnQuests}
       canContinue={agentic.canContinue} onContinue={agentic.continueDecision}
       onStart={agentic.start} onStop={agentic.stop} onRecovery={openRecovery} onClose={() => setDialog(undefined)} />}
     {agenticaRecovery}
