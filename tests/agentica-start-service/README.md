@@ -1,7 +1,7 @@
 # Canonical durable-start service proof
 
 Provider-free native browser integration, retaining the original five start
-tests. Current cohort: 36 cases, including two actual-App recovery cases,
+tests. Current cohort: 37 cases, including two actual-App recovery cases,
 explicit Start/local navigation/Stop, and delayed service acceptance in that
 same App, plus explicit same-owner continuation with exact predecessor ACK and
 successor navigation. Inspected-original new-owner adoption now has actual-App
@@ -16,7 +16,22 @@ reading undisclosed targets or changing gameplay state.
 The return case explicitly selects an accepted quest, collects its item,
 travels nine earned steps back, and performs a separate host completion check.
 This is not a parallel game or live-provider test.
-[Current evidence and limits](../../docs/reviews/issue-11-canonical-corpus.md).
+[Current evidence and limits](../../docs/reviews/issue-11-decision-history-query.md).
+
+## Historical Decision Increment (2026-10-20)
+
+`decision-history` explores an earned room to a material stop, then waits for
+explicit Continue. Two `maze.inspect { scope: "decision" }` choices retrieve the
+exact original terminal event, even though the renewed wake has actor-only
+context. One zero-step navigation tests custody, not objective completion.
+After funded Stop and an ordinary sight refresh, completed-hook retry remains
+exact and submits no new command. This is same-owner progress-source proof, not
+adoption/post-transfer or remote duplicate-delivery qualification.
+
+The full cohort passes **37/37** at `ee7744b`, pinned Agentica `27cb2ce`, in
+`test-results/maze-start-service-SyQLl1/` (578.58s, no failures/skips/retries).
+The linked report records logical read/write budgets, retained failed attempts,
+independent review and final fixture hardening separately.
 
 ## Canonical Cold-Start A/B Increment (2026-10-20)
 

@@ -104,10 +104,10 @@ preview on 5198, its existing build and its browser data were not changed.
 - Corpus-specific interruption, exact replay, takeover and storage-limit
   matrix. Existing service recovery regressions pass but do not substitute for
   all checkpoints of these longer journeys.
-- Material-notice retrieval across decision renewal. Original history is
-  retained, but renewed actor context does not itself expose that notice. An
-  explicit scoped historical query is being tested separately; this increment
-  does not claim that fix or infer unseen current state from old evidence.
+- Material-notice retrieval was not included in this corpus increment. The
+  subsequent [decision-history query](issue-11-decision-history-query.md) now
+  qualifies explicit same-owner retrieval separately; adoption/post-transfer
+  variants remain open. Renewed actor context does not silently become history.
 - Sustained room coverage beyond this small corpus, generated-world retrieval,
   depth/revisit/storage-growth and multi-controller final qualification.
 - Live model competence only under separately confirmed provider limits and

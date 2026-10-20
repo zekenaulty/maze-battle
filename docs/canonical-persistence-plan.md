@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 38,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 39,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -159,6 +159,11 @@ return through the actual App and pinned service in both authored worlds.
 On-demand visible-object inspection exposes committed sight only. The same
 offline planner follows different disclosed branches; this is affordance-driven
 adaptation, not live-model or whole-Q qualification.
+The [explicit decision-history query](reviews/issue-11-decision-history-query.md)
+now retrieves the original material notice from a successor's immediate
+predecessor evidence without refreshing unseen state or expanding initial
+context. Same-owner actual-service and changed-sight replay pass; adoption and
+post-transfer variants remain a separate qualification boundary.
 
 ## Authority and Supersession
 
@@ -410,8 +415,11 @@ P1 storage contracts are split as follows:
   the ordinary item and return under host proof. The actual-service cohort has
   36 cases; the scoped objects query and small offline policy do not establish
   strategic model reasoning or sustained room coverage.
-- **P3 Agentica, remaining:** qualify sustained coverage and material-notice
-  retrieval across decision renewal, then the complete two-dungeon matrix.
+- **P3 Agentica, checked historical query:** on-demand immediate-predecessor
+  notice retrieval, retained source proof and no-effect changed-sight replay
+  pass for same-owner continuation. No persistent context dump or format change.
+- **P3 Agentica, remaining:** qualify sustained coverage, adopted/post-transfer
+  history retrieval, then the complete two-dungeon matrix.
   Explicit guild reward
   tooling is a later RPG workflow, not implied by retrieve-return completion.
   An empty current-sight page is not proof that the floor is fully explored.
