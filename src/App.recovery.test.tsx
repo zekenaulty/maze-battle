@@ -17,7 +17,8 @@ vi.mock('./components/ExploreScreen', () => ({ ExploreScreen: () => <div>Canonic
 beforeEach(() => {
   vi.clearAllMocks();
   state.session = { controlled: false, busy: false, recoveryRequired: true,
-    status: 'Action failed: Invalid canonical checkpoint', saves: [], diagnostics: [], controller: {} as GameSession,
+    status: 'Action failed: Invalid canonical checkpoint', saves: [], diagnostics: [],
+    controller: { get view() { return state.session; }, hostSignal: new AbortController().signal } as unknown as GameSession,
     retry: vi.fn(async () => {}), resetGame: vi.fn(async () => {}), takeControl: vi.fn(async () => {}),
     createManualSave: vi.fn(async () => {}), loadSave: vi.fn(async () => {}), removeSave: vi.fn(async () => {}),
     refreshSaves: vi.fn(async () => {}), flush: vi.fn(async () => {}),

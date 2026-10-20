@@ -24,7 +24,8 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => { throw Error('Offline App attempted fetch'); }));
   vi.stubGlobal('WebSocket', vi.fn(() => { throw Error('Offline App attempted WebSocket'); }));
   state.session = { game: { ...exploreView(), autoThrottleMs: 500, randomBattles: false }, controlled: true,
-    status: 'Ready', saves: [], diagnostics: [], controller: { execute: state.execute, hostSignal: new AbortController().signal } as unknown as GameSession,
+    status: 'Ready', saves: [], diagnostics: [], controller: { get view() { return state.session; },
+      execute: state.execute, hostSignal: new AbortController().signal } as unknown as GameSession,
     retry: vi.fn(async () => {}), resetGame: vi.fn(async () => {}), takeControl: vi.fn(async () => {}),
     createManualSave: vi.fn(async () => {}), loadSave: vi.fn(async () => {}), removeSave: vi.fn(async () => {}),
     refreshSaves: vi.fn(async () => {}), flush: vi.fn(async () => {}),

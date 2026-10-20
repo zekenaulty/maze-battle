@@ -20,6 +20,8 @@ vi.mock('./persistence/canonical/agentica/launch', () => ({ readLaunch: mocks.re
 vi.mock('./persistence/canonical/agentica/recovery.database', () => ({ inRecoveryDatabase: mocks.database }));
 vi.mock('./services/agentica/game/launchRecovery', () => ({ createLaunchRecovery: mocks.initial, createGrantedLaunchRecovery: mocks.granted }));
 vi.mock('./services/agentica/game/navigationRecovery', () => ({ recoverGameNavigation: mocks.navigation }));
+// This fixture supplies recovery records only; retained adoption has its own boundary tests.
+vi.mock('./services/agentica/game/playAdoption', () => ({ inspectPlayAdoption: vi.fn(async () => undefined) }));
 
 let lifetime: AbortController, schema: AbortController;
 let remote: { inspect: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
@@ -35,7 +37,8 @@ beforeEach(() => {
     const value = await read(signal); signal.throwIfAborted(); return value;
   });
   mocks.session = { game: exploreView(), controlled: true, busy: false, recoveryRequired: false, status: 'Ready', saves: [], diagnostics: [],
-    controller: { owner: 'owner', get hostSignal() { return lifetime.signal; }, stop: vi.fn(), cleanupHostOperation: vi.fn() } as unknown as GameSession,
+    controller: { owner: 'owner', get view() { return mocks.session; },
+      get hostSignal() { return lifetime.signal; }, stop: vi.fn(), cleanupHostOperation: vi.fn() } as unknown as GameSession,
     retry: vi.fn(), resetGame: vi.fn(), takeControl: vi.fn(), refreshSaves: vi.fn(), flush: vi.fn(),
     createManualSave: vi.fn(), loadSave: vi.fn(), removeSave: vi.fn() };
   mocks.list.mockImplementation(async () => inventory()); mocks.inspect.mockResolvedValue(detail);
