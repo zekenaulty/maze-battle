@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 39,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 40,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -164,6 +164,11 @@ now retrieves the original material notice from a successor's immediate
 predecessor evidence without refreshing unseen state or expanding initial
 context. Same-owner actual-service and changed-sight replay pass; adoption and
 post-transfer variants remain a separate qualification boundary.
+The [bounded App revisit qualification](../tests/e2e/canonical-revisit.report.md)
+now proves two complete two-floor round trips with real collected content,
+reload and explicit tab takeover. A separate keyboard-action measurement holds
+history fixed while varying retained depth, then adds 128 ordinary moves at
+fixed depth. Neither uses hidden routing or relocates the actor during traversal.
 
 ## Authority and Supersession
 
@@ -435,8 +440,11 @@ P1 storage contracts are split as follows:
   production database opener remains. Shared domain algorithms and the radix
   tree are retained. Deleting old-path tests does not establish canonical parity.
 - **P5 partial:** actual-App desktop/mobile, recovery, Auto and 1/8/16-floor
-  movement checks pass. Final multi-controller/revisit/capacity and two-dungeon
-  qualification remain mandatory, not inferred from focused passes.
+  movement checks pass. Bounded two-floor revisits/reload/tab takeover preserve
+  real content and original evidence; fixed-depth 128-move history growth has
+  native per-action I/O measurements. Active Agentica multi-controller/capacity
+  composition and the complete two-dungeon matrix remain mandatory, not inferred
+  from these small samples or the prior isolated recovery passes.
 
 Earlier integrated check (`0ca7fb9`, 2026-10-15): **2,734 unit PASS / one optional
 probe SKIP; 65 manual-save, 14 actual-App and seven real-service native cases

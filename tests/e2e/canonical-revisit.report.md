@@ -4,6 +4,12 @@ Base: `ee7744b`. Windows Chrome, native IndexedDB, isolated loopback `5277`.
 Final run: 2026-10-20, **3 PASS / 0 skipped**, 107.4 seconds.
 No runtime, start-service fixture, provider, owner-preview, or parent edits.
 
+Parent reproduction at `f477368`, 2026-10-20: **3 PASS**, 105.31 seconds,
+zero skips/retries/failures, fixture typecheck PASS. The parent JSON attachment
+reproduces every read/write count and byte total in the table below. Its six
+measurement windows were 241.5-265.8 ms. The source commit adds tests only;
+it does not change production or the owner's preview.
+
 ## Evidence
 
 - Mounted actual React App and its existing GameSession: ordinary public survey
