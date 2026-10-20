@@ -92,9 +92,21 @@ test('actual App collects a selected quest item, returns on earned paths and pro
     expect(wire.sent.filter(frame => frame.type === 'start.durable')).toHaveLength(1);
     expect(wire.sent.filter(frame => frame.type === 'operation.wake')).toHaveLength(2);
     expect(results.filter(r => r.completion)).toHaveLength(1);
+    expect(wire.received.filter(({ frame }) => frame.type === 'outcome').map(({ frame }) =>
+      (frame.payload as { outcome: { status: string; stopReason: string } }).outcome)).toEqual([
+      expect.objectContaining({ status: 'partiallyComplete', stopReason: 'partial' }),
+      expect.objectContaining({ status: 'partiallyComplete', stopReason: 'partial' }),
+      expect.objectContaining({ status: 'succeeded', stopReason: 'complete' }),
+    ]);
     expect(results.every(r => !Object.hasOwn(r, 'objective'))).toBe(true);
     expect(JSON.stringify(results)).not.toContain(setup.target.contractId);
     await page.screenshot({ path: info.outputPath('actual-app-return-satisfied.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobile = await dialog.boundingBox();
+    expect(mobile).not.toBeNull();
+    expect(mobile!.x).toBeGreaterThanOrEqual(0); expect(mobile!.x + mobile!.width).toBeLessThanOrEqual(390);
+    expect(mobile!.y).toBeGreaterThanOrEqual(0); expect(mobile!.y + mobile!.height).toBeLessThanOrEqual(844);
+    await page.screenshot({ path: info.outputPath('actual-app-return-mobile.png') });
     await dialog.getByRole('button', { name: 'Stop Agentic play', exact: true }).click();
     await dialog.getByRole('button', { name: 'Recovery', exact: true }).click();
     const recovery = page.getByRole('dialog', { name: 'Agentica recovery', exact: true });
