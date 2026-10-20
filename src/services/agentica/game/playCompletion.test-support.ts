@@ -34,7 +34,7 @@ export function completionSdk(options: AgenticaHostOptions, action: AgenticaActi
   sdk.connect = vi.fn(async () => {});
   const notice = (type: string, payload: object = {}) =>
     internal._receive(JSON.stringify({ protocolVersion: 1, type, runId: action.runId, payload }));
-  return { sdk, frames, close, notice,
+  return { sdk, frames, close, notice, protocolError: () => internal._receive('{'),
     async deliver(input: AgenticaAction, type = 'action.request') {
       internal._receive(JSON.stringify({ protocolVersion: 1, type, runId: input.runId, payload: input }));
       await internal.actionQueue;

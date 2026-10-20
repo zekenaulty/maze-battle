@@ -84,15 +84,15 @@ export function createGamePlayController(session: GameSession, changed: (state: 
       await prepareGameLaunch(localGate.port, config, launchId); localGate.signal.throwIfAborted();
       update({ phase: 'starting', message: 'Starting Agentica' });
       const attached = await createGameTransport(localGate.port, launchId, originalHooks => {
-        const hooks = completionHooks(originalHooks);
+        const hooks = completionHooks(originalHooks, () => {
+          if (current() && !terminal) {
+            completionSeen = true;
+            satisfied(completionMessage(false, deliveryUnconfirmed));
+          }
+        });
         sdk = factory({ ...hooks,
           async onAction(action) {
             const result = await hooks.onAction(action);
-            if (result.completion && current() && !terminal) {
-              // The canonical hook owns proof. Keep the socket alive for the SDK's result persistence and reply.
-              completionSeen = true;
-              satisfied(completionMessage(false, deliveryUnconfirmed));
-            }
             if (result.operation && current() && !terminal) {
               // Scheduling cannot change an already committed action result, including replay.
               try {
@@ -125,8 +125,9 @@ export function createGamePlayController(session: GameSession, changed: (state: 
           },
         }); return sdk;
       }, reason => {
-        if (reason === 'outcome' && completionSeen && current()) {
-          satisfied(completionMessage(true, deliveryUnconfirmed));
+        if (completionSeen && current()) {
+          if (reason !== 'outcome') deliveryUnconfirmed = true;
+          satisfied(completionMessage(reason === 'outcome', deliveryUnconfirmed));
           return;
         }
         // A parked run closes its model channel. The separate driver still must prove exact HTTP custody before moving.

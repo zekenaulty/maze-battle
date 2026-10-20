@@ -310,9 +310,36 @@ describe('initial completion through the real SDK', () => {
     f.store.records.set(actionKey(f.inspection), { fingerprint: actionFingerprint(f.inspection), status: 'completed', result: f.completed });
     await f.wire.deliver(f.inspection);
     expect(f.wire.frames[0].payload).toEqual(f.completed);
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(f.wire.close).not.toHaveBeenCalled(); expect(releaseControl).not.toHaveBeenCalled();
+    options.onStatus?.({ state: 'action.error', detail: 'Delivery is unconfirmed' });
+    const updates = changes.length;
+    await f.wire.deliver(f.inspection);
+    expect(changes).toHaveLength(updates); expect(controller.state.message).toContain('Service delivery is unconfirmed');
     await expect(options.onAction(f.extra)).rejects.toThrow('sealed');
     await f.wire.deliver(f.extra);
     expect(m.save).not.toHaveBeenCalled(); expect(m.action).not.toHaveBeenCalled(); expect(f.store.effect).not.toHaveBeenCalled();
+  });
+  it.each(['disconnect', 'protocol failure'])('preserves local proof and marks delivery unconfirmed on %s before reply', async failure => {
+    const f = await setup(), entered = deferred<void>(), release = deferred<void>(); let held = false;
+    m.load.mockImplementation(async key => {
+      const record = await f.store.load(key);
+      if (!held && record?.status === 'completed') { held = true; entered.resolve(); await release.promise; }
+      return record;
+    });
+    const delivery = f.wire.deliver(f.inspection); await entered.promise;
+    expect(controller.state.phase).toBe('satisfied'); expect(f.wire.frames).toHaveLength(0);
+    if (failure === 'disconnect') f.wire.close(); else f.wire.protocolError();
+    expect(controller.state).toMatchObject({ phase: 'satisfied', active: true, canContinue: false, error: undefined });
+    expect(controller.state.message).toContain('Service delivery is unconfirmed');
+    expect(releaseControl).not.toHaveBeenCalled(); expect(m.stop).not.toHaveBeenCalled();
+    release.resolve(); await delivery;
+    expect(f.wire.frames).toHaveLength(0);
+    const updates = changes.length;
+    await options.saveAction(actionKey(f.inspection), f.store.records.get(actionKey(f.inspection))!);
+    f.wire.notice('outcome', { status: 'succeeded', reason: 'complete' });
+    expect(changes).toHaveLength(updates); expect(controller.state.message).toContain('Service delivery is unconfirmed');
+    await controller.stop(); expect(m.stop).toHaveBeenCalledOnce(); expect(releaseControl).toHaveBeenCalledOnce();
   });
   it.each(['stop', 'takeover', 'new lifetime'])('fences late SDK completion/status on %s while retaining completed persistence', async kind => {
     const f = await setup(), barrier = hold(m.action), delivery = f.wire.deliver(f.inspection); await barrier.entered;

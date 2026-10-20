@@ -57,7 +57,10 @@ export function startPlayDecision(input: PlayDecisionOptions) {
   const withdraw = (reason: DecisionWithdrawal) => {
     if (!current()) return;
     // A committed operation may outlive the model socket, but still needs exact HTTP custody.
-    if (reason === 'outcome' && completionSeen) { parked = true; if (satisfied) completed(); return; }
+    if (completionSeen) {
+      if (reason === 'outcome') parked = true; else deliveryUnconfirmed = true;
+      if (satisfied) completed(); return;
+    }
     if (reason === 'outcome' && successor) { parked = true; if (acknowledged) controller?.close(); return; }
     fail(new Error(`Decision channel ended (${reason}). Explicit recovery is required; objective completion is not established.`));
   };
@@ -88,15 +91,16 @@ export function startPlayDecision(input: PlayDecisionOptions) {
       const attached = await createGameDecisionController(session, original.action, original.binding, {
         signal, sameOwnerOnly: mode === 'continue', adoptionOnly: mode === 'adopt', onWithdraw: withdraw,
         factory: originalHooks => {
-          const hooks = completionHooks(originalHooks);
+          const hooks = completionHooks(originalHooks, async () => {
+            if (!current()) return;
+            completionSeen = true;
+            // Fresh and retained completion replies both wait for the predecessor's exact ACK.
+            try { await handoff.promise; if (current()) completed(); } catch (error) { fail(error); }
+          });
           const sdk: DecisionSdk = factory({ ...hooks,
             async onAction(value) {
               const action = structuredClone(value), result = await hooks.onAction(action);
-              if (result.completion && current()) {
-                // Reply only after the predecessor handoff, without closing the socket before the SDK sends it.
-                completionSeen = true;
-                try { await handoff.promise; if (current()) completed(); } catch (error) { fail(error); }
-              } else if (result.operation && current() && !completionSeen) {
+              if (result.operation && current() && !completionSeen) {
                 try {
                   const binding = controller?.binding; check(binding, 'Successor operation requires an attached decision controller.');
                   if (successor) { check(equal(successor.action, action), 'Another successor operation requires recovery.'); return result; }

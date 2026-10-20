@@ -151,9 +151,66 @@ describe('successor completion through the real SDK', () => {
     f.store.records.set(actionKey(f.inspection), { fingerprint: actionFingerprint(f.inspection), status: 'completed', result: f.completed });
     await f.wire.deliver(f.inspection);
     expect(f.wire.frames[0].payload).toEqual(f.completed);
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false }));
     await expect(f.hooks.onAction(f.extra)).rejects.toThrow('sealed');
     await f.wire.deliver(f.extra);
     expect(m.save).not.toHaveBeenCalled(); expect(m.action).not.toHaveBeenCalled(); expect(f.store.effect).not.toHaveBeenCalled();
+  });
+  it('holds a verified retained completion behind ACK and notifies satisfaction only once', async () => {
+    const barrier = hold(m.ack), f = await setup(); await barrier.entered;
+    f.store.records.set(actionKey(f.inspection), { fingerprint: actionFingerprint(f.inspection), status: 'completed', result: f.completed });
+    const delivery = f.wire.deliver(f.inspection); await drain();
+    expect(f.wire.frames).toHaveLength(0); expect(f.wire.close).not.toHaveBeenCalled();
+    expect(update.mock.calls.some(([state]) => state.phase === 'satisfied')).toBe(false);
+    await expect(f.hooks.saveAction(actionKey(f.extra), { fingerprint: actionFingerprint(f.extra), status: 'pending' })).rejects.toThrow('sealed');
+    const before = update.mock.calls.length; barrier.release(); await delivery; await drain();
+    expect(f.wire.frames[0].payload).toEqual(f.completed); expect(m.ack).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false }));
+    expect(update.mock.calls.slice(before).some(([state]) => state.phase === 'running')).toBe(false);
+    f.hooks.onStatus?.({ state: 'action.error', detail: 'Delivery is unconfirmed' });
+    const updates = update.mock.calls.length;
+    await f.wire.deliver(f.inspection, 'action.reconcile');
+    expect(update).toHaveBeenCalledTimes(updates);
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ message: expect.stringContaining('Service delivery is unconfirmed') }));
+    expect(f.wire.close).not.toHaveBeenCalled(); expect(m.action).not.toHaveBeenCalled(); expect(m.save).not.toHaveBeenCalled();
+    expect(m.driver).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
+  });
+  it.each(['stop', 'takeover'])('retains historical replay after %s interrupts its ACK wait', async kind => {
+    const barrier = hold(m.ack), f = await setup(); await barrier.entered;
+    const record = { fingerprint: actionFingerprint(f.inspection), status: 'completed' as const, result: f.completed };
+    f.store.records.set(actionKey(f.inspection), record);
+    const delivery = f.wire.deliver(f.inspection); await drain();
+    expect(f.wire.frames).toHaveLength(0);
+    if (kind === 'stop') scope.abort(); else host.abort();
+    const updates = update.mock.calls.length; await delivery;
+    await expect(f.hooks.saveAction(actionKey(f.inspection), record)).resolves.toBeUndefined();
+    await f.wire.deliver(f.inspection, 'action.reconcile');
+    barrier.release(); await drain();
+    expect(update).toHaveBeenCalledTimes(updates); expect(f.wire.frames).toHaveLength(0);
+    expect(update.mock.calls.some(([state]) => state.phase === 'satisfied')).toBe(false);
+    expect(m.action).not.toHaveBeenCalled(); expect(m.save).not.toHaveBeenCalled(); expect(fail).not.toHaveBeenCalled();
+  });
+  it.each(['disconnect', 'protocol failure'])('marks %s before reply as unconfirmed without losing local proof', async failure => {
+    const f = await setup(), entered = deferred<void>(), release = deferred<void>(); let held = false;
+    m.load.mockImplementation(async key => {
+      const record = await f.store.load(key);
+      if (!held && record?.status === 'completed') { held = true; entered.resolve(); await release.promise; }
+      return record;
+    });
+    const delivery = f.wire.deliver(f.inspection); await entered.promise;
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied' }));
+    expect(f.wire.frames).toHaveLength(0);
+    if (failure === 'disconnect') f.wire.close(); else f.wire.protocolError();
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'satisfied', canContinue: false,
+      message: expect.stringContaining('Service delivery is unconfirmed') }));
+    expect(fail).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
+    release.resolve(); await delivery;
+    if (failure === 'disconnect') expect(f.wire.frames).toHaveLength(0);
+    else expect(f.wire.frames[0].payload).toEqual(f.completed);
+    await f.hooks.saveAction(actionKey(f.inspection), f.store.records.get(actionKey(f.inspection))!);
+    f.wire.notice('outcome', { status: 'succeeded', reason: 'complete' });
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ message: expect.stringContaining('Service delivery is unconfirmed') }));
+    expect(m.driver).not.toHaveBeenCalled(); expect(m.cleanup).not.toHaveBeenCalled();
   });
   it.each(['stop', 'takeover'])('ignores late SDK completion/error on %s while preserving completed persistence', async kind => {
     const f = await setup(), barrier = hold(m.action), delivery = f.wire.deliver(f.inspection); await barrier.entered;
