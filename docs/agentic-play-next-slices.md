@@ -2,11 +2,14 @@
 
 ## Active Priority: Persistence Replacement
 
-Current checkpoint, 2026-10-18: the [canonical plan, revision 30](canonical-persistence-plan.md)
-is the implementation ledger. Manual/Auto, explicit Agentic Start/Stop,
-same-owner Continue and inspected new-owner adoption now share the actual App's
-canonical GameSession. [Latest qualification and remaining gates](reviews/issue-11-mounted-adoption.md).
-Canonical frontier/quest integration and final Q remain open. The dated amendments
+Current checkpoint, 2026-10-20: the [canonical plan, revision 42](canonical-persistence-plan.md)
+is the implementation ledger, including the finite six-sprint closeout and
+40-80 focused-hour estimate. Manual/Auto and bounded Agentic execution now share
+the actual App's canonical GameSession. Authored cold-start exploration, explicit
+collection/return, historical query/adoption and selected capacity recovery have
+[composed evidence and declared limits](reviews/issue-11-canonical-corpus.md).
+Sustained exploration and final cross-surface/recovery/scaling Q remain open.
+The dated amendments
 and pre-cutover results below are historical evidence, not claims that retired
 stores or their prior Agentica implementations still run.
 

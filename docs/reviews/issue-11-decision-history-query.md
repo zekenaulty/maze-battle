@@ -132,13 +132,25 @@ remote query replay, or qualification of repository SDK 10.0.302.
 
 ## Remaining
 
+2026-10-20 broader regression exposed a fixture sequencing failure, not a
+demonstrated historical-query stall: `maze-start-service-mFo6ob/` passed 42 cases
+and failed post-transfer history at its five-second intermediate result count.
+The fourth applied result arrived about 3ms later, both history queries were
+accepted, and navigation planning started before teardown. The existing
+30-second terminal-decision assertion was never reached. Fixture `751f051`
+waits for that same terminal decision first and then requires exactly five
+results. All three history modes pass in `maze-start-service-AsasYp/`; the failed
+aggregate remains retained pending a complete post-repair regression. No
+production change, timeout increase, paid call or weakened identity check.
+
 Same-owner, adopted and one post-transfer progress-sourced history now have
 composed proof. Zero-progress source variants and deeper ancestry still need
 composed native/service proof; this is not every possible ownership state.
 
-The wider A/B information/recovery/capacity matrix, repeated actual-App
-backtracking across owners, and separated depth/history-growth measurements
-remain open. Retrieval is an operation the agent may choose, not automatic
+The wider A/B information and active-work recovery/capacity matrix remains open.
+Bounded manual App revisits/takeover and separated depth/history-growth now have
+[their own native proof](../../tests/e2e/canonical-revisit.report.md), not active
+Agentica endurance qualification. Retrieval is an operation the agent may choose, not automatic
 cognition or evidence of model judgment. Full RPG parity and combat remain later.
 
 ```powershell

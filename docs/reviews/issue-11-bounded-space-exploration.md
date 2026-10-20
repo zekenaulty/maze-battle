@@ -142,16 +142,81 @@ uses alternate .NET 10.0.401 because repository-pinned 10.0.302 is unavailable.
 No provider is invoked. Scripted offline planner decisions do not measure LLM
 decision quality, production latency, billing or repository SDK-pin behavior.
 
+## Long-Route Prefix Repair
+
+2026-10-20 increment: runtime `eb680f3`, integrated candidate `316212d`.
+The known-route reader could find a complete bounded path but return only its
+first 64 steps with `complete: false`. Local exploration incorrectly treated
+that flag as unreachable, both when ranking survey candidates and refilling a
+retained waypoint. It described the returned prefix, not graph reachability.
+
+Candidate ranking now asks for the full path inside the unchanged 512-cell
+earned region; retained execution still stores at most 16 steps. Refill accepts
+a non-null reachable prefix without requiring the returned prefix to reach the
+destination. Query windows, original step/replan/time allowances and source
+validation are unchanged. No authoritative world lookup or new grant is used.
+
+Nine focused regressions include a reachable 89-step detour, true nearest-target
+ranking, repeated 16-step refills without oscillation, serialized knowledge and
+progress, original step/time/replan limits, and unavailable/corrupt evidence.
+Independent review additionally checked the 512-cell bound, excluded-window
+targets and foreign-room detours. The fail-before run retained six failures and
+three passes; the focused after run passed nine, with 86 affected unit cases
+passing in the authoring checkout.
+
+Parent full units: **4,485 PASS, one existing optional SKIP**, 160.98 seconds;
+`test-results/closing-prefix-unit-fixed.json`. The preceding full run had 4,482
+passing tests but failed to import the room-boot suite: its service mock omitted
+the newly imported `browserOrigin`. The one-line fixture repair passed its three
+cases and the full rerun; the failed report is retained as
+`test-results/closing-prefix-unit.json`. Production/service-fixture types and
+isolated production build pass; the existing 805.41 kB bundle warning remains.
+
+This 89-step proof is unit-level, not a native generated-room journey. The unit
+graph has selective internal edges that the current stone-room recipe cannot
+simply copy. A native proof must earn a later long survey route through ordinary
+movement/sight; injecting a distant initial frontier, fabricated knowledge or
+edited retained progress is not equivalent. A bounded 128-seed search examined
+1,024 generated rooms and 120,208 finite trajectories; no >64-step selected
+survey route was found, which is not an impossibility proof. The maximum
+selected route was 22 steps after 136 ordinary command-handler moves; six
+in-memory canonical cross-checks passed. This is not native admission/reload
+qualification, and the search does not change the unit proof's evidence level.
+
+At runtime `eb680f3` / integrated candidate `316212d`, native Chrome/IndexedDB
+regressions pass: **33 frontier**, **12 local exploration** and **56 known-route**
+cases, zero skips/retries/failures. The first two JSON reports are under
+`tests/e2e/test-results/canonical-frontier/` (61.08s) and
+`tests/e2e/test-results/canonical-frontier-exploration/` (46.00s); the known-route
+configuration completed in about 1.5 minutes. These retain their prior bounded
+geometries, not a native 89-step claim.
+
+The expanded service run `maze-start-service-mFo6ob/` completed **42 PASS / one
+FAIL** (1,059.63s). Its post-transfer history test asserted five results within
+five seconds before waiting for the existing 30-second terminal decision. The
+fourth applied result arrived about 3ms after the assertion failed; service
+planning progressed into navigation, then teardown stopped observation. Trace
+review found no runtime error or recovery-required state. This is not evidence
+that the unobserved remainder completed.
+
+Fixture-only `751f051` waits for that existing terminal boundary first, then
+requires exactly five results and all original custody/source checks. The three
+history modes pass in `maze-start-service-AsasYp/`; no timeout, authority or
+result assertion was relaxed. A complete post-repair service rerun is still
+required; the earlier aggregate is retained as failed rather than relabelled.
+
 ## Remaining Boundaries
 
 1. Qualify sustained local coverage, remembered off-window return, and explicit
    selection of another room without hidden-world guidance. The current mode
    stops at a material choice or scope boundary; it is not unbounded autoplay.
-2. Expose explicit ordinary quest inspection/acceptance/collection using the same
-   validated game commands and genuine interaction receipts. Navigation remains
-   separate from interaction, followed by host-proven return.
-3. Port Lumina's authored two-dungeon corpus to current generation/sight and run
-   the complete depth/revisit/capacity/multicontroller matrix. These small native
-   scenes and an actual-App service case are not the full Q corpus.
+2. Accepted-quest inspection, explicit collection and host-proven return now
+   have [canonical composed evidence](issue-11-canonical-corpus.md); these are no
+   longer missing primitives. Autonomous guild acceptance/reward tooling remains
+   later RPG work. Navigation still never authorizes collection.
+3. The authored two-dungeon corpus is now ported to current generation/sight,
+   with selected settled-boundary capacity recovery. Its full information and
+   active-work recovery gates remain; newer bounded revisit/history I/O proofs
+   do not establish arbitrary depth or history.
 4. Keep any live-model gate separate, under confirmed provider limits and
    authorization. None is authorized by these provider-free checks.

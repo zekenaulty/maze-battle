@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 41,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 42,
 2026-10-20. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -428,7 +428,8 @@ P1 storage contracts are split as follows:
   strategic model reasoning or sustained room coverage.
 - **P3 Agentica, checked historical query:** on-demand immediate-predecessor
   notice retrieval, retained source proof and no-effect changed-sight replay
-  pass for same-owner continuation. No persistent context dump or format change.
+  pass for same-owner continuation, inspected adoption and one transferred
+  operation's progress source. No persistent context dump or format change.
 - **P3 Agentica, remaining:** qualify sustained coverage, broader history
   source/replay combinations, then the complete two-dungeon matrix.
   Explicit guild reward
@@ -595,3 +596,56 @@ proof, not arbitrary session cleanup or permission for automatic continuation.
 The service page response is bounded, but its capped ledger is still read as a
 whole; this is not a history-independent service-I/O claim. No paid-model test is included
 without separate limits/authorization. Issue #11 is not complete.
+
+## Finite Goal Closeout
+
+2026-10-20 planning checkpoint, independently reviewed against candidate
+`316212d`. Remaining estimate: **40-80 focused engineering hours**, roughly
+**5-10 working days**, with **10-15 days** contingency for newly demonstrated
+runtime defects. These are planning ranges, not a promised completion time or
+an extrapolation from test duration. The active goal remains incomplete.
+
+The six bounded sprints below replace an open-ended interpretation of "full
+matrix." Do not run every fault at every checkpoint. Use a declared set whose
+cases collectively cover the listed invariants, preserving failed attempts.
+Parallel fixture/review lanes are appropriate; integrate and qualify one immutable
+candidate at a time. Checked increments continue to be committed and pushed.
+
+| Sprint | Remaining deliverable and exit gate | Estimate |
+| --- | --- | ---: |
+| 1. Sustained exploration | A lawful native journey crosses several retained prefixes, returns to remembered off-window evidence, and explicitly selects another room. Provide earned room/connection scopes and deliberate off-window room recall, not only coordinate windows. Preserve original allowances and target windows; no hidden hints or per-cell model calls. Qualify the >64-step prefix repair natively only if existing geometry can actually produce that route; document an honest representability limit otherwise. | 8-16h |
+| 2. Information boundaries | Fixed-action authored A/B comparison through the first lawful observation difference: all exposed inspect scopes, schemas, UI/map/fog, remembered facts, route proposals, progress/refusals and exact planner input. Declare field normalization first and preserve raw traces. | 8-16h |
+| 3. Active-work recovery | Cover outbound travel, committed collection with uncertain delivery, active return and retained completion with uncertain delivery. Distribute reload, duplicate delivery, lost ACK, takeover and capacity failure across these states. Exact original identity, one effect, no unauthorized restart, and funded Stop/ACK are required. | 8-16h |
+| 4. Work and controller parity | Resolve pre-divergence storage-work differences under controlled public state. Public cost hints and scheduling must not reveal hidden variants. Equivalent explicitly authorized Manual/Auto/Agentic commands produce identical domain effects; Auto's routing/interaction policy grants no agent authority. | 6-10h |
+| 5. Generated-world endurance | Declare a small generated-layout cohort, shallow/deep retained topology samples and a larger fixed-depth history sample than the existing 128 moves. Prove paged known-room/connection graph retrieval across multiple pages and bounded underlying reads/payloads as topology grows. Include active Agentica/two-tab recovery, actual IndexedDB I/O/latency, and preserved old records/receipts, not unchanged current knowledge roots. | 6-12h |
+| 6. Frozen-candidate qualification | Full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. | 4-10h |
+
+Already checked evidence is reused at its declared level: authored A/B explicit
+collection/earned return; before/after-collection settled-boundary quota/reload;
+same-owner/adopted/one-transfer history; two-floor manual revisits/takeover;
+and separated 1/16-floor plus 128-move App I/O. These do not establish active-step
+fault recovery or the complete cross-surface information gate.
+
+Room-detail and known-room/connection map scopes are required operations, not
+an always-present map dump; their pagination and distant recall cannot be
+substituted by bounded coordinate windows. Unlimited room coverage is a separate
+deferred capability, not an excuse to omit these scoped operations.
+
+Each remaining test must name its missing invariant before it is added. A new
+unrelated feature, arbitrary ancestry depth, unlimited room coverage or another
+scenario without a new required claim does not extend this closeout implicitly.
+Keep any demonstrated blocker explicit instead of weakening the acceptance.
+
+Completion means the bounded noncombat vertical and the required canonical
+persistence acceptance are qualified on a frozen revision, with evidence links
+and remaining limits published. It does not mean combat, full inventory/town
+parity, autonomous guild acceptance/rewards, resource-pressure balance, remote
+causal mechanisms, compaction or infinite-world performance are complete.
+Physical-disk exhaustion and equal real-world network latency are not claimed;
+atomic failure handling and truthful work disclosure remain mandatory.
+
+The provider-free report must explicitly distinguish the isolated .NET 10.0.401
+environment from Agentica's repository pin 10.0.302. A live-model A/B gate remains
+separate: obtain explicit model/cumulative-cost/call/time limits and authorization
+first, then report actual choices, usage, latency and outcomes independently.
+No paid run, merge, deployment or owner-database reset is authorized by this plan.

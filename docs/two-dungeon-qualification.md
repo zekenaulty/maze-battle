@@ -6,7 +6,7 @@ schema; old-format save compatibility is no longer an acceptance requirement.
 Prior PASS entries are historical, not qualification of the replacement.
 
 Status: acceptance specification with PARTIAL provider-free implementation.
-Integrated revision 5, 2026-10-20. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
+Integrated revision 6, 2026-10-20. Derived from Lumina's owner-approved NS-6 continuation draft v0.1;
 sequenced behind the dungeon repair in [the next-slices plan](agentic-play-next-slices.md).
 This is a game-owned scenario configuration, not a separate game implementation.
 
@@ -21,9 +21,13 @@ per world, no per-cell planning or paid calls. The integrated service cohort
 passes 36 cases. Native fixed-action comparisons cover selected earned semantic
 projections through first lawful divergence, not the complete surface matrix.
 
-Corpus-wide interruption/replay/takeover/quota, storage-work equivalence,
-generated-world scaling and live competence remain unqualified. See the report
-for original evidence, source pins, SDK limits and independently found test gaps.
+Before/after-collection settled-boundary quota/reload now has four actual-service
+cases; adopted and transferred historical queries have separate composed proof.
+Active-work interruption/replay/takeover, storage-work equivalence, the full
+cross-surface gate, generated-world scaling and live competence remain open.
+Use the [finite closeout sequence](canonical-persistence-plan.md#finite-goal-closeout)
+to bound the residual matrix; do not infer an exhaustive fault/checkpoint product.
+See the reports for source pins, SDK limits and independently found test gaps.
 
 ## Historical Pre-Cutover Evidence
 
