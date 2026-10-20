@@ -51,7 +51,11 @@ test('actual App explicitly queries an accepted quest and its opaque detail with
     // @ts-expect-error Same game state oracle as the chest proof.
     const { chestEffects }: typeof import('./canonical-start-service.chest-fixture') = await import('/tests/e2e/canonical-start-service.chest-fixture.ts');
     const prepared = await Promise.all(ids.slice(0, 2).map(prepareAction));
-    const records = (await readCanonical(pages => Promise.all(prepared.map(id => pages.get('execution', `${id.storageKey}/result`))))).value;
+    const records = (await readCanonical(async pages => {
+      const rows = [];
+      for (const id of prepared) rows.push(await pages.get('execution', `${id.storageKey}/result`));
+      return rows;
+    })).value;
     return { effects: await chestEffects(selected), records };
   }, { ids: actions, selected: setup.target });
   expect(evidence.records.every(row => row && typeof row.value === 'object' && row.value !== null && 'query' in row.value)).toBe(true);
