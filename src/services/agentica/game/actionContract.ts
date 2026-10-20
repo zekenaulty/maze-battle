@@ -29,6 +29,15 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
     && (durable ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
   if (action.capabilityId === 'maze.explore' && action.arguments.mode === 'room') check(cap.inputSchema.fields
     .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
+  if (action.capabilityId === 'maze.inspect' && action.arguments.scope === 'objects') {
+    const scope = cap.inputSchema.fields.find(f => f.name === 'scope' && f.type === 'string');
+    const cursor = cap.inputSchema.fields.find(f => f.name === 'cursor' && f.type === 'string');
+    check(scope?.allowedValues?.includes('objects')
+      && cap.inputSchema.fields.every(f => !f.required || Object.hasOwn(action.arguments, f.name))
+      && (action.arguments.cursor === undefined || cursor
+        && (cursor.allowedValues === undefined || cursor.allowedValues.includes(action.arguments.cursor as string))),
+    'visible object inspection was not granted');
+  }
   if (action.capabilityId === 'maze.inspect' && ['quests', 'quest', 'objective'].includes(action.arguments.scope as string)) {
     const field = (name: string) => cap.inputSchema.fields.find(f => f.name === name && f.type === 'string');
     const permitted = (name: string) => {

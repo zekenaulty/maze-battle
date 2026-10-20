@@ -12,6 +12,7 @@ import { check, jsonBytes } from '../../../persistence/canonical/validation';
 import { observation, perceptionContext, type PerceptionContext } from './context';
 import { chestToken } from './chestSelection';
 import { frontierObservation } from './frontierObservation';
+import { objectObservation } from './objectObservation';
 import { cursorAfter, flatAddress, inspectArgs, inspectionCursor, inspectQuery, localPosition } from './validation';
 import { MAP_PAGE_ROOMS, MAX_CONTEXT_BYTES, MAX_OBSERVATION_BYTES, MAX_PERCEPTION_READ_BYTES, ROOM_PAGE_SLOTS, ROOM_WINDOW_SIDE,
   type CellAddress, type InspectArgs, type InspectQuery, type PerceptionPages } from './types';
@@ -97,6 +98,7 @@ export async function inspectMaze(pages: PerceptionPages, snapshot: CanonicalSna
   const args = inspectArgs(input), c = await perceptionContext(pages, snapshot, publication), query = inspectQuery(args, c.checkpoint);
   const after = cursorAfter(args.cursor, c.ref, query);
   if (query.scope === 'frontiers') return frontierObservation(c, query, (after as number | undefined) ?? 0);
+  if (query.scope === 'objects') return objectObservation(c, query, (after as number | undefined) ?? 0);
   if (query.scope === 'map') return mapObservation(c, query, after as string | undefined);
   if (query.scope === 'room') return roomObservation(c, query, (after as number | undefined) ?? 0);
   const [cell] = await readKnownCells(c.pages, c.checkpoint, [localPosition(query as CellAddress)]);

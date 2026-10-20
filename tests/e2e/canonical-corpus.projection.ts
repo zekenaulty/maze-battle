@@ -26,7 +26,7 @@ export async function corpusSurface(session: GameSession) {
     } });
     const actor = await observeMaze(earned, snapshot, ref);
     const scopes: Record<string, Awaited<ReturnType<typeof inspectMaze>>[]> = {};
-    for (const scope of ['cell', 'frontiers', 'map', 'room'] as const) {
+    for (const scope of ['cell', 'frontiers', 'map', 'room', 'objects'] as const) {
       const frames: Awaited<ReturnType<typeof inspectMaze>>[] = [];
       scopes[scope] = frames;
       let cursor: string | undefined;

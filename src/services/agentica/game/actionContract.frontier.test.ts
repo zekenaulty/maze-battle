@@ -42,3 +42,25 @@ it('does not silently expand an approach-only grant into room exploration', asyn
   expect((await actionGrant({} as LaunchGrantContext, binding,
     { ...protocolAction(), capabilityId: 'maze.explore', arguments: { frontier: 'token' } })).capability).toEqual(capability);
 });
+
+it.each(['old scope', 'unbounded scope', 'missing scope', 'missing cursor', 'narrow cursor', 'required field'])
+('refuses visible objects under %s authority', async mode => {
+  const capability = mazeCapabilities()[1], fields = capability.inputSchema.fields;
+  if (mode === 'old scope') fields[0].allowedValues = ['cell', 'room', 'map', 'frontiers'];
+  if (mode === 'unbounded scope') delete fields[0].allowedValues;
+  if (mode === 'missing scope') fields.shift();
+  if (mode === 'missing cursor') capability.inputSchema.fields = fields.filter(f => f.name !== 'cursor');
+  if (mode === 'narrow cursor') fields.find(f => f.name === 'cursor')!.allowedValues = ['different'];
+  if (mode === 'required field') fields.find(f => f.name === 'level')!.required = true;
+  vi.mocked(assertLaunchGrant).mockResolvedValue({ capability } as Awaited<ReturnType<typeof assertLaunchGrant>>);
+  await expect(actionGrant({} as LaunchGrantContext, binding, { ...protocolAction(), capabilityId: 'maze.inspect',
+    arguments: { scope: 'objects', cursor: 'page' } })).rejects.toThrow('visible object inspection was not granted');
+});
+
+it('accepts explicitly granted visible object inspection and paging', async () => {
+  const capability = mazeCapabilities()[1];
+  vi.mocked(assertLaunchGrant).mockResolvedValue({ capability } as Awaited<ReturnType<typeof assertLaunchGrant>>);
+  for (const args of [{ scope: 'objects' }, { scope: 'objects', cursor: 'page' }])
+    expect((await actionGrant({} as LaunchGrantContext, binding, { ...protocolAction(), capabilityId: 'maze.inspect',
+      arguments: args })).capability).toEqual(capability);
+});
