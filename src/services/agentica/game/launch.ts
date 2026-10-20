@@ -12,13 +12,17 @@ import { mazeCapabilities } from './capabilities';
 export interface GameLaunchOptions {
   endpoint: string; objectiveId: string; objective: string;
   provider: AgenticaStart['provider']; limits: AgenticaStart['limits'];
+  returnQuestId?: string;
 }
 /** Explicit caller configuration only: no model selection, hidden target selection, or network effects. */
 export async function prepareGameLaunch(port: CanonicalHostPort, input: GameLaunchOptions, launchId: string = crypto.randomUUID()) {
   const config = structuredClone(input), signal = port.hostSignal;
   launchGuardId(launchId);
   signal.throwIfAborted();
-  const published = await port.submitHostCommand({ kind: 'fresh', signal, operation: 'agentica.publish', input: {},
+  const inputGoal: JsonObject = config.returnQuestId === undefined ? {} : {
+    returnQuest: { launchId, objectiveId: config.objectiveId, questId: config.returnQuestId },
+  };
+  const published = await port.submitHostCommand({ kind: 'fresh', signal, operation: 'agentica.publish', input: inputGoal,
     execute: (request, options) => executeCanonical(request, async tx => (await retainPublication(tx, request)).receipt, options) });
   signal.throwIfAborted();
   const publication = (published.result as JsonObject).reference as unknown as ProtocolRef;

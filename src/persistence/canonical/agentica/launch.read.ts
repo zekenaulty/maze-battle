@@ -8,6 +8,7 @@ import { launchStarted } from './launch.wire';
 import { validateLaunchAdmission, acceptedLaunchStart } from './launch.service';
 import { validateLaunchAckHistory } from './launch.ack-proof';
 import { ACTIVE_LAUNCH_KEY, type LaunchDispatch, type LaunchGrant, type LaunchRead, type LaunchRun, type LaunchState } from './launch.types';
+import { validateLaunchObjective } from './objective.binding';
 
 export async function loadActiveLaunch(pages: LaunchRead) {
   const pointer = await loadLaunchRecord<{ launchId: string }>(pages, ACTIVE_LAUNCH_KEY, 'agentica-active-launch');
@@ -58,6 +59,7 @@ export async function loadLaunch(pages: LaunchRead, id: string) {
   check(last ? state.source.attemptId === last.source.attemptId && state.row.revision === last.row.revision
     : state.source.attemptId === guard.admissionAttemptId && state.source.operation === 'operation.admit', 'launch state source changed');
   const publication = await readPublication(pages, binding.publication);
+  validateLaunchObjective(publication, id, binding.start.objectiveId);
   check(binding.start.observation.revision === publication.wireRevision && binding.start.sessionEpoch === String(publication.epoch)
     && publication.owner === admission.source.expected.owner && publication.epoch === admission.source.expected.epoch
     && publication.snapshot.revision <= admission.source.expected.revision, 'launch publication binding changed');

@@ -3,6 +3,7 @@ import type { KnowledgeAnchor } from '../knowledge/types';
 import type { CanonicalQuery } from '../read';
 import type { CanonicalGameSnapshot, CanonicalRequest, JsonObject } from '../types';
 import type { QuestQueryProof } from './quest.proof';
+import type { ReturnObjective } from './objective.binding';
 
 export const MAX_ACTION_BYTES = 4096;
 export const MAX_RESULT_BYTES = 4096;
@@ -20,6 +21,7 @@ export interface ProtocolSource {
 export interface Publication extends ProtocolSource {
   kind: 'agentica-publication'; wireRevision: number;
   snapshot: CanonicalGameSnapshot; observation: KnowledgeAnchor | null;
+  objective?: ReturnObjective;
 }
 /** Prepared before opening IndexedDB; hashing is never awaited inside a transaction. */
 export interface PreparedAction {

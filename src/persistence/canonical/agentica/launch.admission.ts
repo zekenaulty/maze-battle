@@ -8,6 +8,7 @@ import { launchPages, launchWriter } from './launch.records';
 import { loadActiveLaunch, loadLaunch } from './launch.read';
 import { launchBinding, launchGuardId, launchKey, launchSessionId } from './launch.validation';
 import { ACTIVE_LAUNCH_KEY } from './launch.types';
+import { validateLaunchObjective } from './objective.binding';
 
 export async function retainLaunchAdmission(tx: CanonicalOperationWork, request: CanonicalRequest) {
   const head = snapshotJson(tx.head), writer = launchWriter(tx, request), input = operationInput(request, 'admit');
@@ -24,6 +25,7 @@ export async function retainLaunchAdmission(tx: CanonicalOperationWork, request:
   } else check(await tx.pages.witness('execution', 'agentica/launches/') === null, 'retained launch has no usable active pointer');
   check(!Object.keys(head.allocations).some(key => key.startsWith('agentica-launch:')), 'funded launch guard has no usable active pointer');
   const publication = await readPublication(pages, binding.publication); assertPublicationCurrent(publication, head);
+  validateLaunchObjective(publication, id, binding.start.objectiveId);
   check(binding.start.sessionEpoch === String(head.epoch) && binding.start.observation.revision === publication.wireRevision, 'launch publication binding changed');
   await writer.put(launchKey(id), 'agentica-launch-state', id, { dispatch: null, run: null, grant: null });
   await writer.put(ACTIVE_LAUNCH_KEY, 'agentica-active-launch', id, { launchId: id }, true);

@@ -26,5 +26,8 @@ export async function assertLaunchGrant(tx: LaunchGrantContext, ref: ProtocolRef
   const publication = await readPublication(pages, publicationRef); assertPublicationCurrent(publication, head);
   check(publication.epoch === grant.epoch && action.expectedRevision === publication.wireRevision, 'action publication changed');
   check(Date.now() < Date.parse(action.deadlineAt), 'action is outside launch grant');
-  return { launchId: launch.binding.launchId, run: structuredClone(run), capability: structuredClone(capability), publication };
+  return { launchId: launch.binding.launchId, run: structuredClone(run), capability: structuredClone(capability), publication,
+    ...(launch.publication.objective ? { objective: {
+      publication: structuredClone(launch.binding.publication), value: structuredClone(launch.publication.objective),
+    } } : {}) };
 }
