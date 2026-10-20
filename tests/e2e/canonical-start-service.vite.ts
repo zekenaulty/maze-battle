@@ -11,6 +11,16 @@ export default defineConfig({
   plugins: [react(), {
     name: 'actual-app-service-controller', enforce: 'pre',
     transform(source, id) {
+      if (id.replaceAll('\\', '/').endsWith('/src/services/agentica/game/playNavigation.ts')) {
+        const anchor = '      timer = setTimeout(() => { void pulse(); }, 250);';
+        if (!source.includes(anchor)) throw Error('History transfer custody barrier no longer matches');
+        // Test-only scheduling pause after real custody ACK, before the first local step.
+        return source.replace(anchor, `if (result.status === 'custody-confirmed'
+          && new URL(location.href).searchParams.has('historyTransferProof')) {
+          globalThis.__canonicalHistoryTransferPaused = true; return;
+        }
+        ${anchor}`);
+      }
       if (id.replaceAll('\\', '/').endsWith('/src/persistence/canonical/agentica/decision.query.read.ts')) {
         const anchor = 'return { pages, usage };';
         if (!source.includes(anchor)) throw Error('Decision query read-meter instrumentation no longer matches');

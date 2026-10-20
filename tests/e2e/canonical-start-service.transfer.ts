@@ -20,7 +20,7 @@ import { executeCanonical } from '../../src/persistence/canonical/transaction';
 export async function attachServiceTransfer(session: GameSession, action: AgenticaAction, binding: ActionBinding) {
   const identity = await prepareAction(action);
   const forbidden = async () => { throw Error('Transfer cannot invoke actions or cognition.'); };
-  const sdk = new AgenticaHost({ url: 'ws://127.0.0.1:5259/api/host', onAction: forbidden, loadAction: forbidden, saveAction: forbidden });
+  const sdk = new AgenticaHost({ url: import.meta.env.VITE_AGENTICA_ENDPOINT, onAction: forbidden, loadAction: forbidden, saveAction: forbidden });
   const driver = await createGameOperationDriver(session, sdk, action, binding);
   const transfer = await createGameOperationTransfer(session, sdk, action, binding);
   async function read() {

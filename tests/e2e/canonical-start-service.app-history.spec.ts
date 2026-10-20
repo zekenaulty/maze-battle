@@ -9,6 +9,7 @@ import { serviceOrigin } from '../agentica-start-service/service.mjs';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { counterDelta, absentWindow } from './canonical-start-service.decision.steps';
 import { adoptHistory } from './canonical-start-service.history-adoption';
+import { transferHistory } from './canonical-start-service.history-transfer';
 
 test.use({ roomProof: true });
 const initialWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
@@ -37,11 +38,14 @@ async function queries(page: Page, actions: AgenticaAction[]) {
   }, actions);
 }
 
-for (const adoption of [false, true]) test(adoption
+for (const mode of ['same-owner', 'adoption', 'post-transfer'] as const) test(mode === 'post-transfer'
+  ? 'actual App explicitly queries historical decision after post-transfer adoption then settles zero-step custody'
+  : mode === 'adoption'
   ? 'actual App explicitly queries historical decision after reload adoption then settles zero-step custody'
   : 'actual App explicitly queries historical decision after room Continue then settles zero-step custody', async ({ page, wire }, info) => {
   test.setTimeout(120_000);
-  await page.goto('/?roomProof=1&historyProof=1');
+  const adoption = mode !== 'same-owner';
+  await page.goto('/?roomProof=1&historyProof=1' + (mode === 'post-transfer' ? '&historyTransferProof=1' : ''));
   await expect(page.getByText(/Dungeon 1 - Ready/)).toBeVisible();
   await page.evaluate(async () => {
     // @ts-expect-error Attach the test reader to the actual hook-owned session only.
@@ -56,9 +60,10 @@ for (const adoption of [false, true]) test(adoption
     await dialog.getByRole('textbox', { name: 'Objective', exact: true }).fill(
       'Explore one earned room until a material decision. After explicit Continue, inspect the historical decision twice, then navigate to the observed current tile for zero-step custody only.');
     await dialog.getByRole('button', { name: 'Start Agentic play', exact: true }).click();
-    await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 30_000 });
+    const transferred = mode === 'post-transfer' ? await transferHistory(page, wire) : null;
+    if (!transferred) await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 30_000 });
     await expect(dialog.getByRole('alert')).toHaveCount(0);
-    await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled();
+    if (!transferred) await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled();
     const initial = wire.received.filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload as AgenticaAction);
     expect(initial.map(action => action.capabilityId)).toEqual(['maze.inspect', 'maze.explore']);
     expect(initial[0].arguments).toEqual({ scope: 'frontiers' });
@@ -66,6 +71,11 @@ for (const adoption of [false, true]) test(adoption
     const after = await page.evaluate(() => window.canonicalStartService.snapshot()), retained = await operation(page, initial[1]);
     if (retained.parent?.kind !== 'navigation' || !retained.parentTerminal) throw Error('Missing original navigation terminal.');
     const terminal = retained.parentTerminal.event;
+    if (transferred) {
+      expect(terminal.sessionEpoch).toBe(String(transferred.owned.head.epoch));
+      expect(terminal.sessionEpoch).not.toBe(initial[1].sessionEpoch);
+      expect(retained.parent.event!.reference).toEqual(transferred.settled.value!.event!.reference);
+    }
     expect(retained.parent.progress).toMatchObject({ status: 'decision', reason: 'scope-boundary', steps: 4,
       notice: { kind: 'other-space-visible', source: { sequence: expect.any(Number), id: expect.any(String), index: expect.any(Number) } } });
     expect(terminal.observation).toEqual(retained.parent.event!.data.event.observation);
@@ -100,6 +110,7 @@ for (const adoption of [false, true]) test(adoption
     expect(wake).toEqual(continued.claim.decision.data.event);
     const epoch = reloaded?.head.epoch ?? after.head.epoch;
     expect(actions.slice(2).map(action => action.sessionEpoch)).toEqual(Array(3).fill(String(epoch)));
+    expect(actions.slice(2).map(action => action.runId)).toEqual(Array(3).fill(continued.claim.data.started.runId));
     expect(terminal.sessionEpoch).toBe(String(after.head.epoch));
     expect(continued.selection.value.data.grant).toEqual(continued.child.confirmation.data.binding.grant);
     expect(continued.child.operation).toMatchObject({ owner: reloaded?.head.owner ?? after.head.owner, epoch });
@@ -116,6 +127,7 @@ for (const adoption of [false, true]) test(adoption
     }
     const currentObservation = adoption ? continuation.adoption.observation : wake.observation;
     expect(currentObservation.data.scope).toBe('actor'); expect(currentObservation.data.navigation).toBeUndefined();
+    expect(currentObservation.data.source).toEqual(continued.claim.decision.publication.observation);
     expect(currentObservation).not.toEqual(terminal.observation);
     const actor = currentObservation.data.actor;
     expect(actions[4].arguments).toEqual({ level: actor.level, spaceId: actor.spaceId, row: actor.row, column: actor.column });
@@ -139,6 +151,7 @@ for (const adoption of [false, true]) test(adoption
     const replay = await queries(page, actions.slice(2, 4));
     for (let i = 0; i < replay.length; i++) {
       expect(replay[i].result).toEqual(history[i]);
+      expect(replay[i].source.sourceRequest.expected).toMatchObject({ owner: continuedHead.head.owner, epoch });
       expect(replay[i].source.decision).toMatchObject({ schema: 1, grant: continued.selection.value.data.grant,
         previous: { intent: continued.claim.decision.reference,
           observation: { kind: 'progress', reference: retained.parent.event!.reference } } });
@@ -224,7 +237,7 @@ for (const adoption of [false, true]) test(adoption
     expect(await serviceProof()).toEqual(counters);
     expect(await plannerHistory()).toEqual(plannerReceived);
     await info.attach('actual-app-history-proof.json', { body: JSON.stringify({ before, after, continuedHead, childAck, final,
-      retained, reloaded, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters, plannerReceived }, null, 2), contentType: 'application/json' });
+      retained, transferred, reloaded, continued, finalProtocol, replay, metrics, freshCommits, manualLook, changed, retry, baseline, counters, plannerReceived }, null, 2), contentType: 'application/json' });
   } finally {
     await info.attach('history-final-state.json', { body: JSON.stringify({
       snapshot: await page.evaluate(() => window.canonicalStartService.snapshot()).catch(String),

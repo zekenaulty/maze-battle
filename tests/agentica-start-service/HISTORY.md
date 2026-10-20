@@ -59,3 +59,37 @@ same-owner case but failed an adoption assertion that incorrectly expected the
 original `decision.observation` to be renewed. Production intentionally puts
 the fresh projection in `adoption.observation`; the test now checks both exact
 historical decision and separate current observation. No runtime repair.
+
+## Post-Transfer Adoption
+
+The third history case starts through the actual App and pauses its scheduling
+only after the real canonical custody ACK, before any local movement. This
+opt-in Vite fixture barrier does not replace commands, results or authority.
+After reload, the existing HTTP transfer helper runs against the same App-owned
+GameSession: exact service transfer ACK, guard adoption, navigation adoption,
+then explicit authorization. At most ten driver pulses are allowed; exactly
+eight perform four moves, three progress ACKs and local decision settlement.
+No planner is activated during transfer or travel. A second reload then uses
+the inspected App UI adoption path and the same two-query/zero-step successor.
+
+The observed epochs are 3 (original admission), 5 (transfer and material
+decision), and 7 (adopted successor). Both planner receipts must exactly match
+the pre-adoption epoch-5 terminal and immutable progress source, not the earlier
+transfer anchor. The original root grant remains retained. Funded Stop and
+completed-result retry after changed sight use the same assertions as the other
+history cases, including no fresh query reads or command submissions on retry.
+
+Focused candidate `test-results/maze-start-service-OWVZ2M` passed 1/1 in 28.1s:
+50 source reads per fresh query, 115/116 resolve-transaction reads, two 1114-byte
+planner events, and no allocations after cleanup. Retained setup failures
+`maze-start-service-Deb4PJ` and `maze-start-service-znxKcR` were overly strict
+typed transfer-HTTP assertions (`+00:00` vs `Z`, and null completion/facts).
+Only that HTTP expectation was corrected; nested history strings remain exact.
+
+No C# planner/output or `serviceProof` payload/counter changes. The spec adds
+one further case (two total additions to the parent's 37), and the transfer
+helper now uses the configured fixture endpoint instead of hard-coded 5259.
+Other legacy transfer spec/bootstrap constants still assume 5258/5259; that
+older case was not run on the isolated 5398/5399 pair. Corpus assertions and
+production files are untouched. This proves one transfer followed by adoption,
+not arbitrary transfer ancestry, a transfer-UI feature, or remote query replay.
