@@ -4,6 +4,7 @@ import type { CanonicalQuery } from '../read';
 import type { CanonicalGameSnapshot, CanonicalRequest, JsonObject } from '../types';
 import type { QuestQueryProof } from './quest.proof';
 import type { ReturnObjective } from './objective.binding';
+import type { ObjectiveProof } from './objective.proof';
 
 export const MAX_ACTION_BYTES = 4096;
 export const MAX_RESULT_BYTES = 4096;
@@ -35,6 +36,7 @@ export interface PendingAction extends ProtocolSource {
 export interface ActionResult extends ProtocolSource {
   kind: 'agentica-result'; proof: 'standalone' | 'navigation' | 'interaction'; original: ProtocolRef; result: AgenticaResult;
   query?: QuestQueryProof;
+  objective?: ObjectiveProof;
 }
 export interface RetainedAction {
   reference: ProtocolRef; original: PendingAction; publication: Publication;

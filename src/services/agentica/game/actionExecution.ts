@@ -23,9 +23,14 @@ import { cursorAfter, inspectArgs, inspectQuery, localPosition } from './validat
 import { questArgs } from '../../../persistence/canonical/agentica/quest.proof';
 import { queryQuests } from './questContext';
 import { QuestQueryRefusal } from './questSelection';
+import { ObjectiveRefusal } from '../../../persistence/canonical/agentica/objective.prepare';
+import { queryObjective } from './objectiveContext';
 
 function parse(action: AgenticaAction, publication: ProtocolRef) {
   if (action.capabilityId === 'maze.observe') { fields(action.arguments, ''); return { kind: 'observe' as const }; }
+  if (action.capabilityId === 'maze.inspect' && action.arguments.scope === 'objective') {
+    fields(action.arguments, 'scope'); return { kind: 'objective' as const };
+  }
   if (action.capabilityId === 'maze.inspect') return ['quests', 'quest'].includes(action.arguments.scope as string)
     ? { kind: 'quest' as const, args: questArgs(action.arguments) } : { kind: 'inspect' as const, args: inspectArgs(action.arguments) };
   if (action.capabilityId === 'maze.interact') return { kind: 'interact' as const, selection: chestArgs(action.arguments, publication) };
@@ -102,6 +107,12 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
       return executeCanonical(request, async tx => {
         await actionGrant(tx, binding, identity.action);
         let rejected = message;
+        if (!rejected && selected?.kind === 'objective') {
+          try {
+            const checked = await queryObjective(tx, identity, binding);
+            return (await retainActionResult(tx, request, identity, checked.result, undefined, checked.proof)).receipt;
+          } catch (error) { if (!(error instanceof ObjectiveRefusal)) throw error; rejected = error.message; }
+        }
         if (selected?.kind === 'inspect') {
           try { cursorAfter(selected.args.cursor, binding.publication, inspectQuery(selected.args, gameCheckpoint(tx.head.checkpoint))); }
           catch { rejected = 'Inspection cursor or query does not belong to this publication.'; }

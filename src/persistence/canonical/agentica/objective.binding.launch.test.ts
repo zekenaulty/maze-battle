@@ -112,7 +112,7 @@ describe('return objective launch binding', () => {
     const f = fixture(), grant = await f.grant(), before = structuredClone(f.records), action = f.action();
     action.expectedRevision = f.initial.wireRevision;
     const authorized = await assertLaunchGrant(f.tx, grant, action, f.root);
-    expect(authorized.objective).toEqual({ publication: f.root, value: f.objective });
+    expect(authorized.objective).toEqual({ publication: f.root, value: f.objective, admissionAttemptId: (await f.load()).guard.admissionAttemptId });
     expect(f.records).toEqual(before);
     authorized.objective!.value.quest.ref.id = 'mutated';
     expect((await assertLaunchGrant(f.tx, grant, action, f.root)).objective!.value).toEqual(f.objective);
@@ -146,7 +146,7 @@ describe('return objective launch binding', () => {
     const action = { ...f.action(), runId: 'successor-run', expectedRevision: fresh.wireRevision };
     const before = structuredClone(f.records), result = await assertLaunchGrant(f.tx, successor, action, next);
     expect(result.publication.objective).toBeUndefined();
-    expect(result.objective).toEqual({ publication: f.root, value: f.objective });
+    expect(result.objective).toEqual({ publication: f.root, value: f.objective, admissionAttemptId: (await f.load()).guard.admissionAttemptId });
     expect(f.records).toEqual(before);
   });
 });

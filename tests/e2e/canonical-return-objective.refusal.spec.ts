@@ -67,7 +67,8 @@ test('typed renewal is refused without replacing the original root selection', a
   });
   expect(r.refused).toMatchObject({ rejected: true, message: expect.stringMatching(/initial|typed|objective/) });
   expect(r.after).toBe(r.before);
-  expect(r.selected.objective).toEqual({ publication: r.initial.prepared.publication, value: r.initial.proof.publication.objective });
+  expect(r.selected.objective).toEqual({ publication: r.initial.prepared.publication, value: r.initial.proof.publication.objective,
+    admissionAttemptId: r.initial.launch!.guard.admissionAttemptId });
   await evidence(info, 'typed-renewal-refused.json', r);
 });
 
@@ -81,7 +82,8 @@ test('ordinary renewal keeps the typed objective from the original root publicat
   });
   expect(r.ordinary.proof.publication.objective).toBeUndefined();
   expect(r.selected.publication.sourceAttemptId).toBe(r.ordinary.original.attemptId);
-  expect(r.selected.objective).toEqual({ publication: r.initial.prepared.publication, value: r.initial.proof.publication.objective });
+  expect(r.selected.objective).toEqual({ publication: r.initial.prepared.publication, value: r.initial.proof.publication.objective,
+    admissionAttemptId: r.initial.launch!.guard.admissionAttemptId });
   expect(r.after).toBe(r.before);
   expect(r.afterDomain).toEqual(r.domain);
   await evidence(info, 'initial-only-binding-ordinary-renewal.json', r);

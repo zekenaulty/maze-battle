@@ -29,7 +29,7 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
     && (durable ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
   if (action.capabilityId === 'maze.explore' && action.arguments.mode === 'room') check(cap.inputSchema.fields
     .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
-  if (action.capabilityId === 'maze.inspect' && ['quests', 'quest'].includes(action.arguments.scope as string)) {
+  if (action.capabilityId === 'maze.inspect' && ['quests', 'quest', 'objective'].includes(action.arguments.scope as string)) {
     const field = (name: string) => cap.inputSchema.fields.find(f => f.name === name && f.type === 'string');
     const permitted = (name: string) => {
       const f = field(name);
@@ -40,7 +40,7 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
     check(field('scope')?.allowedValues?.includes(action.arguments.scope as string), 'quest inspection was not granted');
     if (action.arguments.scope === 'quests') check(field('status')?.allowedValues?.includes(action.arguments.status as string)
       && (action.arguments.cursor === undefined || permitted('cursor')), 'quest status or paging was not granted');
-    else check(permitted('target'), 'quest detail selection was not granted');
+    else if (action.arguments.scope === 'quest') check(permitted('target'), 'quest detail selection was not granted');
   }
   return grant;
 }

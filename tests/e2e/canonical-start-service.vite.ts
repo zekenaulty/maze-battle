@@ -44,6 +44,11 @@ export default defineConfig({
             VITE_AGENTICA_MAX_REFINEMENTS: '2', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '0',
             VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
           } : {}),
+          ...(new URL(location.href).searchParams.has('returnProof') ? {
+            VITE_AGENTICA_MODEL: 'decision-return', VITE_AGENTICA_MAX_STEPS: '5',
+            VITE_AGENTICA_MAX_REFINEMENTS: '2', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '2',
+            VITE_AGENTICA_TIMEOUT_SECONDS: '180', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20',
+          } : {}),
         });`);
       }
       if (!id.replaceAll('\\', '/').endsWith('/src/hooks/useGameSession.ts')) return;

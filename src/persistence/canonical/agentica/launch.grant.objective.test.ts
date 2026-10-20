@@ -48,7 +48,7 @@ function fixture(typed = true) {
 it('returns the root owner choice separately from the current successor publication', async () => {
   const f = fixture(), result = await f.run();
   expect(result.publication).toBe(f.current);
-  expect(result.objective).toEqual({ publication: f.rootRef, value: f.objective });
+  expect(result.objective).toEqual({ publication: f.rootRef, value: f.objective, admissionAttemptId: 'admission' });
   expect(assertPublicationSelected).toHaveBeenCalledWith(expect.anything(), 'launch', f.grantRef, f.selectedRef);
   f.rootRef.id = 'mutated'; f.objective.quest.item.token = 'mutated';
   expect(result.objective!.publication.id).toBe('root-record');
