@@ -2,6 +2,8 @@ import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { counterDelta } from './canonical-start-service.decision.steps';
 
+test.use({ freshCorpus: true });
+
 for (const variant of ['A', 'B'] as const) test(`${variant}: actual App cold-start survey adapts, collects and returns through the real service`, async ({ page, wire }, info) => {
   test.setTimeout(300_000);
   await page.goto('/tests/e2e/canonical-start-service.html');
@@ -69,11 +71,15 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App cold-sta
     }
     expect(choices.filter(a => a.capabilityId === 'maze.interact')).toHaveLength(1);
     const final = await effects(), completion = results.at(-1)!;
+    const collected = decisions.find(d => d.actions.some(a => a.capabilityId === 'maze.interact'))!.state;
     expect(final.questItems).toHaveLength(1); expect(final.questItems[0].quantity).toBe(1);
     expect(final.quest.quest.status).toBe('complete');
     expect(final.checkpoint.position).toEqual(setup.position);
     expect(completion).toMatchObject({ disposition: 'applied', completion: { evidenceId: completion.evidenceId },
       observation: { data: { scope: 'objective', status: 'satisfied', carried: 1, atReturn: true } } });
+    for (const field of ['inventory', 'stash', 'quest', 'chest', 'questItems'] as const)
+      expect(final[field]).toEqual(collected[field]);
+    expect(final.head.roots.world).toEqual(collected.head.roots.world);
     await expect.poll(() => wire.received.some(({ frame }) => frame.type === 'outcome' && frame.runId === choices.at(-1)!.runId)).toBe(true);
     const counters = await serviceProof(), delta = counterDelta(counters, baseline);
     expect(counters.paidProviderCalls).toBe(0);
@@ -83,6 +89,12 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App cold-sta
     expect(wire.sent.filter(frame => frame.type === 'operation.wake')).toHaveLength(decisions.length - 1);
     expect(JSON.stringify(results)).not.toContain(setup.target.contractId);
     await page.screenshot({ path: info.outputPath(`corpus-${variant}-satisfied.png`) });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobile = await dialog.boundingBox();
+    expect(mobile).not.toBeNull();
+    expect(mobile!.x).toBeGreaterThanOrEqual(0); expect(mobile!.x + mobile!.width).toBeLessThanOrEqual(390);
+    expect(mobile!.y).toBeGreaterThanOrEqual(0); expect(mobile!.y + mobile!.height).toBeLessThanOrEqual(844);
+    await page.screenshot({ path: info.outputPath(`corpus-${variant}-mobile.png`) });
     await dialog.getByRole('button', { name: 'Stop Agentic play', exact: true }).click();
     await expect(dialog.getByRole('status').filter({ hasText: /^stopped$/ })).toBeVisible();
     await dialog.getByRole('button', { name: 'Recovery', exact: true }).click();
