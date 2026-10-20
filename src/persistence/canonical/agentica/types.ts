@@ -5,6 +5,7 @@ import type { CanonicalGameSnapshot, CanonicalRequest, JsonObject } from '../typ
 import type { QuestQueryProof } from './quest.proof';
 import type { ReturnObjective } from './objective.binding';
 import type { ObjectiveProof } from './objective.proof';
+import type { DecisionQueryProof } from './decision.query.proof';
 
 export const MAX_ACTION_BYTES = 4096;
 export const MAX_RESULT_BYTES = 4096;
@@ -37,6 +38,7 @@ export interface ActionResult extends ProtocolSource {
   kind: 'agentica-result'; proof: 'standalone' | 'navigation' | 'interaction'; original: ProtocolRef; result: AgenticaResult;
   query?: QuestQueryProof;
   objective?: ObjectiveProof;
+  decision?: DecisionQueryProof;
 }
 export interface RetainedAction {
   reference: ProtocolRef; original: PendingAction; publication: Publication;

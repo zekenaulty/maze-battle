@@ -11,8 +11,8 @@ export function mazeCapabilities(): AgenticaCapability[] {
   return [
     { id: 'maze.observe', name: 'Observe', description: 'Actor/source.', kind: 'query', effect: 'readOnly',
       inputSchema: { fields: [], allowAdditionalProperties: false } },
-    { id: 'maze.inspect', name: 'Inspect', description: 'Map/room/cell/frontiers/visible objects; quests by status; quest by target; objective status/return. Scoped cursor.', kind: 'query', effect: 'readOnly',
-      inputSchema: { fields: [{ name: 'scope', type: 'string', required: true, allowedValues: ['room', 'map', 'cell', 'frontiers', 'objects', 'quests', 'quest', 'objective'] },
+    { id: 'maze.inspect', name: 'Inspect', description: 'Earned map/room/cell/frontiers/objects; quests by status; quest by target; objective; historical decision.', kind: 'query', effect: 'readOnly',
+      inputSchema: { fields: [{ name: 'scope', type: 'string', required: true, allowedValues: ['room', 'map', 'cell', 'frontiers', 'objects', 'quests', 'quest', 'objective', 'decision'] },
         ...address.map(f => ({ ...f, required: false })), { name: 'cursor', type: 'string', required: false },
         { name: 'status', type: 'string', required: false, allowedValues: ['active', 'complete', 'claimed'] },
         { name: 'target', type: 'string', required: false }], allowAdditionalProperties: false } },

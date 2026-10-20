@@ -22,6 +22,7 @@ export function pinDeadline(request: CanonicalRequest, action: AgenticaAction): 
   return { ...request, deadlineAt: Math.min(request.deadlineAt ?? Infinity, Date.parse(action.deadlineAt)) };
 }
 export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding, action: AgenticaAction) {
+  binding = captureBinding(binding); action = validateAction(action);
   const grant = await assertLaunchGrant(tx, binding.grant, action, binding.publication), cap = grant.capability;
   const durable = ['maze.navigate', 'maze.explore', 'maze.interact'].includes(action.capabilityId);
   check(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact'].includes(action.capabilityId)
@@ -38,7 +39,7 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
         && (cursor.allowedValues === undefined || cursor.allowedValues.includes(action.arguments.cursor as string))),
     'visible object inspection was not granted');
   }
-  if (action.capabilityId === 'maze.inspect' && ['quests', 'quest', 'objective'].includes(action.arguments.scope as string)) {
+  if (action.capabilityId === 'maze.inspect' && ['quests', 'quest', 'objective', 'decision'].includes(action.arguments.scope as string)) {
     const field = (name: string) => cap.inputSchema.fields.find(f => f.name === name && f.type === 'string');
     const permitted = (name: string) => {
       const f = field(name);

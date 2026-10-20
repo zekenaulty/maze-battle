@@ -13,13 +13,15 @@ import { questQueryProof, validateQuestResult, type QuestQueryProof } from './qu
 import { gameCheckpoint } from '../game/checkpoint';
 import { validateObjectiveResult, type ObjectiveProof } from './objective.proof';
 import { snapshotPreparedObjective } from './objective.prepare';
+import { validateDecisionQueryResult, type DecisionQueryProof } from './decision.query.proof';
+import { snapshotPreparedDecision } from './decision.query.prepare';
 
 /** Missing result references throw. Only discovery of an as-yet-unwritten result may return null. */
 export async function readActionResultSource(pages: ProtocolRead, identity: PreparedAction, ref: ProtocolRef): Promise<ActionResult> {
   identity = snapshotPrepared(identity); ref = snapshotReference(ref);
   const pending = await loadOriginalAction(pages, identity); check(pending, 'missing original action');
   check(ref.key === `${identity.storageKey}/result`, 'result reference belongs to another action');
-  const stored = await readSource(pages, ref, 'agentica-result', 'proof original result', 'query objective') as ActionResult;
+  const stored = await readSource(pages, ref, 'agentica-result', 'proof original result', 'query objective decision') as ActionResult;
   const scope = stored.sourceRequest.expected, before = pending.original.sourceRequest.expected;
   check(equal(stored.original, pending.reference) && scope.generation === before.generation
     && scope.gameId === before.gameId && stored.owner === pending.original.owner
@@ -34,6 +36,8 @@ export async function readActionResultSource(pages: ProtocolRead, identity: Prep
   check(stored.query === undefined || stored.proof === 'standalone', 'quest query is not a standalone result');
   await validateObjectiveResult(pages, stored.objective, identity, pending, result);
   check(stored.objective === undefined || stored.proof === 'standalone', 'objective check is not a standalone result');
+  await validateDecisionQueryResult(pages, stored.decision, identity, pending, result);
+  check(stored.decision === undefined || stored.proof === 'standalone', 'decision query is not a standalone result');
   return stored;
 }
 export async function readActionResult(pages: ProtocolRead, identity: PreparedAction, ref: ProtocolRef): Promise<AgenticaResult> {
@@ -42,12 +46,14 @@ export async function readActionResult(pages: ProtocolRead, identity: PreparedAc
 
 /** Shared validation for standalone storage and navigation's guarded append-only writer. */
 export async function actionResultWrite(pages: ProtocolRead, head: CanonicalHead, request: CanonicalRequest,
-  identity: PreparedAction, input: AgenticaResult, proof: ActionResult['proof'] = 'standalone', query?: QuestQueryProof, objective?: ObjectiveProof):
+  identity: PreparedAction, input: AgenticaResult, proof: ActionResult['proof'] = 'standalone', query?: QuestQueryProof, objective?: ObjectiveProof,
+  decision?: DecisionQueryProof):
   Promise<{ key: string; value: ActionResult } | { existing: ProtocolRef }> {
   identity = snapshotPrepared(identity); input = snapshotJson(input, MAX_RESULT_BYTES);
   head = snapshotJson(head); request = snapshotRequest(request);
   query = query === undefined ? undefined : questQueryProof(query);
   objective = objective === undefined ? undefined : snapshotPreparedObjective(objective, identity, head);
+  decision = decision === undefined ? undefined : snapshotPreparedDecision(decision, identity, head);
   check(proof === 'standalone' || proof === 'navigation' || proof === 'interaction', 'invalid action proof format');
   const pending = await loadOriginalAction(pages, identity); check(pending, 'missing original action');
   const result = validateResult(input, identity.action, pending.original.effect), key = `${identity.storageKey}/result`;
@@ -56,12 +62,14 @@ export async function actionResultWrite(pages: ProtocolRead, head: CanonicalHead
   check(query === undefined || proof === 'standalone', 'quest query is not a standalone result');
   objective = await validateObjectiveResult(pages, objective, identity, pending, result);
   check(objective === undefined || proof === 'standalone', 'objective check is not a standalone result');
+  decision = await validateDecisionQueryResult(pages, decision, identity, pending, result);
+  check(decision === undefined || proof === 'standalone', 'decision query is not a standalone result');
   const previous = await pages.get('execution', key);
   if (previous) {
     const ref = { key, id: previous.id };
     const stored = await readActionResultSource(pages, identity, ref);
     check(equal(stored.result, result) && equal(stored.query ?? null, query ?? null)
-      && equal(stored.objective ?? null, objective ?? null), 'original result changed');
+      && equal(stored.objective ?? null, objective ?? null) && equal(stored.decision ?? null, decision ?? null), 'original result changed');
     return { existing: ref };
   }
   const anchor = source({ head }, request, 'agentica-result');
@@ -69,13 +77,13 @@ export async function actionResultWrite(pages: ProtocolRead, head: CanonicalHead
   if (result.disposition === 'applied' || result.disposition === 'refused') assertPublicationCurrent(pending.publication, head);
   check(result.afterRevision <= head.revision + 1, 'result exceeds its commit revision');
   return { key, value: { ...anchor, kind: 'agentica-result', proof, original: pending.reference, result,
-    ...(query ? { query } : {}), ...(objective ? { objective } : {}) } };
+    ...(query ? { query } : {}), ...(objective ? { objective } : {}), ...(decision ? { decision } : {}) } };
 }
 
 /** Grant/deadline/domain proof remain caller-owned; an existing result never grants another effect. */
 export async function retainActionResult(tx: CanonicalWork, request: CanonicalRequest, identity: PreparedAction,
-  input: AgenticaResult, query?: QuestQueryProof, objective?: ObjectiveProof): Promise<ProtocolWrite> {
-  const write = await actionResultWrite(tx.pages, tx.head, request, identity, input, 'standalone', query, objective);
+  input: AgenticaResult, query?: QuestQueryProof, objective?: ObjectiveProof, decision?: DecisionQueryProof): Promise<ProtocolWrite> {
+  const write = await actionResultWrite(tx.pages, tx.head, request, identity, input, 'standalone', query, objective, decision);
   return 'existing' in write ? { reference: write.existing, receipt: { reference: { ...write.existing } } }
     : writeSource(tx, write.key, write.value);
 }

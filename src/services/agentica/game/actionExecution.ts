@@ -14,7 +14,7 @@ import { fields } from '../../../persistence/canonical/roster/codec';
 import { MIN_TERMINAL_BYTES } from '../../../persistence/canonical/types';
 import { check } from '../../../persistence/canonical/validation';
 import { json } from '../../../persistence/canonical/world/records';
-import { actionGrant, actionResult, pinDeadline, type ActionBinding } from './actionContract';
+import { actionGrant, actionResult, captureBinding, pinDeadline, type ActionBinding } from './actionContract';
 import { admitChest, selectedChest } from './actionInteraction';
 import { chestArgs } from './chestSelection';
 import { exploreArgs } from './exploreArgs';
@@ -25,9 +25,16 @@ import { queryQuests } from './questContext';
 import { QuestQueryRefusal } from './questSelection';
 import { ObjectiveRefusal } from '../../../persistence/canonical/agentica/objective.prepare';
 import { queryObjective } from './objectiveContext';
+import { queryDecision } from '../../../persistence/canonical/agentica/decision.query.prepare';
+import { decisionPages, DecisionQueryRefusal } from '../../../persistence/canonical/agentica/decision.query.read';
+import { snapshotPrepared } from '../../../persistence/canonical/agentica/validation';
+import { launchPages } from '../../../persistence/canonical/agentica/launch.records';
 
 function parse(action: AgenticaAction, publication: ProtocolRef) {
   if (action.capabilityId === 'maze.observe') { fields(action.arguments, ''); return { kind: 'observe' as const }; }
+  if (action.capabilityId === 'maze.inspect' && action.arguments.scope === 'decision') {
+    fields(action.arguments, 'scope'); return { kind: 'decision' as const };
+  }
   if (action.capabilityId === 'maze.inspect' && action.arguments.scope === 'objective') {
     fields(action.arguments, 'scope'); return { kind: 'objective' as const };
   }
@@ -45,6 +52,7 @@ function parse(action: AgenticaAction, publication: ProtocolRef) {
 
 /** One reserved action only. The transport controls continuation after admission, not this dispatcher. */
 export async function executeGameAction(port: CanonicalHostPort, binding: ActionBinding, identity: PreparedAction) {
+  binding = captureBinding(binding); identity = snapshotPrepared(identity);
   let command: ReturnType<typeof parse> | undefined;
   try { command = parse(identity.action, binding.publication); } catch { /* Invalid arguments produce an explicit, non-effect refusal. */ }
   let refusal = command ? undefined : 'Invalid arguments for this capability.';
@@ -101,12 +109,32 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
       } }) });
   }
   const selected = command, message = refusal;
+  const decisionRequested = identity.action.capabilityId === 'maze.inspect' && identity.action.arguments.scope === 'decision';
   return port.submitHostCommand({ kind: 'fresh', operation: 'agentica.action.resolve', input: { action: identity.storageKey },
     execute: (input, options) => {
       const request = pinDeadline(input, identity.action);
       return executeCanonical(request, async tx => {
-        await actionGrant(tx, binding, identity.action);
+        const bounded = decisionRequested ? decisionPages(launchPages(tx)) : null;
+        const context = bounded ? { head: tx.head, pages: bounded.pages, liveOperation: bounded.pages.liveOperation } : tx;
+        const authorized = await actionGrant(context, binding, identity.action);
         let rejected = message;
+        if (decisionRequested) {
+          const refuse = async (summary: string) => {
+            const publication = authorized.publication;
+            const result = actionResult(identity, { observationId: binding.publication.id, revision: publication.wireRevision,
+              observedAt: gameCheckpoint(publication.snapshot.checkpoint).updatedAt, data: { scope: 'decision', state: 'refused' } },
+            summary, 'refused');
+            return (await retainActionResult(tx, request, identity, result)).receipt;
+          };
+          if (rejected) return refuse(rejected);
+          try {
+            const checked = await queryDecision(context, identity, binding);
+            return (await retainActionResult(tx, request, identity, checked.result, undefined, undefined, checked.proof)).receipt;
+          } catch (error) {
+            if (!(error instanceof DecisionQueryRefusal)) throw error;
+            return refuse(error.message);
+          }
+        }
         if (!rejected && selected?.kind === 'objective') {
           try {
             const checked = await queryObjective(tx, identity, binding);
