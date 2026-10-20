@@ -40,6 +40,9 @@ export async function retainPublicationSelection(tx: CanonicalWork, input: Canon
   check(!previous || !equal({ grant: previous.value.data.grant, publication: previous.value.data.publication },
     { grant: args.grant, publication: args.publication }), 'publication binding is already selected');
   const publication = await readPublication(tx.pages, args.publication); assertPublicationCurrent(publication, head);
+  check(!publication.objective || request.operation === 'agentica.launch.grant'
+    && args.previousSelection === null && publication.objective.launchId === args.launchId,
+  'return objective belongs to the original launch publication only');
   const pointer = await tx.pages.set('execution', selectionKey(args.launchId), selectionPointer(args.launchId, request.attemptId));
   return writer.put(selectionKey(args.launchId, request.attemptId), 'agentica-publication-selection', args.launchId,
     { grant: args.grant, publication: args.publication, previousSelection: args.previousSelection,

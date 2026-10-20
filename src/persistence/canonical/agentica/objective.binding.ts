@@ -7,16 +7,16 @@ import type { CellSource } from '../knowledge/types';
 import { cellSource } from '../knowledge/validation';
 import { fields, id, text, timestamp } from '../roster/codec';
 import type { CanonicalWork } from '../transaction';
-import type { CanonicalRequest } from '../types';
-import { check, isObject, jsonBytes } from '../validation';
+import type { CanonicalRecord, CanonicalRequest } from '../types';
+import { check, isObject, jsonBytes, recordKey, validId } from '../validation';
 import { position } from '../world/records';
 import type { WorldPosition } from '../world/types';
-import { snapshotReference, wireId } from './validation';
-import type { ProtocolRef, Publication } from './types';
+import { wireId } from './validation';
+import type { Publication } from './types';
 
 export interface ReturnObjective {
   schema: 1; kind: 'retrieve-return'; launchId: string; objectiveId: string;
-  quest: { ref: ProtocolRef; questId: string; title: string; acceptedAt: string; item: QuestItemSpec };
+  quest: { ref: Pick<CanonicalRecord, 'key' | 'id'>; questId: string; title: string; acceptedAt: string; item: QuestItemSpec };
   entrance: { at: WorldPosition; source: CellSource };
 }
 export function returnObjective(input: unknown): ReturnObjective {
@@ -25,7 +25,8 @@ export function returnObjective(input: unknown): ReturnObjective {
   check(row.schema === 1 && row.kind === 'retrieve-return', 'unsupported host objective');
   wireId(row.launchId); wireId(row.objectiveId);
   const q = fields(row.quest, 'ref questId title acceptedAt item');
-  const ref = snapshotReference(q.ref as unknown as ProtocolRef); id(q.questId); text(q.title); timestamp(q.acceptedAt);
+  const ref = fields(q.ref, 'key id'); recordKey(ref.key as string);
+  check(validId(ref.id), 'invalid host objective quest source'); id(q.questId); text(q.title); timestamp(q.acceptedAt);
   check(ref.key === contentKey('quest', q.questId as string), 'host objective quest identity changed');
   const item = fields(q.item, 'baseId displayName token'); id(item.baseId); text(item.displayName); text(item.token, 32);
   const entrance = fields(row.entrance, 'at source');

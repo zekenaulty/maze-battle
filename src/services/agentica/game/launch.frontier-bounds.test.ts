@@ -14,7 +14,7 @@ vi.mock('../../../persistence/canonical/read', async importOriginal => ({
 }));
 beforeEach(() => vi.clearAllMocks());
 
-async function actualStart(objective: string, env: Record<string, string> = {}) {
+async function actualStart(objective: string, env: Record<string, string> = {}, returnQuestId?: string) {
   const f = await perceptionFixture([earnedCell(0, 0, 'entry', 3, 3)]);
   f.head.gameId = crypto.randomUUID(); f.head.revision = 12345; f.republish();
   const attemptId = crypto.randomUUID();
@@ -33,7 +33,8 @@ async function actualStart(objective: string, env: Record<string, string> = {}) 
   });
   const port = { hostSignal: new AbortController().signal, submitHostCommand } as unknown as CanonicalHostPort;
   let error: unknown;
-  try { await prepareGameLaunch(port, { ...profile, objectiveId: crypto.randomUUID(), objective }); }
+  try { await prepareGameLaunch(port, { ...profile, objectiveId: crypto.randomUUID(), objective,
+    ...(returnQuestId === undefined ? {} : { returnQuestId }) }); }
   catch (caught) { error = caught; }
   expect(start).toBeDefined();
   return { start: start!, bytes: new TextEncoder().encode(JSON.stringify(start)).length, error, submitHostCommand };
@@ -59,4 +60,14 @@ it.each([['multibyte', '\u754c'], ['escaped', '"']] as const)('keeps the aggrega
   expect(() => launchStart(f.start)).toThrow('3584 bytes');
   expect(f.start.objective).toBe(objective);
   expect(f.submitHostCommand.mock.calls.map(([command]) => command.operation)).toEqual(['agentica.publish']);
+});
+
+it('retains owner quest selection in the private publication request, not the initial wire context', async () => {
+  const id = 'floor-1:private-room:fetch', f = await actualStart('x'.repeat(512), {}, id);
+  expect(f.error).toBeUndefined(); expect(f.bytes).toBe(3491);
+  expect(f.submitHostCommand.mock.calls[0][0].input).toEqual({
+    returnQuest: { launchId: f.start.scopeId, objectiveId: f.start.objectiveId, questId: id },
+  });
+  expect(JSON.stringify(f.start)).not.toContain(id);
+  expect(JSON.stringify(f.start)).not.toContain('returnQuest');
 });
