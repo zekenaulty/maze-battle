@@ -38,6 +38,11 @@ export function observationChunkRecord(row: CanonicalRecord | undefined, parent:
 export function observationCoverage(header: ObservationHeader, cells: ObservedCell[]) {
   const byCell = new Map(cells.map(c => [cellKey(c.at), c]));
   check(cells.length === header.count && byCell.size === cells.length && byCell.has(cellKey(header.actor)), 'invalid observation coverage');
+  if (header.spaces) {
+    const spaces = new Set(cells.map(c => c.at.cell.spaceId));
+    check(spaces.size === header.spaces.length && header.spaces.every(s => spaces.has(s.spaceId)
+      && cells[s.index].at.cell.spaceId === s.spaceId), 'classification is not covered by observed cells');
+  }
   for (const c of cells) {
     check(c.at.level === header.actor.level, 'foreign observation level');
     for (const d of DIRECTIONS) {

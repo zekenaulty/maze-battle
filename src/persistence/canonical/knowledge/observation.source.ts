@@ -1,7 +1,7 @@
 import { check, integer } from '../validation';
 import { observationKey } from './keys';
 import { observationDigest, readObservationIntegrity } from './observation.integrity';
-import { observationChunkRecord, observationHeaderRecord } from './observation.validation';
+import { observationChunkRecord, observationCoverage, observationHeaderRecord } from './observation.validation';
 import { cellSource, observationRef } from './validation';
 import { OBSERVATION_CHUNK_SIZE, type CellSource, type KnowledgeRead, type ObservationRef, type ObservedCell } from './types';
 
@@ -14,6 +14,13 @@ export async function readObservationHeader(pages: KnowledgeRead, input: Observa
 }
 
 type Observation = Awaited<ReturnType<typeof readObservationHeader>>;
+export async function readCompleteObservation(pages: KnowledgeRead, reference: ObservationRef) {
+  const observation = await readObservationHeader(pages, reference), cells: ObservedCell[] = [];
+  for (let i = 0; i < observation.header.chunks.length; i++) cells.push(...await readObservationChunk(pages, observation, i));
+  observationCoverage(observation.header, cells);
+  return { header: observation.header, cells };
+}
+
 export async function readObservationChunk(pages: KnowledgeRead, observation: Observation, index: number) {
   const { parent, header, digests } = structuredClone(observation);
   check(integer(index) && index < header.chunks.length, 'invalid observation chunk index');

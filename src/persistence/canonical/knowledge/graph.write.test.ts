@@ -17,6 +17,7 @@ import { observationKey } from './keys';
 import { rememberObservation } from './memory';
 import { indexObservedWorldCells } from './worldIndex';
 import { json } from '../world/records';
+import { observationChunksDigest, observationDigest, retainObservationIntegrity } from './observation.integrity';
 import type { ObservedCell, ObservedSpace } from './types';
 
 vi.mock('./observe', () => ({ observePositionEvidence: vi.fn() }));
@@ -47,7 +48,9 @@ function harness() {
         const key = observationKey(1), chunk = await view.pages.set('knowledge', `${key}/0`, json({ schema: 1, sequence: 1, offset: 0, cells }));
         const row = await view.pages.set('knowledge', key, json({ schema: 1, sequence: 1, previous: null, owner: head.owner,
           epoch: head.epoch, revision: head.revision + 1, observedAt: checkpoint.updatedAt, actor: checkpoint.position,
-          policy: 'linked-vision-v1', radius: 7, count: cells.length, chunks: [chunk.id] }));
+          policy: 'linked-vision-v1', radius: 7, count: cells.length, chunks: [chunk.id],
+          chunksDigest: observationChunksDigest([observationDigest(chunk)]) }));
+        await retainObservationIntegrity(view.pages, row, [chunk]);
         await rememberObservation(view.pages, cells, { sequence: 1, id: row.id }); await indexObservedWorldCells(view.pages, cells);
         next = { ...checkpoint, knowledge: { sequence: 1, id: row.id, witness: (await view.pages.witness('knowledge', 'perception/'))! } };
       } else next = await recordGameObservation({ pages: view.pages, head } as CanonicalWork, checkpoint);

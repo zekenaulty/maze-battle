@@ -128,7 +128,7 @@ describe('exploration logical work bounds', () => {
   });
   it('throws rather than clearing a comparison whose exact retained sources exhaust the read budget', async () => {
     const cells = sight(), f = knowledgeFixture(); await f.observe(cells);
-    for (let i = 1; i <= 36; i++) { cells[i].chests = [{ id: `chest-${i}`, opened: false }]; await f.observe(cells); }
+    for (let i = 1; i <= 86; i++) { cells[i].chests = [{ id: `chest-${i}`, opened: false }]; await f.observe(cells); }
     f.reads.length = f.writes.length = 0;
     await expect(compareExplorationObservation(f.pages, f.checkpoint(), cells, 'room')).rejects.toThrow('read budget exhausted');
     expect(f.reads.length).toBeLessThanOrEqual(MAX_EXPLORATION_READS); expect(f.writes).toEqual([]);

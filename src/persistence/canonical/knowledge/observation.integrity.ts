@@ -13,6 +13,10 @@ import type { KnowledgeRead } from './types';
 
 export const MAX_OBSERVATION_PROOF_BYTES = 1024;
 export const observationIntegrityKey = (sequence: number) => `${observationKey(sequence)}/integrity`;
+export const observationChunksDigest = (digests: readonly string[]) => {
+  check(digests.length > 0 && digests.length <= 8 && digests.every(d => /^sha256:[a-f0-9]{64}$/.test(d)), 'invalid chunk digests');
+  return `sha256:${bytesToHex(sha256(new TextEncoder().encode(canonicalJson(digests))))}`;
+};
 // Synchronous hashing keeps native IndexedDB transactions alive. Commit the entire record envelope.
 export const observationDigest = (row: CanonicalRecord) => {
   jsonBytes(row);
@@ -31,7 +35,8 @@ export async function readObservationIntegrity(pages: KnowledgeRead, parentInput
   check(proof.schema === 1 && proof.recordId === parent.id && proof.revision === parent.revision
     && row.revision === parent.revision && digest(proof.headerDigest) && proof.headerDigest === observationDigest(parent)
     && Array.isArray(proof.chunkDigests) && proof.chunkDigests.length === header.chunks.length
-    && proof.chunkDigests.every(digest), 'observation integrity evidence changed');
+    && proof.chunkDigests.every(digest)
+    && observationChunksDigest(proof.chunkDigests as string[]) === header.chunksDigest, 'observation integrity evidence changed');
   return proof.chunkDigests as string[];
 }
 
@@ -45,8 +50,10 @@ export async function retainObservationIntegrity(pages: CanonicalPages, parentIn
   check(chunks.length === header.chunks.length, 'incomplete observation proof');
   const cells = chunks.flatMap((row, index) => observationChunkRecord(row, parent, header, index));
   observationCoverage(header, cells);
+  const chunkDigests = chunks.map(observationDigest);
+  check(observationChunksDigest(chunkDigests) === header.chunksDigest, 'observation integrity commitment differs from chunks');
   const proof = json({ schema: 1, recordId: parent.id, revision: parent.revision,
-    headerDigest: observationDigest(parent), chunkDigests: chunks.map(observationDigest) });
+    headerDigest: observationDigest(parent), chunkDigests });
   jsonBytes(proof, MAX_OBSERVATION_PROOF_BYTES);
   const key = observationIntegrityKey(header.sequence);
   check(!await pages.get('knowledge', key), 'observation integrity already exists');

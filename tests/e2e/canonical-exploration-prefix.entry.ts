@@ -12,6 +12,9 @@ import { worldRequest as command } from './canonical-world-fixture';
 import { dump, knowledgeOnly, query, refusal } from './canonical-frontier.support';
 import { read as roster } from './canonical-roster-fixture';
 import { seedPrefixScene as seed } from './canonical-exploration-prefix.fixture';
+import { auditRequiredSources } from './canonical-exploration-prefix.audit';
+import { cleanupBudgetFailure } from './canonical-exploration-prefix.cleanup';
+import { rejectObservationProof } from './canonical-exploration-prefix.atomic';
 
 async function admit(limits: DestinationLimits) {
   const frontiers = await query(), actor = gameCheckpoint(frontiers.head.checkpoint).position;
@@ -70,6 +73,7 @@ async function effects() {
 }
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5418') throw Error('Isolated prefix fixture only');
-const api = { ...navigation, ...transaction, ...reader, seed, admit, advance, capture, survey, refill, digest, effects, command, refusal };
+const api = { ...navigation, ...transaction, ...reader, seed, admit, advance, capture, survey, refill, digest, effects, command, refusal,
+  auditRequiredSources, cleanupBudgetFailure, rejectObservationProof };
 declare global { interface Window { canonicalExplorationPrefix: typeof api } }
 window.canonicalExplorationPrefix = api;

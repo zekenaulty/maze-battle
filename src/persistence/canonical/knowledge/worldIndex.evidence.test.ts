@@ -78,7 +78,7 @@ describe('complete spatial-block integrity evidence', () => {
   it('requires the companion write to succeed rather than publishing partial integrity evidence', async () => {
     const f = knowledgeFixture(), set = f.pages.set.bind(f.pages);
     f.pages.set = async (area, key, value, indexes) => {
-      if (key.endsWith('/integrity')) throw new DOMException('Injected proof failure', 'QuotaExceededError');
+      if (key.startsWith('perception/world/') && key.endsWith('/integrity')) throw new DOMException('Injected proof failure', 'QuotaExceededError');
       return set(area, key, value, indexes);
     };
     await expect(f.observe([earnedCell()])).rejects.toThrow('Injected proof failure');

@@ -22,7 +22,7 @@ describe('town return evidence refusals', () => {
 
   it('refuses a replaced original source identity', async () => {
     const f = await returnFixture(); f.records.get(observationKey(1))!.id = crypto.randomUUID();
-    await refuses(f, /missing or replaced source/);
+    await refuses(f, /observation integrity evidence changed/);
   });
 
   for (const away of [false, true]) it(`refuses ambiguous town addresses (${away ? 'initial' : 'current'})`, async () => {
@@ -36,7 +36,7 @@ describe('town return evidence refusals', () => {
     const f = knowledgeFixture(); await f.observe([townCell(), awayCell()]);
     if (away) await f.observe([awayCell()]);
     cells(f)[1] = structuredClone(cells(f)[0]);
-    await refuses(f, /invalid observation coverage/);
+    await refuses(f, /observation chunk integrity changed/);
   });
 
   it('refuses an initial town flag from a foreign floor', async () => {

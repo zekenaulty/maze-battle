@@ -2,11 +2,13 @@ import type { CanonicalWork } from '../transaction';
 import { check, integer } from '../validation';
 import { json } from '../world/records';
 import { checkpointJson, gameCheckpoint, type GameCheckpoint } from '../game/checkpoint';
+import type { CanonicalRecord } from '../types';
 import { KNOWLEDGE_PREFIX, observationKey } from './keys';
 import { observePositionEvidence } from './observe';
 import { graphAvailable } from './graph.storage';
 import { indexObservationGraph } from './graph.write';
 import { validateKnowledge } from './evidence';
+import { observationChunksDigest, observationDigest, retainObservationIntegrity } from './observation.integrity';
 import { rememberObservation } from './memory';
 import { indexObservedWorldCells } from './worldIndex';
 import { OBSERVATION_CHUNK_SIZE, VISION_RADIUS, type KnowledgeRead, type ObservedCell, type ObservationHeader } from './types';
@@ -28,19 +30,21 @@ export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameC
   check(integer(sequence, 1), 'observation sequence exhausted');
   const key = observationKey(sequence);
   check(!await tx.pages.get('knowledge', key), 'observation sequence already exists');
-  const chunks: string[] = [];
+  const chunks: CanonicalRecord[] = [];
   for (let start = 0; start < cells.length; start += OBSERVATION_CHUNK_SIZE) {
     const chunkKey = `${key}/${chunks.length}`;
     check(!await tx.pages.get('knowledge', chunkKey), 'observation chunk already exists');
     const row = await tx.pages.set('knowledge', chunkKey, json({ schema: 1, sequence, offset: start, cells: cells.slice(start, start + OBSERVATION_CHUNK_SIZE) }));
-    chunks.push(row.id);
+    chunks.push(row);
   }
   const header: ObservationHeader = { schema: 1, sequence, previous: checkpoint.knowledge
     ? { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id } : null,
     owner: tx.head.owner, epoch: tx.head.epoch, revision: tx.head.revision + 1, observedAt: new Date().toISOString(),
-    actor: structuredClone(checkpoint.position), policy: 'linked-vision-v1', radius: VISION_RADIUS, count: cells.length, chunks,
+    actor: structuredClone(checkpoint.position), policy: 'linked-vision-v1', radius: VISION_RADIUS, count: cells.length,
+    chunks: chunks.map(row => row.id), chunksDigest: observationChunksDigest(chunks.map(observationDigest)),
     spaces, graph: 'available' };
   const row = await tx.pages.set('knowledge', key, json(header));
+  await retainObservationIntegrity(tx.pages, row, chunks);
   await rememberObservation(tx.pages, cells, { sequence, id: row.id });
   await indexObservedWorldCells(tx.pages, cells);
   await indexObservationGraph(tx.pages, cells, spaces, { sequence, id: row.id });

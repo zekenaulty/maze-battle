@@ -6,7 +6,7 @@ import { jsonBytes } from '../validation';
 import { MAX_RECORD_BYTES } from '../types';
 import type { ObservationHeader } from './types';
 import { observationFixture } from './observation.test-support';
-import { observationDigest, readObservationIntegrity, retainObservationIntegrity, MAX_OBSERVATION_PROOF_BYTES } from './observation.integrity';
+import { observationChunksDigest, observationDigest, readObservationIntegrity, retainObservationIntegrity, MAX_OBSERVATION_PROOF_BYTES } from './observation.integrity';
 
 describe('immutable observation integrity manifest', () => {
   it('commits every complete record synchronously and reads only one proof', async () => {
@@ -45,7 +45,8 @@ describe('immutable observation integrity manifest', () => {
     // IDs must remain unique even at their maximum length.
     f.chunks.forEach((row, i) => row.id = `${i}${long.slice(1)}`);
     Object.assign(f.parent.value as unknown as ObservationHeader,
-      { owner: long, epoch: Number.MAX_SAFE_INTEGER, revision: Number.MAX_SAFE_INTEGER, chunks: f.chunks.map(c => c.id) });
+      { owner: long, epoch: Number.MAX_SAFE_INTEGER, revision: Number.MAX_SAFE_INTEGER, chunks: f.chunks.map(c => c.id),
+        chunksDigest: observationChunksDigest(f.chunks.map(observationDigest)) });
     f.records.delete(f.proof.key);
     const proof = await retainObservationIntegrity(f.pages, f.parent, f.chunks);
     expect(jsonBytes(proof.value, MAX_OBSERVATION_PROOF_BYTES)).toBeLessThanOrEqual(1024);

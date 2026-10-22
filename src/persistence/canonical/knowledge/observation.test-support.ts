@@ -3,7 +3,7 @@ import type { CanonicalRecord, Json } from '../types';
 import { json } from '../world/records';
 import { earnedCell } from './region.test-support';
 import { observationKey } from './keys';
-import { retainObservationIntegrity } from './observation.integrity';
+import { observationChunksDigest, observationDigest, retainObservationIntegrity } from './observation.integrity';
 import type { ObservationHeader, ObservedCell } from './types';
 
 export async function observationFixture(count = 33, sequence = 1) {
@@ -24,7 +24,8 @@ export async function observationFixture(count = 33, sequence = 1) {
     json({ schema: 1, sequence, offset: i, cells: cells.slice(i, i + 16) })));
   const header: ObservationHeader = { schema: 1, sequence, previous: sequence === 1 ? null : { sequence: sequence - 1, id: 'previous' },
     owner: 'owner', epoch: 1, revision: sequence + 6,
-    observedAt: '2026-10-22T00:00:00.000Z', actor: cells[0].at, policy: 'linked-vision-v1', radius: 7, count, chunks: chunks.map(c => c.id) };
+    observedAt: '2026-10-22T00:00:00.000Z', actor: cells[0].at, policy: 'linked-vision-v1', radius: 7, count, chunks: chunks.map(c => c.id),
+    chunksDigest: observationChunksDigest(chunks.map(observationDigest)) };
   const parent = await pages.set('knowledge', key, json(header));
   const proof = await retainObservationIntegrity(pages, parent, chunks);
   reads.length = writes.length = 0;

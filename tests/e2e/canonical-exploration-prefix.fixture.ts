@@ -10,6 +10,7 @@ import { createWorldFloor } from '../../src/persistence/canonical/world/generati
 import { seedRoster } from '../../src/persistence/canonical/roster/write';
 import { prepare } from './canonical-content-fixture';
 import { act } from './canonical-knowledge-fixture';
+import { ORIGINAL_PRELUDE } from './canonical-exploration-prefix.original';
 
 // Earn the west-hand room early to retain bounded evidence for the later survey.
 // Setup moves only. No placement, authored sight, altered geometry/content, or runtime route input.
@@ -17,7 +18,7 @@ const PRELUDE = 'SSSSSSSSEEEEEESSSSSSSWWWWWWWENNEEEEEENNNNNWWEEESSSSSSSSSSSSSSNW
   + 'SWWEWNWWNNEEEEEENENWNNENWENNWSWENENNWENWSNWWENEEWWWSWNWWWWW';
 const directions: Record<string, Direction> = { N: 'north', E: 'east', S: 'south', W: 'west' };
 
-export async function seedPrefixScene() {
+export async function seedPrefixScene(history: 'compact' | 'original' = 'compact') {
   const world = 'frontier-exploration-pair', now = new Date().toISOString();
   const checkpoint: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual', knowledge: null,
     position: { level: 1, cell: { spaceId: 'entry', row: 7, column: 7 } },
@@ -35,7 +36,7 @@ export async function seedPrefixScene() {
   const prepared = (await readCanonicalHead()).head;
   await act({ kind: 'look' });
   const moves = [];
-  for (const code of PRELUDE) {
+  for (const code of history === 'original' ? ORIGINAL_PRELUDE : PRELUDE) {
     const direction = directions[code], step = await act({ kind: 'move', direction, triggerStairs: false });
     const result = step.outcome.receipt.result as { moved?: boolean; position?: unknown; observation?: unknown };
     if (!result.moved || step.outcome.replayed) throw Error('Prefix setup must earn every adjacent move once');

@@ -4,6 +4,7 @@ import type { GameCheckpoint } from '../game/checkpoint';
 import { observationKey } from './keys';
 import { rememberObservation } from './memory';
 import { indexObservedWorldCells } from './worldIndex';
+import { observationChunksDigest, observationDigest, retainObservationIntegrity } from './observation.integrity';
 import { OBSERVATION_CHUNK_SIZE, type ObservationHeader, type ObservedCell } from './types';
 
 export const earnedCell = (row = -5, column = -2, spaceId = 'room', localRow = 0, localColumn = 0): ObservedCell => ({
@@ -19,9 +20,10 @@ export function knowledgeFixture(initial?: { records: Map<string, CanonicalRecor
   const guard = (area: string) => { if (area !== 'knowledge') throw Error('Hidden geometry read'); };
   const pages = {
     get: async (area: string, key: string) => { guard(area); reads.push(key); return structuredClone(records.get(key)); },
-    set: async (area: string, key: string, value: unknown) => {
+    set: async (area: string, key: string, value: unknown, indexes: string[] = []) => {
       guard(area); writes.push(key);
-      const row = { id: crypto.randomUUID(), value: structuredClone(value), revision } as CanonicalRecord;
+      const row = { generation: 'generation', gameId: 'game', area: 'knowledge', key, indexes: [...indexes],
+        id: crypto.randomUUID(), value: structuredClone(value), revision } as CanonicalRecord;
       records.set(key, row); witness = crypto.randomUUID(); return structuredClone(row);
     },
     witness: async (area: string) => { guard(area); return witness; },
@@ -29,18 +31,21 @@ export function knowledgeFixture(initial?: { records: Map<string, CanonicalRecor
   } as unknown as CanonicalPages;
   return { pages, records, reads, writes, checkpoint: () => structuredClone(checkpoint),
     snapshot: () => knowledgeFixture({ records, checkpoint }),
-    async observe(cells: ObservedCell[]) {
-      revision++; const sequence = revision, key = observationKey(sequence), chunks: string[] = [];
+    async observe(cells: ObservedCell[], metadata: Pick<ObservationHeader, 'spaces' | 'graph'> = {}) {
+      cells = structuredClone(cells); metadata = structuredClone(metadata);
+      revision++; const sequence = revision, key = observationKey(sequence), chunks: CanonicalRecord[] = [];
       for (let i = 0; i < cells.length; i += OBSERVATION_CHUNK_SIZE) {
         const row = await pages.set('knowledge', `${key}/${chunks.length}`,
           { schema: 1, sequence, offset: i, cells: structuredClone(cells.slice(i, i + OBSERVATION_CHUNK_SIZE)) } as never);
-        chunks.push(row.id);
+        chunks.push(row);
       }
       const header: ObservationHeader = { schema: 1, sequence, previous: checkpoint.knowledge
         ? { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id } : null,
         owner: 'owner', epoch: 1, revision, observedAt: checkpoint.updatedAt, actor: cells[0].at,
-        policy: 'linked-vision-v1', radius: 7, count: cells.length, chunks };
+        policy: 'linked-vision-v1', radius: 7, count: cells.length, chunks: chunks.map(row => row.id),
+        chunksDigest: observationChunksDigest(chunks.map(observationDigest)), ...metadata };
       const row = await pages.set('knowledge', key, header as never);
+      await retainObservationIntegrity(pages, row, chunks);
       await rememberObservation(pages, cells, { sequence, id: row.id });
       await indexObservedWorldCells(pages, cells);
       checkpoint = { ...checkpoint, position: structuredClone(cells[0].at), knowledge: { sequence, id: row.id, witness: witness! } };

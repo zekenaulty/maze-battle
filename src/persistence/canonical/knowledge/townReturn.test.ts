@@ -26,7 +26,7 @@ describe('earned town return candidate', () => {
     expect(f.reads.filter(key => key.includes('/observation/')).every(key =>
       allowed.some(prefix => key === prefix || key.startsWith(`${prefix}/`)))).toBe(true);
     expect(f.reads.some(key => /^perception\/(?:world|room)\//.test(key))).toBe(false);
-    expect(f.reads.length).toBeLessThanOrEqual(16);
+    expect(f.reads.length).toBe(20); // Four observation loads now include their manifests.
     expect(f.records).toEqual(before); expect(f.writes).toHaveLength(writes);
   });
 

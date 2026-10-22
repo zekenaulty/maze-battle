@@ -28,6 +28,7 @@ export interface ObservationHeader {
   radius: number;
   count: number;
   chunks: string[];
+  chunksDigest: string;
   spaces?: ObservedSpace[];
   graph?: 'available';
 }

@@ -12,6 +12,7 @@ import { protocolHead, protocolAction, protocolResult } from '../../src/persiste
 import { observationKey, KNOWLEDGE_PREFIX } from '../../src/persistence/canonical/knowledge/keys';
 import { earnedCell } from '../../src/persistence/canonical/knowledge/region.test-support';
 import { loadObservation } from '../../src/persistence/canonical/knowledge/evidence';
+import { observationChunksDigest, observationDigest, retainObservationIntegrity } from '../../src/persistence/canonical/knowledge/observation.integrity';
 import { fingerprint } from '../../src/persistence/canonical/validation';
 import { reference } from '../../src/persistence/canonical/agentica/validation';
 import { storageProbe } from './storage-probe';
@@ -30,7 +31,9 @@ async function seed() {
     const cell = earnedCell(), key = observationKey(1);
     const chunk = await tx.pages.set('knowledge', `${key}/0`, { schema: 1, sequence: 1, offset: 0, cells: [cell] } as never);
     const row = await tx.pages.set('knowledge', key, { schema: 1, sequence: 1, previous: null, owner: head.owner, epoch: head.epoch,
-      revision: head.revision + 1, observedAt: head.checkpoint.updatedAt, actor: cell.at, policy: 'linked-vision-v1', radius: 7, count: 1, chunks: [chunk.id] } as never);
+      revision: head.revision + 1, observedAt: head.checkpoint.updatedAt, actor: cell.at, policy: 'linked-vision-v1', radius: 7, count: 1, chunks: [chunk.id],
+      chunksDigest: observationChunksDigest([observationDigest(chunk)]) } as never);
+    await retainObservationIntegrity(tx.pages, row, [chunk]);
     tx.setCheckpoint({ ...head.checkpoint, knowledge: { sequence: 1, id: row.id, witness: (await tx.pages.witness('knowledge', KNOWLEDGE_PREFIX))! } });
     return true;
   });

@@ -2,17 +2,21 @@
 import { describe, expect, it } from 'vitest';
 import type { ObservationChunk, ObservationHeader } from './types';
 import { observationFixture } from './observation.test-support';
-import { readObservationChunk, readObservationHeader, selectiveSourceReader } from './observation.source';
-import { observationCoverage } from './observation.validation';
+import { loadObservation as readCompleteObservation, sourceReader as selectiveSourceReader } from './evidence';
 import { retainObservationIntegrity } from './observation.integrity';
 
 async function full(f: Awaited<ReturnType<typeof observationFixture>>) {
-  const observation = await readObservationHeader(f.pages, { sequence: 1, id: f.parent.id }), cells = [];
-  for (let i = 0; i < observation.header.chunks.length; i++) cells.push(...await readObservationChunk(f.pages, observation, i));
-  observationCoverage(observation.header, cells); return cells;
+  return (await readCompleteObservation(f.pages, { sequence: 1, id: f.parent.id })).cells;
 }
 
 describe('selected immutable observation sources', () => {
+  it('rejects a changed unselected digest in the loaded manifest', async () => {
+    const f = await observationFixture(), proof = f.records.get(f.proof.key)!;
+    (proof.value as { chunkDigests: string[] }).chunkDigests[1] = `sha256:${'0'.repeat(64)}`;
+    await expect(selectiveSourceReader(f.pages)({ sequence: 1, id: f.parent.id, index: 0 })).rejects.toThrow('integrity');
+    expect(f.reads).toEqual([f.key, f.proof.key]);
+  });
+
   it('matches complete audit, selects boundary chunks and deduplicates within one reader', async () => {
     const f = await observationFixture(), all = await full(f), read = selectiveSourceReader(f.pages);
     f.reads.length = 0;

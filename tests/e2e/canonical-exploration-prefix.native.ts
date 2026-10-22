@@ -1,24 +1,72 @@
 import { test, expect, reload, attach } from './canonical-exploration-prefix.test';
 import type { CanonicalRequest } from '../../src/persistence/canonical/types';
 
-for (const mode of ['resume', 'adopt'] as const) test(`22-step earned survey: ${mode}, native 16-step refill, exact replay and funded Stop`, async ({ page }, info) => {
+const cases = [
+  { mode: 'resume', history: 'compact', moves: 126 },
+  { mode: 'adopt', history: 'compact', moves: 126 },
+  { mode: 'adopt', history: 'original', moves: 160 },
+] as const;
+for (const { mode, history, moves } of cases) test(`22-step earned survey: ${mode}, ${moves}-move history, native 16-step refill, exact replay and funded Stop`, async ({ page }, info) => {
   const limits = { steps: mode === 'resume' ? 26 : 32, replans: 1, durationMs: 120_000 };
-  const initial = await page.evaluate(async limits => {
-    const c = window.canonicalExplorationPrefix, seeded = await c.seed(), effects = await c.effects();
+  const initial = await page.evaluate(async ({ limits, history }) => {
+    const c = window.canonicalExplorationPrefix, seeded = await c.seed(history), effects = await c.effects();
     const admission = await c.admit(limits);
     try {
-      const approach = await c.capture(admission.id, 8), survey = await c.survey(), prefix = await c.capture(admission.id, 16);
-      return { seeded, effects, admission, approach, survey, prefix, retained: await c.readDestination(admission.id), digest: await c.digest() };
+      const atomic = history === 'original'
+        ? [await c.rejectObservationProof('storage-failure'), await c.rejectObservationProof('write-budget')] : [];
+      const approach = await c.capture(admission.id, 8), survey = await c.survey();
+      const first = history === 'original' ? await c.capture(admission.id, 7) : [];
+      const audit = history === 'original'
+        ? await c.auditRequiredSources((await c.readDestination(admission.id)).value.progress.route[0].to) : null;
+      const prefix = [...first, ...await c.capture(admission.id, 16 - first.length)];
+      return { seeded, effects, admission, atomic, audit, approach, survey, prefix, retained: await c.readDestination(admission.id), digest: await c.digest() };
     } catch (cause) {
-      return { error: String(cause), seeded, admission, retained: await c.readDestination(admission.id) };
+      const retained = await c.readDestination(admission.id), next = retained.value.progress.route[0]?.to;
+      return { error: String(cause), seeded, admission, retained,
+        audit: next ? await c.auditRequiredSources(next).catch(error => ({ error: String(error) })) : null };
     }
-  }, limits);
+  }, { limits, history });
   await attach(info, 'earned-prelude-and-first-prefix.json', initial);
-  if ('error' in initial) throw Error(initial.error);
+  if ('error' in initial) {
+    expect(initial.error).toContain('exploration read budget exhausted');
+    expect(history).toBe('original');
+    expect(initial.retained.value.progress).toMatchObject({ steps: 15, sequence: 15,
+      binding: initial.admission.state.value.progress.binding });
+    const cleanup = await page.evaluate(async serialized => {
+      const { id, request } = JSON.parse(serialized) as { id: string; request: CanonicalRequest };
+      return window.canonicalExplorationPrefix.cleanupBudgetFailure(id, request);
+    }, JSON.stringify({ id: initial.admission.id, request: initial.admission.request }));
+    await attach(info, 'budget-refusal-replay-and-funded-stop.json', cleanup);
+    expect(cleanup.refused).toMatchObject({ rejected: true, message: expect.stringContaining('exploration read budget exhausted') });
+    expect(cleanup.repeatedRefusal).toEqual(cleanup.refused); expect(cleanup.unchanged).toBe(true);
+    expect(cleanup.admissionReplay.receipt).toEqual(initial.admission.outcome.receipt);
+    for (const replay of [cleanup.admissionReplay, cleanup.cancelReplay, cleanup.ackReplay]) {
+      expect(replay.replayed).toBe(true); expect(replay.stats.writes).toBe(0);
+    }
+    expect(cleanup.unchangedAfterReplay).toBe(true);
+    expect(cleanup.final.value.progress).toEqual(initial.retained.value.progress);
+    expect(cleanup.final.value.operation.state).toBe('acknowledged');
+    expect(cleanup.final.head.quota.reservations).toBe(0); expect(cleanup.final.head.quota.reservedBytes).toBe(0);
+    expect(cleanup.final.head.checkpoint).toEqual(initial.retained.head.checkpoint);
+    expect(cleanup.final.head.roots.world).toBe(initial.seeded.prepared.roots.world);
+    throw Error(initial.error);
+  }
   const id = initial.admission.id, original = initial.retained.value.progress;
+  if (initial.audit) {
+    expect(initial.audit.value.currentCells).toBe(79); expect(initial.audit.value.prospectiveCells).toBe(71);
+    expect(initial.audit.value.material).toBeNull(); expect(initial.audit.stats.writes).toBe(0);
+    expect(initial.audit.value.comparisonReads).toBeLessThanOrEqual(256);
+    expect(initial.audit.value.comparisonBytes).toBeLessThanOrEqual(1024 * 1024);
+  }
+  expect(initial.atomic).toHaveLength(history === 'original' ? 2 : 0);
+  for (const row of initial.atomic) {
+    expect(row.manifestWrites).toBe(1); expect(row.unchanged).toBe(true);
+    expect(row.result).toMatchObject({ rejected: true, message: expect.stringContaining(
+      row.mode === 'storage-failure' ? 'Injected observation manifest failure' : 'write budget exhausted') });
+  }
   const admitted = initial.admission.state.value.progress;
   const plan = initial.survey.value.plan, full = initial.survey.value.full!;
-  expect(initial.seeded.moves).toHaveLength(126);
+  expect(initial.seeded.moves).toHaveLength(moves);
   expect(initial.seeded.head.roots.world).toBe(initial.seeded.prepared.roots.world);
   expect(initial.seeded.head.checkpoint).toMatchObject({ position: { cell: { spaceId: 'socket-0:room', row: 0, column: 5 } } });
   expect(initial.admission.selection).toEqual(initial.admission.frontiers.value.find(f => f.at.cell.spaceId === 'socket-0:room'));
