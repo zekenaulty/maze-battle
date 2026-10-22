@@ -63,8 +63,53 @@ domain roots do not establish absence of hidden reads. Captured commit counters
 exclude reads outside those transactions. The separate native tracer in the
 existing disclosure case retains its own narrower evidence limits.
 
-New room-connection scopes are still on isolated branches. Add them after
-integration, then complete the declared movement/result/UI/fog comparisons and
+The integrated room-connection scope now has the additional evidence below.
+Complete the declared movement/result/UI/fog comparisons and
 actual initial/refinement/successor planner-frame cohort. No owner preview/data,
 provider service, schema migration or legacy-save reader was touched. Issue #11
 and the goal remain open.
+
+## Integrated Room-Connection Comparison
+
+2026-10-22, runtime `3e04e91`, docs checkpoint `97c4a76`, plus this test-only
+extension. The same three step-0/6/7 cases now issue thirteen actions under the
+unchanged sixteen-action admission. Four added queries request the public map,
+select its first earned room for `connections`, and probe an unknown target and
+an ordinarily observed passage. The passage selector comes from current sight,
+not genesis layout data. The test explicitly checks the positive action arguments
+against the map-selected room.
+
+At step 0 the source room has an incomplete observed passage, so the query must
+return `partial / unseen-passage` with no invented connection. At steps 6 and 7 it
+returns another earned room with its exact map anchor and a validated 8-step,
+two-crossing proof. Neither the source room nor the passage is returned as the
+destination. Both invalid target classes return the exact same opaque
+`not-known-room` refusal. No query admits a navigation operation or claims
+objective completion. World/knowledge roots and checkpoint remain unchanged.
+
+The full start, action/result, commit-stat and byte vectors still match exactly
+between A/B at steps 0 and 6, with no normalization. Step 7 remains the existing
+first lawful sight difference; equality is not demanded of all later outputs.
+Across all six batches: 13 actions, 26 commits, at most 1,022 observation bytes,
+1,411 result bytes, 173 reads and 239,474 read bytes per commit. These are
+transaction counters, not a new whole-hook or native physical-I/O proof.
+
+Combined native suite **8 PASS**, zero failures/skips/retries, **78.547s**, start
+`2026-10-22T22:19:16.853Z`. Corpus units **11 PASS**; fixture types **PASS**.
+Independent source review found no actionable issues. Initial focused run also
+passed all three cases; the final run adds an explicit map-selection-to-query
+argument assertion.
+
+```powershell
+$env:MAZE_CORPUS_RUN='canonical-corpus-connections-combined'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-corpus.config.ts
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-corpus.tsconfig.json
+node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-corpus.unit.config.ts --reporter=default --reporter=json --outputFile=test-results/canonical-corpus-connections-units.json
+```
+
+Raw paired frames, queries and counter vectors remain in
+`test-results/canonical-corpus-connections-combined/results.json` attachments;
+the first run is `canonical-corpus-connections-first/results.json`. This adds
+neither multi-page connection continuation nor nonempty decision history to the
+paired proof. The actual-App UI/fog and complete planner-frame comparisons
+remain distinct required gates, as does the sustained paged-room journey.

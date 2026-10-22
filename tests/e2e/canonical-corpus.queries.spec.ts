@@ -1,7 +1,7 @@
 import { test, expect, corpusBrowser, evidence } from './canonical-corpus.test';
 import { CORPUS_TIME } from './canonical-corpus.layout';
 
-for (const step of [0, 6, 7]) test(`paired dispatched journal/objective/history/recall queries at common-prefix step ${step}`, async ({ browser }, info) => {
+for (const step of [0, 6, 7]) test(`paired dispatched journal/objective/history/recall/connections queries at common-prefix step ${step}`, async ({ browser }, info) => {
   const fixtures = [await corpusBrowser(browser, { controlled: true }), await corpusBrowser(browser, { controlled: true })];
   const results = [];
   try {
@@ -17,9 +17,11 @@ for (const step of [0, 6, 7]) test(`paired dispatched journal/objective/history/
       results.push(batch); await evidence(info, `raw-${variant}-queries-step-${step}.json`, { recalled, batch });
       expect(batch.frames.map(frame => frame.action.arguments.scope)).toEqual([
         'quests', 'quest', 'quests', 'quests', 'objective', 'decision', 'cell', 'cell', 'quest',
+        'map', 'connections', 'connections', 'connections',
       ]);
       expect(batch.frames.map(frame => frame.result.disposition)).toEqual([
         'applied', 'applied', 'applied', 'applied', 'applied', 'applied', 'applied', 'applied', 'refused',
+        'applied', 'applied', 'refused', 'refused',
       ]);
       const data = batch.frames.map(frame => frame.result.observation.data);
       expect(data[0]).toMatchObject({ scope: 'quests', status: 'active', quests: [{ title: 'Recover the Survey Seal' }] });
@@ -32,12 +34,31 @@ for (const step of [0, 6, 7]) test(`paired dispatched journal/objective/history/
       } });
       expect(data[7]).toMatchObject({ scope: 'cell', state: 'unknown' });
       expect(data[7]).not.toHaveProperty('cell');
+      expect(data[9]).toMatchObject({ scope: 'map', rooms: expect.arrayContaining([batch.selected]) });
+      expect(batch.frames[10].action.arguments).toEqual({ scope: 'connections',
+        level: batch.selected.level, spaceId: batch.selected.spaceId });
+      expect(data[10]).toMatchObject({ scope: 'connections', coverage: 'indexed-exits', room: batch.selected });
+      expect(data[10]).not.toHaveProperty('next');
+      if (step === 0) expect(data[10]).toMatchObject({ state: 'partial', reason: 'unseen-passage', connections: [] });
+      else {
+        expect(data[10]).toMatchObject({ state: 'complete', connections: [{ room: { kind: 'room' },
+          proof: { steps: 8, crossings: 2, digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/) } }] });
+        const connection = (data[10].connections as { room: { spaceId: string } }[])[0];
+        expect(connection.room.spaceId).not.toBe(batch.selected.spaceId);
+        expect(connection.room.spaceId).not.toBe(batch.passage.spaceId);
+        expect(data[9].rooms).toContainEqual(connection.room);
+      }
+      expect(data[11]).toEqual({ scope: 'connections', state: 'refused', reason: 'not-known-room' });
+      expect(data[12]).toEqual(data[11]);
+      for (const frame of batch.frames) {
+        expect(frame.result.operation).toBeUndefined(); expect(frame.result.completion).toBeUndefined();
+      }
       expect(batch.after.checkpoint).toEqual(batch.before.checkpoint);
       expect(batch.after.roots.world).toBe(batch.before.roots.world);
       expect(batch.after.roots.knowledge).toBe(batch.before.roots.knowledge);
       expect(Math.max(...batch.observationBytes)).toBeLessThanOrEqual(2800);
       expect(Math.max(...batch.resultBytes)).toBeLessThanOrEqual(4096);
-      expect(batch.commits).toHaveLength(18);
+      expect(batch.commits).toHaveLength(26);
       expect(batch.commits.every(row => row.operation === 'agentica.action.reserve' || row.operation === 'agentica.action.resolve')).toBe(true);
     }
     const [a, b] = results;

@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 44,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 45,
 2026-10-22. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -727,9 +727,13 @@ stable so the same scopes are tested once.
 The first cohort now has [native dispatched-query evidence](../tests/e2e/canonical-corpus.queries.report.md):
 three paired cases added, eight combined browser cases pass. Exact pre-divergence
 frames/work, pending objective, opaque negative probes and selected remembered
-cell identity are checked. Decision history here is initially unavailable;
-nonempty successor history, new room connections, UI and complete planner-frame
-coverage remain. This is offline admission with real dispatch, not another
+cell identity are checked. Integrated room connections now extend the same
+paired cases to thirteen actions: select a source from the public map, verify
+partial versus earned complete connections, and require identical opaque
+unknown/passage refusals. All eight combined native cases pass (78.547s), with
+exact pre-divergence frames/work and no domain mutation. Decision history here
+is initially unavailable; nonempty successor history, paged connections, UI and
+complete planner-frame coverage remain. This is offline admission with real dispatch, not another
 actual-service or model test.
 
 ### Closing Sequence And Estimate Discipline

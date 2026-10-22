@@ -6,6 +6,7 @@ import { readCanonicalHead } from '../../src/persistence/canonical/read';
 import { createGameActionHooks } from '../../src/services/agentica/game/actionHooks';
 import { actionKey, actionFingerprint } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { corpusQueryGrant } from './canonical-corpus.query-grant';
+import type { KnownNode } from '../../src/persistence/canonical/knowledge/graph.types';
 
 /** One explicitly selected snapshot, real reservation/dispatcher/receipt paths; no network or movement. */
 export async function corpusQueries(session: GameSession, recalled: WorldPosition) {
@@ -42,8 +43,18 @@ export async function corpusQueries(session: GameSession, recalled: WorldPositio
   await inspect({ scope: 'cell', level: recalled.level, ...recalled.cell });
   await inspect({ scope: 'cell', level: recalled.level, spaceId: 'undiscovered-probe', row: 0, column: 0 });
   await inspect({ scope: 'quest', target: 'unearned-quest-handle' });
+  const map = await inspect({ scope: 'map' });
+  const rooms = map.observation.data.rooms as KnownNode[];
+  if (map.disposition !== 'applied' || !rooms.length || rooms.some(room => room.kind !== 'room'))
+    throw Error('Expected an earned room page to select the connection source');
+  const selected = rooms[0];
+  await inspect({ scope: 'connections', level: selected.level, spaceId: selected.spaceId });
+  await inspect({ scope: 'connections', level: selected.level, spaceId: 'undiscovered-probe' });
+  const passage = session.view.game!.observation!.header.spaces?.find(space => space.kind === 'passage');
+  if (!passage) throw Error('Corpus precondition requires an ordinarily observed passage');
+  await inspect({ scope: 'connections', level: selected.level, spaceId: passage.spaceId });
   const after = (await readCanonicalHead()).head;
-  return { start: granted.start, before, after, frames, commits,
+  return { start: granted.start, before, after, frames, commits, selected, passage,
     observationBytes: frames.map(f => new TextEncoder().encode(JSON.stringify(f.result.observation)).length),
     resultBytes: frames.map(f => new TextEncoder().encode(JSON.stringify(f.result)).length) };
 }
