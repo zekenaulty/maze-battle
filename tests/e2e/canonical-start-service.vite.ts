@@ -79,6 +79,7 @@ export default defineConfig({
             VITE_AGENTICA_MAX_REFINEMENTS: '48', VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '16',
             VITE_AGENTICA_TIMEOUT_SECONDS: '300', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '30',
           } : {}),
+          ...(new URL(location.href).searchParams.has('roomJourneyProof') ? { VITE_AGENTICA_MODEL: 'room-journey' } : {}),
         });`);
       }
       if (!id.replaceAll('\\', '/').endsWith('/src/hooks/useGameSession.ts')) return;
