@@ -132,3 +132,14 @@ existing abstract >64 unit regression retains its narrower evidence level.
 Raw search/report/verification artifacts remain in ignored
 `test-results/exploration-prefix-search/`; this tracked summary preserves their
 exact bounds and limitations, separately from the later admission-setup probes.
+
+## Integrated Recheck
+
+At parent candidate `bc3f8be`, the independent source review found no blocking
+finding. The parent repeated both native cases: **2 PASS**, zero failures,
+skips or retries, **54.6 seconds**. The nine focused prefix units and fixture
+TypeScript check also pass. Native evidence is
+`test-results/canonical-exploration-prefix/results.json`; unit evidence is
+`test-results/prefix-parent-unit.json`. No service or paid-provider run is
+included. The longer 160-move material-reader failure remains a separate open
+runtime defect; these passing cases do not qualify sustained history scaling.
