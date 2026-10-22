@@ -5,6 +5,7 @@ import { mazeGridGeometry } from '../../src/components/maze/mazeHitTest';
 import { createCanonicalMazeView, currentVisibleCell } from '../../src/viewModels/canonicalPerceivedMaze';
 import { readCanonicalRegion, readKnowledgeRegion, type KnowledgeRegionScope } from '../../src/persistence/canonical/knowledge/region';
 import { loadObservation } from '../../src/persistence/canonical/knowledge/evidence';
+import { readCanonicalRooms } from '../../src/persistence/canonical/knowledge/roomMap';
 import { worldBlockKey } from '../../src/persistence/canonical/knowledge/worldIndex';
 import { readCanonical, readCanonicalHead } from '../../src/persistence/canonical/read';
 import { gameCheckpoint, rosterContext } from '../../src/persistence/canonical/game/checkpoint';
@@ -19,18 +20,19 @@ import { floorTranscript, loadWorldRoom } from './canonical-world-fixture';
 import '../../src/styles.css';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5220') throw Error('Isolated canonical map fixture only');
-const root = createRoot(document.getElementById('root')!), clicks: GridPosition[] = [], noop = () => {};
+const root = createRoot(document.getElementById('root')!), clicks: GridPosition[] = [], actions: string[] = [], noop = () => {};
 let game: GameView;
 async function show(snapshot?: CanonicalSnapshot) {
   game = (await readCanonical(async (p, s): Promise<GameView> => {
     const checkpoint = gameCheckpoint(s.checkpoint), roster = await loadRoster(p, rosterContext(checkpoint));
     const observation = checkpoint.knowledge ? await loadObservation(p, { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id }) : null;
-    return { ...roster.state, id: s.gameId, mode: checkpoint.mode, checkpoint, snapshot: s, observation, quests: [], contracts: [] };
+    return { ...roster.state, id: s.gameId, mode: checkpoint.mode, checkpoint, snapshot: s, observation, quests: [], contracts: [],
+      autoThrottleMs: 500, randomBattles: false };
   }, { snapshot })).value;
-  root.render(<ExploreScreen game={game} status="Ready" onMove={direction => { void knowledge.act({ kind: 'move', direction, triggerStairs: false }).then(() => show()); }}
+  root.render(<ExploreScreen game={game} status="Ready" onMove={direction => { actions.push('move'); void knowledge.act({ kind: 'move', direction, triggerStairs: false }).then(() => show()); }}
     autoActive={false} wavesActive={false} autoThrottleMs={500} onAutoToggle={noop} onWavesToggle={noop} onAutoThrottleChange={noop}
-    onTown={noop} onCharacters={noop} onSaves={noop} onNewGame={noop} onRandomBattlesChange={noop} onTileClick={at => clicks.push(at)}
-    onOpenChest={id => { void content.act({ kind: 'open-chest', chestId: id }).then(() => show()); }} />);
+    onTown={() => actions.push('town')} onCharacters={noop} onSaves={noop} onNewGame={noop} onRandomBattlesChange={noop} onTileClick={at => clicks.push(at)}
+    onOpenChest={id => { actions.push('chest'); void content.act({ kind: 'open-chest', chestId: id }).then(() => show()); }} />);
   return { snapshot: game.snapshot, actor: currentVisibleCell(game)?.world, observation: game.observation };
 }
 async function seedNegative() {
@@ -41,6 +43,20 @@ async function seedNegative() {
   const local = room.geometry.cells.find(c => space.origin.row + c.row < 0 || space.origin.column + c.column < 0)!;
   await content.place({ level: 1, cell: { spaceId: space.id, row: local.row, column: local.column } });
   await knowledge.act({ kind: 'look' }); return show();
+}
+async function seedRoomPages() {
+  await knowledge.seed();
+  const transcript = (await floorTranscript()).value, rooms = transcript.spaces.filter(space => space.kind === 'room');
+  if (rooms.length < 6) throw Error('Fixture needs more than one four-room page');
+  const initial = gameCheckpoint((await readCanonicalHead()).snapshot.checkpoint).position;
+  // Test-only placement earns ordinary sight; this is UI recall proof, not a traversal proof.
+  for (const space of rooms) {
+    const room = (await readCanonical(p => loadWorldRoom(p, 1, space.id))).value;
+    const { row, column } = room.geometry.cells[0];
+    await content.place({ level: 1, cell: { spaceId: space.id, row, column } });
+    await knowledge.act({ kind: 'look' });
+  }
+  await content.place(initial); await knowledge.act({ kind: 'look' }); return show();
 }
 async function picture(snapshot: CanonicalSnapshot, scope: KnowledgeRegionScope) {
   const result = await readCanonicalRegion(snapshot, scope), view = createCanonicalMazeView(result.value, gameCheckpoint(snapshot.checkpoint).facing);
@@ -60,7 +76,8 @@ async function clickPoint() {
   return { world, x: bounds.left + grid.x + (world.column - scope.column + 0.5) * grid.cellSize,
     y: bounds.top + grid.y + (world.row - scope.row + 0.5) * grid.cellSize };
 }
-const api = { seedNegative, show, picture, clickPoint, clicks, knowledge, content, roster, gameCheckpoint, worldBlockKey,
+const api = { seedNegative, seedRoomPages, rooms: (cursor?: string) => readCanonicalRooms(game.snapshot, cursor),
+  show, picture, clickPoint, clicks, actions, knowledge, content, roster, gameCheckpoint, worldBlockKey,
   readCanonical, readCanonicalHead, readCanonicalRegion, readKnowledgeRegion };
 declare global { interface Window { canonicalMap: typeof api } }
 window.canonicalMap = api;

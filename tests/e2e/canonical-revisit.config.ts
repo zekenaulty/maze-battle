@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const output = fileURLToPath(new URL('../../test-results/canonical-revisit/', import.meta.url));
+const output = fileURLToPath(new URL(`../../test-results/${process.env.MAZE_REVISIT_RUN ?? 'canonical-revisit'}/`, import.meta.url));
 export default defineConfig({
   testDir: fileURLToPath(new URL('./', import.meta.url)), testMatch: 'canonical-revisit*.spec.ts',
   workers: 1, retries: 0, timeout: 240_000, outputDir: output,

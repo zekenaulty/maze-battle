@@ -10,7 +10,7 @@ import type { WorldPosition } from '../../src/persistence/canonical/world/types'
 export async function earnedMemory(records: CanonicalRecord[]) {
   const addresses = new Map<string, WorldPosition>();
   for (const row of records) {
-    if (row.area !== 'knowledge' || !row.key.startsWith('perception/cell/')) continue;
+    if (row.area !== 'knowledge' || !row.key.startsWith('perception/cell/') || row.key.endsWith('/integrity')) continue;
     for (const cell of Object.values((row.value as unknown as MemoryBlock).cells)) addresses.set(cellKey(cell.at), cell.at);
   }
   if (!addresses.size || addresses.size > 512) throw Error('Earned-memory audit exceeded its bounded corpus');

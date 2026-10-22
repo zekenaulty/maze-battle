@@ -6,6 +6,8 @@ import { checkpointJson } from '../game/checkpoint';
 import { earnedCell } from '../knowledge/region.test-support';
 import { returnFixture } from '../knowledge/townReturn.test-support';
 import { observationIntegrityKey } from '../knowledge/observation.integrity';
+import { memoryIntegrityKey } from '../knowledge/memory.integrity';
+import { blockKey } from '../knowledge/keys';
 import type { CanonicalPages } from '../pages';
 import { canonicalFence, type CanonicalWork } from '../transaction';
 import type { CanonicalRecord, CanonicalRequest, JsonObject } from '../types';
@@ -71,7 +73,9 @@ describe('owner-selected return objective publication', () => {
     const proofs = new Set([observationIntegrityKey(f.earned.original.sequence),
       observationIntegrityKey(f.earned.checkpoint().knowledge!.sequence)]);
     expect(f.get.mock.calls.filter(([area, key]) => area === 'knowledge' && proofs.has(key))).toHaveLength(6);
-    expect(f.get.mock.calls).toHaveLength(23);
+    expect(f.get.mock.calls.filter(([area, key]) => area === 'knowledge'
+      && key === memoryIntegrityKey(blockKey(f.earned.town.at)))).toHaveLength(1);
+    expect(f.get.mock.calls).toHaveLength(24);
     expect(f.pages.scan).not.toHaveBeenCalled(); expect(f.set).not.toHaveBeenCalled();
     expect(f.world.records).toEqual(before);
     objective!.quest.item.token = 'changed'; objective!.entrance.at.cell.spaceId = 'changed';

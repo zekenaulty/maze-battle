@@ -611,15 +611,15 @@ journey and the 256-read/1 MiB limits. Full units pass with two workers; this
 increment does not establish the missing >64-step route or complete Sprint 1.
 The frozen parent `96facb3` now passes the full **43-case real-service** cohort
 (986.771s), with pinned Agentica source and the explicitly alternate SDK10.0.401.
-The room-only passage-collapse implementation is still isolated: review found
-that missing earned memory edges can be misreported as unseen. Candidate
-`e981e7b` adds mandatory accumulated-memory integrity proofs and passes its
-389 focused checks plus the unchanged native 160-move case (187/256 reads,
-482,166/1,048,576 bytes). Public connection tools (`198ef66`) and the explicit
-room-map UI (`e306e92`) are also isolated candidates. These are child-worktree
-results, not integrated qualification. Review, integration and affected native
-checks precede claiming Sprint 1 complete; no partial result may hide corrupted
-evidence.
+The [room-map integration](reviews/issue-11-room-map-integration.md) now combines
+passage collapse, public `connections` tools, mandatory accumulated-memory proofs
+and explicit room-map/recall UI. Native checks cover the unchanged 160-move case,
+memory-proof rollback with funded custody, an earned connection query/replay,
+paged UI recall/resize, paired corpus and actual-App revisits. Missing older
+edges refuse rather than appearing unexplored. Sustained execution composed with
+deliberate off-window room choice is still required; separate recall/travel
+checks do not close Sprint 1. Full-unit/service requalification is tracked in
+the integration report, not inferred from prior candidate results.
 [Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
 does not finish the all-surface information gate. The
 [clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies
@@ -738,9 +738,9 @@ defects. Confidence is moderate on scope and lower on defect-driven timing.
 Re-estimate after Sprints 1 and 3, recording which gate changed the estimate.
 Do not silently add features or expand the matrix to every possible combination.
 
-1. Integrate the checked memory, room-connections and room-map candidates in
-   dependency order. Repeat the original 160-move proof, test paged recall in
-   the actual desktop/mobile UI, and finish the sustained journey acceptance.
+1. Finish the integrated memory/room-map qualification and compose scoped room
+   choice with the sustained journey. Keep the original 160-move proof and paged
+   desktop/mobile recall checks; do not substitute them for that composition.
 2. Close the declared information, active-work recovery and controller cohorts.
    Each case must identify its missing invariant. Include actual successor
    history, not only an empty initial history query; keep complete planner-frame

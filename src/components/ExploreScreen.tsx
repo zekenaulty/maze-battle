@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GridPosition } from '../domain/types';
 import type { GameView } from '../services/game/GameView';
@@ -70,7 +70,7 @@ export function ExploreScreen({
 }: ExploreScreenProps) {
   const [mapOpen, setMapOpen] = useState(false);
   const [mapTab, setMapTab] = useState<'rooms' | 'nearby'>('rooms');
-  const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor } | null>(null);
+  const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor; centered: boolean } | null>(null);
   const nearbyTab = useRef<HTMLButtonElement>(null);
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -83,12 +83,19 @@ export function ExploreScreen({
   const showRooms = mapVisible && mapTab === 'rooms';
   const root = JSON.stringify(game.snapshot);
   const activeRecall = recall?.root === root ? recall : null;
-  const activeCamera: MazeCameraState = recall && !activeRecall ? { ...camera, mode: 'follow', origin: undefined } : camera;
+  const readOnlyMap = showRooms || mapVisible && !!activeRecall;
+  const floor = game.checkpoint.position.level, facing = game.checkpoint.facing;
+  let activeCamera: MazeCameraState = recall && !activeRecall ? { ...camera, mode: 'follow', origin: undefined } : camera;
+  if (activeRecall?.centered) {
+    const area = canonicalPerceptionScope(floor, activeRecall.anchor.world, canvasSize, camera, 'camera');
+    activeCamera = { ...camera, mode: 'manual', origin: {
+      row: activeRecall.anchor.world.row - Math.floor(area.rows / 2), column: activeRecall.anchor.world.column - Math.floor(area.columns / 2),
+    } };
+  }
   const mazeMode: MazeRenderMode = mapVisible && mapTab === 'nearby' && !activeRecall ? 'overview' : 'camera';
   const isOverview = mazeMode === 'overview';
   const currentCell = currentVisibleCell(game);
   const actor = currentCell?.world;
-  const floor = game.checkpoint.position.level, facing = game.checkpoint.facing;
   const scope = canonicalPerceptionScope(floor, actor ?? { row: 0, column: 0 }, canvasSize, activeCamera, mazeMode);
   const scopeKey = JSON.stringify(scope);
   const perception = useMazePerception(game.snapshot, scope);
@@ -103,15 +110,15 @@ export function ExploreScreen({
     if (activeRecall) setCamera(current => ({ ...current, mode: 'follow', origin: undefined }));
   };
   const inspectRoom = (anchor: KnownAnchor) => {
-    const area = canonicalPerceptionScope(floor, anchor.world, canvasSize, camera, 'camera');
-    setCamera(current => ({ ...current, mode: 'manual', origin: {
-      row: anchor.world.row - Math.floor(area.rows / 2), column: anchor.world.column - Math.floor(area.columns / 2),
-    } }));
-    setRecall({ root, anchor }); setMapTab('nearby'); nearbyTab.current?.focus();
+    setRecall({ root, anchor, centered: true }); setMapTab('nearby'); nearbyTab.current?.focus();
   };
-  const interact = () => { onStopWalking?.(); if (!blocked && !mapVisible && chest) onOpenChest?.(chest.id); };
+  const changeCamera = (next: SetStateAction<MazeCameraState>) => {
+    setCamera(typeof next === 'function' ? next(activeCamera) : next);
+    setRecall(current => current ? { ...current, centered: false } : null);
+  };
+  const interact = () => { onStopWalking?.(); if (!blocked && !readOnlyMap && chest) onOpenChest?.(chest.id); };
   useExploreKeys(blocked, { interact, map: toggleMap, inventory: onCharacters,
-    portal: () => { if (!mapVisible && portalCount > 0) onTown(); }, stop: () => onStopWalking?.() });
+    portal: () => { if (!readOnlyMap && portalCount > 0) onTown(); }, stop: () => onStopWalking?.() });
 
   useEffect(() => {
     if (!manualMap) { setMapOpen(false); setRecall(null); setCamera(current => ({ ...current, mode: 'follow', origin: undefined })); }
@@ -119,14 +126,14 @@ export function ExploreScreen({
   }, [manualMap, recall, activeRecall]);
 
   useEffect(() => {
-    if (!mapVisible || blocked) return;
+    if (!readOnlyMap || blocked) return;
     // The parent owns movement keys; recall consumes them without issuing a command.
     const guard = (event: KeyboardEvent) => {
       if (!ignoresGameKey(event) && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(event.key.toLowerCase())) event.preventDefault();
     };
     window.addEventListener('keydown', guard, true);
     return () => window.removeEventListener('keydown', guard, true);
-  }, [mapVisible, blocked]);
+  }, [readOnlyMap, blocked]);
 
   useEffect(() => {
     setCamera((current) => ({ ...current, mode: 'follow', origin: undefined }));
@@ -199,20 +206,20 @@ export function ExploreScreen({
           pending={perception.pending} onSizeChange={setCanvasSize}
           camera={activeCamera}
           mode={mazeMode}
-          onCameraChange={setCamera}
-          onTileClick={blocked || mapVisible || !perception.region ? undefined : onTileClick}
+          onCameraChange={changeCamera}
+          onTileClick={blocked || readOnlyMap || !perception.region ? undefined : onTileClick}
         />
-        {mapVisible && activeRecall && camera.mode === 'manual' && <p className="known-room-recall" role="status">Room anchor {activeRecall.anchor.world.row}, {activeRecall.anchor.world.column}</p>}
+        {mapVisible && activeRecall && activeCamera.mode === 'manual' && <p className="known-room-recall" role="status">Room anchor {activeRecall.anchor.world.row}, {activeRecall.anchor.world.column}</p>}
         {mazeMode === 'camera' && (
           <div className="camera-controls" aria-label="Camera controls">
-            <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => setCamera((current) => zoomMazeCamera(current, -0.15))}>
+            <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => changeCamera((current) => zoomMazeCamera(current, -0.15))}>
               <ZoomOut aria-hidden="true" size={16} />
             </button>
             <span aria-label={`Camera zoom ${zoomLabel}`}>{zoomLabel}</span>
-            <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => setCamera((current) => zoomMazeCamera(current, 0.15))}>
+            <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => changeCamera((current) => zoomMazeCamera(current, 0.15))}>
               <ZoomIn aria-hidden="true" size={16} />
             </button>
-            <button type="button" aria-label="Recenter camera" title="Recenter camera" onClick={() => setCamera((current) => ({ ...current, mode: 'follow', origin: undefined }))}>
+            <button type="button" aria-label="Recenter camera" title="Recenter camera" onClick={() => changeCamera((current) => ({ ...current, mode: 'follow', origin: undefined }))}>
               <Crosshair aria-hidden="true" size={16} />
             </button>
           </div>
@@ -221,11 +228,11 @@ export function ExploreScreen({
         </div>
       </section>
       <div className="explore-interaction">
-        <button type="button" onClick={interact} disabled={blocked || mapVisible || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
+        <button type="button" onClick={interact} disabled={blocked || readOnlyMap || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
         <span aria-live="polite">{navigationMessage}</span>
         {perception.error && <span role="alert">{perception.error}</span>}
       </div>
-      <Controls onMove={onMove} disabled={blocked || mapVisible} />
+      <Controls onMove={onMove} disabled={blocked || readOnlyMap} />
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
         <div className="screen-settings">
           <label className="compact-toggle">

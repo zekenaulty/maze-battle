@@ -73,8 +73,27 @@ it('consumes movement keys before the parent handler but leaves tab navigation a
     fireEvent.keyDown(window, { key: 'w' }); expect(moved).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Rooms' }), { key: 'ArrowRight' });
     expect(screen.getByRole('tab', { name: 'Nearby' })).toHaveFocus();
-    fireEvent.keyDown(window, { key: 'm' }); fireEvent.keyDown(window, { key: 'w' }); expect(moved).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: 'w' }); expect(moved).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: 'm' }); fireEvent.keyDown(window, { key: 'w' }); expect(moved).toHaveBeenCalledTimes(2);
   } finally { window.removeEventListener('keydown', keyboard); }
+});
+
+it('recenters the recalled anchor when the remounted canvas reports resized dimensions', async () => {
+  render(<ExploreScreen {...props()} />);
+  act(() => storage.canvas.mock.calls.at(-1)![0].onSizeChange({ width: 1600, height: 900 }));
+  fireEvent.keyDown(window, { key: 'm' });
+  fireEvent.click(await screen.findByRole('button', { name: 'Recall room at -80, 400' }));
+  await screen.findByText('Room anchor -80, 400');
+  for (const size of [{ width: 340, height: 400 }, { width: 840, height: 300 }]) {
+    act(() => storage.canvas.mock.calls.at(-1)![0].onSizeChange(size));
+    const scope = storage.region.mock.calls.at(-1)![1];
+    expect(scope.row + Math.floor(scope.rows / 2)).toBe(-80);
+    expect(scope.column + Math.floor(scope.columns / 2)).toBe(400);
+  }
+  act(() => storage.canvas.mock.calls.at(-1)![0].onCameraChange((current: ComponentProps<typeof MazeCanvas>['camera']) =>
+    ({ ...current, mode: 'manual', origin: { row: -100, column: 420 } })));
+  act(() => storage.canvas.mock.calls.at(-1)![0].onSizeChange({ width: 1600, height: 900 }));
+  expect(storage.region.mock.calls.at(-1)![1]).toMatchObject({ row: -100, column: 420 });
 });
 
 it('replaces pages, exposes empty/error states, and retries without displaying failed page content', async () => {

@@ -77,7 +77,9 @@ describe('canonical scoped Agentica perception', () => {
     for (let n = 0; n < 64; n++) await f.knowledge.observe([earnedCell(n, n, `unrelated-${n}`)]);
     f.republish(); f.knowledge.reads.length = 0;
     await inspectMaze(f.pages, f.snapshot, f.ref, { scope: 'room', level: 1, spaceId: 'room' });
-    expect(f.knowledge.reads.filter(key => key.startsWith('perception/cell/'))).toHaveLength(4);
+    const memoryReads = f.knowledge.reads.filter(key => key.startsWith('perception/cell/'));
+    expect(memoryReads.filter(key => !key.endsWith('/integrity'))).toHaveLength(4);
+    expect(memoryReads.filter(key => key.endsWith('/integrity'))).toHaveLength(4);
     expect(f.knowledge.reads.some(key => key.startsWith('perception/cell/1/unrelated-'))).toBe(false);
     expect(f.knowledge.reads.length).toBeLessThanOrEqual(256);
   });

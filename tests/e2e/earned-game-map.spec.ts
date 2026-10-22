@@ -96,7 +96,8 @@ test('negative world clicks, signed panning, overview and desktop/mobile resize 
     await page.screenshot({ path: info.outputPath(`map-${size.width}x${size.height}.png`), fullPage: true });
   }
   await page.setViewportSize({ width: 1440, height: 1000 }); await expect(canvas).not.toHaveAttribute('aria-busy', 'true');
-  await page.getByRole('button', { name: 'Map', exact: true }).click(); await expect(canvas).not.toHaveAttribute('aria-busy', 'true');
+  await page.getByRole('button', { name: 'Map', exact: true }).click();
+  await page.getByRole('tab', { name: 'Nearby', exact: true }).click(); await expect(canvas).not.toHaveAttribute('aria-busy', 'true');
   const overviewCount = await page.evaluate(() => window.canonicalMap.clicks.length);
   const overviewPoint = await page.evaluate(() => window.canonicalMap.clickPoint()); await page.mouse.click(overviewPoint.x, overviewPoint.y);
   await expect.poll(() => page.evaluate(() => window.canonicalMap.clicks.length)).toBe(overviewCount + 1);
