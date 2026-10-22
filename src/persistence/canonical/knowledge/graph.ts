@@ -1,11 +1,9 @@
-import { opposite } from '../../../domain/maze/movement';
 import { gameCheckpoint, type GameCheckpoint } from '../game/checkpoint';
 import { fields, id, natural } from '../roster/codec';
 import { check } from '../validation';
-import { same } from '../world/records';
 import { GraphCursorRefusal, graphCursor, graphScope, readGraphCursor } from './graph.cursor';
 import { graphView } from './graph.read';
-import { readKnownCells } from './queries';
+import { validateGraphLink } from './graph.roomConnections.link';
 import type { KnowledgeRead } from './types';
 import type { KnownAnchor, KnownLink, KnownLinksScope, KnownNode, KnownNodesScope, KnownPage, KnownSpaceScope } from './graph.types';
 export { KnownGraphUnavailableError } from './graph.types';
@@ -50,15 +48,7 @@ export async function listKnownLinks(pages: KnowledgeRead, before: GameCheckpoin
   const index = after ? links.findIndex(l => l.id === after) : -1;
   if (after && (index < 0 || index >= links.length - 1)) throw new GraphCursorRefusal('graph link cursor member changed');
   const items = links.slice(index + 1, index + 1 + s.limit);
-  for (const link of items) {
-    check(await view.node(link.to.at.cell.spaceId), 'graph connection target is missing');
-    const reverse = (await view.links(link.to.at.cell.spaceId)).links.find(l => l.id === link.id);
-    check(reverse && same(reverse.from, link.to) && same(reverse.to, link.from) && reverse.direction === opposite(link.direction), 'graph reciprocal index changed');
-    await view.evidence.link(link);
-    const [a, b] = await readKnownCells(view.pages, view.checkpoint, [link.from.at, link.to.at]);
-    check(a.state !== 'unknown' && b.state !== 'unknown' && same(a.cell.world, link.from.world) && same(b.cell.world, link.to.world)
-      && same(a.cell.edges[link.direction]?.target, link.to.at) && same(b.cell.edges[opposite(link.direction)]?.target, link.from.at), 'graph link differs from current memory');
-  }
+  for (const link of items) await validateGraphLink(view, link);
   return { anchor: view.anchor, items, ...(index + 1 + items.length < links.length
     ? { next: graphCursor(view.anchor, scope, items.at(-1)!.id) } : {}) };
 }
