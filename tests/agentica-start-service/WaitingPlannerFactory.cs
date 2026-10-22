@@ -19,13 +19,19 @@ internal sealed class WaitingPlannerFactory : ILabPlannerFactory
     public int ScriptedRefineCalls => Volatile.Read(ref _scriptedRefineCalls);
     public int ScriptedStepsPlanned => Volatile.Read(ref _scriptedStepsPlanned);
     public DecisionPlannerCounters Decision { get; } = new();
+    public PlannerInputCapture PlannerInputs { get; } = new();
     public JsonElement[] HistoryEvents() => Volatile.Read(ref _history)?.ReceivedEvents() ?? [];
     public IReadOnlyList<ProviderMetadata> GetProviders() => [new("fixture", "wait-only", true, null, "cancellable-or-scripted-offline-fixture")];
     public IWorkflowPlanner Create(ProviderSettings settings, Action<LlmStreamEvent> onStreamEvent)
     {
-        if (settings.Provider != "fixture" || settings.Model is not ("wait-only" or "observation-sequence" or "decision-navigation" or "decision-terminal" or "decision-frontier" or "decision-room" or "decision-chest" or "decision-journal" or "decision-return" or "decision-corpus" or "decision-history" or "room-journey"))
+        if (settings.Provider != "fixture" || settings.Model is not ("wait-only" or "observation-sequence" or "decision-navigation" or "decision-terminal" or "decision-frontier" or "decision-room" or "decision-chest" or "decision-journal" or "decision-return" or "decision-corpus" or "decision-history" or "room-journey" or "corpus-planner-capture"))
             throw new InvalidOperationException("Only the explicit offline fixture planners are permitted.");
         Interlocked.Increment(ref _created);
+        if (settings.Model == "corpus-planner-capture")
+        {
+            Decision.Created();
+            return new CapturingCorpusPlanner(PlannerInputs, new CorpusSequencePlanner(Decision));
+        }
         if (settings.Model == "room-journey")
         {
             Decision.Created();

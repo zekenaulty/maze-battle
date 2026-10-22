@@ -82,6 +82,7 @@ export default defineConfig({
             VITE_AGENTICA_TIMEOUT_SECONDS: '300', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '30',
           } : {}),
           ...(new URL(location.href).searchParams.has('roomJourneyProof') ? { VITE_AGENTICA_MODEL: 'room-journey' } : {}),
+          ...(new URL(location.href).searchParams.has('plannerCaptureProof') ? { VITE_AGENTICA_MODEL: 'corpus-planner-capture' } : {}),
         });`);
       }
       if (!id.replaceAll('\\', '/').endsWith('/src/hooks/useGameSession.ts')) return;

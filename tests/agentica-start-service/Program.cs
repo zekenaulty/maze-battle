@@ -4,6 +4,8 @@ using Agentica.Lab.Web.Providers;
 using Agentica.Lab.Web.Runtime;
 using Maze.StartServiceFixture;
 
+if (args is ["--capture-self-test"]) { await PlannerInputCaptureTests.Run(); return; }
+
 if (args.Length is < 1 or > 2 || !Path.IsPathFullyQualified(args[0]))
     throw new ArgumentException("Supply an absolute isolated storage directory and optional loopback port.");
 var port = 5259;
@@ -28,7 +30,8 @@ app.Use(async (context, next) =>
     var route = context.Request.Method + " " + context.Request.Path.Value;
     if (route is not ("GET /api/health" or "GET /api/host" or "GET /api/starts" or "POST /api/starts/stop" or "GET /fixture/proof"
         or "GET /api/operations" or "POST /api/operations/events" or "POST /api/operations/stop-decision" or "GET /api/recovery"
-        or "GET /api/recovery/action" or "GET /api/recovery/run" or "POST /api/recovery" or "GET /fixture/run" or "GET /fixture/history"))
+        or "GET /api/recovery/action" or "GET /api/recovery/run" or "POST /api/recovery" or "GET /fixture/run" or "GET /fixture/history"
+        or "GET /fixture/planner-inputs"))
     {
         context.Response.StatusCode = 403;
         return;
@@ -51,4 +54,7 @@ app.MapGet("/fixture/proof", () => new
     paidProviderCalls = 0, paidProviderCallsEvidence = "by-construction: injected offline planners only; not billing telemetry"
 });
 app.MapGet("/fixture/history", () => new { events = factory.HistoryEvents() });
+app.MapGet("/fixture/planner-inputs", () => new { entries = factory.PlannerInputs.Snapshot(),
+    maxRoots = PlannerInputCapture.MaxRoots, maxWindows = PlannerInputCapture.MaxWindows,
+    maxCalls = PlannerInputCapture.MaxCalls, maxBytes = PlannerInputCapture.MaxBytes });
 await app.RunAsync();
