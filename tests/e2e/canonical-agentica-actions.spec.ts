@@ -23,20 +23,20 @@ test.afterEach(async ({ page }) => {
   expect(errors, 'No hidden browser errors').toEqual([]);
 });
 
-test('real UUID start, all capabilities and source fit 3 KiB and are retained exactly', async ({ page }) => {
+test('real UUID start and all capabilities fit the 3584-byte bound and are retained exactly', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const f = window.canonicalAgenticaActions, fixture = await f.boot();
     return { fixture, launch: await f.launch(), trace: f.trace() };
   });
   const { fixture, launch } = result;
-  expect(fixture.sizes.start).toBeLessThanOrEqual(3072);
+  expect(fixture.sizes.start).toBeLessThanOrEqual(3584);
   expect(fixture.sizes.binding).toBeLessThanOrEqual(4096);
   expect(fixture.sizes.observation).toBeLessThanOrEqual(768);
   expect(fixture.rawObservationBytes).toBeGreaterThan(3072);
   expect(fixture.start.sessionId).toHaveLength(73);
   for (const id of [fixture.head.gameId, fixture.launchId, fixture.start.scopeId, fixture.start.objectiveId,
     fixture.publication.id, fixture.source.id, launch!.run!.value.data.started.runId]) expect(id).toHaveLength(36);
-  expect(fixture.start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate']);
+  expect(fixture.start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact']);
   expect(fixture.start.observation).toMatchObject({ observationId: fixture.publication.id, data: { scope: 'actor', source: { id: fixture.source.id } } });
   expect(fixture.start.observation.data).not.toHaveProperty('cells');
   expect(launch!.binding.start).toEqual(fixture.start);
@@ -77,7 +77,8 @@ test('SDK observe and scoped inspect preserve earned sources and fit 4 KiB witho
   const map = result.results[3].reply.observation!.data;
   expect(map).toHaveProperty('rooms'); expect(map).not.toHaveProperty('cells');
   for (const room of map.rooms as object[]) {
-    expect(Object.keys(room).sort()).toEqual(['level', 'source', 'spaceId']);
+    expect(Object.keys(room).sort()).toEqual(['anchor', 'kind', 'level', 'spaceId']);
+    expect(room).toHaveProperty('kind', 'room');
   }
   expect(result.head.checkpoint).toEqual(result.fixture.head.checkpoint);
   expect(result.head.roots.world).toEqual(result.fixture.head.roots.world);

@@ -50,16 +50,13 @@ describe('canonical scoped Agentica perception', () => {
     expect(cursor).toBeUndefined(); expect(found).toHaveLength(16);
     expect(new Set(found.map(c => JSON.stringify(c))).size).toBe(16);
   });
-  it('map pages contain room identities and exact sources, never internal cells or geometry', async () => {
+  it('unclassified history is explicitly unavailable, not silently promoted into a room graph', async () => {
     const f = await perceptionFixture();
     for (let n = 0; n < 7; n++) await f.knowledge.observe([earnedCell(n, -n, `known-${n}`)]);
-    f.republish(); let cursor: string | undefined; const rooms: unknown[] = [];
-    for (let n = 0; n < 8; n++) {
-      const view = await inspectMaze(f.pages, f.snapshot, f.ref, { scope: 'map', ...(cursor ? { cursor } : {}) });
-      expect(view.data).not.toHaveProperty('cells'); expect(jsonBytes(view)).toBeLessThanOrEqual(2800);
-      rooms.push(...view.data.rooms as unknown[]); cursor = view.data.next as string | undefined; if (!cursor) break;
-    }
-    expect(rooms).toHaveLength(8); expect(rooms.every(r => Object.keys(r as object).sort().join() === 'level,source,spaceId')).toBe(true);
+    f.republish();
+    const view = await inspectMaze(f.pages, f.snapshot, f.ref, { scope: 'map' });
+    expect(view.data).toEqual({ scope: 'map', state: 'unavailable' });
+    expect(jsonBytes(view)).toBeLessThanOrEqual(2800);
   });
   it('rejects stale cursors, changed scopes, mismatched snapshots and replaced publications', async () => {
     const f = await perceptionFixture(), room = await inspectMaze(f.pages, f.snapshot, f.ref, { scope: 'room' }), cursor = room.data.next as string;

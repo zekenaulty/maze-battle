@@ -39,6 +39,8 @@ function harness() {
     async observe(cells: ObservedCell[], spaces: ObservedSpace[], legacy = false) {
       vi.mocked(observePositionEvidence).mockResolvedValue(structuredClone({ cells, spaces }));
       const view = pages('readwrite', head), checkpoint = gameCheckpoint(head.checkpoint); checkpoint.position = structuredClone(cells[0].at);
+      // Roster transitions may leave an optional field undefined before persistence encoding.
+      checkpoint.townReturnMode = undefined;
       let next;
       if (legacy) {
         expect(checkpoint.knowledge).toBeNull(); expect(cells.length).toBeLessThanOrEqual(16);

@@ -4,7 +4,7 @@ import type { ProtocolRef } from '../../../persistence/canonical/agentica/types'
 import { equal, snapshotJson } from '../../../persistence/canonical/agentica/validation';
 import { loadObservation, sourceReader } from '../../../persistence/canonical/knowledge/evidence';
 import { roomKey } from '../../../persistence/canonical/knowledge/keys';
-import { listKnownRooms, readKnownCells } from '../../../persistence/canonical/knowledge/queries';
+import { readKnownCells } from '../../../persistence/canonical/knowledge/queries';
 import { cellSource } from '../../../persistence/canonical/knowledge/validation';
 import type { CellSource, RememberedCell } from '../../../persistence/canonical/knowledge/types';
 import { fields } from '../../../persistence/canonical/roster/codec';
@@ -13,8 +13,9 @@ import { observation, perceptionContext, type PerceptionContext } from './contex
 import { chestToken } from './chestSelection';
 import { frontierObservation } from './frontierObservation';
 import { objectObservation } from './objectObservation';
+import { graphObservation } from './graphObservation';
 import { cursorAfter, flatAddress, inspectArgs, inspectionCursor, inspectQuery, localPosition } from './validation';
-import { MAP_PAGE_ROOMS, MAX_CONTEXT_BYTES, MAX_OBSERVATION_BYTES, MAX_PERCEPTION_READ_BYTES, ROOM_PAGE_SLOTS, ROOM_WINDOW_SIDE,
+import { MAX_CONTEXT_BYTES, MAX_OBSERVATION_BYTES, MAX_PERCEPTION_READ_BYTES, ROOM_PAGE_SLOTS, ROOM_WINDOW_SIDE,
   type CellAddress, type InspectArgs, type InspectQuery, type PerceptionPages } from './types';
 
 /** The initial view deliberately has no room cells or map. Observation identity is the retained publication ID. */
@@ -79,27 +80,13 @@ async function roomObservation(c: PerceptionContext, query: InspectQuery, start:
   }
   return observation(c, data(after, cells, headers));
 }
-async function mapObservation(c: PerceptionContext, query: InspectQuery, after?: string) {
-  const page = await listKnownRooms(c.pages, c.checkpoint, query.level, after, MAP_PAGE_ROOMS), rooms = [], refs: CellSource[] = [];
-  let headers: Awaited<ReturnType<typeof sources>> = [], next: string | undefined;
-  const data = (items: unknown[], sourceHeaders: unknown[], key?: string) => ({ scope: 'map', level: query.level, rooms: items, sources: sourceHeaders,
-    ...(key === undefined ? {} : { next: inspectionCursor(c.ref, query, key) }) });
-  for (let i = 0; i < page.rooms.length; i++) {
-    const room = page.rooms[i], candidate = [...rooms, room], sourceHeaders = await sources(c, [...refs, room.source]);
-    const key = i < page.rooms.length - 1 || page.next !== undefined ? `known-rooms/${query.level}/${room.spaceId}` : undefined;
-    if (!fits(c, data(candidate, sourceHeaders, key))) { check(rooms.length > 0, 'single earned room exceeds observation budget'); break; }
-    rooms.push(room); refs.push(room.source); headers = sourceHeaders; next = key;
-  }
-  return observation(c, data(rooms, headers, next));
-}
-
 /** All scopes use the supplied publication and earned knowledge; inspect never performs a look/refresh. */
 export async function inspectMaze(pages: PerceptionPages, snapshot: CanonicalSnapshot, publication: ProtocolRef, input: InspectArgs): Promise<AgenticaObservation> {
   const args = inspectArgs(input), c = await perceptionContext(pages, snapshot, publication), query = inspectQuery(args, c.checkpoint);
-  const after = cursorAfter(args.cursor, c.ref, query);
+  const after = cursorAfter(args.cursor, c.ref, query, c.checkpoint.knowledge);
   if (query.scope === 'frontiers') return frontierObservation(c, query, (after as number | undefined) ?? 0);
   if (query.scope === 'objects') return objectObservation(c, query, (after as number | undefined) ?? 0);
-  if (query.scope === 'map') return mapObservation(c, query, after as string | undefined);
+  if (query.scope === 'map' || query.scope === 'links') return graphObservation(c, query, after as string | undefined);
   if (query.scope === 'room') return roomObservation(c, query, (after as number | undefined) ?? 0);
   const [cell] = await readKnownCells(c.pages, c.checkpoint, [localPosition(query as CellAddress)]);
   return cell.state === 'unknown' ? observation(c, { scope: 'cell', state: 'unknown' })

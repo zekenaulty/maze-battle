@@ -1,7 +1,7 @@
 import type { CanonicalWork } from '../transaction';
 import { check, integer } from '../validation';
 import { json } from '../world/records';
-import { gameCheckpoint, type GameCheckpoint } from '../game/checkpoint';
+import { checkpointJson, gameCheckpoint, type GameCheckpoint } from '../game/checkpoint';
 import { KNOWLEDGE_PREFIX, observationKey } from './keys';
 import { observePositionEvidence } from './observe';
 import { graphAvailable } from './graph.storage';
@@ -15,7 +15,7 @@ export type ObservationReview = (pages: KnowledgeRead, cells: ObservedCell[]) =>
 
 /** Position/effects, sight, memory and source receipts share the caller's transaction. */
 export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameCheckpoint, review?: ObservationReview): Promise<GameCheckpoint> {
-  checkpoint = gameCheckpoint(checkpoint);
+  checkpoint = gameCheckpoint(checkpointJson(checkpoint));
   check(checkpoint.mode !== 'town', 'town has no dungeon observation');
   await validateKnowledge(tx.pages, checkpoint.knowledge);
   check(await graphAvailable(tx.pages, checkpoint.knowledge) || checkpoint.knowledge === null,

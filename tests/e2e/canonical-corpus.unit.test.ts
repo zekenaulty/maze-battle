@@ -76,6 +76,20 @@ describe('authored corpus uses current canonical primitives', () => {
     expect(corpusNormalizer().normalize(left)).toEqual(left);
     expect(corpusNormalizer().normalize(right)).toEqual(right);
   });
+  it('normalizes only sourced identities inside graph cursors, retaining scope and semantic links', () => {
+    const cursor = (id: string, link = 'a'.repeat(64)) => ({ next: JSON.stringify({ schema: 1,
+      publication: { key: `agentica/publications/${id}`, id }, query: { scope: 'links', level: 1, spaceId: 'known' },
+      after: JSON.stringify({ schema: 1, scope: 'links', level: 1, spaceId: 'known',
+        anchor: { sequence: 5, id, witness: `witness-${id}` }, after: link }) }) });
+    const left = corpusNormalizer().normalize(cursor('left'));
+    expect(left).toEqual(corpusNormalizer().normalize(cursor('right')));
+    expect(left).not.toEqual(corpusNormalizer().normalize(cursor('right', 'b'.repeat(64))));
+    expect(() => corpusNormalizer().normalize(cursor('right', 'invalid'))).toThrow();
+    const untouched = { anchor: { sequence: 5, id: 'semantic', witness: 'semantic' }, after: 'opaque' };
+    expect(corpusNormalizer().normalize(untouched)).toEqual(untouched);
+    const nested = { after: { anchor: { sequence: 5, id: 'semantic-a', witness: 'semantic-b' } } };
+    expect(corpusNormalizer().normalize(nested)).toEqual(nested);
+  });
   it('retains missing fields, array order, types and escaped evidence paths', () => {
     expect(corpusDifferences({ 'a/b~': undefined }, {})).toEqual([{ path: '/a~1b~0',
       left: { present: true, value: undefined }, right: { present: false, value: undefined } }]);

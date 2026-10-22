@@ -10,6 +10,10 @@ import type { PerceptionPages } from './types';
 
 export async function perceptionFixture(cells: ObservedCell[] = [earnedCell()]) {
   const knowledge = knowledgeFixture(); await knowledge.observe(cells);
+  return perceptionPublication(knowledge);
+}
+
+export function perceptionPublication(knowledge: ReturnType<typeof knowledgeFixture>) {
   const stamp = () => {
     for (const [key, row] of knowledge.records) {
       row.key = key; row.indexes = key.startsWith('perception/room/') ? [`known-rooms/${key.slice('perception/room/'.length)}`] : [];

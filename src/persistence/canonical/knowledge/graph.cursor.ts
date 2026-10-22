@@ -7,6 +7,7 @@ import type { KnownLinksScope, KnownNodesScope } from './graph.types';
 
 type CursorScope = { scope: 'nodes'; level: number; kind: KnownNodesScope['kind'] }
   | { scope: 'links'; level: number; spaceId: string };
+export class GraphCursorRefusal extends Error {}
 export function graphScope<T extends KnownNodesScope | KnownLinksScope>(value: T, nodes: boolean): T & { limit: number } {
   const s = fields(value, nodes ? 'level kind' : 'level spaceId', 'cursor limit'); natural(s.level, 1);
   if (nodes) check(s.kind === 'all' || s.kind === 'room' || s.kind === 'passage', 'invalid graph kind'); else id(s.spaceId);

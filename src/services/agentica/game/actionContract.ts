@@ -7,6 +7,7 @@ import { snapshotJson, snapshotReference, validateAction } from '../../../persis
 import { fields } from '../../../persistence/canonical/roster/codec';
 import type { CanonicalRequest } from '../../../persistence/canonical/types';
 import { check } from '../../../persistence/canonical/validation';
+import { assertGraphGrant } from './graphGrant';
 
 export interface ActionBinding { grant: ProtocolRef; publication: ProtocolRef }
 export const captureBinding = (b: ActionBinding): ActionBinding => ({ grant: snapshotReference(b.grant), publication: snapshotReference(b.publication) });
@@ -30,6 +31,7 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
     && (durable ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
   if (action.capabilityId === 'maze.explore' && action.arguments.mode === 'room') check(cap.inputSchema.fields
     .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
+  if (action.capabilityId === 'maze.inspect' && ['map', 'links'].includes(action.arguments.scope as string)) assertGraphGrant(cap, action.arguments);
   if (action.capabilityId === 'maze.inspect' && action.arguments.scope === 'objects') {
     const scope = cap.inputSchema.fields.find(f => f.name === 'scope' && f.type === 'string');
     const cursor = cap.inputSchema.fields.find(f => f.name === 'cursor' && f.type === 'string');

@@ -8,6 +8,7 @@ import type { PreparedAction, ProtocolRef } from '../../../persistence/canonical
 import { gameCheckpoint } from '../../../persistence/canonical/game/checkpoint';
 import { readKnownCells } from '../../../persistence/canonical/knowledge/queries';
 import { isCurrentFrontier } from '../../../persistence/canonical/knowledge/frontiers';
+import { GraphCursorRefusal } from '../../../persistence/canonical/knowledge/graph.cursor';
 import { createDestinationBinding, createFrontierBinding, createExplorationBinding, executeNavigationCommand } from '../../../persistence/canonical/navigation/commands';
 import { destinationPosition } from '../../../persistence/canonical/navigation/validation';
 import { fields } from '../../../persistence/canonical/roster/codec';
@@ -142,7 +143,10 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
           } catch (error) { if (!(error instanceof ObjectiveRefusal)) throw error; rejected = error.message; }
         }
         if (selected?.kind === 'inspect') {
-          try { cursorAfter(selected.args.cursor, binding.publication, inspectQuery(selected.args, gameCheckpoint(tx.head.checkpoint))); }
+          try {
+            const checkpoint = gameCheckpoint(tx.head.checkpoint);
+            cursorAfter(selected.args.cursor, binding.publication, inspectQuery(selected.args, checkpoint), checkpoint.knowledge);
+          }
           catch { rejected = 'Inspection cursor or query does not belong to this publication.'; }
         }
         let journal: Awaited<ReturnType<typeof queryQuests>> | undefined;
@@ -150,9 +154,12 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
           try { journal = await queryQuests(tx.pages, snapshotOf(tx.head), binding, identity, selected.args); }
           catch (error) { if (!(error instanceof QuestQueryRefusal)) throw error; rejected = error.message; }
         }
-        const observation = journal?.observation ?? (!rejected && selected?.kind === 'inspect'
-          ? await inspectMaze(tx.pages, snapshotOf(tx.head), binding.publication, selected.args)
-          : await observeMaze(tx.pages, snapshotOf(tx.head), binding.publication));
+        let inspected;
+        if (!rejected && selected?.kind === 'inspect') {
+          try { inspected = await inspectMaze(tx.pages, snapshotOf(tx.head), binding.publication, selected.args); }
+          catch (error) { if (!(error instanceof GraphCursorRefusal)) throw error; rejected = 'Inspection cursor is not a valid continuation.'; }
+        }
+        const observation = journal?.observation ?? inspected ?? await observeMaze(tx.pages, snapshotOf(tx.head), binding.publication);
         const result = actionResult(identity, observation, rejected ?? (journal ? 'Accepted quest information returned without looking at its target.'
           : 'Earned observation returned without refreshing sight.'), rejected ? 'refused' : 'applied');
         return (await retainActionResult(tx, request, identity, result, journal?.query)).receipt;

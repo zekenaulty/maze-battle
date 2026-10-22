@@ -599,6 +599,20 @@ without separate limits/authorization. Issue #11 is not complete.
 
 ## Finite Goal Closeout
 
+2026-10-22 progress checkpoint: the six-sprint scope and **40-80 focused-hour**
+planning range below remain the closeout estimate, not six already-completed
+sprints. [Earned room/connection queries](reviews/issue-11-earned-graph.md) add
+source-bound room-only pages and explicit space-link reads; passage-chain
+collapse, UI selection and sustained exploration still gate Sprint 1. A native
+160-move case exposed a real evidence-read-budget failure; its repair must keep
+integrity checks and existing limits, not substitute a shorter passing journey.
+[Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
+does not finish the all-surface information gate. The
+[clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies
+that prerequisite only, not the frozen final candidate. Issue #11 and the goal
+remain open. Its owner-approved disposable-old-save boundary supersedes the
+original goal's legacy-save preservation wording; no silent owner reset is allowed.
+
 2026-10-20 planning checkpoint, independently reviewed against candidate
 `316212d`. Remaining estimate: **40-80 focused engineering hours**, roughly
 **5-10 working days**, with **10-15 days** contingency for newly demonstrated

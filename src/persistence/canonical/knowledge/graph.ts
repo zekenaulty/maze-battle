@@ -3,7 +3,7 @@ import { gameCheckpoint, type GameCheckpoint } from '../game/checkpoint';
 import { fields, id, natural } from '../roster/codec';
 import { check } from '../validation';
 import { same } from '../world/records';
-import { graphCursor, graphScope, readGraphCursor } from './graph.cursor';
+import { GraphCursorRefusal, graphCursor, graphScope, readGraphCursor } from './graph.cursor';
 import { graphView } from './graph.read';
 import { readKnownCells } from './queries';
 import type { KnowledgeRead } from './types';
@@ -20,9 +20,10 @@ export async function listKnownNodes(pages: KnowledgeRead, before: GameCheckpoin
   let next = list?.first ?? null, ordinal = 0;
   if (after) {
     const row = await view.node(after.spaceId);
-    check(row && (s.kind === 'all' || row.node.kind === s.kind) && row.ordinal[slot] === after.ordinal, 'graph cursor member changed');
+    if (!row || s.kind !== 'all' && row.node.kind !== s.kind || row.ordinal[slot] !== after.ordinal)
+      throw new GraphCursorRefusal('graph cursor member changed');
     next = row.next[slot]; ordinal = after.ordinal;
-    check(next, 'graph cursor has no continuation');
+    if (!next) throw new GraphCursorRefusal('graph cursor has no continuation');
   }
   const items: KnownNode[] = [];
   while (next && items.length < s.limit) {
@@ -47,7 +48,7 @@ export async function listKnownLinks(pages: KnowledgeRead, before: GameCheckpoin
   check(node, 'unknown graph space');
   const links = (await view.links(s.spaceId)).links.sort((a, b) => a.id.localeCompare(b.id));
   const index = after ? links.findIndex(l => l.id === after) : -1;
-  check(!after || index >= 0 && index < links.length - 1, 'graph link cursor member changed');
+  if (after && (index < 0 || index >= links.length - 1)) throw new GraphCursorRefusal('graph link cursor member changed');
   const items = links.slice(index + 1, index + 1 + s.limit);
   for (const link of items) {
     check(await view.node(link.to.at.cell.spaceId), 'graph connection target is missing');
