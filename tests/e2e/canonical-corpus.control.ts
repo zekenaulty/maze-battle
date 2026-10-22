@@ -2,9 +2,10 @@ export interface CorpusNativeRead {
   store: string; key: unknown; caller: string; result?: unknown; bytes?: number; error?: string;
 }
 
-/** Serialized by Playwright, before any fixture modules load. Never install in the App or a provider. */
+/** Serialized before fixture modules load. Only these isolated documents, never an owner App or provider. */
 export function installCorpusControl() {
-  if (location.href !== 'http://127.0.0.1:5266/tests/e2e/canonical-corpus.html' || window.corpusControl)
+  if (!['http://127.0.0.1:5266/tests/e2e/canonical-corpus.html',
+    'http://127.0.0.1:5446/tests/e2e/canonical-corpus-ui.html'].includes(location.href) || window.corpusControl)
     throw Error('Deterministic identities are restricted to a fresh isolated corpus document');
   const allocations: { id: string; caller: string }[] = [], seen = new Set<string>();
   let state = 0x731c0ffe;
