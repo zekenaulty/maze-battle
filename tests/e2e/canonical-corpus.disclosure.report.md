@@ -59,6 +59,16 @@ The authored world-value byte sum differs by four, as do genesis write bytes
 (55525/55529) and pre-sight quota (135011/135015). This is private persisted-size
 accounting, not evidence of concealed semantic consultation by the actor query.
 
+This does not establish that the unequal counter is harmless or unobservable.
+`canonical/accounting.ts` uses `usedBytes` for admission; sufficiently close to
+the limit, the four-byte difference can distinguish success from refusal, which
+GameSession surfaces as recovery state. That threshold path is source-supported,
+not reproduced by this query-only test. The actual App Diagnostics panel also
+exposes command read/write counts, written bytes and elapsed time. Those
+diagnostics, session warnings/status, movement/publication/adoption work and
+separate SDK-action costs are outside this batched-query measurement and remain
+required work-disclosure checks. No whole-App noninterference claim is made.
+
 The tracer forwards genuine IndexedDB gets, retaining keys, values, byte sizes,
 caller stacks and errors, then reconciles every read and byte with kernel stats.
 Unexpected read APIs, mutations, additional transactions and bounds fail closed.
@@ -116,3 +126,15 @@ It was not reverted or deleted. The corpus unit config now uses worktree-local
 mtime remained unchanged. Parent source files, lockfile and running listeners
 were not edited/restarted; strict total parent-filesystem noninterference was
 not achieved. The first unit result remains `test-results/corpus-disclosure-unit-final.json`.
+
+## Integrated Recheck
+
+Parent candidate `91404ac` repeated the suite in its own disposable browser
+contexts: **5 PASS, zero failures/skips/retries**, 36.19 seconds, started
+`2026-10-20T22:44:14.157Z`. Evidence is
+`test-results/corpus-disclosure-parent/results.json`; the runner stats and empty
+error list were checked after the original process handle expired. The separate
+unit report `test-results/corpus-disclosure-parent-unit.json` records **9 PASS**,
+zero failures/pending. Corpus fixture and production typechecks also pass.
+These checks retain the query-only and non-clean-install limits above; they do
+not close the remaining whole-App information or active-work recovery gates.
