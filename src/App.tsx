@@ -34,6 +34,7 @@ export function App() {
   const openAgentic = () => open(agentic.profile || agentic.configurationError ? 'agentic' : 'agentic-recovery');
   const agenticaRecovery = dialog === 'agentic-recovery' && <AgenticaRecovery controller={session.controller}
     game={game} controlled={session.controlled} onClose={() => setDialog(undefined)}
+    onResume={offer => { agentic.resumeNavigation(offer); open('agentic'); }}
     onAdopt={offer => { agentic.adoptDecision(offer); open('agentic'); }} />;
   if (!game || recovering) return <><GameRecovery status={session.status} busy={session.busy}
     onRetry={session.retry} onReset={newGame} onAgenticaRecovery={openRecovery} />{agenticaRecovery}</>;

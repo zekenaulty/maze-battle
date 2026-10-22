@@ -1,9 +1,11 @@
-import { RefreshCw, Square, StepForward } from 'lucide-react';
+import { Play, RefreshCw, Square, StepForward } from 'lucide-react';
 import type { RecoveryInspection } from './useAgenticaRecovery';
 import type { PlayAdoptionOffer } from '../../services/agentica/game/playAdoption';
+import type { ActiveNavigationOffer } from '../../services/agentica/game/playActiveNavigation';
 
-export function RecoveryDetails({ detail, disabled, adoptionOffer, onAdopt, onRecover }: { detail: RecoveryInspection; disabled: boolean;
+export function RecoveryDetails({ detail, disabled, adoptionOffer, navigationOffer, onResume, onAdopt, onRecover }: { detail: RecoveryInspection; disabled: boolean;
   adoptionOffer?: PlayAdoptionOffer; onAdopt?: () => void;
+  navigationOffer?: ActiveNavigationOffer; onResume?: () => void;
   onRecover: (action: 'stop' | 'reconcile') => void }) {
   const label = detail.action.capabilityId === 'maze.interact' ? 'interaction' : 'navigation';
   return <section aria-label="Original action inspection" className="agentica-recovery-section">
@@ -23,6 +25,10 @@ export function RecoveryDetails({ detail, disabled, adoptionOffer, onAdopt, onRe
       <button type="button" disabled={disabled} onClick={() => onRecover('reconcile')}>
         <RefreshCw size={16} aria-hidden="true" /> Reconcile {label}</button>
     </div>
+    {navigationOffer && <div className="agentica-recovery-actions">
+      <button type="button" disabled={disabled || !onResume} onClick={() => { if (!disabled) onResume?.(); }}>
+        <Play size={16} aria-hidden="true" /> Resume navigation</button>
+    </div>}
     {adoptionOffer && <>
       <h3>Retained Agentic play</h3>
       <dl className="agentica-recovery-facts">

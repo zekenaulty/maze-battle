@@ -7,6 +7,7 @@ import { check } from '../../../persistence/canonical/validation';
 import { captureBinding } from './actionContract';
 import { decisionState, type DecisionView } from './decisionState';
 import type { PlayDecisionOriginal } from './playDecision';
+import { assertTransferredDecision } from './playTransferCustody';
 
 /** The confirmation reader proves this service usage and effective start; local navigation usage is unrelated. */
 export function retainedDecisionAllowance(view: DecisionView) {
@@ -21,7 +22,7 @@ export function retainedDecisionAllowance(view: DecisionView) {
 
 /** Read-only advisory at one exact same-owner decision. Does not publish, queue work, or refresh the world. */
 export async function readPlayDecisionAllowance(session: GameSession, input: PlayDecisionOriginal,
-  options: { signal?: AbortSignal } = {}): Promise<number> {
+  options: { signal?: AbortSignal; transferred?: boolean } = {}): Promise<number> {
   const original = { action: validateAction(input.action), binding: captureBinding(input.binding) };
   const hostSignal = session.hostSignal, owner = session.owner, snapshot = session.view.game?.snapshot;
   const expected = snapshot && { generation: snapshot.generation, gameId: snapshot.gameId, revision: snapshot.revision };
@@ -45,7 +46,8 @@ export async function readPlayDecisionAllowance(session: GameSession, input: Pla
     check(equal(terminal.identity.action, original.action) && equal(terminal.binding, original.binding)
       && !decision && !claim && !grant && operation.state === 'settled' && terminal.event.kind === 'decision',
     'decision allowance requires the unclaimed original decision');
-    check(original.action.sessionEpoch === String(head.epoch) && terminal.event.sessionEpoch === String(head.epoch)
+    if (options.transferred) { await assertTransferredDecision(view); current(guarded); }
+    else check(original.action.sessionEpoch === String(head.epoch) && terminal.event.sessionEpoch === String(head.epoch)
       && terminal.bound.grant.value.data.owner === owner && terminal.bound.grant.value.data.epoch === head.epoch
       && launch.guard.owner === owner && launch.guard.epoch === head.epoch, 'decision allowance requires the same owner and epoch');
     check(launch.guard.state === 'admitted' && active?.id === launch.binding.launchId

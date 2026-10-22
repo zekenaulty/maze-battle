@@ -19,13 +19,15 @@ import { decisionCommits } from './decisionCommit';
 import { decisionCleanup } from './decisionCleanup';
 import { deliverDecisionPrefix, readDecisionRemote } from './decisionRemote';
 import { unclaimedPlayAdoption } from './playAdoption';
+import { assertTransferredDecision } from './playTransferCustody';
 
 /** Explicit bounded decision continuation. Construction, preparation and navigation never wake the planner. */
 export async function createGameDecisionController(port: CanonicalHostPort & CanonicalRecoveryPort,
   input: AgenticaAction, inputBinding: ActionBinding, options: { factory?: DecisionSdkFactory; fetchImpl?: typeof fetch;
-    signal?: AbortSignal; onWithdraw?: (reason: DecisionWithdrawal) => void; sameOwnerOnly?: boolean; adoptionOnly?: boolean } = {}) {
-  const { sameOwnerOnly, adoptionOnly } = options;
-  check(!sameOwnerOnly || !adoptionOnly, 'decision owner modes are exclusive');
+    signal?: AbortSignal; onWithdraw?: (reason: DecisionWithdrawal) => void; sameOwnerOnly?: boolean; adoptionOnly?: boolean;
+    transferredOnly?: boolean } = {}) {
+  const { sameOwnerOnly, adoptionOnly, transferredOnly } = options;
+  check([sameOwnerOnly, adoptionOnly, transferredOnly].filter(Boolean).length <= 1, 'decision owner modes are exclusive');
   const binding = captureBinding(inputBinding), hostSignal = port.hostSignal;
   const lifetime = AbortSignal.any([hostSignal, ...(options.signal ? [options.signal] : [])]); lifetime.throwIfAborted();
   const identity = await prepareAction(input);
@@ -38,6 +40,7 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
   if (sameOwnerOnly) check(launch.guard.owner === initial.head.owner && launch.guard.epoch === initial.head.epoch
     && identity.action.sessionEpoch === String(initial.head.epoch) && !initial.value.decision?.data.adoption,
   'mounted decision requires the original owner and epoch');
+  if (transferredOnly) await assertTransferredDecision(initial);
   const release = claimTransportAttachment(launch.binding.launchId);
   const work = transportGate(port), recovery = transportGate(port);
   let channel: ReturnType<typeof decisionChannel>;
@@ -74,6 +77,7 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
         check(fresh.head.owner === owner && fresh.head.epoch === epoch
           && unclaimedPlayAdoption(fresh, { action: identity.action, binding }), 'mounted adoption source changed before preparation');
       }
+      if (transferredOnly) { await assertTransferredDecision(await state()); work.signal.throwIfAborted(); }
       await commands.prepare(publication); work.signal.throwIfAborted();
       const prepared = (await state()).value.decision!; work.signal.throwIfAborted();
       if (adoptionOnly) preparedAdoption = snapshotReference(prepared.reference);
@@ -89,6 +93,11 @@ export async function createGameDecisionController(port: CanonicalHostPort & Can
         : { status: 'attached' as const, binding: channel.binding, runId: announcement!.runId };
     }
     assertDecisionCurrent(view); const decision = view.value.decision!;
+    if (transferredOnly) {
+      await assertTransferredDecision(view); work.signal.throwIfAborted();
+      check(view.head.owner === owner && view.head.epoch === epoch && !decision.data.adoption,
+        'transferred continuation custody changed');
+    }
     if (sameOwnerOnly) check(!decision.data.adoption, 'mounted decision cannot adopt another owner or epoch');
     assertAdoption(view);
     if (!connected) {

@@ -15,7 +15,9 @@ export default defineConfig({
         const anchor = '      timer = setTimeout(() => { void pulse(); }, 250);';
         if (!source.includes(anchor)) throw Error('History transfer custody barrier no longer matches');
         // Test-only scheduling pause after real custody ACK, before the first local step.
-        return source.replace(anchor, `if (result.status === 'custody-confirmed'
+        return source.replace(anchor, `if (new URL(location.href).searchParams.has('activeJourneyProof')
+          && await (await import('/tests/e2e/canonical-start-service.active-journey-evidence.ts')).pauseActiveJourney(action, result)) return;
+        if (result.status === 'custody-confirmed'
           && new URL(location.href).searchParams.has('historyTransferProof')) {
           globalThis.__canonicalHistoryTransferPaused = true; return;
         }

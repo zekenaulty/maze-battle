@@ -63,6 +63,7 @@ export function AgenticaRecovery(props: RecoveryProps & { onClose: () => void })
       </>}
       {recovery.detail && <RecoveryDetails detail={recovery.detail} disabled={disabled}
         adoptionOffer={recovery.adoptionOffer} onAdopt={() => { void recovery.adopt(); }}
+        navigationOffer={recovery.navigationOffer} onResume={() => { void recovery.resume(); }}
         onRecover={action => { void recovery.runNavigation(action); }} />}
       {recovery.detail?.claim && <PendingActions disabled={disabled} page={recovery.pendingPage} selected={recovery.pendingSelection?.action}
         onList={afterActionId => { void recovery.runPending({ kind: 'list', afterActionId }); }}

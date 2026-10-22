@@ -12,6 +12,7 @@ import { inspectPlayAdoption, type PlayAdoptionOffer } from './playAdoption';
 import { readPlayDecisionAllowance } from './playAllowance';
 import { stopGamePlay } from './playStop';
 import { completionHooks, completionMessage } from './playCompletion';
+import { inspectActiveNavigation, resumeActiveNavigation, type ActiveNavigationOffer } from './playActiveNavigation';
 
 export interface GamePlayState {
   phase: 'idle' | 'preparing' | 'starting' | 'running' | 'navigating' | 'decision' | 'satisfied' | 'stopping' | 'stopped' | 'recovery';
@@ -30,6 +31,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   let transport: Awaited<ReturnType<typeof createGameTransport>> | undefined;
   let navigation: Awaited<ReturnType<typeof startPlayNavigation>> | undefined;
   let decision: ReturnType<typeof startPlayDecision> | undefined, original: PlayDecisionOriginal | undefined;
+  let transferredDecision = false;
   let pending: Promise<void> = Promise.resolve(), stopPending: Promise<void> | undefined;
   let attempt = 0, operationSeen = false, operationKey: string | undefined, releaseControl: (() => void) | undefined;
   const update = (patch: Partial<GamePlayState>) => {
@@ -49,16 +51,16 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     update({ phase: 'satisfied', active: true, canContinue: false, error: undefined, message });
   };
   function boundary(candidate: PlayDecisionOriginal | undefined, status: PlayNavigationStatus,
-    current: () => boolean, signal: AbortSignal) {
+    current: () => boolean, signal: AbortSignal, transferred = false) {
     if (!current() || state.phase === 'satisfied') return;
-    original = candidate && structuredClone(candidate); terminal = true; transport?.close();
+    original = candidate && structuredClone(candidate); transferredDecision = transferred; terminal = true; transport?.close();
     update({ ...status, canContinue: false, message: original ? 'Checking retained execution allowance.' : status.message });
-    if (original) void readPlayDecisionAllowance(session, original, { signal }).then(remaining => {
+    if (original) void readPlayDecisionAllowance(session, original, { signal, transferred }).then(remaining => {
       if (current() && state.phase === 'decision') update({ canContinue: remaining > 0,
         message: remaining > 0 ? status.message : `${status.message} Execution allowance exhausted.` });
     }).catch(error => { if (current()) { terminal = false; fail(error); } });
   }
-  function mountDecision(next: PlayDecisionOriginal, mode: 'continue' | 'adopt', current: () => boolean, signal: AbortSignal) {
+  function mountDecision(next: PlayDecisionOriginal, mode: 'continue' | 'adopt' | 'transferred', current: () => boolean, signal: AbortSignal) {
     decision = startPlayDecision({ session, original: next, mode, signal, factory,
       update: status => { if (current()) {
         if (status.phase === 'satisfied') {
@@ -157,7 +159,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     check(!closed && !stopping && !hostSignal.aborted && session.hostSignal === hostSignal
       && state.active && state.phase === 'decision' && state.canContinue && original && releaseControl,
     'Continue requires the current owner and an explicit available decision.');
-    const next = structuredClone(original);
+    const next = structuredClone(original), mode = transferredDecision ? 'transferred' : 'continue';
     withdraw(); terminal = false; original = undefined; gate = transportGate(session);
     const token = ++attempt, localGate = gate;
     const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted
@@ -168,7 +170,7 @@ export function createGamePlayController(session: GameSession, changed: (state: 
         await session.flush(); if (!current()) return;
         check(session.view.controlled && !session.view.busy && !session.view.recoveryRequired,
           'Game control changed before continuation.');
-        mountDecision(next, 'continue', current, localGate.signal);
+        mountDecision(next, mode, current, localGate.signal);
       } catch (error) { if (current()) fail(error); }
     })();
     return pending;
@@ -198,6 +200,35 @@ export function createGamePlayController(session: GameSession, changed: (state: 
     })();
     return pending;
   }
+  function resumeNavigation(input: ActiveNavigationOffer) {
+    check(!closed && !hostSignal.aborted && session.hostSignal === hostSignal && !state.active,
+      'Resume requires inactive Agentic play and current ownership.');
+    const offered = structuredClone(input);
+    releaseControl = session.acquireAgenticControl();
+    stopping = false; terminal = false; stopPending = undefined; original = undefined;
+    gate = transportGate(session); const localGate = gate, token = ++attempt;
+    const current = () => token === attempt && !closed && !stopping && !hostSignal.aborted && !localGate.signal.aborted
+      && session.hostSignal === hostSignal;
+    update({ phase: 'preparing', active: true, launchId: undefined, objective: undefined, profile: undefined,
+      canContinue: false, error: undefined, message: 'Revalidating inspected navigation' });
+    pending = (async () => {
+      try {
+        await session.flush(); if (!current()) return;
+        const checked = await inspectActiveNavigation(session, offered.fence, offered.candidate, { signal: localGate.signal });
+        if (!current()) return;
+        check(checked && equal(checked, offered), 'Active navigation selection changed. Inspect the original again.');
+        update({ launchId: checked.launchId, objective: checked.objective, profile: checked.profile });
+        const driver = await resumeActiveNavigation(session, offered, localGate.signal, status => {
+          if (!current()) return;
+          if (status.phase === 'decision') boundary(status.canContinue ? offered.original : undefined, status, current, localGate.signal, true);
+          else update({ ...status, canContinue: false });
+        }, error => { if (current()) fail(error); }, factory);
+        if (!current()) { driver.close(); return; }
+        navigation = driver; update({ phase: 'navigating', message: 'Resuming original navigation' });
+      } catch (error) { if (current()) fail(error); }
+    })();
+    return pending;
+  }
   function stop() {
     if (closed || !state.active && !state.launchId) return Promise.resolve();
     if (stopPending) return stopPending;
@@ -214,5 +245,5 @@ export function createGamePlayController(session: GameSession, changed: (state: 
   }
   const close = () => { if (closed) return; closed = true; stopping = true; terminal = true; withdraw(); releaseControl?.(); releaseControl = undefined; hostSignal.removeEventListener('abort', close); };
   hostSignal.addEventListener('abort', close, { once: true });
-  return { start, continueDecision, adoptDecision, stop, close, get state() { return { ...state }; } };
+  return { start, continueDecision, adoptDecision, resumeNavigation, stop, close, get state() { return { ...state }; } };
 }

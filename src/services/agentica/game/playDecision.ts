@@ -20,14 +20,14 @@ export interface PlayDecisionOptions {
   onDecision(original: PlayDecisionOriginal, status: PlayDecisionStatus & { phase: 'decision'; canContinue: true }): void;
   fail(error: unknown): void;
   factory?: DecisionSdkFactory;
-  mode?: 'continue' | 'adopt';
+  mode?: 'continue' | 'adopt' | 'transferred';
 }
 
 /** One explicit continuation. No lease, root Stop, automatic next wake or retained UI journal. */
 export function startPlayDecision(input: PlayDecisionOptions) {
   const { session, update: changed, onDecision, fail: failed, factory = options => new AgenticaHost(options) } = input;
   const mode = input.mode ?? 'continue';
-  check(mode === 'continue' || mode === 'adopt', 'invalid decision mode');
+  check(['continue', 'adopt', 'transferred'].includes(mode), 'invalid decision mode');
   const hostSignal = session.hostSignal, scope = new AbortController();
   const signal = AbortSignal.any([hostSignal, input.signal, scope.signal]), gate = transportGate(session);
   const original = { action: validateAction(input.original.action), binding: captureBinding(input.original.binding) };
@@ -89,7 +89,7 @@ export function startPlayDecision(input: PlayDecisionOptions) {
   async function start() {
     try {
       const attached = await createGameDecisionController(session, original.action, original.binding, {
-        signal, sameOwnerOnly: mode === 'continue', adoptionOnly: mode === 'adopt', onWithdraw: withdraw,
+        signal, sameOwnerOnly: mode === 'continue', adoptionOnly: mode === 'adopt', transferredOnly: mode === 'transferred', onWithdraw: withdraw,
         factory: originalHooks => {
           const hooks = completionHooks(originalHooks, async () => {
             if (!current()) return;
