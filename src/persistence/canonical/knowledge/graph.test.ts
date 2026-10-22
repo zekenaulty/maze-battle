@@ -102,7 +102,7 @@ describe('availability and read budgets', () => {
     await expect(readKnownAnchor(f.pages, f.checkpoint(), { level: 1, spaceId: 'room' })).rejects.toMatchObject({ name: 'KnownGraphUnavailableError', code: 'known-graph-unavailable' });
     expect(f.records).toEqual(before);
   });
-  it('continues explicit unavailable observations without inventing a graph', async () => {
+  it('reports an unmarked fixture unavailable without inventing a graph', async () => {
     const f = graphFixture(); await f.observe([earnedCell()], undefined, false);
     await expect(listKnownNodes(f.pages, f.checkpoint(), { level: 1, kind: 'all' })).rejects.toBeInstanceOf(KnownGraphUnavailableError);
   });

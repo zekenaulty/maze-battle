@@ -16,8 +16,10 @@ export function graphFixture() {
       const header = f.records.get(observationKey(reference.sequence))!.value as unknown as ObservationHeader;
       header.spaces = spaces ?? [...new Set(cells.map(c => c.at.cell.spaceId))].map(spaceId =>
         ({ spaceId, kind: 'room', index: cells.findIndex(c => c.at.cell.spaceId === spaceId) }));
-      header.graph = available ? 'available' : 'unavailable';
-      if (available) await indexObservationGraph(f.pages, cells, header.spaces, reference);
+      if (available) {
+        header.graph = 'available';
+        await indexObservationGraph(f.pages, cells, header.spaces, reference);
+      } else { delete header.spaces; delete header.graph; }
       checkpoint.knowledge!.witness = (await f.pages.witness('knowledge', 'perception/'))!;
       return { reference, header, cells: structuredClone(cells) };
     },

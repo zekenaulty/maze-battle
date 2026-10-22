@@ -29,7 +29,7 @@ export interface ObservationHeader {
   count: number;
   chunks: string[];
   spaces?: ObservedSpace[];
-  graph?: 'available' | 'unavailable';
+  graph?: 'available';
 }
 export interface ObservationChunk { schema: 1; sequence: number; offset: number; cells: ObservedCell[] }
 export interface RememberedCell extends Omit<ObservedCell, 'edges'> {

@@ -18,7 +18,8 @@ export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameC
   checkpoint = gameCheckpoint(checkpoint);
   check(checkpoint.mode !== 'town', 'town has no dungeon observation');
   await validateKnowledge(tx.pages, checkpoint.knowledge);
-  const graph = await graphAvailable(tx.pages, checkpoint.knowledge) || checkpoint.knowledge === null;
+  check(await graphAvailable(tx.pages, checkpoint.knowledge) || checkpoint.knowledge === null,
+    'new observation requires an available earned graph projection');
   const { cells, spaces } = await observePositionEvidence(tx.pages, checkpoint.position), sequence = (checkpoint.knowledge?.sequence ?? 0) + 1;
   // Compare legitimate new sight against prior memory before the memory projection is updated.
   if (review) await review({ get: (area, key) => { check(area === 'knowledge', 'observation review requires knowledge only'); return tx.pages.get(area, key); },
@@ -38,11 +39,11 @@ export async function recordGameObservation(tx: CanonicalWork, checkpoint: GameC
     ? { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id } : null,
     owner: tx.head.owner, epoch: tx.head.epoch, revision: tx.head.revision + 1, observedAt: new Date().toISOString(),
     actor: structuredClone(checkpoint.position), policy: 'linked-vision-v1', radius: VISION_RADIUS, count: cells.length, chunks,
-    spaces, graph: graph ? 'available' : 'unavailable' };
+    spaces, graph: 'available' };
   const row = await tx.pages.set('knowledge', key, json(header));
   await rememberObservation(tx.pages, cells, { sequence, id: row.id });
   await indexObservedWorldCells(tx.pages, cells);
-  if (graph) await indexObservationGraph(tx.pages, cells, spaces, { sequence, id: row.id });
+  await indexObservationGraph(tx.pages, cells, spaces, { sequence, id: row.id });
   const witness = await tx.pages.witness('knowledge', KNOWLEDGE_PREFIX); check(witness, 'missing observation namespace');
   return { ...checkpoint, knowledge: { sequence, id: row.id, witness } };
 }

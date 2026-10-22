@@ -97,14 +97,15 @@ it('quota refusal after graph staging preserves prior roots, records and funded 
   expect(h.snapshot().allocations.obligation.bytes).toBe(147456);
 });
 
-it('continues old observations as explicitly unavailable without backfill or loss of original source records', async () => {
+it('refuses new observations on unmarked history without writes, backfill or funded custody loss', async () => {
   const h = harness(), pair = connected(); await h.observe(pair.cells, pair.spaces, true);
-  const old = gameCheckpoint(h.snapshot().checkpoint).knowledge!;
-  await h.observe(pair.cells, pair.spaces);
+  h.fillQuota();
+  const before = h.snapshot(), records = structuredClone(h.records), nodes = structuredClone(h.nodes);
+  await expect(h.observe(pair.cells, pair.spaces)).rejects.toThrow('requires an available earned graph projection');
+  expect(h.snapshot()).toEqual(before); expect(h.records).toEqual(records); expect(h.nodes).toEqual(nodes);
+  expect(h.snapshot().allocations.obligation.bytes).toBe(147456);
   await h.read(async (p, head) => {
-    const checkpoint = gameCheckpoint(head.checkpoint), current = checkpoint.knowledge!;
-    expect((await loadObservation(p, { sequence: current.sequence, id: current.id })).header.graph).toBe('unavailable');
-    expect((await loadObservation(p, { sequence: old.sequence, id: old.id })).header.graph).toBeUndefined();
+    const checkpoint = gameCheckpoint(head.checkpoint);
     expect(await p.get('knowledge', GRAPH_KEY)).toBeUndefined();
     await expect(listKnownNodes(p, checkpoint, { level: 1, kind: 'room' })).rejects.toBeInstanceOf(KnownGraphUnavailableError);
   });

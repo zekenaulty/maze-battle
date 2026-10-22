@@ -41,7 +41,7 @@ export function observationHeader(value: unknown): ObservationHeader {
   check(Array.isArray(r.chunks) && r.chunks.length === Math.ceil(r.count / OBSERVATION_CHUNK_SIZE)
     && new Set(r.chunks).size === r.chunks.length, 'invalid observation chunks'); r.chunks.forEach(id);
   if (r.spaces !== undefined || r.graph !== undefined) {
-    check(r.graph === 'available' || r.graph === 'unavailable', 'invalid observation graph availability');
+    check(r.graph === 'available', 'invalid observation graph availability');
     check(Array.isArray(r.spaces) && r.spaces.length > 0 && r.spaces.length <= 16, 'invalid observed spaces');
     const seen = new Set<string>();
     for (const value of r.spaces) {
