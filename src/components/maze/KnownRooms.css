@@ -1,0 +1,25 @@
+.maze-stage.has-room-map { display: flex; flex-direction: column; }
+.known-rooms-tabs { display: flex; flex: 0 0 auto; width: 100%; gap: 4px; padding: 4px; border-bottom: 1px solid var(--color-border); }
+.known-rooms-tabs button { min-height: 40px; border-radius: 4px; }
+.known-rooms-tabs [aria-selected="true"] { border-color: var(--color-primary); background: var(--color-panel); }
+.known-rooms-panel { flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; position: relative; }
+.known-rooms-panel > .maze-canvas { height: 100%; }
+.known-rooms { height: 100%; min-width: 0; overflow: auto; padding: 8px; }
+.known-rooms-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.known-rooms-toolbar h2 { flex: 1; margin: 0; font-size: 16px; }
+.known-rooms-toolbar > span { font-size: 12px; color: var(--color-muted); }
+.known-rooms-toolbar button { width: 44px; height: 44px; padding: 0; }
+.known-rooms-map { display: grid; min-height: 240px; height: 45%; max-height: 360px; margin-block: 8px; border-bottom: 1px solid var(--color-border); }
+.known-room-pin { justify-self: center; align-self: center; gap: 2px; width: 48px; height: 48px; padding: 0; color: #e9bc68; border-radius: 4px; }
+.known-room-pin[aria-current="location"] { color: #79debd; border-color: #79debd; }
+.known-rooms-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.known-rooms-list button { width: 100%; min-height: 44px; justify-content: space-between; flex-wrap: wrap; gap: 4px; font-size: 13px; text-align: left; border-radius: 4px; }
+.known-rooms-list span { overflow-wrap: anywhere; min-width: 0; }
+.known-rooms-list [aria-current="location"] { border-color: #79debd; }
+.known-rooms-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.known-rooms p { font-size: 13px; }
+.known-room-recall { position: absolute; top: 4px; left: 4px; max-width: calc(100% - 8px); padding: 4px 8px; margin: 0; background: var(--color-surface); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
+@media (max-width: 480px) {
+  .known-rooms-list { grid-template-columns: minmax(0, 1fr); }
+  .known-rooms-map { min-height: 224px; }
+}

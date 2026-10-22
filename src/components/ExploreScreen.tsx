@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GridPosition } from '../domain/types';
 import type { GameView } from '../services/game/GameView';
@@ -13,6 +13,9 @@ import { Dialog } from './Dialog';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
 import './screens/screens.css';
 import { useExploreKeys } from '../hooks/useExploreKeys';
+import { ignoresGameKey } from '../hooks/gameKeys';
+import { KnownRooms } from './maze/KnownRooms';
+import type { KnownAnchor } from '../persistence/canonical/knowledge/graph';
 
 interface ExploreScreenProps {
   game: GameView;
@@ -65,18 +68,28 @@ export function ExploreScreen({
   onAgenticPlay, onStopAgenticPlay, agenticActive = false,
   onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false,
 }: ExploreScreenProps) {
-  const [mazeMode, setMazeMode] = useState<MazeRenderMode>('camera');
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapTab, setMapTab] = useState<'rooms' | 'nearby'>('rooms');
+  const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor } | null>(null);
+  const nearbyTab = useRef<HTMLButtonElement>(null);
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
   const portalCount = portalScrollCount ?? game.inventory.items.reduce((count, item) =>
     item.consumableEffect === 'townPortal' ? count + Math.max(0, Math.floor(item.quantity ?? 1)) : count, 0);
+  const manualMap = !controlsDisabled && !autoActive && !agenticActive && game.mode === 'manual';
+  const mapVisible = mapOpen && manualMap;
+  const showRooms = mapVisible && mapTab === 'rooms';
+  const root = JSON.stringify(game.snapshot);
+  const activeRecall = recall?.root === root ? recall : null;
+  const activeCamera: MazeCameraState = recall && !activeRecall ? { ...camera, mode: 'follow', origin: undefined } : camera;
+  const mazeMode: MazeRenderMode = mapVisible && mapTab === 'nearby' && !activeRecall ? 'overview' : 'camera';
   const isOverview = mazeMode === 'overview';
   const currentCell = currentVisibleCell(game);
   const actor = currentCell?.world;
   const floor = game.checkpoint.position.level, facing = game.checkpoint.facing;
-  const scope = canonicalPerceptionScope(floor, actor ?? { row: 0, column: 0 }, canvasSize, camera, mazeMode);
+  const scope = canonicalPerceptionScope(floor, actor ?? { row: 0, column: 0 }, canvasSize, activeCamera, mazeMode);
   const scopeKey = JSON.stringify(scope);
   const perception = useMazePerception(game.snapshot, scope);
   const mazeView = useMemo(() => perception.region ? createCanonicalMazeView(perception.region, facing)
@@ -84,10 +97,36 @@ export function ExploreScreen({
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
   const chest = currentCell?.chests.find(cell => !cell.opened);
   const blocked = controlsDisabled || settingsOpen || confirmNew;
-  const toggleMap = () => { onStopWalking?.(); setMazeMode(isOverview ? 'camera' : 'overview'); };
-  const interact = () => { onStopWalking?.(); if (!blocked && chest) onOpenChest?.(chest.id); };
+  const toggleMap = () => {
+    if (blocked || !manualMap) return;
+    onStopWalking?.(); setMapOpen(!mapVisible); setMapTab('rooms'); setRecall(null);
+    if (activeRecall) setCamera(current => ({ ...current, mode: 'follow', origin: undefined }));
+  };
+  const inspectRoom = (anchor: KnownAnchor) => {
+    const area = canonicalPerceptionScope(floor, anchor.world, canvasSize, camera, 'camera');
+    setCamera(current => ({ ...current, mode: 'manual', origin: {
+      row: anchor.world.row - Math.floor(area.rows / 2), column: anchor.world.column - Math.floor(area.columns / 2),
+    } }));
+    setRecall({ root, anchor }); setMapTab('nearby'); nearbyTab.current?.focus();
+  };
+  const interact = () => { onStopWalking?.(); if (!blocked && !mapVisible && chest) onOpenChest?.(chest.id); };
   useExploreKeys(blocked, { interact, map: toggleMap, inventory: onCharacters,
-    portal: () => { if (portalCount > 0) onTown(); }, stop: () => onStopWalking?.() });
+    portal: () => { if (!mapVisible && portalCount > 0) onTown(); }, stop: () => onStopWalking?.() });
+
+  useEffect(() => {
+    if (!manualMap) { setMapOpen(false); setRecall(null); setCamera(current => ({ ...current, mode: 'follow', origin: undefined })); }
+    else if (recall && !activeRecall) { setRecall(null); setCamera(current => ({ ...current, mode: 'follow', origin: undefined })); }
+  }, [manualMap, recall, activeRecall]);
+
+  useEffect(() => {
+    if (!mapVisible || blocked) return;
+    // The parent owns movement keys; recall consumes them without issuing a command.
+    const guard = (event: KeyboardEvent) => {
+      if (!ignoresGameKey(event) && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(event.key.toLowerCase())) event.preventDefault();
+    };
+    window.addEventListener('keydown', guard, true);
+    return () => window.removeEventListener('keydown', guard, true);
+  }, [mapVisible, blocked]);
 
   useEffect(() => {
     setCamera((current) => ({ ...current, mode: 'follow', origin: undefined }));
@@ -121,7 +160,7 @@ export function ExploreScreen({
           <button type="button" onClick={onTown} disabled={agenticActive || portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
             Portal ({portalCount})
           </button>
-          <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview (M)" aria-label="Map" aria-keyshortcuts="M" aria-pressed={isOverview} onClick={toggleMap}>
+          <button className={`screen-icon ${mapVisible ? 'is-active' : ''}`} type="button" title="Map (M)" aria-label="Map" aria-keyshortcuts="M" aria-pressed={mapVisible} onClick={toggleMap} disabled={blocked || !manualMap}>
             <Map size={18} aria-hidden="true" />
           </button>
           <button className="screen-icon" type="button" disabled={agenticActive} title="Party and inventory (I)" aria-label="Party" aria-keyshortcuts="I" onClick={onCharacters}>
@@ -137,7 +176,19 @@ export function ExploreScreen({
         </nav>
       </div>
       {autoActive && <div className="screen-auto-status" role="status"><strong>Auto</strong><span>{status}</span></div>}
-      <section className={`maze-stage ${isOverview ? 'is-overview' : ''}`}>
+      <section className={`maze-stage ${isOverview ? 'is-overview' : ''} ${mapVisible ? 'has-room-map' : ''}`}>
+        {mapVisible && <div className="known-rooms-tabs" role="tablist" aria-label="Map views" onKeyDown={event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const tab = event.key === 'Home' ? 'rooms' : event.key === 'End' ? 'nearby' : mapTab === 'rooms' ? 'nearby' : 'rooms';
+          setMapTab(tab);
+          event.currentTarget.querySelector<HTMLButtonElement>(`#map-tab-${tab}`)?.focus();
+        }}>
+          <button id="map-tab-rooms" type="button" role="tab" aria-selected={mapTab === 'rooms'} aria-controls="map-panel" tabIndex={mapTab === 'rooms' ? 0 : -1} onClick={() => setMapTab('rooms')}>Rooms</button>
+          <button id="map-tab-nearby" ref={nearbyTab} type="button" role="tab" aria-selected={mapTab === 'nearby'} aria-controls="map-panel" tabIndex={mapTab === 'nearby' ? 0 : -1} onClick={() => setMapTab('nearby')}>Nearby</button>
+        </div>}
+        <div className="known-rooms-panel" id="map-panel" role={mapVisible ? 'tabpanel' : undefined} aria-labelledby={mapVisible ? `map-tab-${mapTab}` : undefined}>
+        {showRooms ? <KnownRooms snapshot={game.snapshot} disabled={blocked} currentSpace={game.checkpoint.position.cell.spaceId} onInspect={inspectRoom} /> : <>
         <MazeCanvas
           maze={mazeView.maze}
           chests={mazeView.chests}
@@ -146,11 +197,12 @@ export function ExploreScreen({
           viewport={mazeView.viewport} origin={mazeView.origin}
           frameKey={`${game.snapshot.generation}:${game.snapshot.gameId}:${game.snapshot.revision}:${game.snapshot.roots.knowledge}:${scopeKey}`}
           pending={perception.pending} onSizeChange={setCanvasSize}
-          camera={camera}
+          camera={activeCamera}
           mode={mazeMode}
           onCameraChange={setCamera}
-          onTileClick={blocked || !perception.region ? undefined : onTileClick}
+          onTileClick={blocked || mapVisible || !perception.region ? undefined : onTileClick}
         />
+        {mapVisible && activeRecall && camera.mode === 'manual' && <p className="known-room-recall" role="status">Room anchor {activeRecall.anchor.world.row}, {activeRecall.anchor.world.column}</p>}
         {mazeMode === 'camera' && (
           <div className="camera-controls" aria-label="Camera controls">
             <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => setCamera((current) => zoomMazeCamera(current, -0.15))}>
@@ -165,13 +217,15 @@ export function ExploreScreen({
             </button>
           </div>
         )}
+        </>}
+        </div>
       </section>
       <div className="explore-interaction">
-        <button type="button" onClick={interact} disabled={blocked || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
+        <button type="button" onClick={interact} disabled={blocked || mapVisible || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
         <span aria-live="polite">{navigationMessage}</span>
         {perception.error && <span role="alert">{perception.error}</span>}
       </div>
-      <Controls onMove={onMove} disabled={blocked} />
+      <Controls onMove={onMove} disabled={blocked || mapVisible} />
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
         <div className="screen-settings">
           <label className="compact-toggle">
