@@ -95,6 +95,7 @@ test('ACK snapshots remote latest event and refs; hook metadata mutations cannot
     });
     return { first, original, state: (await f.read(s.action)).value };
   });
+  if (r.first.state?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(r.first.state!.progress.steps).toBe(1); expect(r.first.state!.event!.data.event.observation.data.navigation).toMatchObject({ steps: 1 });
   expect(r.state!.acknowledgement!.data.entry).toEqual(r.original); expect(r.state!.event).toEqual(r.first.state!.event);
 });

@@ -34,6 +34,7 @@ test('actual GameSession driver waits for service custody, advances, serializes 
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'custody-confirmed' });
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'advanced', sequence: 1 });
   const first = (await page.evaluate(action => window.canonicalAgenticaOperations.read(action), seeded.action)).value!;
+  if (first?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(first.progress.steps).toBe(1);
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver().catch(String))).toContain('fetch');
   const lost = (await page.evaluate(action => window.canonicalAgenticaOperations.read(action), seeded.action)).value!;
@@ -46,6 +47,7 @@ test('actual GameSession driver waits for service custody, advances, serializes 
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'locally-settled', progress: 'arrived' });
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toMatchObject({ status: 'decision-required', event: { kind: 'decision' } });
   const arrived = (await page.evaluate(action => window.canonicalAgenticaOperations.read(action), seeded.action)).value!;
+  if (arrived?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(arrived.progress.position).toEqual(seeded.target); expect(arrived.operation.state).toBe('settled');
   expect(delivered.map(e => e.sequence)).toEqual([1, 2, 2, 3]);
 });
@@ -60,6 +62,7 @@ test('HTTP success without exact custody ACK cannot release any movement', async
   const before = (await page.evaluate(action => window.canonicalAgenticaOperations.read(action), seeded.action)).value!;
   expect(typeof await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver().catch(String))).toBe('string');
   const after = (await page.evaluate(action => window.canonicalAgenticaOperations.read(action), seeded.action)).value!;
+  if (after?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(after.progress).toEqual(before.progress); expect(after.progress.steps).toBe(0); expect(after.custodyAck).toBeNull();
 });
 
@@ -79,6 +82,7 @@ test('parked inventory with unresolved service custody keeps zero steps until th
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver().catch(String))).toContain('unresolved');
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.readCanonicalHead())).toEqual(before);
   const pending = (await page.evaluate(a => window.canonicalAgenticaOperations.read(a), seeded.action)).value!;
+  if (pending?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(pending.progress.steps).toBe(0); expect(pending.custodyAck).toBeNull();
   expect(probes[0].observation).toEqual(seeded.entry.admission!.observation);
   resolved = true;
@@ -100,6 +104,7 @@ test('lost custody ACK retries the retained probe after driver replacement witho
   await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver());
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver().catch(String))).toContain('fetch');
   const before = (await page.evaluate(a => window.canonicalAgenticaOperations.read(a), seeded.action)).value!;
+  if (before?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(before.progress.steps).toBe(0); expect(before.custodyAck).toBeNull();
   await page.evaluate(async s => { const f = window.canonicalAgenticaOperations; f.closeDriver(); await f.attachDriver(s.action, s.binding); }, seeded);
   expect(await page.evaluate(() => window.canonicalAgenticaOperations.pulseDriver())).toEqual({ status: 'custody-confirmed' });

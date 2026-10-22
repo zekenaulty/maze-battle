@@ -56,6 +56,7 @@ test('physical terminal ACK failure retains its reserve and reconciles without r
 test('expired travel settles as blocked, not completed or a cognitive wake', async ({ page }) => {
   const s = await bootDriver(page), service = await peer(page, s.entry); await pulse(page); await pulse(page);
   const state = (await page.evaluate(a => window.canonicalAgenticaOperations.read(a), s.action)).value!;
+  if (state?.kind !== 'navigation') throw Error('Expected navigation operation');
   await page.clock.setFixedTime(state.progress.deadline! + 1);
   expect(await pulse(page)).toMatchObject({ status: 'advanced' });
   expect(await pulse(page)).toEqual({ status: 'locally-settled', progress: 'blocked' });

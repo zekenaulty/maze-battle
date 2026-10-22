@@ -51,6 +51,7 @@ for (const change of ['missing', 'event-id', 'sequence', 'observation-id', 'obse
       return { rejected, blocked, unchanged: before === await f.dump(), state: (await f.read(s.action)).value };
     }, change);
     expect(r.rejected).toMatch(/^Error:/); expect(r.blocked).toContain('custody probe is not acknowledged'); expect(r.unchanged).toBe(true);
+    if (r.state?.kind !== 'navigation') throw Error('Expected navigation operation');
     expect(r.state!.custodyAck).toBeNull(); expect(r.state!.progress.steps).toBe(0);
   });
 }
@@ -68,6 +69,7 @@ test('custody retention snapshots identity, request, reference and full entry be
     });
     return { original, state: (await f.read(s.action)).value };
   });
+  if (r.state?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(r.state!.custodyAck!.data.entry).toEqual(r.original); expect(r.state!.progress.steps).toBe(0);
 });
 
@@ -106,5 +108,6 @@ test('normal quota can refuse custody ACK while funded Stop and terminal ACK rem
     return { error, unchanged, terminals, state: (await f.read(s.action)).value };
   });
   expect(r.error).toContain('quota exhausted'); expect(r.unchanged).toBe(true); expect(r.terminals).toHaveLength(2);
+  if (r.state?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(r.state!.custodyAck).toBeNull(); expect(r.state!.progress.steps).toBe(0); expect(r.state!.operation.state).toBe('acknowledged');
 });

@@ -17,6 +17,7 @@ test('original parked confirmation gates real movement; ordered progress and exa
       replay, ack, second, duplicateAck, sizes: { entry: f.bytes(seeded.entry), event: f.bytes(first.state!.event!.data.event), result: f.bytes(first.outcome.receipt.result) } };
   });
   expect(String(r.unconfirmed)).toContain('missing referenced'); expect(r.afterFailure).toBe(r.before);
+  if (r.confirmed.state?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(r.confirmed.state!.progress.steps).toBe(0); expect(r.duplicate.outcome.replayed).toBe(true);
   expect(r.first.state!.progress).toMatchObject({ steps: 1, sequence: 1 });
   expect(r.first.outcome.head!.roots.knowledge).not.toEqual(r.confirmed.outcome.head!.roots.knowledge);
@@ -83,6 +84,7 @@ for (const kind of ['launch', 'navigation', 'takeover'] as const) test(`${kind} 
     const before = await f.dump(), error = await f.advance(s.action).catch(String);
     return { before, after: await f.dump(), error, state: (await f.read(s.action)).value };
   }, kind);
+  if (r.state?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(typeof r.error).toBe('string'); expect(r.after).toBe(r.before); expect(r.state!.progress.steps).toBe(0);
 });
 

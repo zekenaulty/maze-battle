@@ -21,6 +21,7 @@ test('lost custody ACK and quota pressure do not block Stop or cause stale probe
   expect(await pulse(page)).toEqual({ status: 'terminal-acknowledged', disposition: 'cancelled' });
   expect(service.deliveries.map(e => [e.sequence, e.kind])).toEqual([[1, 'progress'], [2, 'cancelled']]);
   const state = (await page.evaluate(a => window.canonicalAgenticaOperations.read(a), s.action)).value!;
+  if (state?.kind !== 'navigation') throw Error('Expected navigation operation');
   expect(state.custodyAck).toBeNull(); expect(state.progress.steps).toBe(0); expect(state.operation.state).toBe('acknowledged');
 });
 
