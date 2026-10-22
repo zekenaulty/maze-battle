@@ -183,8 +183,34 @@ two-worker run. No timeout or acceptance assertion was relaxed. Retain
 alongside the superseding results. The name `full-unit-final` is historical;
 its recorded failure is not a pass.
 
-This qualifies the selective-proof repair and these regressions, not final Q.
-Real-service qualification on this candidate remains a separate gate. The
+This qualifies the selective-proof repair and these regressions, not final Q. The
 160-move prelude is not a 160-step command or a proof of a >64-step route; the
 retained 22-step survey still crosses its original 16-step prefix. No owner
 database, preview, provider, Agentica source or runtime limit was changed.
+
+## Frozen Parent Real-Service Regression
+
+Candidate `96facb3f6631f95b1232399d33681606e55a7c46`, clean tracked files:
+**43 PASS, zero failed/skipped/retries**, 986.771 seconds, started
+`2026-10-22T18:57:46.500Z`. This includes the actual-App authored A/B journeys,
+explicit ordinary quest collection and earned return, retained history queries,
+reload/adoption/transfer, delayed/lost delivery, restart and funded quota recovery.
+
+Command:
+
+```text
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica
+```
+
+Artifacts: `test-results/maze-start-service-y1RJeq/results.json`,
+`provenance.json`, browser traces and `service.log`. The launcher rebuilt into an
+isolated temporary directory, stripped provider credentials, used disposable
+browser/storage state, and verified clean Agentica source
+`27cb2ce9717438edfe19487e3920faa183112c97` before and after execution. The Maze
+vendored SDK matches that source. Runtime/source hashes are in the provenance.
+
+Environment qualification is explicitly **.NET SDK 10.0.401**, not proof of
+Agentica's repository pin **10.0.302**. The real service uses deterministic
+provider-free fixture planners; no live-model behavior, spend or latency is
+claimed. Existing regressions passing does not complete the new all-surface A/B,
+active-step fault, controller-parity, graph-UI or generated-endurance gates.

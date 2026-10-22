@@ -609,6 +609,12 @@ collapse, UI selection and sustained exploration still gate Sprint 1. A native
 now passes that original native case, retaining integrity checks, the original
 journey and the 256-read/1 MiB limits. Full units pass with two workers; this
 increment does not establish the missing >64-step route or complete Sprint 1.
+The frozen parent `96facb3` now passes the full **43-case real-service** cohort
+(986.771s), with pinned Agentica source and the explicitly alternate SDK10.0.401.
+The room-only passage-collapse implementation is still isolated: review found
+that missing earned memory edges can be misreported as unseen. Its repair and
+requalification precede public tools/UI integration; no partial result may hide
+corrupted evidence.
 [Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
 does not finish the all-surface information gate. The
 [clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies
@@ -687,3 +693,24 @@ environment from Agentica's repository pin 10.0.302. A live-model A/B gate remai
 separate: obtain explicit model/cumulative-cost/call/time limits and authorization
 first, then report actual choices, usage, latency and outcomes independently.
 No paid run, merge, deployment or owner-database reset is authorized by this plan.
+
+### Next Information-Boundary Cohorts
+
+Read-only source reconnaissance at `96facb3` narrows Sprint 2 to three distinct
+claims, not another unrestricted matrix. Begin after the room-query contract is
+stable so the same scopes are tested once.
+
+1. Extend the existing paired fixed-action collector with `quests`, `quest`,
+   `objective` and `decision`, a remembered-address query and an unknown-address
+   refusal. Existing `cell/frontiers/map/links/room/objects` pages already have
+   paired common-prefix coverage. Preserve raw output and exact work metrics.
+2. Compare one earned movement prefix's admission/progress/terminal/refusal
+   outputs, plus camera/overview pixels, fog and visible status at the initial,
+   last-equal and first-lawfully-divergent checkpoints. Use fixed clock/camera,
+   not hidden-route-derived limits. Existing separate map invariance is not this
+   authored A/B composition.
+3. Capture bounded actual fixture-planner request context, context frames and
+   available tools at `CreatePlanAsync`/`RefinePlanAsync`. Compare initial,
+   refinement and first explicit successor inputs. Wire traffic alone does not
+   prove the complete planner frame. Captures are evidence only, never input to
+   planning; preserve the lawful observation that permits later divergence.
