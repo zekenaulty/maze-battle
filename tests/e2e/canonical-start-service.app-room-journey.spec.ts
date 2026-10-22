@@ -1,6 +1,7 @@
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import type { KnownNode } from '../../src/persistence/canonical/knowledge/graph';
 import type { GameSession } from '../../src/services/game/GameSession';
+import { matchesQuestItem } from '../../src/domain/quests/questItems';
 import { test, expect, serviceProof } from './canonical-start-service.decision.test';
 import { attachCorpusApp, corpusActions, corpusEffects } from './canonical-start-service.corpus-recovery.steps';
 import { adoptJourney } from './canonical-start-service.room-journey';
@@ -121,10 +122,15 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App room jou
     const final = await effects(), all = actions(), results = replies();
     expect(all.filter(a => a.capabilityId === 'maze.interact')).toHaveLength(1);
     expect(final.questItems).toHaveLength(1); expect(final.questItems[0].quantity).toBe(1);
+    expect(final.inventory.items.filter(item => matchesQuestItem(item, final.quest.quest))).toEqual(final.questItems);
+    expect(final.stash.items.filter(item => matchesQuestItem(item, final.quest.quest))).toEqual([]);
     expect(final.quest.quest.status).toBe('complete'); expect(final.chest.chest.opened).toBe(true);
     expect(final.checkpoint.position).toEqual(setup.position);
     expect(results.at(-1)).toMatchObject({ disposition: 'applied', completion: { evidenceId: expect.any(String) },
       observation: { data: { scope: 'objective', status: 'satisfied', carried: 1, atReturn: true } } });
+    await expect.poll(() => wire.received.some(({ frame }) => frame.type === 'outcome' && frame.runId === all.at(-1)!.runId)).toBe(true);
+    const outcome = wire.received.find(({ frame }) => frame.type === 'outcome' && frame.runId === all.at(-1)!.runId)!;
+    expect(outcome.frame.payload).toMatchObject({ outcome: { status: 'succeeded', stopReason: 'complete' } });
     expect(all.length).toBeLessThanOrEqual(64);
     for (const result of results) {
       expect(result.disposition).toBe('applied'); expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThanOrEqual(4096);
