@@ -2,10 +2,12 @@ import { KnownGraphUnavailableError, listKnownLinks, listKnownNodes, readKnownAn
 import { observation, type PerceptionContext } from './context';
 import { inspectionCursor } from './validation';
 import type { InspectQuery } from './types';
+import { roomConnectionsObservation } from './roomConnectionsObservation';
 
 /** Explicit room/connection operations; never hydrate world geometry or refresh sight. */
 export async function graphObservation(c: PerceptionContext, query: InspectQuery, cursor?: string) {
   try {
+    if (query.scope === 'connections') return await roomConnectionsObservation(c, query, cursor);
     if (query.scope === 'map') {
       const page = await listKnownNodes(c.pages, c.checkpoint, { level: query.level, kind: 'room', limit: 2,
         ...(cursor ? { cursor } : {}) });

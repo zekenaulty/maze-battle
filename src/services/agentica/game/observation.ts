@@ -86,7 +86,7 @@ export async function inspectMaze(pages: PerceptionPages, snapshot: CanonicalSna
   const after = cursorAfter(args.cursor, c.ref, query, c.checkpoint.knowledge);
   if (query.scope === 'frontiers') return frontierObservation(c, query, (after as number | undefined) ?? 0);
   if (query.scope === 'objects') return objectObservation(c, query, (after as number | undefined) ?? 0);
-  if (query.scope === 'map' || query.scope === 'links') return graphObservation(c, query, after as string | undefined);
+  if (query.scope === 'map' || query.scope === 'links' || query.scope === 'connections') return graphObservation(c, query, after as string | undefined);
   if (query.scope === 'room') return roomObservation(c, query, (after as number | undefined) ?? 0);
   const [cell] = await readKnownCells(c.pages, c.checkpoint, [localPosition(query as CellAddress)]);
   return cell.state === 'unknown' ? observation(c, { scope: 'cell', state: 'unknown' })

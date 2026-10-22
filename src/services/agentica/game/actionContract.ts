@@ -8,6 +8,7 @@ import { fields } from '../../../persistence/canonical/roster/codec';
 import type { CanonicalRequest } from '../../../persistence/canonical/types';
 import { check } from '../../../persistence/canonical/validation';
 import { assertGraphGrant } from './graphGrant';
+import { gameCheckpoint } from '../../../persistence/canonical/game/checkpoint';
 
 export interface ActionBinding { grant: ProtocolRef; publication: ProtocolRef }
 export const captureBinding = (b: ActionBinding): ActionBinding => ({ grant: snapshotReference(b.grant), publication: snapshotReference(b.publication) });
@@ -31,7 +32,10 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
     && (durable ? cap.durableHandoff === true : cap.durableHandoff !== true), 'capability execution contract changed');
   if (action.capabilityId === 'maze.explore' && action.arguments.mode === 'room') check(cap.inputSchema.fields
     .some(f => f.name === 'mode' && f.type === 'string' && f.allowedValues?.includes('room')), 'room exploration was not granted');
-  if (action.capabilityId === 'maze.inspect' && ['map', 'links'].includes(action.arguments.scope as string)) assertGraphGrant(cap, action.arguments);
+  if (action.capabilityId === 'maze.inspect' && ['map', 'links', 'connections'].includes(action.arguments.scope as string)) {
+    const at = action.arguments.scope === 'connections' ? gameCheckpoint(grant.publication.snapshot.checkpoint).position : undefined;
+    assertGraphGrant(cap, action.arguments, at ? { level: at.level, spaceId: at.cell.spaceId } : undefined);
+  }
   if (action.capabilityId === 'maze.inspect' && action.arguments.scope === 'objects') {
     const scope = cap.inputSchema.fields.find(f => f.name === 'scope' && f.type === 'string');
     const cursor = cap.inputSchema.fields.find(f => f.name === 'cursor' && f.type === 'string');
@@ -58,10 +62,10 @@ export async function actionGrant(tx: LaunchGrantContext, binding: ActionBinding
 }
 export function actionResult(identity: PreparedAction, observation: AgenticaObservation, summary: string,
   disposition: 'applied' | 'refused' = 'applied'): AgenticaResult {
-  const a = identity.action;
-  return { actionId: a.actionId, sessionId: a.sessionId, sessionEpoch: a.sessionEpoch, disposition,
+  const a = identity.action, roomRefused = observation.data.scope === 'connections' && observation.data.state === 'refused';
+  return { actionId: a.actionId, sessionId: a.sessionId, sessionEpoch: a.sessionEpoch, disposition: roomRefused ? 'refused' : disposition,
     beforeRevision: a.expectedRevision, afterRevision: observation.revision,
-    evidenceId: `result-${identity.storageKey.slice(-64)}`, summary,
+    evidenceId: `result-${identity.storageKey.slice(-64)}`, summary: roomRefused ? 'Connections require an earned room.' : summary,
     // A publication can yield different scoped views. Each retained action owns its exact observation.
     observation: { ...structuredClone(observation), observationId: `observation-${identity.storageKey.slice(-64)}` } };
 }

@@ -3,7 +3,7 @@ import type { ProtocolRead } from '../../../persistence/canonical/agentica/types
 
 export type PerceptionPages = KnowledgeRead & ProtocolRead;
 export interface InspectArgs {
-  scope: 'room' | 'map' | 'links' | 'cell' | 'frontiers' | 'objects';
+  scope: 'room' | 'map' | 'links' | 'connections' | 'cell' | 'frontiers' | 'objects';
   level?: number; spaceId?: string; row?: number; column?: number; cursor?: string;
 }
 export interface CellAddress { level: number; spaceId: string; row: number; column: number }

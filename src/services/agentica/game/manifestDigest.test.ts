@@ -19,7 +19,7 @@ function retainedThreeCapabilities() {
 describe('capability-only pinned service digest', () => {
   it('hashes the current manifest without changing the caller input', async () => {
     const capabilities = mazeCapabilities(), before = structuredClone(capabilities);
-    expect(await mazeManifestDigest(capabilities)).toBe('sha256:af2b710a3615b0e12ca558ce8ab646b943e17e629c32ba8e9932bb8311c0b138');
+    expect(await mazeManifestDigest(capabilities)).toBe('sha256:98abd6a5418856f8b504a90d2050bfafdfd136a88ef242699104fa30de9dab2e');
     expect(capabilities).toEqual(before);
   });
   it('keeps retained three-capability roots exact without introducing explore authority', async () => {
