@@ -48,6 +48,8 @@ integrated runs below.
 | Native retained prefixes, reload/adoption/replay/Stop | 3 PASS, 98.262s | `room-map-integration-prefix/results.json` |
 | Native public room connection and exact historical replay | 1 PASS, 8.331s | `canonical-room-connections/results.json` |
 | Actual-App retained-depth/history and two-floor revisits/takeover | 3 PASS, 133.223s | `room-map-integration-revisit/results.json` |
+| Full unit regression | 4,747 PASS, zero failures, one existing optional SKIP | `room-map-integration-full-units-final.json` |
+| Frozen actual-App/pinned-Agentica service regression | 43 PASS, 1,006.146s; zero skips/retries/flaky cases | `maze-start-service-RfgRdm/results.json` |
 | Production and seven affected fixture typechecks | PASS | terminal checks; commands below |
 | Isolated production build | PASS, 2,143 modules; existing >500 kB warning | `room-map-integration-build/` |
 
@@ -78,8 +80,33 @@ Retained intermediate failures: first focused run had one old memory-read count
 cases initially supplied a geometry cell's extra fields as an address and failed
 schema validation; explicit row/column selection fixed the fixture. A previously
 stale fixture also lacked required noncombat/auto-throttle GameView fields.
-No runtime guard or limit was weakened. Full-unit rerun and real-service
-requalification are recorded below when complete, not inferred from these passes.
+No runtime guard or limit was weakened. The full-unit rerun and real-service
+requalification both completed successfully; they are separate runs in the table.
+
+## Frozen Candidate And Preview
+
+The full service cohort qualifies Maze Battle commit
+`3e04e914fde3d7f4c1945f5f4cae4e6f0e9c9d64` against clean Agentica source
+`27cb2ce9717438edfe19487e3920faa183112c97`, using deterministic fixture planners.
+It ran with .NET SDK **10.0.401**, not the repository-pinned **10.0.302**; this
+does not qualify that pinned SDK environment. The candidate runtime and fixtures
+were unchanged throughout the run. No paid provider was used.
+
+`test-results/maze-start-service-RfgRdm/provenance.json` retains exact source,
+fixture, action-contract and built assembly hashes, SDK selection and command
+arguments. `results.json`, `service.log` and browser traces retain the raw run.
+The service cohort contains existing recovery/return cases; it does not yet
+include the proposed paged-room-selection journey below.
+
+An isolated production preview is available at `http://127.0.0.1:5199/`. Its
+fresh-origin smoke passed at 1440x1000 and 390x844: Rooms opens, recall draws,
+Map closes, no horizontal overflow, and no browser page errors. Canvas backing
+sizes were 1432x840 and 382x499 respectively. Screenshots are retained as
+`test-results/room-map-preview-final-<width>-{rooms,recall}.png`; the portrait
+pair was visually inspected. A first smoke timed out on an incorrect test
+selector expecting `aria-busy="false"`; ready canvases omit that attribute.
+The corrected smoke required absence of `aria-busy="true"`. No runtime change
+was needed. The owner's preview on port 5198 and its stored game were untouched.
 
 ## Commands And Remaining Gates
 
@@ -96,6 +123,7 @@ node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-expl
 node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-corpus.config.ts
 node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-revisit.config.ts
 node node_modules/vite/bin/vite.js build --outDir test-results/room-map-integration-build
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica
 ```
 
 Fixture typechecks use `tsc --noEmit -p tests/e2e/<name>.tsconfig.json`, for
@@ -109,3 +137,21 @@ are not that composition. Native multi-page connection continuation and full
 paired connection-scope coverage remain. Sprints 2-6 retain their declared
 information/recovery/parity/endurance/frozen-candidate gates. No unlimited
 component traversal, automatic interaction or full RPG/combat parity is claimed.
+
+The next composition cohort is bounded to authored A/B cases: earn at least
+three rooms from ordinary sight, disclose but do not collect a chest, return
+to the public objective's entrance, and select that remembered room from a
+later public map page. The selected earned anchor must be outside the current
+cell viewport and must cause the subsequent navigation. Require more than one
+16-step retained route prefix, explicit collection and earned return. B adds
+reload/adoption before collection and exact historical replay, without new
+allowances or effects. Geometry and unchanged-budget feasibility are NOT RUN.
+No hidden layout coordinates may guide the fixture policy.
+
+Public service-map pages contain two rooms; manual Rooms pages contain four.
+The four-room authored corpus can exercise service pagination, not manual page
+two. Manual room selection remains recall-only. Existing native manual paging
+evidence stays separate; this next test must not pretend it proves UI-driven
+travel. Preserve 64 movement steps, four replans and 120 seconds per navigation
+window, the corpus profile and existing read/payload limits. A representability
+failure is reported rather than solved by weakening these acceptance checks.

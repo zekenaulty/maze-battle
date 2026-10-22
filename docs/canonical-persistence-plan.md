@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 43,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 44,
 2026-10-22. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -618,8 +618,12 @@ memory-proof rollback with funded custody, an earned connection query/replay,
 paged UI recall/resize, paired corpus and actual-App revisits. Missing older
 edges refuse rather than appearing unexplored. Sustained execution composed with
 deliberate off-window room choice is still required; separate recall/travel
-checks do not close Sprint 1. Full-unit/service requalification is tracked in
-the integration report, not inferred from prior candidate results.
+checks do not close Sprint 1. At frozen `3e04e91`, integrated full units pass
+**4,747 / one existing optional skip** and the full actual-App/pinned-Agentica
+service cohort passes **43/43** (1,006.146s), using the separately labeled
+SDK10.0.401 environment. The integration report retains exact provenance and
+intermediate failures. Desktop/phone production preview smoke also passes on
+isolated port 5199; the owner's existing preview/data remain untouched.
 [Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
 does not finish the all-surface information gate. The
 [clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies
@@ -633,7 +637,7 @@ original goal's legacy-save preservation wording; no silent owner reset is allow
 runtime defects. These are planning ranges, not a promised completion time or
 an extrapolation from test duration. The active goal remains incomplete.
 
-Latest checked baseline: full units at `316212d` **4,485 PASS / one existing
+Planning-checkpoint baseline: full units at `316212d` **4,485 PASS / one existing
 optional SKIP**; **101 native** frontier/exploration/known-route regressions;
 production/fixture types and isolated build; full actual-App/pinned-service
 cohort at `16279ff` **43/43 PASS** (1,065.74s). Intermediate failures and the
@@ -762,8 +766,8 @@ Do not silently add features or expand the matrix to every possible combination.
    result. This waiting/authorization interval is not included in engineering
    effort above.
 
-The current baseline contains 4,631 passing unit tests (one existing optional
-skip) and 43 passing actual-service cases, but the remaining work is defined by
+The current integrated baseline at `3e04e91` contains 4,747 passing unit tests
+(one existing optional skip) and 43 passing actual-service cases, but remaining work is defined by
 these acceptance claims, not a promise that a fixed number of additional tests
 will finish the goal. Full RPG feature parity, combat, remote mechanisms and
 unlimited-world/compaction work remain outside this closeout.
