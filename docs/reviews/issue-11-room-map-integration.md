@@ -95,8 +95,9 @@ were unchanged throughout the run. No paid provider was used.
 `test-results/maze-start-service-RfgRdm/provenance.json` retains exact source,
 fixture, action-contract and built assembly hashes, SDK selection and command
 arguments. `results.json`, `service.log` and browser traces retain the raw run.
-The service cohort contains existing recovery/return cases; it does not yet
-include the proposed paged-room-selection journey below.
+That 43-case service cohort contains existing recovery/return cases, not the
+paged-room-selection journey. The later checked 45-case composition is recorded
+below with its own frozen source identity.
 
 An isolated production preview is available at `http://127.0.0.1:5199/`. Its
 fresh-origin smoke passed at 1440x1000 and 390x844: Rooms opens, recall draws,
@@ -131,27 +132,37 @@ Fixture typechecks use `tsc --noEmit -p tests/e2e/<name>.tsconfig.json`, for
 `canonical-exploration-prefix`, `canonical-room-connections`, `canonical-agentica`
 and `canonical-start-service`. No paid provider is used.
 
-Remaining Sprint 1 work includes composing deliberate off-window room choice
-with sustained execution in the actual App; separately proven recall and travel
-are not that composition. Native multi-page connection continuation and full
-paired connection-scope coverage remain. Sprints 2-6 retain their declared
-information/recovery/parity/endurance/frozen-candidate gates. No unlimited
-component traversal, automatic interaction or full RPG/combat parity is claimed.
+The [actual-App room journey](../../tests/e2e/canonical-start-service.room-journey.md#parent-integration-2026-10-22)
+now composes deliberate off-window room choice with sustained execution in both
+authored worlds. Ordinary sight earns three rooms; the planner discloses but
+does not collect a chest, returns to the earned entrance, then selects the
+remembered room from public map page two. Its exact off-viewport anchor causes
+the subsequent 22-step / one-replan navigation, crossing the 16-step prefix.
+Explicit collection and earned return then reach host and service completion.
+B adds reload/explicit adoption after arrival, before collection. All 32
+original actions replay exactly without new submissions in each world.
+No hidden layout coordinates guide the fixture policy.
 
-The next composition cohort is bounded to authored A/B cases: earn at least
-three rooms from ordinary sight, disclose but do not collect a chest, return
-to the public objective's entrance, and select that remembered room from a
-later public map page. The selected earned anchor must be outside the current
-cell viewport and must cause the subsequent navigation. Require more than one
-16-step retained route prefix, explicit collection and earned return. B adds
-reload/adoption before collection and exact historical replay, without new
-allowances or effects. Geometry and unchanged-budget feasibility are NOT RUN.
-No hidden layout coordinates may guide the fixture policy.
+Frozen parent `6f5508f` passes all **45 actual-service cases** (1,452.803s), with
+the same Agentica source and separately labeled SDK environment. Independent
+review added explicit service-completion and pack-not-stash custody assertions.
+The report retains provenance, failed fixture attempts and exact limitations.
+This is not a mid-flight recovery or >64-step native route proof.
+
+[Paired connection queries](../../tests/e2e/canonical-corpus.queries.report.md)
+now cover equal common-prefix frames/work, partial/earned-complete connections
+and opaque unknown/passage selectors. The dedicated [actual-App UI cohort](../../tests/e2e/canonical-corpus-ui.report.md)
+also passes exact dungeon/Rooms/Nearby, fog and DOM comparison before lawful
+divergence at desktop and portrait sizes, without native DB writes. These do
+not close all information or generated-topology gates: native multi-page
+connection continuation, complete planner inputs and active journey recovery
+remain. Sprints 2-6 retain their declared gates. No unlimited component
+traversal, automatic interaction or full RPG/combat parity is claimed.
 
 Public service-map pages contain two rooms; manual Rooms pages contain four.
 The four-room authored corpus can exercise service pagination, not manual page
 two. Manual room selection remains recall-only. Existing native manual paging
-evidence stays separate; this next test must not pretend it proves UI-driven
+evidence stays separate; this journey test does not prove UI-driven
 travel. Preserve 64 movement steps, four replans and 120 seconds per navigation
 window, the corpus profile and existing read/payload limits. A representability
 failure is reported rather than solved by weakening these acceptance checks.

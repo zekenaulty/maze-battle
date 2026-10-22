@@ -134,8 +134,44 @@ and travel composition. Connections are a public earned check, not route input:
 B's partial result is not relabeled complete, and connection pagination is not
 exercised. The room/cell viewport assertion is desktop only (1440x1000).
 
-NOT-RUN here: parent full service/unit suites, new-game/generator cohort, paid
+NOT-RUN in the isolated lane: parent full service/unit suites, new-game/generator cohort, paid
 providers, owner preview, whole UI/tool matrix, corruption matrix, alternate SDK
 pin, service restart. Parent results are not re-attributed to this branch. This
 bounded gate does not mark all Sprint 1 complete; no push, parent integration or
 issue closure is performed by this lane.
+
+## Parent Integration, 2026-10-22
+
+Integrated isolated commit `627b3f6` as `cc7799f`. Independent review identified
+two missing assertions, although the retained evidence already satisfied both:
+the final service outcome must be `succeeded` / `complete` before root Stop, and
+the collected quest item must be in the pack, not merely in the combined
+pack/stash oracle. Parent commit `6f5508f2e11f23203c84e4d573c22ba69cecbd02`
+adds these assertions without changing production behavior or allowances.
+
+The frozen parent then ran the complete actual-App/service cohort:
+
+```powershell
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica
+```
+
+**45 PASS, zero failures/skips/retries/flaky cases; 1,452.803s**, starting
+`2026-10-22T22:51:50.191Z`. A took 172.446s and B took 186.049s. Both retained
+32 original actions and exact replays, a 22-step / one-replan selected journey,
+one quest item in the pack, successful service completion and zero allocations
+after acknowledged root Stop. The previous 43 service cases also pass.
+
+Evidence: `test-results/maze-start-service-VCRk6H/`, including `results.json`,
+`provenance.json`, original proof/final-state attachments, traces and service logs.
+The runtime and fixtures were unchanged until the runner completed. Agentica
+remains the clean `27cb2ce9717438edfe19487e3920faa183112c97` source above;
+SDK 10.0.401 and `pinProof: false` remain explicit. The Release build has zero
+warnings/errors, and the parent service-fixture typecheck passes. Owned ports
+5258/5259 stopped after execution; owner port 5198 was untouched.
+
+This closes the authored off-window selection/travel/collection/return composition,
+not the entire six-sprint goal. In particular B reloads at an arrived decision,
+not during movement. Actual-App unfinished-operation resume and subsequent
+Continue under transferred custody are a separately identified recovery gap.
+No mid-flight recovery, generated-world generality, complete planner-frame
+comparison or live-model qualification is inferred from this run.

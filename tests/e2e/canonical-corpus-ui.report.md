@@ -16,7 +16,7 @@ node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-corpus.tsco
 
 Native Chrome: **2 PASS, 0 skipped, 0 retries, 42.729s** (desktop 20.692s; portrait 18.864s).
 Both typechecks PASS. The strict Vite listener at `127.0.0.1:5446` was released afterward.
-The broader 5266 corpus glob discovers but explicitly skips these two cases; use this dedicated config to execute them.
+The isolated lane's broader 5266 corpus glob discovered but explicitly skipped these two cases. Parent integration excludes this dedicated UI file from that glob; use the dedicated config to execute it.
 
 ## Method
 
@@ -48,3 +48,27 @@ Evidence: `test-results/canonical-corpus-ui-checked/results.json`, with raw sema
 This qualifies these explicit UI projections and prefixes only, not public diagnostics, quota pressure/capacity warnings, timing/IO indistinguishability, room pagination, distant recall, service adaptation, quest return, or whole-goal completion. Genesis quota remains A=134878/B=134882 bytes; this four-byte difference is not declared harmless at disclosure thresholds.
 
 Retained earlier artifacts: `canonical-corpus-ui-first` (React/CSS require real Vite-client exports), `-second` (interrupted while awaiting the normally hidden desktop D-pad), `-third`/`-fourth` (live-canvas readback altered Chrome backing strategy; cleanup initially masked the primary error), `-fifth` (2 PASS before additional explicit mode/genesis assertions and file-based PNG retention). The final test reads a bitmap copy, preserves actual rendering, and uses soft cleanup assertions so failures remain visible.
+
+## Parent Integration, 2026-10-22
+
+Integrated isolated commit `482cf75` as `158d3e5`. The shared control allowlist
+still permits deterministic clock/identity controls only at exact fixture URLs;
+no production source changed. The main corpus config now excludes this file,
+avoiding misleading skips against the wrong fixture server.
+
+- Dedicated UI cohort: **2 PASS, zero failures/skips/retries/flaky cases,
+  58.374s**, starting `2026-10-22T23:19:37.023Z`.
+  Evidence: `test-results/canonical-corpus-ui-parent/results.json` and its raw
+  attachments / 36 screenshots. Desktop dungeon and portrait Rooms screenshots
+  were visually inspected in the parent; the exact 0/6/7 comparisons above pass.
+- Existing native corpus plus paired queries: **8 PASS, zero failures/skips/
+  retries/flaky cases, 130.810s**, starting `2026-10-22T23:25:05.910Z`.
+  Evidence: `test-results/canonical-corpus-ui-parent-regression/results.json`.
+- Both affected UI/corpus fixture typechecks pass. All tests are provider-free,
+  on disposable origins; no owner DB or runtime was changed.
+
+The separate 45-case service run preceded this test-only integration and is
+reported in `canonical-start-service.room-journey.md`; it is not silently
+re-attributed to this later fixture revision. Complete planner inputs, nonempty
+successor-history pairing and active navigation/refusal pairing remain open
+information-boundary gates.
