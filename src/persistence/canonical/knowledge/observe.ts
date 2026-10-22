@@ -9,11 +9,16 @@ import { loadFloor, same, position } from '../world/records';
 import type { WorldPosition, WorldRead } from '../world/types';
 import { check } from '../validation';
 import { cellKey, localKey } from './keys';
-import { DIRECTIONS, MAX_VISIBLE_CELLS, VISION_RADIUS, type ObservedCell } from './types';
+import { DIRECTIONS, MAX_VISIBLE_CELLS, VISION_RADIUS, type ObservedCell, type ObservedSpace } from './types';
 
 /** Engine sight only. This bounded resident cache is discarded after the observation. */
 export async function observePosition(pages: WorldRead, actor: WorldPosition): Promise<ObservedCell[]> {
+  return (await observePositionEvidence(pages, actor)).cells;
+}
+
+export async function observePositionEvidence(pages: WorldRead, actor: WorldPosition): Promise<{ cells: ObservedCell[]; spaces: ObservedSpace[] }> {
   position(actor);
+  actor = structuredClone(actor);
   await requireWorldContent(pages, actor.level);
   const floor = await loadFloor(pages, actor.level);
   const rooms = new Map<string, Awaited<ReturnType<typeof loadWorldRoom>>>();
@@ -42,9 +47,11 @@ export async function observePosition(pages: WorldRead, actor: WorldPosition): P
   };
   const positions = await asyncLinkedVision(actor, VISION_RADIUS, cellKey, neighbors, MAX_VISIBLE_CELLS);
   const visible = new Set(positions.map(cellKey)), content = new Map<string, Awaited<ReturnType<typeof loadChest>> | null>();
-  const result: ObservedCell[] = [];
+  const result: ObservedCell[] = [], spaces: ObservedSpace[] = [];
   for (const at of positions) {
     const r = await room(at.cell.spaceId);
+    if (!spaces.some(s => s.spaceId === at.cell.spaceId))
+      spaces.push({ spaceId: at.cell.spaceId, kind: r.space.spec.kind, index: result.length });
     if (!exits.has(cellKey(at))) await neighbors(at);
     if (!content.has(at.cell.spaceId)) {
       const c = r.space.spec.kind === 'room' ? await loadRoomContent(pages, at.level, at.cell.spaceId) : null;
@@ -69,5 +76,5 @@ export async function observePosition(pages: WorldRead, actor: WorldPosition): P
     if (same(floor.exit, at.cell)) observed.stairs.push('down');
     result.push(observed);
   }
-  return result;
+  return { cells: result, spaces };
 }

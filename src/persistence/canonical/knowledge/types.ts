@@ -6,6 +6,7 @@ export type KnowledgeRead = Pick<CanonicalPages, 'get' | 'scan' | 'witness'>;
 export interface ObservationRef { sequence: number; id: string }
 export interface KnowledgeAnchor extends ObservationRef { witness: string }
 export interface CellSource extends ObservationRef { index: number }
+export interface ObservedSpace { spaceId: string; kind: 'room' | 'passage'; index: number }
 export interface ObservedCell {
   at: WorldPosition;
   world: GridPosition;
@@ -27,6 +28,8 @@ export interface ObservationHeader {
   radius: number;
   count: number;
   chunks: string[];
+  spaces?: ObservedSpace[];
+  graph?: 'available' | 'unavailable';
 }
 export interface ObservationChunk { schema: 1; sequence: number; offset: number; cells: ObservedCell[] }
 export interface RememberedCell extends Omit<ObservedCell, 'edges'> {

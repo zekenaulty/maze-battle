@@ -32,7 +32,7 @@ export function observedCell(value: unknown): asserts value is ObservedCell {
 }
 export function observationHeader(value: unknown): ObservationHeader {
   jsonBytes(value);
-  const r = fields(value, 'schema sequence previous owner epoch revision observedAt actor policy radius count chunks');
+  const r = fields(value, 'schema sequence previous owner epoch revision observedAt actor policy radius count chunks', 'spaces graph');
   check(r.schema === 1 && r.policy === 'linked-vision-v1' && r.radius === VISION_RADIUS, 'invalid observation policy');
   natural(r.sequence, 1); natural(r.epoch, 1); natural(r.revision, 1); id(r.owner); timestamp(r.observedAt); cellPosition(r.actor);
   if (r.previous !== null) observationRef(r.previous);
@@ -40,5 +40,15 @@ export function observationHeader(value: unknown): ObservationHeader {
   natural(r.count, 1); check(r.count <= MAX_VISIBLE_CELLS, 'observation exceeds cell bound');
   check(Array.isArray(r.chunks) && r.chunks.length === Math.ceil(r.count / OBSERVATION_CHUNK_SIZE)
     && new Set(r.chunks).size === r.chunks.length, 'invalid observation chunks'); r.chunks.forEach(id);
+  if (r.spaces !== undefined || r.graph !== undefined) {
+    check(r.graph === 'available' || r.graph === 'unavailable', 'invalid observation graph availability');
+    check(Array.isArray(r.spaces) && r.spaces.length > 0 && r.spaces.length <= 16, 'invalid observed spaces');
+    const seen = new Set<string>();
+    for (const value of r.spaces) {
+      const s = fields(value, 'spaceId kind index'); id(s.spaceId); natural(s.index);
+      check((s.kind === 'room' || s.kind === 'passage') && s.index < r.count && !seen.has(s.spaceId), 'invalid observed classification');
+      seen.add(s.spaceId);
+    }
+  }
   return value as ObservationHeader;
 }
