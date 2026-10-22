@@ -61,7 +61,7 @@ describe('town return evidence refusals', () => {
     if (defect === 'facts') memory(f).stairs = [];
     if (defect === 'source') memory(f).source.id = crypto.randomUUID();
     if (defect === 'future') memory(f).source.sequence = f.checkpoint().knowledge!.sequence + 1;
-    await refuses(f, /not supported|source evidence|missing or replaced|ahead/);
+    await refuses(f, /memory integrity/);
   });
 
   for (const away of [false, true]) it(`refuses an oversized ${away ? 'initial' : 'current'} observation`, async () => {

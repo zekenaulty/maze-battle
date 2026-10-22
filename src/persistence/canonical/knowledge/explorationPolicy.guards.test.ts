@@ -57,7 +57,7 @@ describe('exploration evidence guards', () => {
       const f = await comparison([actor], [first, poi, old], [actor, old]);
       const memory = f.before.records.get(blockKey(old.at))!.value as unknown as MemoryBlock;
       memory.cells[localKey(old.at)].stairs = ['down'];
-      await expect(f.read()).rejects.toThrow('source evidence');
+      await expect(f.read()).rejects.toThrow('memory integrity');
     }
   });
   it.each(['source-id', 'foreign-source', 'future-source', 'foreign-room', 'index', 'missing-room'] as const)

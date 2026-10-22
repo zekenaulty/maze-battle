@@ -21,7 +21,7 @@ describe('earned room source', () => {
     const f = knowledgeFixture(), a = earnedCell(); await f.observe([a]);
     const row = f.records.get(blockKey(a.at))!, block = row.value as unknown as MemoryBlock;
     block.cells[localKey(a.at)].edges.east!.target = { level: 1, cell: { spaceId: 'hidden', row: 0, column: 0 } };
-    await expect(readKnowledgeRoom(f.pages, f.checkpoint())).rejects.toThrow('source evidence');
+    await expect(readKnowledgeRoom(f.pages, f.checkpoint())).rejects.toThrow('memory integrity');
   });
   it('fails closed when current sight exceeds its finite local query window', async () => {
     const f = knowledgeFixture(), a = earnedCell(), outside = earnedCell(-5, -1, 'room', 0, 16);

@@ -120,7 +120,7 @@ describe('availability and read budgets', () => {
     const f = graphFixture(); await f.observe([earnedCell()]); await f.observe([earnedCell(30, 30, 'away')]);
     const memory = f.records.get(blockKey(earnedCell().at))!.value as unknown as MemoryBlock;
     memory.cells[localKey(earnedCell().at)].world.row++;
-    await expect(readKnownAnchor(f.pages, f.checkpoint(), { level: 1, spaceId: 'room' })).rejects.toThrow('source evidence');
+    await expect(readKnownAnchor(f.pages, f.checkpoint(), { level: 1, spaceId: 'room' })).rejects.toThrow('memory integrity');
   });
   it('does not repair a deleted old node on the next observation', async () => {
     const f = graphFixture(); await f.observe([earnedCell()]);

@@ -4,6 +4,7 @@ import { listRoomConnections } from './graph.roomConnections';
 import { isolatedOlderEdgeFixture, omittedEdgeFixture } from './graph.roomConnections.omission.test-support';
 import { meter, roomScope } from './graph.roomConnections.test-support';
 import { readKnownCells } from './queries';
+import { observationKey } from './keys';
 
 it.each(['east', 'north'] as const)('refuses omitted latest-source %s evidence with unchanged IDs and original receipts', async direction => {
   const f = await omittedEdgeFixture(direction, 'none');
@@ -13,8 +14,8 @@ it.each(['east', 'north'] as const)('refuses omitted latest-source %s evidence w
   expect(removed?.target === null).toBe(direction === 'north');
   delete f.remembered.edges[direction];
   const before = structuredClone(f.records), m = meter(f.pages);
-  await expect(listRoomConnections(m.pages, f.checkpoint(), roomScope)).rejects.toThrow('omitted');
-  await expect(readKnownCells(f.pages, f.checkpoint(), [f.selected.at])).rejects.toThrow('omitted');
+  await expect(listRoomConnections(m.pages, f.checkpoint(), roomScope)).rejects.toThrow('integrity');
+  await expect(readKnownCells(f.pages, f.checkpoint(), [f.selected.at])).rejects.toThrow('integrity');
   expect(f.record.id).toBe(id); expect(f.records).toEqual(before); expect(m.counts().reads).toBeLessThanOrEqual(256);
 });
 
@@ -23,7 +24,7 @@ it.each(['east', 'north'] as const)('refuses omitted older %s evidence when anot
   expect(f.remembered.source.sequence).toBe(2); expect(f.remembered.edges[direction]!.source.sequence).toBe(1);
   expect(f.remembered.edges.west!.source.sequence).toBe(1);
   delete f.remembered.edges[direction];
-  await expect(listRoomConnections(f.pages, f.checkpoint(), roomScope)).rejects.toThrow('omitted');
+  await expect(listRoomConnections(f.pages, f.checkpoint(), roomScope)).rejects.toThrow('integrity');
 });
 
 it.each(['east', 'north'] as const)('preserves a lawful older %s edge when newer sight omits its direction', async direction => {
@@ -41,4 +42,16 @@ it.each(['east', 'north'] as const)('resolves an isolated older %s receipt by it
   expect(f.remembered.source.sequence).toBe(4); expect(f.remembered.edges[direction]!.source.sequence).toBe(3);
   expect(Object.entries(f.remembered.edges).filter(([d]) => d !== direction).every(([, e]) => e!.source.sequence === 4)).toBe(true);
   expect((await listRoomConnections(f.pages, f.checkpoint(), roomScope)).items.map(c => c.room.spaceId)).toEqual(['target']);
+});
+
+it.each(['east', 'north'] as const)('refuses deletion of the sole older %s receipt reference without searching history', async direction => {
+  const f = await isolatedOlderEdgeFixture(direction);
+  expect(f.remembered.source.sequence).toBe(4); expect(f.remembered.edges[direction]!.source.sequence).toBe(3);
+  expect(f.remembered.edges[direction]!.target === null).toBe(direction === 'north');
+  delete f.remembered.edges[direction];
+  const before = structuredClone(f.records), m = meter(f.pages); f.reads.length = 0;
+  await expect(listRoomConnections(m.pages, f.checkpoint(), roomScope)).rejects.toThrow('memory integrity');
+  await expect(readKnownCells(f.pages, f.checkpoint(), [f.selected.at])).rejects.toThrow('memory integrity');
+  expect(f.reads.some(key => key.startsWith(observationKey(3)))).toBe(false);
+  expect(f.records).toEqual(before); expect(m.counts().reads).toBeLessThanOrEqual(256);
 });

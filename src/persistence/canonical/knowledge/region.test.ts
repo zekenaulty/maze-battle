@@ -5,6 +5,7 @@ import { earnedCell, knowledgeFixture } from './region.test-support';
 import { readKnowledgeRegion, validateRegionScope } from './region';
 import { indexObservedWorldCells, loadWorldIndexBlock, worldBlockAddress, worldBlockKey } from './worldIndex';
 import type { RememberedCell, MemoryBlock, ObservedCell } from './types';
+import { retainMemoryIntegrity } from './memory.integrity';
 
 const scope = { floor: 1, row: -8, column: -4, rows: 8, columns: 8 };
 describe('canonical earned world regions', () => {
@@ -68,7 +69,8 @@ describe('canonical earned world regions', () => {
     expect(region.cells).toHaveLength(1024);
     expect(region.cells.filter(c => c.state === 'visible')).toHaveLength(32);
     expect(f.reads.filter(key => key.includes('/world/'))).toHaveLength(128);
-    expect(f.reads.filter(key => key.includes('/cell/'))).toHaveLength(64);
+    expect(f.reads.filter(key => key.includes('/cell/') && !key.endsWith('/integrity'))).toHaveLength(64);
+    expect(f.reads.filter(key => key.includes('/cell/') && key.endsWith('/integrity'))).toHaveLength(64);
     expect(f.reads.filter(key => key.includes('/observation/')).length).toBe(136); // 32 header/manifest/two-chunk sources plus two full current loads.
   });
 
@@ -83,15 +85,16 @@ describe('canonical earned world regions', () => {
     f.records.set(key, saved);
     const memory = f.records.get(blockKey(cell.at))!.value as unknown as MemoryBlock;
     memory.cells[localKey(cell.at)].chests[0].opened = true;
-    await expect(readKnowledgeRegion(f.pages, f.checkpoint(), scope)).rejects.toThrow('source evidence');
+    await expect(readKnowledgeRegion(f.pages, f.checkpoint(), scope)).rejects.toThrow('memory integrity');
   });
 
   it('rejects conflicting earned coordinates instead of replacing the earlier address', async () => {
     const f = knowledgeFixture(), cell = earnedCell(); await f.observe([cell]);
     const other = earnedCell(-5, -2, 'other');
     const old = (f.records.get(blockKey(cell.at))!.value as unknown as MemoryBlock).cells['0:0'];
-    await f.pages.set('knowledge', blockKey(other.at), { schema: 1, level: 1, spaceId: 'other', row: 0, column: 0,
+    const row = await f.pages.set('knowledge', blockKey(other.at), { schema: 1, level: 1, spaceId: 'other', row: 0, column: 0,
       cells: { '0:0': { ...old, at: other.at } as RememberedCell } } as never);
+    await retainMemoryIntegrity(f.pages, blockKey(other.at), row);
     await expect(indexObservedWorldCells(f.pages, [other])).rejects.toThrow('conflicting earned');
   });
 

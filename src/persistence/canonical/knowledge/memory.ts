@@ -5,10 +5,13 @@ import type { CanonicalPages } from '../pages';
 import type { WorldPosition } from '../world/types';
 import { blockAddress, blockKey, cellKey, localKey, roomKey } from './keys';
 import { cellSource, observedCell } from './validation';
+import { retainMemoryIntegrity, validateMemoryIntegrity } from './memory.integrity';
 import { DIRECTIONS, MEMORY_BLOCK_SIDE, type CellSource, type KnowledgeRead, type MemoryBlock, type ObservedCell, type RememberedCell } from './types';
 
 export async function loadMemoryBlock(pages: KnowledgeRead, at: WorldPosition) {
-  const record = await pages.get('knowledge', blockKey(at)); if (!record) return null;
+  const key = blockKey(at), record = await pages.get('knowledge', key);
+  await validateMemoryIntegrity(pages, key, record);
+  if (!record) return null;
   const block = fields(record.value, 'schema level spaceId row column cells');
   const expected = blockAddress(at);
   check(block.schema === 1 && block.level === expected.level && block.spaceId === expected.spaceId
@@ -55,7 +58,10 @@ export async function rememberObservation(pages: CanonicalPages, cells: Observed
         json({ schema: 1, level: seen.at.level, spaceId: seen.at.cell.spaceId, source }), [`known-rooms/${seen.at.level}/${seen.at.cell.spaceId}`]);
     }
   }
-  for (const key of changed) await pages.set('knowledge', key, json(blocks.get(key)!));
+  for (const key of changed) {
+    const row = await pages.set('knowledge', key, json(blocks.get(key)!));
+    await retainMemoryIntegrity(pages, key, row);
+  }
 }
 
 export async function validateCellEvidence(cell: RememberedCell, readSource: (source: CellSource) => Promise<ObservedCell>) {
