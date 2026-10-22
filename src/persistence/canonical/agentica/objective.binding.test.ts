@@ -5,6 +5,7 @@ import { addQuest, questMemory } from '../content/acceptedQueries.test-support';
 import { checkpointJson } from '../game/checkpoint';
 import { earnedCell } from '../knowledge/region.test-support';
 import { returnFixture } from '../knowledge/townReturn.test-support';
+import { observationIntegrityKey } from '../knowledge/observation.integrity';
 import type { CanonicalPages } from '../pages';
 import { canonicalFence, type CanonicalWork } from '../transaction';
 import type { CanonicalRecord, CanonicalRequest, JsonObject } from '../types';
@@ -66,7 +67,11 @@ describe('owner-selected return objective publication', () => {
     expect(returnObjective(objective)).toEqual(f.expected); // World quest refs are not Agentica protocol refs.
     expect(f.get.mock.calls.filter(([area]) => area === 'world').map(([, key]) => key))
       .toEqual([f.ref.key, f.ref.key, f.contractRecord.key]);
-    expect(f.get.mock.calls.length).toBeLessThanOrEqual(20);
+    // Full/source checks include proof reads; this is the fixture's logical count, not a runtime cap.
+    const proofs = new Set([observationIntegrityKey(f.earned.original.sequence),
+      observationIntegrityKey(f.earned.checkpoint().knowledge!.sequence)]);
+    expect(f.get.mock.calls.filter(([area, key]) => area === 'knowledge' && proofs.has(key))).toHaveLength(6);
+    expect(f.get.mock.calls).toHaveLength(23);
     expect(f.pages.scan).not.toHaveBeenCalled(); expect(f.set).not.toHaveBeenCalled();
     expect(f.world.records).toEqual(before);
     objective!.quest.item.token = 'changed'; objective!.entrance.at.cell.spaceId = 'changed';

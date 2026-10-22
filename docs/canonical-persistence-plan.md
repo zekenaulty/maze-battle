@@ -604,8 +604,11 @@ planning range below remain the closeout estimate, not six already-completed
 sprints. [Earned room/connection queries](reviews/issue-11-earned-graph.md) add
 source-bound room-only pages and explicit space-link reads; passage-chain
 collapse, UI selection and sustained exploration still gate Sprint 1. A native
-160-move case exposed a real evidence-read-budget failure; its repair must keep
-integrity checks and existing limits, not substitute a shorter passing journey.
+160-move case exposed a real evidence-read-budget failure. The
+[selective-proof repair](../tests/e2e/canonical-exploration-prefix.budget-report.md#parent-integration-qualification)
+now passes that original native case, retaining integrity checks, the original
+journey and the 256-read/1 MiB limits. Full units pass with two workers; this
+increment does not establish the missing >64-step route or complete Sprint 1.
 [Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
 does not finish the all-surface information gate. The
 [clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies

@@ -13,7 +13,7 @@ export async function perceptionFixture(cells: ObservedCell[] = [earnedCell()]) 
   return perceptionPublication(knowledge);
 }
 
-export function perceptionPublication(knowledge: ReturnType<typeof knowledgeFixture>) {
+export function perceptionPublication<T extends Pick<ReturnType<typeof knowledgeFixture>, 'records' | 'checkpoint' | 'pages'>>(knowledge: T) {
   const stamp = () => {
     for (const [key, row] of knowledge.records) {
       row.key = key; row.indexes = key.startsWith('perception/room/') ? [`known-rooms/${key.slice('perception/room/'.length)}`] : [];

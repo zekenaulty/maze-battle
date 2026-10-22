@@ -143,3 +143,48 @@ The complete pre-repair run is additionally preserved at
 failure); the original before/audit directories above remain untouched. Final
 native results and JSON attachments are in `test-results/canonical-exploration-prefix/`.
 Port 5418 was released. No service/provider/full-suite campaign was run.
+
+## Parent Integration Qualification
+
+Integrated as `88e2b55` / `1226d14` on the earned-query parent `eef13af`.
+`e07469a` adds explicit navigation-kind checks to the thirteen broad fixture
+type errors noted above; that complete fixture now type-checks. The subsequent
+test-only integration changes finalize actor metadata before sealing proofs,
+include the new proof reads in exact assertions, and restrict randomized-ID
+comparison normalization to the validated `/sight/header` path. These do not
+raise runtime limits or mutate sealed source evidence to make tests pass.
+
+Checked in the parent worktree on 2026-10-22:
+
+| Check | Outcome | Local evidence under `test-results/` |
+| --- | --- | --- |
+| Full units, `--maxWorkers=2` | 4,631 PASS, one existing optional SKIP | `selective-proof-full-unit-bounded.json` |
+| Focused integration fixture repairs | 136 PASS | `selective-proof-fixture-repairs-final.json` |
+| Corpus normalizer units | 11 PASS | `selective-proof-corpus-unit.json` |
+| Native prefix/reload/adoption/refill/atomic failure | 3 PASS, 130.692s, no retry/skip | `selective-proof-prefix-parent/results.json` |
+| Native authored A/B corpus | 5 PASS, 51.688s, no retry/skip | `selective-proof-corpus-verified/results.json` |
+| Native pinned-SDK capability/replay cohort | 24 PASS, 77.318s, no retry/skip | `selective-proof-sdk-parent/results.json` |
+| Production and prefix/corpus/Agentica/service fixture TypeScript | PASS | Explicit `tsc --noEmit` checks |
+| Isolated production build | PASS, 2,132 modules; existing >500 kB chunk warning | `selective-proof-build/` |
+
+Preserved failures: the initial full unit run had nine fixture failures from new
+proof reads or post-seal fixture mutation; the first corpus run had one failure
+from identity-bearing chunk commitments. The fixed normalizer retains actual
+semantic differences and unrelated headers. Controlled-ID native A/B comparison
+still requires raw, unnormalized equality; randomized comparison alone is not
+byte-equality or integrity proof.
+
+An unrestricted-worker full run subsequently passed 4,630 tests and failed the
+large unmodified autoplay cohort after 67.189s against its 60s timeout. That same
+cohort passed unchanged in isolation in 24.610s, followed by the complete passing
+two-worker run. No timeout or acceptance assertion was relaxed. Retain
+`selective-proof-full-unit-initial.json`, `selective-proof-full-unit-final.json`,
+`selective-proof-autopilot-isolated.json` and `selective-proof-corpus-parent/`
+alongside the superseding results. The name `full-unit-final` is historical;
+its recorded failure is not a pass.
+
+This qualifies the selective-proof repair and these regressions, not final Q.
+Real-service qualification on this candidate remains a separate gate. The
+160-move prelude is not a 160-step command or a proof of a >64-step route; the
+retained 22-step survey still crosses its original 16-step prefix. No owner
+database, preview, provider, Agentica source or runtime limit was changed.

@@ -55,7 +55,7 @@ describe('exact current-sight chest resolution', () => {
     expect(await resolveChestSelection(f.pages, f.snapshot, f.ref, chosen)).toEqual({
       command: { kind: 'open-chest', chestId: 'chest' }, position: earnedCell().at,
     });
-    expect(get.mock.calls.map(([area]) => area)).toEqual(['knowledge', 'knowledge']); expect(saved).toHaveBeenCalledTimes(1);
+    expect(get.mock.calls.map(([area]) => area)).toEqual(['knowledge', 'knowledge', 'knowledge']); expect(saved).toHaveBeenCalledTimes(1);
     expect(scan).not.toHaveBeenCalled(); expect(f.knowledge.records).toEqual(before); expect(f.knowledge.writes).toHaveLength(writes);
   });
   it('refuses an older remembered source even if the unchanged chest is visible again', async () => {
@@ -122,6 +122,6 @@ describe('exact current-sight chest resolution', () => {
     expect(await resolveChestSelection(f.pages, f.snapshot, f.ref,
       { publication: f.ref, source: currentSource(f), chestIndex: 0 })).not.toBeNull();
     const key = observationKey(currentSource(f).sequence);
-    expect(f.knowledge.reads).toEqual([key, `${key}/0`]);
+    expect(f.knowledge.reads).toEqual([key, `${key}/integrity`, `${key}/0`]);
   });
 });

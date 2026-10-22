@@ -9,6 +9,7 @@ import { corpusLayout, type CorpusVariant } from './canonical-corpus.layout';
 import { seedCorpusWorld, authorSurveyContract } from './canonical-corpus.initialize';
 import { corpusNormalizer } from './canonical-corpus.normalize';
 import { corpusDifferences } from './canonical-corpus.diff';
+import { observationFixture } from '../../src/persistence/canonical/knowledge/observation.test-support';
 
 async function prepared(variant: CorpusVariant) {
   const m = qualityMemory(); await seedCorpusWorld(m.pages, variant);
@@ -75,6 +76,17 @@ describe('authored corpus uses current canonical primitives', () => {
     ].map(([path, a, b]) => ({ path, left: { present: true, value: a }, right: { present: true, value: b } })));
     expect(corpusNormalizer().normalize(left)).toEqual(left);
     expect(corpusNormalizer().normalize(right)).toEqual(right);
+  });
+  it('normalizes private full-record commitments only in the validated sight header', async () => {
+    const a = await observationFixture(1), b = await observationFixture(1);
+    const left = { sight: { header: a.header, cells: a.cells } }, right = { sight: { header: b.header, cells: b.cells } };
+    expect(a.header.chunksDigest).not.toBe(b.header.chunksDigest);
+    expect(corpusNormalizer().normalize(left)).toEqual(corpusNormalizer().normalize(right));
+    right.sight.cells[0].chests[0].opened = true;
+    expect(corpusNormalizer().normalize(left)).not.toEqual(corpusNormalizer().normalize(right));
+    const unrelated = { header: { owner: 'semantic', chunks: ['semantic'], chunksDigest: a.header.chunksDigest } };
+    expect(corpusNormalizer().normalize(unrelated)).toEqual(unrelated);
+    expect(() => corpusNormalizer().normalize({ sight: { header: { ...a.header, chunksDigest: 'invalid' } } })).toThrow();
   });
   it('normalizes only sourced identities inside graph cursors, retaining scope and semantic links', () => {
     const cursor = (id: string, link = 'a'.repeat(64)) => ({ next: JSON.stringify({ schema: 1,

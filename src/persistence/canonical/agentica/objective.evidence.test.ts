@@ -23,7 +23,8 @@ describe('private current return evidence', () => {
       f.ref.key, f.ref.key, f.contractRecord.key, f.ref.key, f.contractRecord.key, 'roster/pack', 'roster/stash', f.key,
     ]);
     expect(f.scan.mock.calls).toEqual([['world', f.prefix, undefined, 1], ['world', f.itemRecord!.indexes[0], undefined, 1]]);
-    expect(f.knowledge.reads).toEqual([observationKey(2), `${observationKey(2)}/0`, observationKey(2), `${observationKey(2)}/0`]);
+    expect(f.knowledge.reads).toEqual([observationKey(2), `${observationKey(2)}/integrity`, `${observationKey(2)}/0`,
+      observationKey(2), `${observationKey(2)}/integrity`, `${observationKey(2)}/0`]);
     expect(f.witness).toHaveBeenCalledWith('knowledge', 'perception/');
   });
 
@@ -60,14 +61,13 @@ describe('private current return evidence', () => {
     const f = await evidenceFixture();
     const visible = Array.from({ length: 113 }, (_, n) => earnedCell(-5, -2 + n, 'room', 0, n)).reverse();
     visible[112].stairs = ['town'];
-    await f.knowledge.observe(visible);
+    await f.knowledge.observe(visible, { actor: f.objective.entrance.at });
     const snapshot = f.snapshot();
     snapshot.checkpoint.position = { level: 1, cell: { ...f.objective.entrance.at.cell } };
-    header(f.knowledge, 3).actor = structuredClone(f.objective.entrance.at);
     f.knowledge.reads.length = 0;
     const evidence = await readReturnEvidence(f.pages, snapshot, f.objective);
     expect(evidence.arrival).toEqual({ sequence: 3, id: gameCheckpoint(snapshot.checkpoint).knowledge!.id, index: 112 });
-    expect(f.knowledge.reads).toHaveLength(18);
+    expect(f.knowledge.reads).toHaveLength(20);
   });
 
   it.each(['away', 'town', 'auto-play', 'waves'] as const)('reports no arrival in %s without reading or acquiring sight', async mode => {
@@ -152,9 +152,9 @@ describe('return evidence refuses contradictory or missing sources', () => {
     nearby.stairs = ['town'];
     const actor = structuredClone(f.town);
     if (defect === 'nearby-stair') actor.stairs = [];
-    await f.knowledge.observe([actor, nearby]);
+    await f.knowledge.observe([actor, nearby], defect === 'other-actor' ? { actor: nearby.at } : {});
     const snapshot = f.snapshot();
-    if (defect === 'other-actor') header(f.knowledge, 3).actor = nearby.at;
+    if (defect === 'other-actor') snapshot.checkpoint.position = { level: actor.at.level, cell: { ...actor.at.cell } };
     await expect(readReturnEvidence(f.pages, snapshot, f.objective)).rejects.toThrow(
       defect === 'nearby-stair' ? 'lacks visible town stair' : 'actor differs from checkpoint');
   });

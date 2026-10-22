@@ -31,7 +31,7 @@ export function knowledgeFixture(initial?: { records: Map<string, CanonicalRecor
   } as unknown as CanonicalPages;
   return { pages, records, reads, writes, checkpoint: () => structuredClone(checkpoint),
     snapshot: () => knowledgeFixture({ records, checkpoint }),
-    async observe(cells: ObservedCell[], metadata: Pick<ObservationHeader, 'spaces' | 'graph'> = {}) {
+    async observe(cells: ObservedCell[], metadata: Partial<Pick<ObservationHeader, 'spaces' | 'graph' | 'actor'>> = {}) {
       cells = structuredClone(cells); metadata = structuredClone(metadata);
       revision++; const sequence = revision, key = observationKey(sequence), chunks: CanonicalRecord[] = [];
       for (let i = 0; i < cells.length; i += OBSERVATION_CHUNK_SIZE) {
@@ -48,7 +48,7 @@ export function knowledgeFixture(initial?: { records: Map<string, CanonicalRecor
       await retainObservationIntegrity(pages, row, chunks);
       await rememberObservation(pages, cells, { sequence, id: row.id });
       await indexObservedWorldCells(pages, cells);
-      checkpoint = { ...checkpoint, position: structuredClone(cells[0].at), knowledge: { sequence, id: row.id, witness: witness! } };
+      checkpoint = { ...checkpoint, position: structuredClone(header.actor), knowledge: { sequence, id: row.id, witness: witness! } };
       return { header, cells: structuredClone(cells) };
     },
   };

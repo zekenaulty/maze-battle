@@ -1,4 +1,5 @@
 import { readGraphCursor } from '../../src/persistence/canonical/knowledge/graph.cursor';
+import { observationHeader } from '../../src/persistence/canonical/knowledge/validation';
 
 /** Explicit comparison allowlist. Coordinates, semantic IDs, sequence/revision, costs and times stay exact. */
 export function corpusNormalizer() {
@@ -11,6 +12,9 @@ export function corpusNormalizer() {
     if (Array.isArray(value)) return value.map((child, index) => visit(child, `${path}/${index}`, graphAnchorPath));
     if (!value || typeof value !== 'object') return value;
     const row = value as Record<string, unknown>, result: Record<string, unknown> = {};
+    // Full-record integrity commits include random IDs. Raw controlled-ID proof remains separate.
+    const sightHeader = path === '/sight/header';
+    if (sightHeader) observationHeader(row);
     const source = typeof row.sequence === 'number' && typeof row.id === 'string'
       && Object.keys(row).every(key => ['sequence', 'id', 'index', 'revision', 'observedAt'].includes(key));
     const publication = Object.keys(row).sort().join() === 'id,key'
@@ -21,10 +25,10 @@ export function corpusNormalizer() {
     for (const [key, child] of Object.entries(row)) {
       if ((source && key === 'id') || (graphAnchor && (key === 'id' || key === 'witness'))
         || (starter && key === 'id') || publication || key === 'observationId'
-        || path.endsWith('/header') && key === 'owner') {
+        || sightHeader && (key === 'owner' || key === 'chunksDigest')) {
         if (typeof child !== 'string') throw Error('Malformed identity in comparison allowlist');
         result[key] = identity(child);
-      } else if (path.endsWith('/header') && key === 'chunks') {
+      } else if (sightHeader && key === 'chunks') {
         if (!Array.isArray(child) || child.some(id => typeof id !== 'string')) throw Error('Malformed observation chunk IDs');
         result[key] = child.map(identity);
       } else if ((key === 'frontier' || key === 'next') && typeof child === 'string') {
