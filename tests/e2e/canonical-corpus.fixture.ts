@@ -6,6 +6,8 @@ import { initializeCorpus } from './canonical-corpus.initialize';
 import type { CorpusVariant } from './canonical-corpus.layout';
 import { corpusAudit } from './canonical-corpus.audit';
 import { corpusSurface } from './canonical-corpus.projection';
+import { corpusQueries } from './canonical-corpus.queries';
+import type { WorldPosition } from '../../src/persistence/canonical/world/types';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5266') throw Error('Isolated corpus fixture only');
 let session: GameSession, genesis: Awaited<ReturnType<typeof initializeCorpus>>;
@@ -62,6 +64,7 @@ async function returnAlongReceipts() {
 const api = { boot, move, branch, collect, returnAlongReceipts, audit: corpusAudit,
   reinitialize: (variant: CorpusVariant) => initializeCorpus(variant, session.owner),
   surface: (traceStorage = false) => corpusSurface(session, traceStorage),
+  queries: (recalled: WorldPosition) => corpusQueries(session, recalled),
   async resume() { session = new GameSession(() => {}); await session.start(); return corpusSurface(session); },
   stop() { session?.stop(); } };
 declare global { interface Window { canonicalCorpus: typeof api } }

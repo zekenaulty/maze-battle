@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 42,
-2026-10-20. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 43,
+2026-10-22. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
@@ -612,9 +612,14 @@ increment does not establish the missing >64-step route or complete Sprint 1.
 The frozen parent `96facb3` now passes the full **43-case real-service** cohort
 (986.771s), with pinned Agentica source and the explicitly alternate SDK10.0.401.
 The room-only passage-collapse implementation is still isolated: review found
-that missing earned memory edges can be misreported as unseen. Its repair and
-requalification precede public tools/UI integration; no partial result may hide
-corrupted evidence.
+that missing earned memory edges can be misreported as unseen. Candidate
+`e981e7b` adds mandatory accumulated-memory integrity proofs and passes its
+389 focused checks plus the unchanged native 160-move case (187/256 reads,
+482,166/1,048,576 bytes). Public connection tools (`198ef66`) and the explicit
+room-map UI (`e306e92`) are also isolated candidates. These are child-worktree
+results, not integrated qualification. Review, integration and affected native
+checks precede claiming Sprint 1 complete; no partial result may hide corrupted
+evidence.
 [Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
 does not finish the all-surface information gate. The
 [clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies
@@ -701,8 +706,8 @@ claims, not another unrestricted matrix. Begin after the room-query contract is
 stable so the same scopes are tested once.
 
 1. Extend the existing paired fixed-action collector with `quests`, `quest`,
-   `objective` and `decision`, a remembered-address query and an unknown-address
-   refusal. Existing `cell/frontiers/map/links/room/objects` pages already have
+   `objective` and `decision`, a remembered-address query and an opaque
+   unknown-address result. Existing `cell/frontiers/map/links/room/objects` pages already have
    paired common-prefix coverage. Preserve raw output and exact work metrics.
 2. Compare one earned movement prefix's admission/progress/terminal/refusal
    outputs, plus camera/overview pixels, fog and visible status at the initial,
@@ -714,3 +719,51 @@ stable so the same scopes are tested once.
    refinement and first explicit successor inputs. Wire traffic alone does not
    prove the complete planner frame. Captures are evidence only, never input to
    planning; preserve the lawful observation that permits later divergence.
+
+The first cohort now has [native dispatched-query evidence](../tests/e2e/canonical-corpus.queries.report.md):
+three paired cases added, eight combined browser cases pass. Exact pre-divergence
+frames/work, pending objective, opaque negative probes and selected remembered
+cell identity are checked. Decision history here is initially unavailable;
+nonempty successor history, new room connections, UI and complete planner-frame
+coverage remain. This is offline admission with real dispatch, not another
+actual-service or model test.
+
+### Closing Sequence And Estimate Discipline
+
+The 40-80 hours are remaining implementation, review, integration and debugging
+effort, not suite runtime or a commitment to unattended wall-clock completion.
+Five to ten eight-hour working days is the arithmetic equivalent; allow ten to
+fifteen working days if the bounded cohorts expose further integrity/recovery
+defects. Confidence is moderate on scope and lower on defect-driven timing.
+Re-estimate after Sprints 1 and 3, recording which gate changed the estimate.
+Do not silently add features or expand the matrix to every possible combination.
+
+1. Integrate the checked memory, room-connections and room-map candidates in
+   dependency order. Repeat the original 160-move proof, test paged recall in
+   the actual desktop/mobile UI, and finish the sustained journey acceptance.
+2. Close the declared information, active-work recovery and controller cohorts.
+   Each case must identify its missing invariant. Include actual successor
+   history, not only an empty initial history query; keep complete planner-frame
+   capture distinct from browser wire traffic.
+3. Run the declared generated depth/history/revisit sample with actual IndexedDB
+   instrumentation. Record capacity failures and current funded obligations;
+   unchanged old records are different from unchanged current knowledge roots.
+4. Freeze one source revision after independent review. Clean locked install,
+   full units, production and affected fixture types, production build, all
+   affected native suites, known-destination regression, full real-service
+   cohort plus additions, and desktop/mobile visual/interaction checks must
+   qualify that revision. Historical green runs do not substitute for this.
+5. Publish the gate matrix, source/runtime hashes, raw evidence locations,
+   retained failures and limits. Keep the issue open if any required gate is
+   FAIL, UNKNOWN or NOT RUN; do not reset the owner's database to make it pass.
+6. Only after separate authorization, run the live-model two-dungeon gate with
+   explicit model, call, cumulative cost and time bounds. Report genuine model
+   choices, tool use, outcomes, latency and cost separately from the provider-free
+   result. This waiting/authorization interval is not included in engineering
+   effort above.
+
+The current baseline contains 4,631 passing unit tests (one existing optional
+skip) and 43 passing actual-service cases, but the remaining work is defined by
+these acceptance claims, not a promise that a fixed number of additional tests
+will finish the goal. Full RPG feature parity, combat, remote mechanisms and
+unlimited-world/compaction work remain outside this closeout.
