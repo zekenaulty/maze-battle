@@ -14,12 +14,17 @@ for (const { mode, history, moves } of cases) test(`22-step earned survey: ${mod
     try {
       const atomic = history === 'original'
         ? [await c.rejectObservationProof('storage-failure'), await c.rejectObservationProof('write-budget')] : [];
+      const memoryAtomic = [];
+      if (history === 'original') {
+        const storage = await c.rejectMemoryProof(admission.id, 'storage-failure'); memoryAtomic.push(storage);
+        memoryAtomic.push(await c.rejectMemoryProof(admission.id, 'write-budget', storage.setsBeforeProof));
+      }
       const approach = await c.capture(admission.id, 8), survey = await c.survey();
       const first = history === 'original' ? await c.capture(admission.id, 7) : [];
       const audit = history === 'original'
         ? await c.auditRequiredSources((await c.readDestination(admission.id)).value.progress.route[0].to) : null;
       const prefix = [...first, ...await c.capture(admission.id, 16 - first.length)];
-      return { seeded, effects, admission, atomic, audit, approach, survey, prefix, retained: await c.readDestination(admission.id), digest: await c.digest() };
+      return { seeded, effects, admission, atomic, memoryAtomic, audit, approach, survey, prefix, retained: await c.readDestination(admission.id), digest: await c.digest() };
     } catch (cause) {
       const retained = await c.readDestination(admission.id), next = retained.value.progress.route[0]?.to;
       return { error: String(cause), seeded, admission, retained,
@@ -63,6 +68,27 @@ for (const { mode, history, moves } of cases) test(`22-step earned survey: ${mod
     expect(row.manifestWrites).toBe(1); expect(row.unchanged).toBe(true);
     expect(row.result).toMatchObject({ rejected: true, message: expect.stringContaining(
       row.mode === 'storage-failure' ? 'Injected observation manifest failure' : 'write budget exhausted') });
+  }
+  expect(initial.memoryAtomic).toHaveLength(history === 'original' ? 2 : 0);
+  for (const row of initial.memoryAtomic) {
+    expect(row.result).toMatchObject({ rejected: true, message: expect.stringContaining(
+      row.mode === 'storage-failure' ? 'ConstraintError' : 'write budget exhausted') });
+    expect(row.proofAttempts).toBe(1); expect(row.successfulSets).toBeGreaterThan(0);
+    expect(row.proofStaged).toBe(row.mode === 'storage-failure');
+    expect(row.nativeBlockAdds).toBe(row.mode === 'storage-failure' ? 1 : 0);
+    expect(row.nativeProofAdds).toBe(row.mode === 'storage-failure' ? 2 : 0);
+    expect(row.staged).toMatchObject({ area: 'knowledge', revision: initial.admission.state.head.revision + 1 });
+    expect(row.proof).toMatchObject({ schema: 1, recordId: row.staged!.id, revision: row.staged!.revision });
+    expect(row.observedCells).toBeGreaterThan(0); expect(row.observedCells).toBeLessThanOrEqual(113);
+    expect(row.targetAfter).toEqual([{ at: row.target, state: 'unknown' }]);
+    expect(row.database.unchanged).toBe(true); expect(row.database.beforeBytes).toBe(row.database.afterBytes);
+    expect(row.before).toEqual({ head: initial.admission.state.head, value: initial.admission.state.value });
+    expect(row.after).toEqual(row.before);
+    expect(row.after.head.allocations[initial.admission.id].bytes).toBeGreaterThan(0);
+    expect(row.after.head.quota.reservations).toBe(1);
+    if (row.mode === 'write-budget') {
+      expect(row.limits.writes).toBe(row.setsBeforeProof); expect(row.successfulSets).toBe(row.setsBeforeProof);
+    }
   }
   const admitted = initial.admission.state.value.progress;
   const plan = initial.survey.value.plan, full = initial.survey.value.full!;
