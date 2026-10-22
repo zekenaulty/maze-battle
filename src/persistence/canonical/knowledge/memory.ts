@@ -59,14 +59,22 @@ export async function rememberObservation(pages: CanonicalPages, cells: Observed
 }
 
 export async function validateCellEvidence(cell: RememberedCell, readSource: (source: CellSource) => Promise<ObservedCell>) {
+  const coverage = (source: ObservedCell) => {
+    for (const d of DIRECTIONS) check(!Object.hasOwn(source.edges, d) || Object.hasOwn(cell.edges, d),
+      'remembered edge omitted from source evidence');
+  };
   const seen = await readSource(cell.source);
   check(same({ ...seen, edges: {} }, { at: cell.at, world: cell.world, chests: cell.chests, stairs: cell.stairs, edges: {} }),
     'remembered facts differ from source evidence');
+  coverage(seen);
   for (const d of DIRECTIONS) {
     const edge = cell.edges[d]; if (!edge) continue;
     const source = await readSource(edge.source);
     check(cellKey(source.at) === cellKey(cell.at) && Object.hasOwn(source.edges, d) && same(source.edges[d], edge.target),
       'remembered edge differs from source evidence');
+    // Check all directions in this already-required receipt, not only the selected edge.
+    // A deleted last reference to an older receipt still requires a cumulative memory commitment.
+    coverage(source);
   }
 }
 
