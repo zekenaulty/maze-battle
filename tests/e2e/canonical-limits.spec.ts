@@ -4,20 +4,23 @@ for (const action of ['stop', 'takeover'] as const) test(`logical capacity prese
   const result = await page.evaluate(async action => {
     const c = window.canonical;
     await c.initializeCanonical('owner', {}, undefined, { quota: { limitBytes: 80_000, reserveBytes: 65_536 } });
-    let rejected = '', admitted = 0;
+    let rejected = '', admitted = 0, rejectedBefore: Awaited<ReturnType<typeof c.dump>> | undefined;
     for (let i = 0; i < 100; i++) {
       const head = (await c.readCanonicalHead()).head;
+      const beforeAttempt = await c.dump();
       try { await c.executeCanonical(c.command(head), async tx => { await tx.pages.set('world', 'test', { i }); return i; }); admitted++; }
-      catch (error) { rejected = String(error); break; }
+      catch (error) { rejected = String(error); rejectedBefore = beforeAttempt; break; }
     }
     const before = await c.dump(), current = (await c.readCanonicalHead()).head;
     const owner = action === 'takeover' ? 'recovery-owner' : 'owner', command = c.command(current, `control.${action}`, { owner });
     const stopped = await c.controlCanonical(command, action), after = await c.dump();
     const replay = await c.controlCanonical(command, action), repeated = await c.controlCanonical(c.command((await c.readCanonicalHead()).head, `control.${action}`, { owner }), action).catch(String);
     const newWork = await c.executeCanonical(c.command((await c.readCanonicalHead()).head), async () => { throw Error('must not run'); }).catch(String);
-    return { rejected, admitted, before, after, stopped, replay, repeated, newWork, head: (await c.readCanonicalHead()).head };
+    return { rejected, admitted, rejectedBefore, before, after, stopped, replay, repeated, newWork, head: (await c.readCanonicalHead()).head };
   }, action);
-  expect(result.admitted).toBeGreaterThan(1); expect(result.rejected).toContain('storage quota');
+  // The fixed head allowance leaves room for one ordinary write under this deliberately tiny quota.
+  expect(result.admitted).toBeGreaterThan(0); expect(result.rejected).toContain('storage quota');
+  expect(result.before).toEqual(result.rejectedBefore);
   expect(result.head.status).toBe('stopped'); expect(result.head.quota.usedBytes).toBe(result.after.bytes);
   expect(result.after.bytes).toBeGreaterThan(result.before.bytes); expect(result.after.bytes).toBeLessThan(80_000);
   expect(result.replay.receipt).toEqual(result.stopped.receipt); expect(result.repeated).toContain('already applied');
