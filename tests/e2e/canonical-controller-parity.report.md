@@ -37,6 +37,23 @@ node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-controller-
 
 Retained failed fixture candidates, not production defects: `canonical-controller-parity-first` assumed collection never auto-equips; corrected with the explicit owner policy command. `canonical-controller-parity-second` asserted progress at the wrong quest field; corrected to `task.progress`. `canonical-controller-parity-final` used property-order-sensitive address lookup in the added edge assertion; corrected to structural address keys. The earlier `canonical-controller-parity-third` passed before the final edge/world-root/payload assertions. Failed native traces and raw attachments remain in those worktree-local directories.
 
+## Review Hardening
+
+Follow-up to `bda149e`, test-only. The original reload check proved replay did not mutate the already-reloaded state, not that reload preserved the stopped state. The original inventory check covered loot-bearing stack bases and total quantity, leaving unrelated-item substitution undetected. The stronger assertions below supersede those two earlier evidence claims; original output and failed candidates remain intact.
+
+- Every controller's stopped pre-reload head must equal the persisted head read before the new session claims ownership. The entire post-start head must then match, including checkpoint position/facing/knowledge and all persisted roots, except the new owner, exactly two epoch/revision increments for takeover/resume, and increased receipt-accounting bytes. All other quota fields remain exact; this is not an independent storage-accounting qualification. Audited content must remain unchanged across reload as well as replay.
+- Collection preserves capacity/gold, every preexisting and incoming nonstack item exactly, unique output IDs, and exact aggregate quantities for every stack metadata identity, including bases absent from loot. Legitimate stack merging is allowed without equating unrelated items.
+- Thirteen focused assertion cases include eleven negatives: the reported mana-vial removal/health-herb doubling, old nonstack loss/mutation, capacity change, position/facing/knowledge rollback, each persisted root, and a rollback already present before custody claim. Reload negatives deliberately leave before/after replay equal.
+- Checked: **14 PASS**, no retries/skips, **24.448 seconds total**. This is **13 assertion checks plus 1 native three-controller case** (20.486 seconds), not fourteen native scenarios. Raw attachments now include the pre-claim persisted snapshot. Evidence: `test-results/canonical-controller-parity-hardening/results.json`.
+- Root and dedicated fixture TypeScript: **PASS**. No production changes, provider calls or service runs. Existing scope limits below remain unchanged.
+
+```powershell
+$env:MAZE_PARITY_RUN='canonical-controller-parity-hardening'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-controller-parity.config.ts --workers=1 --retries=0
+node node_modules/typescript/bin/tsc --noEmit
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-controller-parity.tsconfig.json
+```
+
 ## Limits
 
 This is a mounted Manual hook, real Auto scheduler/policy and real Agentica host adapter/operation-driver composition on native IndexedDB, not the complete App UI or actual Agentica service. Navigation and interaction use two explicit offline launches, not a successor decision chain. No policy equivalence, arbitrary-world coverage, long-route coverage, combat, stairs, town effects, reward claims, default auto-equip behavior, or unrestricted inventory coverage is claimed. No runtime defect was found in this slice. The broader active goal remains open.

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { itemQuantity, isStackableItem } from '../../src/domain/items/itemStacks';
 import type { audit } from './canonical-controller-parity.audit';
 import { key, type earnChest } from './canonical-controller-parity.setup';
+import { inventoryConserved, reloadPreserved } from './canonical-controller-parity.assertions';
 
 type State = Awaited<ReturnType<typeof audit>>;
 type Setup = Awaited<ReturnType<typeof earnChest>>;
@@ -16,14 +16,7 @@ function collectedOnce(before: State, after: State, setup: Setup) {
   expect(before.chest.chest.opened).toBe(false); expect(after.chest.chest.opened).toBe(true);
   const loot = after.chest.chest.loot!;
   expect(loot.length).toBeGreaterThan(0);
-  for (const item of loot.filter(item => !isStackableItem(item)))
-    expect(after.inventory.items.filter(owned => owned.id === item.id)).toEqual([item]);
-  for (const base of new Set(loot.filter(isStackableItem).map(item => item.baseId))) {
-    const quantity = (items: typeof loot) => items.filter(item => item.baseId === base).reduce((n, item) => n + itemQuantity(item), 0);
-    expect(quantity(after.inventory.items)).toBe(quantity(before.inventory.items) + quantity(loot));
-  }
-  const total = (items: typeof loot) => items.reduce((n, item) => n + itemQuantity(item), 0);
-  expect(total(after.inventory.items)).toBe(total(before.inventory.items) + total(loot));
+  inventoryConserved(before.inventory, after.inventory, loot);
   expect(after.inventory.gold).toBe(before.inventory.gold); expect(after.stash).toEqual(before.stash);
   expect(after.party).toEqual(before.party); expect(after.policy).toEqual(before.policy);
   expect(after.contracts).toEqual(before.contracts);
@@ -61,7 +54,7 @@ test('Manual hook, Auto policy scheduler and offline-admitted Agentica driver pr
       expect(boot.before.quests).toHaveLength(2);
       expect(boot.before.quests.every(q => q?.quest.status === 'active')).toBe(true);
       let replayInput: Parameters<Window['canonicalControllerParity']['reloadReplay']>[0];
-      let opened: State;
+      let opened: State, stopped: State;
       if (kind !== 'agentica') {
         const r = await page.evaluate(kind => window.canonicalControllerParity.direct(kind), kind);
         await info.attach(`${kind}-effects.json`, { body: JSON.stringify(r), contentType: 'application/json' });
@@ -86,7 +79,7 @@ test('Manual hook, Auto policy scheduler and offline-admitted Agentica driver pr
           noContentEffects(r.opened, r.afterSecond);
         } else expect(r.afterSecond).toEqual(r.opened);
         expect(r.stopped.head.quota.reservations).toBe(0); expect(r.stopped.checkpoint.mode).toBe('manual');
-        replayInput = { setup, receipt: r.original }; opened = r.opened;
+        replayInput = { setup, receipt: r.original }; opened = r.opened; stopped = r.stopped;
       } else {
         const r = await page.evaluate(() => window.canonicalControllerParity.agent());
         await info.attach('agentica-effects.json', { body: JSON.stringify(r), contentType: 'application/json' });
@@ -118,12 +111,14 @@ test('Manual hook, Auto policy scheduler and offline-admitted Agentica driver pr
           expect(window.stopped.head.quota.reservations).toBe(0);
           noContentEffects(window.after, window.stopped);
         }
-        replayInput = { setup, agent: { binding: r.interaction.binding, original: r.interaction.original } }; opened = r.interaction.after;
+        replayInput = { setup, agent: { binding: r.interaction.binding, original: r.interaction.original } }; opened = r.interaction.after; stopped = r.stopped;
       }
       await page.evaluate(() => window.canonicalControllerParity.stop()); await page.reload();
       await page.waitForFunction(() => !!window.canonicalControllerParity);
       const replay = await page.evaluate(serialized => window.canonicalControllerParity.reloadReplay(JSON.parse(serialized)), JSON.stringify(replayInput));
       await info.attach(`${kind}-reload-replay.json`, { body: JSON.stringify(replay), contentType: 'application/json' });
+      reloadPreserved(stopped.head, replay.persisted.head, replay.before.head);
+      expect(replay.before.checkpoint).toEqual(stopped.checkpoint); noContentEffects(stopped, replay.before);
       expect(replay.after).toEqual(replay.before); noContentEffects(opened, replay.after);
       if (replayInput.agent) {
         const result = replay.result as { repeated: unknown; loaded: { result: unknown }; reconciled: unknown };

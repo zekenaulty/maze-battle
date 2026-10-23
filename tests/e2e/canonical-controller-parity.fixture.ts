@@ -37,10 +37,12 @@ async function agent() {
 }
 async function reloadReplay(input: { setup: typeof setup; receipt?: CanonicalReceipt;
   agent?: Parameters<typeof replayAgent>[1] }) {
-  session = new GameSession(() => {}); await session.start(); setup = input.setup;
+  setup = input.setup;
+  const persisted = await audit(setup);
+  session = new GameSession(() => {}); await session.start();
   const before = await audit(setup);
   const result = input.receipt ? await replayCommand(session, input.receipt) : await replayAgent(session, input.agent!);
-  return { before, result, after: await audit(setup) };
+  return { persisted, before, result, after: await audit(setup) };
 }
 const api = { boot, direct, agent, reloadReplay, stop() { manual?.close(); session?.stop(); } };
 declare global { interface Window { canonicalControllerParity: typeof api } }

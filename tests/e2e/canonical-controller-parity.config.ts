@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const run = process.env.MAZE_PARITY_RUN ?? 'canonical-controller-parity';
-export default defineConfig({ testDir: '.', testMatch: /canonical-controller-parity\.spec\.ts$/, workers: 1, retries: 0, timeout: 180_000,
+export default defineConfig({ testDir: '.', testMatch: /canonical-controller-parity(?:\.assertions)?\.spec\.ts$/, workers: 1, retries: 0, timeout: 180_000,
   tsconfig: './canonical-controller-parity.tsconfig.json', outputDir: `../../test-results/${run}`,
   reporter: [['list'], ['json', { outputFile: resolve('test-results', run, 'results.json') }]],
   use: { serviceWorkers: 'block', trace: 'retain-on-failure', launchOptions: existsSync(chrome) ? { executablePath: chrome } : {} },
