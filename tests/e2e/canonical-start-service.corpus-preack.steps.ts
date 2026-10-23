@@ -1,9 +1,12 @@
 import type { Page } from '@playwright/test';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
-import { expect, type DecisionWire } from './canonical-start-service.decision.test';
+import { expect, service, type DecisionWire } from './canonical-start-service.decision.test';
 import { attachCorpusApp, corpusActions } from './canonical-start-service.corpus-recovery.steps';
 
 export async function startPreackJourney(page: Page, cut: 'progress' | 'transfer') {
+  // The offline journey policy retains at most two roots. Isolate this case before any launch.
+  // This is fixture setup, not evidence of recovery across a service restart.
+  await service.restart();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const genesis = await page.evaluate(async () => {
     // @ts-expect-error Genesis only, never sight or planner routing input.
@@ -32,9 +35,11 @@ export async function selectedJourney(page: Page, wire: DecisionWire) {
   const selected = () => corpusActions(wire).find((a, i, all) => a.capabilityId === 'maze.navigate' && all[i - 1]?.arguments.scope === 'connections');
   const dialog = page.getByRole('dialog', { name: 'Agentic play', exact: true });
   for (let window = 0; window < 10; window++) {
-    await expect.poll(async () => selected() ? 'selected' : await dialog.getByRole('status')
+    const outcomes = () => wire.received.filter(({ frame }) => frame.type === 'outcome');
+    await expect.poll(async () => selected() ? 'selected' : outcomes().length ? 'outcome' : await dialog.getByRole('status')
       .filter({ hasText: /^(decision|failed|blocked|recovery)$/ }).count() ? 'terminal' : 'running', { timeout: 60_000 }).not.toBe('running');
     if (selected()) return selected()!;
+    expect(outcomes(), 'Journey must not terminate before its selected destination').toEqual([]);
     await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible();
     await expect(dialog.getByRole('alert')).toHaveCount(0);
     const count = corpusActions(wire).length;
