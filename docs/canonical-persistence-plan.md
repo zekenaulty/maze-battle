@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 51,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 52,
 2026-10-23. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -605,8 +605,19 @@ reconciliation at `bbdadf1` found no additional Sprint-1-specific claim; the
 [S3 matrix audit](reviews/issue-11-recovery-matrix.md) accounts for its eight
 distinct new recovery cuts and retained takeover/duplicate/cleanup proofs.
 The [capacity kernel increment](reviews/issue-11-capacity-kernel-integration.md)
-passes focused/native gates but does not yet bind generation allocations.
-The revised remaining range is **28-56 focused hours**, not a restarted budget.
+now has local generation-allocation binding through `0755438`. The reproduced
+authored A/B quota defect passes at the shared threshold and its two neighbors;
+this is not whole-S4 qualification. Current local evidence is 127 focused unit
+passes, 21 native capacity passes and one paired threshold test. The first two
+runs tested the working integration subsequently committed at `f90567e`; the
+threshold run records `0755438`. These are separate cohorts, not a final suite.
+Artifacts: `test-results/private-preparation-parent-first.json`,
+`test-results/private-preparation-native-first/results.json`, and
+`test-results/private-allocation-corpus-first/results.json`.
+At this planning checkpoint four implementation commits are local beyond remote
+`77e149c`; publication and broader integration checks remain to be done.
+The remaining range stays **28-56 focused hours**, not a restarted budget or a
+claim that focused test counts establish the remaining integration cost.
 The original planning checkpoints and their uncertainty remain below.
 No native >64-step proof
 or impossibility theorem is implied: the declared alternative is the retained
@@ -671,9 +682,9 @@ candidate at a time. Checked increments continue to be committed and pushed.
 | Sprint | Deliverable and exit gate | Remaining estimate |
 | --- | --- | ---: |
 | 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
-| 2. Information boundaries | Retain passing scoped-query, navigation/history, UI and complete-planner-frame evidence. Finish exact wire/status/diagnostic composition through the first lawful A/B observation difference. Preserve raw traces; do not require equal physical timing. Capacity and command-work thresholds are Sprint 4. | 2-4h |
+| 2. Information boundaries | Retain passing scoped-query, navigation/history, UI and complete-planner-frame evidence. Finish wire/status/diagnostic composition through the first lawful A/B observation difference. Review the observed independent status/ACK delivery interleaving, retain the strict ordered FAIL, and add an explicit correspondence plus consumer-order regression rather than sorting away differences. Capacity and command-work thresholds are Sprint 4. | 2-4h |
 | 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. The final combined rerun belongs to Sprint 6. | Complete |
-| 4. Capacity, work and controller parity | Kernel admission and narrowly funded cleanup now have focused/native proof. Bind deterministic allocation provenance and atomic initialization/preparation charging, retain truthful occupancy, then close the reproduced quota threshold FAIL. Separately qualify command-work/diagnostic exposure. Retain shared chest-effect and exclusive Auto-batch proofs; no Auto policy bleed into manual or agent authority. | 12-24h |
+| 4. Capacity, work and controller parity | Local allocation binding and the original authored quota regression now pass focused/native checks. Integrate independent index-guard tests; qualify next-floor allocation, restore/stale-anchor refusal, abort/replay and App/service composition. Separately close command-work/diagnostic exposure, retaining truthful occupancy and funded cleanup. No Auto policy bleed into manual or agent authority. | 12-24h |
 | 5. Generated-world endurance | Declare a small generated-layout cohort, shallow/deep retained topology samples and a larger fixed-depth history sample than the existing 128 moves. Prove paged known-room/connection graph retrieval across multiple pages and bounded underlying reads/payloads as topology grows. Include active Agentica/two-tab recovery, actual IndexedDB I/O/latency, and preserved old records/receipts, not unchanged current knowledge roots. | 6-12h |
 | 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
 
@@ -682,6 +693,61 @@ work proceeds in an isolated lane; integrate and qualify S4 before S5. S6 freeze
 one integrated candidate after review. Parallel review/fixtures can shorten the
 critical path, but dependency-sensitive integration and shared-port suites remain
 serialized. Do not replace these gates with another unrestricted test matrix.
+
+### Delivery Forecast And Sprint Handoffs
+
+The 28-56 hours are focused engineering, integration and review effort, not a
+wall-clock countdown and not a sum of runner durations. Plan on **4-8 eight-hour
+workdays**, with **8-12 workdays as a contingency envelope** if new defects are
+demonstrated. This is not an overnight completion promise. Parallel work reduces
+waiting where dependencies permit, but does not make the serial S4 -> S5 -> S6
+critical path disappear. Re-estimate after S4's broader gates and the first
+generated-endurance pass, not after every green focused test.
+
+| Milestone | Lane and concrete handoff | Completion decision |
+| --- | --- | --- |
+| M1: information and capacity qualified | Parent integrates S4; isolated reviewer/test lane finishes S2 and independent guard tests. Verify next-floor/restore behavior and work-limit channels, run affected App/service regression, publish checked commits and a short findings report. | S2 and S4 must have no unresolved required disclosure, capacity or cleanup defect. A green quota test alone is insufficient. |
+| M2: generated endurance qualified | Use the same App, canonical store and existing offline Agentica service. Freeze a small deterministic cohort before running; isolate topology growth from history growth. Publish raw I/O, graph paging, revisit and active-owner recovery results. | S5 passes its declared limits without hidden routing, fixture teleportation during measured journeys, whole-history scans or altered admission bounds. |
+| M3: provider-free candidate qualified | Freeze Maze and Agentica source, dependencies, SDK and the deduplicated test manifest. Run S6, review failures, and rerun affected gates after repairs. Push the exact candidate and acceptance report. | All mandatory provider-free gates pass on compatible recorded identities. Earlier partial runs do not substitute for the final combined result. |
+| M4: separately authorized live qualification | After M3, obtain model, cumulative call/token/cost/time limits and stop rules; run the two-dungeon live gate and report choices, tools, usage, latency and completion separately. | Actual provider evidence, not the offline planner, decides this gate. No paid run is currently authorized. |
+
+Initial bounded S5 manifest: two deterministic generated seeds, retained-depth
+samples at 1/8/16 floors, and one fixed-depth 1,024-action history sample (versus
+the existing 128-action check). Select and record the seeds before measurement.
+Add one generated graph case spanning at least two room and connection pages,
+two outward/surface-return cycles, and one active Agentica two-tab takeover.
+These are separate targeted checks, not the full Cartesian product. Preserve
+the already-earned topology and original receipts; measure native object-store
+operations, serialized/logical bytes, database growth and latency distributions.
+If the required graph is not representable in the selected cohort, report that
+gap and adjust the documented cohort explicitly; do not manufacture disclosure
+or silently broaden a search. Existing read/payload/admission limits remain in
+force. Sixteen retained floors do not imply sixteen complete played journeys
+fit within the same capacity reservation.
+
+S6 freezes the discovered test list, not a promised total count. Include the
+48-case historical service baseline plus the newer distinct recovery cases,
+deduplicating overlaps; full units; affected native persistence, capacity,
+frontier, corpus, known-destination and actual-App suites; production/fixture
+types; clean locked install/build; desktop/portrait resize and controls; and the
+eight-cut recovery matrix. Keep the existing optional unit skip explicit.
+The previous full service run took about 41 minutes; that is one runner's time,
+not the remaining engineering estimate. The current runtime has not yet passed
+that entire combined gate. Record the alternate .NET 10.0.401 environment
+separately from repository pin 10.0.302 unless the latter is actually tested.
+
+Reserve an additional **2-4 focused hours** for a bounded live-run setup,
+execution and report after authorization, excluding any newly discovered repair
+work. This is a scheduling allowance, not a provider-spend grant or a latency
+benchmark. Full RPG parity, combat ownership, broader quest/town automation and
+resource-pressure balancing require separate scoped estimates after this goal;
+they are not hidden additions to the 28-56-hour closeout.
+
+Closing reports distinguish: implementation complete, provider-free qualified,
+live-model qualified, and owner accepted. Do not mark the umbrella goal complete
+merely because M3 passes while a required authorized live gate is still pending;
+publish that boundary explicitly. No issue closure, merge, preview replacement,
+owner-data reset or production deployment is implied by this forecast.
 
 ### Closing Test Manifest
 
