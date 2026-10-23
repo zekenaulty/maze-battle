@@ -4,16 +4,12 @@ import type {} from './canonical-corpus.fixture';
 
 /** Independent fault oracle; never exposed to a controller or used to select a route. */
 export function quotaBoundary(head: CanonicalHead) {
-  const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
-  let limit = head.quota.usedBytes + head.quota.reserveBytes + head.quota.reservedBytes;
-  for (let i = 0; i < 16; i++) {
-    const next = structuredClone(head); next.quota.limitBytes = limit;
-    next.quota.usedBytes += bytes(next) - bytes(head);
-    const required = next.quota.usedBytes + next.quota.reserveBytes + next.quota.reservedBytes;
-    if (required === limit) return limit;
-    limit = required;
-  }
-  throw Error('Quota oracle failed to converge');
+  const policy = head.quota.privateCapacity;
+  if (!policy || policy.version !== 'private-world-v1' || policy.active !== null) throw Error('Expected completed private allocation');
+  const actualHead = Buffer.byteLength(JSON.stringify(['heads', head.gameId, head]));
+  // Independent oracle for the declared admission contract; exact raw occupancy is checked separately.
+  return head.quota.usedBytes - actualHead + (policy.allocatedBytes - policy.consumedBytes)
+    + 12 * 1024 + head.quota.reserveBytes + head.quota.reservedBytes;
 }
 
 export async function injectQuota(page: Page, limitBytes: number) {
@@ -43,6 +39,10 @@ export async function injectQuota(page: Page, limitBytes: number) {
       if (after.quota.usedBytes !== before.quota.usedBytes + bytes(after) - bytes(before)
         || after.quota.usedBytes + after.quota.reservedBytes > limitBytes - after.quota.reserveBytes)
         throw Error('Fault must leave a valid, non-exhausted pre-action quota');
+      const policy = after.quota.privateCapacity;
+      if (!policy || after.quota.usedBytes - bytes(after) + policy.allocatedBytes - policy.consumedBytes
+        + 12 * 1024 + after.quota.reservedBytes > limitBytes - after.quota.reserveBytes)
+        throw Error('Fault must leave pre-action private admission affordable');
       store.put(after, after.gameId); await done;
       return { before, after };
     } finally { db.close(); }
