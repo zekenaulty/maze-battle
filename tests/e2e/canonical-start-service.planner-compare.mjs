@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const identities = new RegExp(`^(?:${uuid}|${uuid}:${uuid}|(?:run|labrun|action|receipt|observation|surface|frame)_[0-9a-f]{32}|(?:result|observation|travel|host_frame)[-_][0-9a-f]{64}|decision-${uuid}|agentica/publications/${uuid}|[0-9a-f]{64})$`);
@@ -72,6 +73,8 @@ function annotate(raw) {
       const payload = { ...frame.Payload, identity: lowerFirst(frame.Payload.identity), retention: lowerFirst(frame.Payload.retention),
         currentObservation: { reference: lowerFirst(ref), data: current.Data } };
       if (frame.FrameId !== 'host_frame_' + hash(payload)) throw Error('Host frame digest mismatch');
+      if (!isDeepStrictEqual(frame.CompactPayload?.currentObservation?.Reference, ref))
+        throw Error('Compact host observation reference mismatch');
       for (const section of ['Payload', 'CompactPayload']) {
         const path = base + '/' + section;
         fields(path + '/identity', ['ScopeId', 'SessionId']);

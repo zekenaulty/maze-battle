@@ -3,6 +3,7 @@ import { test, expect, serviceProof } from './canonical-start-service.decision.t
 import { serviceOrigin } from '../agentica-start-service/service.mjs';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { plannerPair } from './canonical-start-service.planner-compare.mjs';
+import { assertPlannerWindows } from './canonical-start-service.planner-wire.mjs';
 
 interface CaptureEntry { root: string; window: string; call: number; method: 'create' | 'refine'; bytes: number; sha256: string; raw: string }
 interface Capture { entries: CaptureEntry[]; maxRoots: number; maxWindows: number; maxCalls: number; maxBytes: number }
@@ -37,14 +38,16 @@ test('paired corpus actual planner inputs: initial, refinement and explicit succ
         const { acceptAppSurvey }: typeof import('./canonical-start-service.corpus-fixture') = await import('/tests/e2e/canonical-start-service.corpus-fixture.ts');
         return (await acceptAppSurvey()).target.contractId;
       });
-      const start = wire.received.length;
+      const start = wire.received.length, sentStart = wire.sent.length;
       await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Agentic play', exact: true });
       await dialog.getByRole('combobox', { name: 'Return quest (optional)', exact: true }).selectOption(contractId);
       await dialog.getByRole('textbox', { name: 'Objective', exact: true }).fill('Locate the survey seal in an ordinary chest, retrieve it, then return to the entrance.');
       await dialog.getByRole('button', { name: 'Start Agentic play', exact: true }).click();
       await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible({ timeout: 60_000 });
-      const first = await capture(), root = first.entries.at(-1)!.root;
+      const submissions = wire.sent.slice(sentStart).filter(frame => frame.type === 'start.durable');
+      expect(submissions).toHaveLength(1);
+      const root = submissions[0].payload.request.sessionId, first = await capture();
       const initial = first.entries.filter(entry => entry.root === root);
       expect(new Set(initial.map(e => e.window)).size).toBe(1);
       expect(initial.map(e => e.method)).toEqual(['create', 'refine', 'refine', 'refine']);
@@ -85,6 +88,7 @@ test('paired corpus actual planner inputs: initial, refinement and explicit succ
       }
       expect(entries.slice(0, initial.length)).toEqual(initial);
       const actions = wire.received.slice(start).filter(({ frame }) => frame.type === 'action.request').map(({ frame }) => frame.payload as AgenticaAction);
+      assertPlannerWindows(root, entries, wire.sent, wire.received.slice(start).map(({ frame }) => frame));
       expect(actions.map(a => a.capabilityId)).toEqual(['maze.inspect', 'maze.inspect', 'maze.inspect', 'maze.explore',
         'maze.inspect', 'maze.inspect', 'maze.inspect', 'maze.explore']);
       for (const offset of [0, 4]) {

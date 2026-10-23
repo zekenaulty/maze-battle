@@ -95,3 +95,50 @@ and vendored SDK are checked unchanged. Build SDK 10.0.401, not repository SDK
 pin 10.0.302 qualification. This slice proves the fixed public sequence through
 first disclosure, not all inspect scopes, map/UI/fog equivalence, later windows,
 adoption/transfer, model competence or paid-provider behavior. Full cohort not run.
+
+## Independent Review Follow-Up
+
+Two P2 proof gaps in `7b73a49` are repaired without changing capture, C# factory,
+Program, production, SDK, raw output shape or counters:
+
+- The compact host observation reference must deep-equal the full, hash-validated
+  reference before identity/clock allowances apply. The new compact-only timestamp
+  regression failed before the guard (`Missing expected exception`, 7 pass/1 fail)
+  and passes afterward. Reference fields are not individually discarded.
+- The App proof takes its root identity from the actual `start.durable` submission.
+  Every captured window is independently bound through its external `started`
+  reply and `execution.event`/`run.created` internal runner identity, including
+  action-request runner IDs. Each window has exact call indexes `[0,1,2,3]`.
+  Every successor capture's complete continuation is checked against the original
+  initial run, admitted action result, sent `operation.wake`, successor `started`
+  continuation and cumulative usage. Only explicit typed null defaults and the
+  exact service serialization of the original browser timestamp are accounted
+  for; unknown fields, source content and IDs stay exact.
+
+Follow-up verification: **13 PASS** (8 comparator + 5 wire-binding tests), focused
+and root TypeScript **PASS**. Rechecking the unchanged raw evidence in
+`maze-start-service-IMRJHs/results.json` passes both A/B wire bindings (16 calls,
+four windows); pair residual counts remain `[0,0,0,0,0,0,0,60]`. This is an offline
+recheck of the earlier native run, not a new native/service qualification. No
+service or browser was launched for this follow-up; parent full-cohort rerun is
+left to the coordinator. No rebase or parent changes.
+
+```powershell
+node --test tests/e2e/canonical-start-service.planner-compare.test.mjs tests/e2e/canonical-start-service.planner-wire.test.mjs
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-start-service.tsconfig.json
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+Exact retained-evidence recheck (Node ESM; no service):
+
+```javascript
+import fs from 'node:fs';
+import { plannerPair } from './tests/e2e/canonical-start-service.planner-compare.mjs';
+import { assertPlannerWindows } from './tests/e2e/canonical-start-service.planner-wire.mjs';
+const r = JSON.parse(fs.readFileSync('test-results/maze-start-service-IMRJHs/results.json'));
+const attachments = r.suites[0].specs[0].tests[0].results[0].attachments;
+const p = JSON.parse(Buffer.from(attachments.find(x => x.name === 'planner-pair-raw.json').body, 'base64'));
+for (const root of p.roots) assertPlannerWindows(root.entries[0].root, root.entries, p.sent, p.received.map(x => x.frame));
+const pair = plannerPair();
+console.log(p.roots[0].entries.map((entry, i) => pair.compare(entry.raw, p.roots[1].entries[i].raw).length));
+```

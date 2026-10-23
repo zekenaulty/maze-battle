@@ -16,7 +16,8 @@ function fixture(n, data = { scope: 'actor', actor: { level: 1, spaceId: 'entry'
   return { request: { Request: { Context: { sessionId: id(n), scopeId: id(n), objectiveId: id(n) } },
     SessionContext: { RunId: 'run_' + String(n).repeat(32) }, Observations: [], Receipts: [], ToolDescriptors: [{ Name: 'fixed' }],
     ExecutionContext: { CompletedSteps: [] }, ToolSurface: { PolicySummary: { timeoutMs: 300000, elapsedMs: n, remainingTimeoutMs: 300000 - n } },
-    ContextFrames: [{ Kind: 'agentica.host_context', FrameId: 'host_frame_' + frameHash, Payload: payload, CompactPayload: null, EvidenceRefs: [] }] },
+    ContextFrames: [{ Kind: 'agentica.host_context', FrameId: 'host_frame_' + frameHash, Payload: payload,
+      CompactPayload: { ...structuredClone(payload), currentObservation: { Reference: structuredClone(reference), Data: null } }, EvidenceRefs: [] }] },
     refinementObservation: null };
 }
 const compare = (a, b, pair = plannerPair()) => pair.compare(JSON.stringify(a), JSON.stringify(b));
@@ -39,6 +40,11 @@ test('changed source digest or frame digest is not an allowed opaque identity', 
     if (field === 'FrameId') frame.FrameId = 'host_frame_' + 'f'.repeat(64); else frame.Payload.currentObservation.Reference.ContentHash = 'f'.repeat(64);
     assert.throws(() => compare(a, b), /digest mismatch/);
   }
+});
+test('compact-only timestamp mutation cannot be normalized away', () => {
+  const a = fixture(1), b = fixture(2);
+  b.request.ContextFrames[0].CompactPayload.currentObservation.Reference.ObservedAt = '2026-10-22T00:00:05.000+00:00';
+  assert.throws(() => compare(a, b), /Compact host observation reference mismatch/);
 });
 test('identity reuse across calls cannot become a different identity', () => {
   const pair = plannerPair(); compare(fixture(1), fixture(2), pair);
