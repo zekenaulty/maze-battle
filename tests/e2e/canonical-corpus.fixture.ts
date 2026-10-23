@@ -62,6 +62,8 @@ async function returnAlongReceipts() {
   return receipts;
 }
 const api = { boot, move, branch, collect, returnAlongReceipts, audit: corpusAudit,
+  status: () => ({ status: session.view.status, controlled: session.view.controlled,
+    recoveryRequired: session.view.recoveryRequired ?? false, diagnostics: structuredClone(session.view.diagnostics) }),
   reinitialize: (variant: CorpusVariant) => initializeCorpus(variant, session.owner),
   surface: (traceStorage = false) => corpusSurface(session, traceStorage),
   queries: (recalled: WorldPosition) => corpusQueries(session, recalled),
