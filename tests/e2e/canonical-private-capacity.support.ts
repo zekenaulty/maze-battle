@@ -62,7 +62,9 @@ export async function damagePolicy(fault: PolicyFault) {
   if (next.quota.usedBytes !== base + storedBytes('heads', next.gameId, next)) throw Error('fault accounting did not converge');
   const db = await openCanonicalDatabase();
   try { await db.put('heads', next, next.gameId); } finally { db.close(); }
-  return { head: next, headBytes: storedBytes('heads', next.gameId, next),
+  const actualStoredBytes = (await dump()).bytes;
+  if (actualStoredBytes !== next.quota.usedBytes) throw Error('fault differs from actual all-store charge');
+  return { head: next, actualStoredBytes, headBytes: storedBytes('heads', next.gameId, next),
     charge: fault === 'overbooked' ? privateAdmissionBytes({ ...policy, allocatedBytes: next.quota.limitBytes },
       next.quota.usedBytes, storedBytes('heads', next.gameId, next)) : null };
 }
