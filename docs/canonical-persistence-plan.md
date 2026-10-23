@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 48,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 49,
 2026-10-22. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -772,8 +772,11 @@ The isolated lane's two actual-App outbound/return cases pass without a second
 reload, with exact replay and one pack item. Independent source review found no
 actionable defect. The [integrated frozen 48-case service run](reviews/issue-11-active-recovery-integration.md)
 passes with no failures, skips or retries (2,459.005s).
-Native pre-ACK crashes, lost transfer ACKs and uncertain collection/completion
-delivery remain separate Sprint 3 checks; this is not all recovery qualification.
+The [next integrated recovery increment](reviews/issue-11-preack-capacity-integration.md)
+now passes six actual-App/service cases, including native reload before a
+committed navigation step's ACK and lost transfer acceptance. Accepted-but-lost
+collection/completion deliveries also pass. Separate pre-acceptance
+collection/completion cuts remain under review; this is not all recovery qualification.
 
 [Complete planner input capture](../tests/e2e/canonical-start-service.planner.md)
 is an isolated test-only lane, not a new production context store. Its bounded
@@ -796,8 +799,9 @@ integrated candidate. The bounded payload claims have evidence; overall
 information noninterference is NOT complete because of the capacity defect below.
 
 Two actual-App/service cuts now pass after lost accepted interaction-progress ACK
-and lost accepted completion confirmation. These do not substitute for pre-ACK
-active-navigation crashes, lost transfer ACKs or pre-acceptance result loss.
+and lost accepted completion confirmation. Revision 49's integrated six-case
+increment additionally closes the declared pre-ACK navigation and lost-transfer
+cuts. Neither substitutes for pre-acceptance interaction/completion result loss.
 The three-controller chest-effect cohort passes with independent-review repairs
 for complete inventory conservation and pre-reload checkpoint/root preservation.
 Neither report claims all-controller feature or policy parity.
@@ -810,8 +814,10 @@ passes. A green characterization runner is not a green information gate. The
 [next capacity repair](reviews/issue-11-private-world-capacity-plan.md) separates
 truthful measured occupancy from deterministic private generation allocation;
 its first obligation is a useful, source-derived storage bound. No runtime quota,
-schema, reserve, SDK or old-save behavior changed in this increment. Raw-I/O
-disclosure, the remaining S3 cuts, S5 endurance and S6 final qualification stay
+schema, reserve, SDK or old-save behavior changed in this increment. The next
+checked increment adds pure capacity arithmetic and generated-writer bounds,
+plus exclusive Auto floor batching; those helpers still have no runtime admission
+callers. Raw-I/O disclosure, the remaining S3 cuts, S5 endurance and S6 final qualification stay
 open. Keep the 32-64h planning range provisional rather than automatically crediting
 test counts against a newly demonstrated accounting defect.
 
