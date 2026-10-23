@@ -22,6 +22,20 @@ Merge status: unverified, do not merge without review.
 - The WebGL renderer may eventually be swapped for a richer Maze Quest/Blockforge voxel/instancing renderer; the projection contract should remain separable.
 - This is a first-person room graph visualization, not yet full arbitrary 3D construction or mesh import.
 
+## Convert Maze Quest's scraped six-face block data into a visual reference
+
+The old scraper already records face order and image filenames in the textureMaps JSON files. To create a local 3x2 block schematic (right, left, top / bottom, front, back):
+
+    node scripts/build-block-schematic.mjs --maze-quest ../maze-quest --block oak_log --output local-assets/oak-log-reference.html
+
+Open the generated self-contained HTML in a browser and click Download 3×2 PNG reference. It renders 1536x1024, with six 512x512 face samples. The original input pack and exact face provenance remain local. Do not publish that HTML as an original asset.
+
+Use the downloaded PNG as the OpenAI image edit source:
+
+    node scripts/edit-tile-reference.mjs --input local-assets/oak_log-reference-3x2.png --output local-assets/oak-log-reinterpreted.png --columns 3 --rows 2 --size 1536x1024 --source-label "Maze Quest six-face oak log reference" --dry-run
+
+Remove --dry-run and set OPENAI_API_KEY only when explicitly ready to spend API credits. The generated 3x2 output requires inspection to ensure each face remains a separate square texture and is an original interpretation, not an approximation of the source pixels.
+
 ## Optional OpenAI image-edit operation
 
 The asset authoring script runs in Node only. It posts a human-selected PNG/JPG/WebP visual reference to the OpenAI Images Edit API, asking for an original re-interpretation, not a replication.
@@ -36,7 +50,7 @@ After setting OPENAI_API_KEY outside the source repository, the explicit paid ca
 
 Change model to gpt-image-2.5-sunburst when editing precision matters more than cost or speed. It writes one PNG plus a provenance JSON receipt with prompt, source hash and label, model, output hash, timestamp, rights note, and a review status. No API key is written to that receipt.
 
-The edit endpoint is generative. It cannot guarantee nonderivativeness, mathematically seamless texture edges, pixel-perfect tile-cell counts, or source license compliance. Do not automatically import output into a game asset pack. Verify visually and with repeated-tile previews. Both 1024/columns and 1024/rows must be integers, so grid dimensions are restricted to 1, 2, 4 or 8.
+The edit endpoint is generative. It cannot guarantee nonderivativeness, mathematically seamless texture edges, pixel-perfect tile-cell counts, or source license compliance. Do not automatically import output into a game asset pack. Verify visually and with repeated-tile previews. Output width and height must divide into equal square tiles; GPT Image 2.5 supports custom dimensions within documented constraints. The example six-face schematic uses 1536x1024 divided into 3x2 tiles.
 
 ### Licensing is independent of edit intent
 
