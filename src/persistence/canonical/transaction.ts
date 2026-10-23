@@ -1,7 +1,7 @@
 import { openCanonicalDatabase } from './database';
 import { workBudget } from './budget';
 import { CanonicalPages, type SnapshotValidator } from './pages';
-import { accountHead, appendedBytes } from './accounting';
+import { accountHead, appendedBytes, assertPrivateAdmission } from './accounting';
 import { operationAt, prepareOperation } from './operations';
 import { operationInput, type OperationAction } from './operationValidation';
 import { controlInput, type ControlAction, type ControlIntent } from './controlValidation';
@@ -86,6 +86,9 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     check(sameFence(current, original.expected), 'stale owner or revision'); deadline(original);
     if (operation !== 'cancel' && operation !== 'acknowledge')
       check(current.status === (control?.action === 'resume' || control?.action === 'claim' ? 'stopped' : 'ready'), 'game is stopped or control already applied');
+    // Settlement may carry effects despite releasing reserves. Only these kernel-owned paths bypass fresh policy.
+    const cleanup = operation === 'cancel' || operation === 'acknowledge' || !!control?.recovery;
+    if (!cleanup) assertPrivateAdmission(current, true);
     const change = operation ? await prepareOperation(tx, current, original, operation, budget) : undefined;
     const pages = new CanonicalPages(tx, current, budget);
     let operationFailed = false, pendingOperations = 0, closed = false;
@@ -103,6 +106,9 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
       check(change?.after.ackPolicy === 'verified-host', 'host-linked operation requires verified acknowledgement policy');
     closed = true; check(!operationFailed && pendingOperations === 0, 'operation read is not usable');
     const staged = await pages.prepare(), revision = current.revision + 1;
+    if (cleanup) check(!checkpointChanged && !staged.snapshot && staged.records.length === 0 && staged.nodes.length === 0
+      && Object.entries(staged.roots).every(([area, root]) => root === current.roots[area as keyof typeof current.roots]),
+    'capacity cleanup cannot change gameplay');
     check(!staged.snapshot || !checkpointChanged && !operation, 'snapshot restore cannot mix checkpoint or operation changes');
     if (staged.snapshot) state = checkpoint(staged.snapshot.checkpoint);
     check(integer(revision), 'revision exhausted');
@@ -114,7 +120,9 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     const next = accountHead(current, { ...current, ...controlled, revision, checkpoint: state, roots: staged.roots,
       quota: change?.quota ?? current.quota, allocations: change?.allocations ?? current.allocations },
       appendedBytes(staged.records, staged.nodes, receipt) + (change?.chargedBytes ?? 0),
-      !!control?.recovery || !!change?.released);
+      !!control?.recovery || !!change?.released, cleanup ? 'cleanup' : 'private');
+    if (cleanup) check(Object.hasOwn(next.quota, 'privateCapacity') === Object.hasOwn(current.quota, 'privateCapacity')
+      && JSON.stringify(next.quota.privateCapacity) === JSON.stringify(current.quota.privateCapacity), 'capacity cleanup changed policy');
     if (change?.released) check(next.quota.usedBytes - current.quota.usedBytes <= change.released, 'operation exceeds reserved allowance');
     head(next);
     budget.write(jsonBytes(receipt)); budget.write(jsonBytes(next));

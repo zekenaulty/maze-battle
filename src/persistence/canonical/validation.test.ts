@@ -3,10 +3,11 @@ import { accountHead, storedBytes } from './accounting';
 import { workBudget } from './budget';
 import { checkpoint, head, jsonBytes, request } from './validation';
 import { DEFAULT_QUOTA, type CanonicalHead, type CanonicalRequest } from './types';
+import { emptyPrivateCapacity } from './privateCapacity';
 
 const fixture = (): CanonicalHead => ({ schema: 1, generation: 'generation', gameId: 'game', owner: 'owner', epoch: 1,
   revision: 0, status: 'ready', roots: { world: null, knowledge: null, execution: null }, checkpoint: { floorId: 'floor-1' }, allocations: {},
-  quota: { ...DEFAULT_QUOTA, usedBytes: 0, reservedBytes: 0, reservations: 0 } });
+  quota: { ...DEFAULT_QUOTA, usedBytes: 0, reservedBytes: 0, reservations: 0, privateCapacity: emptyPrivateCapacity() } });
 
 describe('canonical JSON and fences', () => {
   it.each([null, true, false, 0, -0, 1.25, '', 'hello', '\u00e9', '\ud83d\udc80', [], [0], {}, { a: 0 }])('counts exact serialized bytes for %j', value => {

@@ -1,5 +1,6 @@
 import type { DBSchema, IDBPTransaction } from 'idb';
 import type { MemoryNode } from '../rpgMemory/treeTypes';
+import type { PrivateCapacity } from './privateCapacity';
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type JsonObject = { [key: string]: Json };
@@ -12,7 +13,9 @@ export interface CanonicalHead extends OwnerFence {
   roots: Record<RecordArea, string | null>;
   checkpoint: JsonObject;
   allocations: Record<string, { revision: number; bytes: number }>;
-  quota: { usedBytes: number; limitBytes: number; reserveBytes: number; reservedBytes: number; reservations: number };
+  quota: { usedBytes: number; limitBytes: number; reserveBytes: number; reservedBytes: number; reservations: number;
+    // Optional only for inspection/replay/funded cleanup of unusable policy. Fresh work requires it.
+    privateCapacity?: PrivateCapacity };
 }
 export interface CanonicalRecord extends GameIdentity {
   id: string;

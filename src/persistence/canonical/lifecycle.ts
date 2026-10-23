@@ -3,6 +3,7 @@ import { accountHead, appendedBytes } from './accounting';
 import { workBudget } from './budget';
 import { CanonicalPages } from './pages';
 import { requireResetClearance } from './resetGuard';
+import { emptyPrivateCapacity } from './privateCapacity';
 import { CANONICAL_STORES, DEFAULT_QUOTA, type CanonicalHead, type CanonicalWorkLimits, type JsonObject } from './types';
 import { check, checkpoint, head, jsonBytes, marker, validId } from './validation';
 
@@ -40,7 +41,7 @@ async function create(reset: boolean, owner: string, initial: JsonObject, seed: 
     }
     const current: CanonicalHead = { schema: 1, generation, gameId: crypto.randomUUID(), owner, epoch: 1, revision: 0,
       status: 'ready', roots: { world: null, knowledge: null, execution: null }, checkpoint: state, allocations: {},
-      quota: { ...quota, usedBytes: 0, reservedBytes: 0, reservations: 0 } };
+      quota: { ...quota, usedBytes: 0, reservedBytes: 0, reservations: 0, privateCapacity: emptyPrivateCapacity() } };
     head(current);
     const pages = new CanonicalPages(tx, current, budget);
     await seed?.(pages);

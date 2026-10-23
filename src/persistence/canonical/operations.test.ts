@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accountHead } from './accounting';
+import { emptyPrivateCapacity } from './privateCapacity';
 import { operationInput, reservedFor, sealOperation, validateOperation } from './operationValidation';
 import { validateReceipt } from './receipts';
 import { fingerprint, head, request } from './validation';
@@ -7,7 +8,7 @@ import { DEFAULT_QUOTA, MIN_TERMINAL_BYTES, type CanonicalHead, type CanonicalOp
 
 const initial = (): CanonicalHead => ({ schema: 1, generation: 'g', gameId: 'game', owner: 'owner', epoch: 1, revision: 1, status: 'ready',
   roots: { world: null, knowledge: null, execution: null }, checkpoint: {}, allocations: {},
-  quota: { ...DEFAULT_QUOTA, usedBytes: 0, reservedBytes: 0, reservations: 0 } });
+  quota: { ...DEFAULT_QUOTA, usedBytes: 0, reservedBytes: 0, reservations: 0, privateCapacity: emptyPrivateCapacity() } });
 const command = (): CanonicalRequest => ({ attemptId: 'attempt', expected: { generation: 'g', gameId: 'game', owner: 'owner', epoch: 1, revision: 1 },
   operation: 'operation.admit', input: { operationId: 'op', binding: { target: 'room' }, terminalBytes: MIN_TERMINAL_BYTES }, deadlineAt: null });
 const operation = (): CanonicalOperation => sealOperation({ schema: 1, generation: 'g', gameId: 'game', id: 'op', binding: { target: 'room' },
@@ -48,7 +49,7 @@ describe('admitted operation storage contract', () => {
     const current = initial(); current.quota = { ...current.quota, limitBytes: 300_000, reserveBytes: 65_536, reservedBytes: 147456, reservations: 1 };
     current.allocations.op = { revision: 1, bytes: 147456 };
     expect(() => accountHead(undefined, current, 90_000)).toThrow('storage quota');
-    expect(accountHead(undefined, current, 80_000).quota.reservedBytes).toBe(147456);
+    expect(accountHead(undefined, current, 70_000).quota.reservedBytes).toBe(147456);
   });
 });
 
