@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 50,
-2026-10-22. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 51,
+2026-10-23. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
@@ -599,11 +599,16 @@ without separate limits/authorization. Issue #11 is not complete.
 
 ## Finite Goal Closeout
 
-2026-10-22 progress checkpoint: **Sprint 1 is complete at its declared bounded
-evidence level**; Sprints 2-6 remain open. Independent reconciliation at
-`bbdadf1` found no additional Sprint-1-specific claim. The revised remaining
-range is **32-64 focused hours**, not a restarted 40-80-hour budget. The original
-planning checkpoint and its uncertainty remain below. No native >64-step proof
+2026-10-23 progress checkpoint: **Sprints 1 and 3 are complete at their declared
+bounded evidence levels**; Sprints 2, 4, 5 and 6 remain open. Independent
+reconciliation at `bbdadf1` found no additional Sprint-1-specific claim; the
+[S3 matrix audit](reviews/issue-11-recovery-matrix.md) accounts for its eight
+distinct new recovery cuts and retained takeover/duplicate/cleanup proofs.
+The [capacity kernel increment](reviews/issue-11-capacity-kernel-integration.md)
+passes focused/native gates but does not yet bind generation allocations.
+The revised remaining range is **28-56 focused hours**, not a restarted budget.
+The original planning checkpoints and their uncertainty remain below.
+No native >64-step proof
 or impossibility theorem is implied: the declared alternative is the retained
 128-seed representability search and its explicit limitation.
 [Earned room/connection queries](reviews/issue-11-earned-graph.md) add
@@ -667,10 +672,42 @@ candidate at a time. Checked increments continue to be committed and pushed.
 | --- | --- | ---: |
 | 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
 | 2. Information boundaries | Retain passing scoped-query, navigation/history, UI and complete-planner-frame evidence. Finish exact wire/status/diagnostic composition through the first lawful A/B observation difference. Preserve raw traces; do not require equal physical timing. Capacity and command-work thresholds are Sprint 4. | 2-4h |
-| 3. Active-work recovery | Declared outbound/return, pre-ACK/transfer, and accepted/unaccepted collection/completion cuts now pass in integrated focused runs. Reconcile these with existing takeover, duplicate, capacity and funded-cleanup evidence; close only actual gaps in the declared matrix. The full candidate rerun belongs to Sprint 6. | 2-4h |
-| 4. Capacity, work and controller parity | Wire and qualify deterministic allocation provenance, atomic preparation charging, truthful occupancy and policy-independent funded cleanup. Close the reproduced quota threshold FAIL and separately qualify command-work/diagnostic exposure. Retain the checked shared chest-effect and exclusive Auto-batch proofs. No policy bleed into manual or agent authority. | 14-28h |
+| 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. The final combined rerun belongs to Sprint 6. | Complete |
+| 4. Capacity, work and controller parity | Kernel admission and narrowly funded cleanup now have focused/native proof. Bind deterministic allocation provenance and atomic initialization/preparation charging, retain truthful occupancy, then close the reproduced quota threshold FAIL. Separately qualify command-work/diagnostic exposure. Retain shared chest-effect and exclusive Auto-batch proofs; no Auto policy bleed into manual or agent authority. | 12-24h |
 | 5. Generated-world endurance | Declare a small generated-layout cohort, shallow/deep retained topology samples and a larger fixed-depth history sample than the existing 128 moves. Prove paged known-room/connection graph retrieval across multiple pages and bounded underlying reads/payloads as topology grows. Include active Agentica/two-tab recovery, actual IndexedDB I/O/latency, and preserved old records/receipts, not unchanged current knowledge roots. | 6-12h |
 | 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
+
+Execution order: finish S2's evidence composition while S4's domain allocation
+work proceeds in an isolated lane; integrate and qualify S4 before S5. S6 freezes
+one integrated candidate after review. Parallel review/fixtures can shorten the
+critical path, but dependency-sensitive integration and shared-port suites remain
+serialized. Do not replace these gates with another unrestricted test matrix.
+
+### Closing Test Manifest
+
+| Gate | Required final observation |
+| --- | --- |
+| Information | Authored A/B current-room/map/quest/objective/history queries, planner inputs, wire/status/diagnostics and human fog/UI stay equivalent through the common earned prefix; the first difference has legitimate observed evidence. Raw physical timing need not match. |
+| Capacity | Actual A/B admission at common threshold neighbors no longer depends on private construction bytes. Initialization/preparation provenance, no double allocation/consumption, exact retry/reload/restore, truthful native byte accounting, invalid-policy refusals and funded Stop/cancel/verified ACK all pass. |
+| Shared gameplay | Manual, Auto and agent effects use the same explicit interaction command; movement alone never opens a chest. Existing ordinary quest collection/earned return and known-destination tests remain green, without adding full guild reward or combat policy. |
+| Endurance | Fixed generated shallow/deep topology samples, a larger fixed-depth action history, repeated surface returns, multi-page room/connection recall and active two-tab Agentica recovery preserve immutable sources and changed gameplay. Instrument native reads/writes/logical bytes/latency/growth; ordinary moves do not scan or rewrite history. |
+| Recovery | Rerun the declared eight-cut collection/navigation/completion matrix plus existing takeover, exact duplicate, quota and funded cleanup regressions on the final build. No new start or duplicated effect may replace original-attempt reconciliation. |
+| Build and review | Clean locked installation, full unit suite, production and affected fixture types, production build, affected native suites, full actual-service suite and desktop/portrait UI/controls pass on recorded source/runtime identities. Preserve every failure and explain any existing optional skip. |
+
+The recorded complete service baseline is 48 cases; later focused cuts and the
+new capacity fixtures must be collected into the final manifest without adding
+overlapping counts. Freeze the exact discovered test list with the candidate.
+Do not treat the historical 4,783-unit pass, the current 98-unit/83-native/16-native
+passes, or an individual agent's report as that final combined result.
+
+After S6, publish one acceptance report mapping D0/D1, A0-A3 and Q to evidence,
+including this issue's normalized persistence, backtracking, bounded local work,
+reset and dead-writer-removal requirements. This completes the **provider-free
+bounded noncombat vertical** only if every mandatory gate passes. A separately
+authorized live-model A/B gate still must measure actual choices, tools, cost,
+latency and completion; it cannot be silently replaced by an offline planner.
+Combat, full RPG parity, general mechanism causality, compaction and unlimited
+world coverage are later goals, not additions to these remaining sprints.
 
 Already checked evidence is reused at its declared level: authored A/B explicit
 collection/earned return; before/after-collection settled-boundary quota/reload;
@@ -777,8 +814,9 @@ now passes six actual-App/service cases, including native reload before a
 committed navigation step's ACK and lost transfer acceptance. Accepted-but-lost
 collection/completion deliveries also pass. The [pre-acceptance integration](reviews/issue-11-preacceptance-integration.md)
 then passes both earlier delivery cases and both unaccepted delivery cuts on
-one frozen candidate. Recovery-matrix reconciliation and final-candidate regression
-remain; these focused passes are not all-goal qualification.
+one frozen candidate. The [independent matrix reconciliation](reviews/issue-11-recovery-matrix.md)
+now finds no additional missing cut in declared S3. Final-candidate regression
+remains; these focused passes are not all-goal qualification.
 
 [Complete planner input capture](../tests/e2e/canonical-start-service.planner.md)
 is an isolated test-only lane, not a new production context store. Its bounded
@@ -820,9 +858,10 @@ its first obligation is a useful, source-derived storage bound. No runtime quota
 schema, reserve, SDK or old-save behavior changed in this increment. The next
 checked increment adds pure capacity arithmetic and generated-writer bounds,
 plus exclusive Auto floor batching; those helpers still have no runtime admission
-callers. Raw-I/O disclosure, S3 matrix reconciliation, S5 endurance and S6 final qualification stay
-open. Keep the 32-64h planning range provisional rather than automatically crediting
-test counts against a newly demonstrated accounting defect.
+callers at that revision. Revision 51 adds the checked kernel admission/cleanup
+gate, not allocation binding, and closes S3's matrix reconciliation. Raw-I/O
+disclosure, domain capacity repair, S5 endurance and S6 qualification stay open.
+Do not automatically credit test counts against a demonstrated accounting defect.
 
 The revised 32-64 hours are remaining implementation, review, integration and
 debugging effort, not suite runtime or a commitment to unattended wall-clock
@@ -837,6 +876,16 @@ remaining allowance; demonstrated capacity failure and separate work-budget
 exposure now dominate the risk. Re-estimate when Sprint 4's native admission and
 funded-cleanup gates pass, naming any newly discovered defect that changes it.
 Do not silently add features or expand the matrix to every possible combination.
+
+2026-10-23 re-estimate after the native kernel gate: **28-56 remaining focused
+hours**, comprising S2 2-4h, S4 12-24h, S5 6-12h and S6 8-16h. The 4-8h reduction
+from revision 50 credits the completed 2-4h S3 reconciliation and 2-4h kernel
+admission/cleanup increment, not unimplemented allocation binding. Plan around
+four to eight eight-hour working days; retain eight to twelve working days as
+defect contingency. These are engineering effort ranges, not a promise of
+unattended overnight completion. Capacity repair is the dominant uncertainty;
+re-estimate after its original A/B FAIL becomes PASS and the generated endurance
+sample runs. Record any new blocker rather than expanding the finish line.
 
 1. Retain the checked integrated memory/room-map and authored scoped-room journey
    evidence. Close the remaining declared representability/topology boundaries
