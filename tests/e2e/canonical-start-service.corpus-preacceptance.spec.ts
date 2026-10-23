@@ -140,6 +140,8 @@ for (const cut of ['progress', 'completion'] as const) {
       expect(final.head.quota).toMatchObject({ reservations: 0, reservedBytes: 0,
         limitBytes: before.head.quota.limitBytes, reserveBytes: before.head.quota.reserveBytes });
       expect(reconciled.original).toEqual(admitted.original); expect(reconciled.binding).toEqual(admitted.binding);
+      expect(reconciled.root.guard.id).toBe(admitted.root.guard.id);
+      expect(reconciled.root.guard.admissionAttemptId).toBe(admitted.root.guard.admissionAttemptId);
       expect(reconciled.operation.progress).toEqual(admitted.operation.progress);
       expect(reconciled.terminal.event).toEqual(admitted.terminal.event);
       for (const kind of ['root', 'operation'] as const) {
