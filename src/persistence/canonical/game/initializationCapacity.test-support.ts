@@ -44,7 +44,7 @@ export async function measureBirth(pattern: UUIDPattern, seed: number, wide: boo
     await createWorldFloor(baseline, floor.generation.recipe);
     await baseline.set('world', 'game/preparation/1', { schema: 1, level: 1, phase: 'generation' });
     return { complete, baseline: await baseline.prepare(), recipe: floor.generation.recipe,
-      stats: budget.snapshot(), flushes, current };
+      stats: budget.snapshot(), flushes, current, tx };
   } finally { initialize.mockRestore(); random.mockRestore(); ids.mockRestore(); }
 }
 
