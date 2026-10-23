@@ -67,3 +67,25 @@ This repairs logical-capacity disclosure, not physical disk exhaustion or equal
 wall-clock timing. Separate actor-visible raw-I/O/cost disclosure remains part
 of Sprint 4. Do not relabel operational counters as equal, silently suppress
 the reproduced failure, or pad the two authored fixtures to make them match.
+
+## Arithmetic Foundation (2026-10-22 Local)
+
+`privateCapacity.ts` now implements pure reserve/consume/close validation and
+admission arithmetic, with 21 passing unit tests. It has NO runtime callers and
+does not repair the reproduced quota failure yet. No schema, quota limit, recovery
+reserve, ordinary admission or owner database changed.
+
+The aggregate preserves unused closed allocations and replaces actual head size
+with one 12-KiB admission allowance; raw occupancy stays a separate input. Tests
+cover equal admission at threshold neighbors and decimal-width transitions,
+ordinary-write charges, invalid/overlapping reservations and unsafe values. A
+large bounded head fixture occupies 8,648 bytes under that allowance; runtime
+must enforce the head bound rather than assuming every future shape fits.
+
+Independent review found intermediate rounding near `2**52`: two equally charged
+states differed by one byte when adding allocation before subtracting consumption.
+The retained regression failed first (20 PASS / 1 FAIL); subtracting consumption
+from allocation first now passes all 21 tests. This is an arithmetic repair,
+not native storage, allocation provenance or information-boundary qualification.
+Parent affected service/driver units plus these tests pass 78/78; root and service
+fixture types pass. Runtime integration and the complete exit evidence above remain.
