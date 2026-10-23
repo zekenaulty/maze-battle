@@ -5,9 +5,10 @@ import { emptyPrivateCapacity } from '../../src/persistence/canonical/privateCap
 import { MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES } from '../../src/persistence/canonical/types';
 import { storageProbe } from './storage-probe';
 import * as support from './canonical-private-capacity.support';
+import { rootOnlyCleanupFault } from './canonical-private-capacity.fault';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5440') throw Error('Isolated private-capacity fixture only');
 const api = { ...transaction, ...reader, ...support, openCanonicalDatabase, emptyPrivateCapacity,
-  MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES, storageProbe };
+  MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES, storageProbe, rootOnlyCleanupFault };
 declare global { interface Window { privateCapacityFixture: typeof api } }
 window.privateCapacityFixture = api;

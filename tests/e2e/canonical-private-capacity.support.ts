@@ -29,7 +29,7 @@ export async function dump() {
   } finally { db.close(); }
 }
 
-export async function seed() {
+export async function seed(ackPolicy?: 'verified-host') {
   const genesis = await initializeCanonical('capacity-owner', { sentinel: 'original checkpoint' }, async pages => {
     await pages.set('world', 'fixture/world', { unchanged: true });
     await pages.set('knowledge', 'fixture/known', { source: 'earned fixture' });
@@ -40,7 +40,8 @@ export async function seed() {
     await tx.pages.set('world', 'fixture/effect', { count: 1 }); return { count: 1 };
   });
   const admission = command(await current(), 'operation.admit', { operationId: 'funded-original',
-    binding: { source: effect.attemptId, target: 'fixture-known' }, terminalBytes: MIN_TERMINAL_BYTES });
+    binding: { source: effect.attemptId, target: 'fixture-known' }, terminalBytes: MIN_TERMINAL_BYTES,
+    ...(ackPolicy ? { ackPolicy } : {}) });
   const admitted = await operateCanonical(admission, 'admit', async () => ({ admitted: true }));
   return { genesis: genesis.head, effect, committed, admission, admitted };
 }

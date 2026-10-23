@@ -46,10 +46,12 @@ for (const fault of faults) test(`${fault}: adoption refuses with otherwise vali
   expect(r.result.after).toEqual(r.result.before); expect(r.result.before.bytes).toBe(r.damaged.head.quota.usedBytes);
 });
 
-for (const fault of faults) test(`${fault}: expired receipt-first replay survives reload and refuses altered identity`, async ({ page }, info) => {
+for (const fault of faults) test(`${fault}: expired receipt-first replay survives custody change and reload`, async ({ page }, info) => {
   const saved = await page.evaluate(async fault => {
     const c = window.privateCapacityFixture, original = await c.seed(), damaged = await c.damagePolicy(fault);
-    return { original, damaged, before: await c.dump() };
+    const takeover = c.command(damaged.head, 'control.takeover', { owner: 'replay-owner' });
+    const taken = await c.controlCanonical(takeover, 'takeover');
+    return { original, damaged, taken, before: await c.dump() };
   }, fault);
   await page.reload(); await page.waitForFunction(() => !!window.privateCapacityFixture);
   const r = await page.evaluate(async wire => {
@@ -65,6 +67,8 @@ for (const fault of faults) test(`${fault}: expired receipt-first replay survive
     } finally { Date.now = now; }
   }, JSON.stringify(saved));
   await info.attach('exact-replay.json', { body: JSON.stringify({ saved, r }, null, 2), contentType: 'application/json' });
+  expect(saved.taken.head).toMatchObject({ owner: 'replay-owner', status: 'stopped', epoch: saved.damaged.head.epoch + 1 });
+  expect(saved.original.effect.expected.owner).not.toBe(saved.taken.head!.owner);
   expect(r.called).toBe(0); expect(r.effect.replayed).toBe(true); expect(r.admission.replayed).toBe(true);
   expect(r.effect.receipt).toEqual(saved.original.committed.receipt); expect(r.admission.receipt).toEqual(saved.original.admitted.receipt);
   expect(r.after).toEqual(saved.before); expect(r.conflict.after).toEqual(r.conflict.before);
