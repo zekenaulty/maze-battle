@@ -138,8 +138,10 @@ export function useAgenticaRecovery({ controller, game, controlled, onAdopt, onR
         assertAlive(s); patch(s, { pendingSelection });
       } else {
         if (!view.pendingSelection) throw new Error('Inspect the selected action first.');
-        await reconcileGamePendingAction(...args, view.pendingSelection, options); assertAlive(s);
-        patch(s, { service: 'Action reconciled as unavailable. Root and session clearance remain unknown.' });
+        const result = await reconcileGamePendingAction(...args, view.pendingSelection, options); assertAlive(s);
+        patch(s, { service: result.result.completion
+          ? 'Action reconciled with retained completion. Root and session clearance remain unknown.'
+          : 'Action reconciled as unavailable. Root and session clearance remain unknown.' });
         await load(s);
       }
     });

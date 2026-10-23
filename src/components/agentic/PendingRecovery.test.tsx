@@ -29,7 +29,7 @@ beforeEach(() => {
     game: exploreView(), controlled: true };
   m.list.mockImplementation(async () => inventory()); m.inspect.mockResolvedValue(claimed);
   m.pending.mockResolvedValue({ items: [item], nextAfterActionId: null }); m.exact.mockResolvedValue(selected);
-  m.reconcile.mockResolvedValue({ status: 'action-reconciled' });
+  m.reconcile.mockResolvedValue({ status: 'action-reconciled', result: { disposition: 'unavailable' } });
   vi.stubGlobal('fetch', vi.fn()); vi.stubGlobal('WebSocket', vi.fn());
 });
 afterEach(() => {
@@ -39,6 +39,14 @@ afterEach(() => {
 });
 
 describe('explicit claimed-run action recovery UI', () => {
+  it('reports retained completion reconciliation without claiming root or session clearance', async () => {
+    m.reconcile.mockResolvedValue({ status: 'action-reconciled', result: { disposition: 'applied', completion: { evidenceId: 'original' } } });
+    mount(); await select(); expect(m.reconcile).not.toHaveBeenCalled();
+    await click('Reconcile pending action');
+    await screen.findByText('Action reconciled with retained completion. Root and session clearance remain unknown.');
+    expect(screen.getByText('Session clearance').nextElementSibling).toHaveTextContent('Unknown');
+    expect(m.reconcile).toHaveBeenCalledOnce();
+  });
   it('discovers the claimed parent after both allocations and selected predecessor are gone', async () => {
     m.list.mockResolvedValue({ ...inventory(), allocations: [], selected: null, claimed: detail.candidate });
     mount(); await screen.findByText('Claimed parent'); await select();
@@ -104,7 +112,7 @@ describe('explicit claimed-run action recovery UI', () => {
       const control = screen.getByRole('button', { name }); expect(control).toBeDisabled(); fireEvent.click(control);
     }
     expect(m.reconcile).toHaveBeenCalledOnce(); expect(m.pending).toHaveBeenCalledOnce(); expect(m.exact).toHaveBeenCalledOnce();
-    await act(async () => pending.resolve({ status: 'action-reconciled' }));
+    await act(async () => pending.resolve({ status: 'action-reconciled', result: { disposition: 'unavailable' } }));
   });
 
   it.each(['close', 'lifetime', 'game'])('invalidates selected action and late replies on %s', async changed => {

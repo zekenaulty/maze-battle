@@ -18,7 +18,6 @@ export async function pendingRecoveryContext(expected: OwnerFence, candidate: Re
   const { claim, grant, terminal } = view.value, { launch, start, active } = terminal.bound;
   check(claim && equal(claim.reference, detail.claim.reference) && equal(claim.data, detail.claim.data)
     && equal(claim.decision.reference, detail.decision.reference), 'pending recovery retained claim changed');
-  check(!grant, 'pregrant successor was granted');
   check(active?.id === detail.launchId && launch.binding.launchId === detail.launchId
     && active.sourceAttemptId === launch.guard.admissionAttemptId, 'pending recovery root changed');
   check(launch.guard.terminal?.disposition === 'cancelled', 'stop the root before pending recovery');
@@ -26,11 +25,13 @@ export async function pendingRecoveryContext(expected: OwnerFence, candidate: Re
   check(sameFence(expected, stop.head) && stop.value.admissionAttemptId === launch.guard.admissionAttemptId
     && stop.value.guardId === launch.guard.id, 'pending recovery cancellation changed');
   const { started } = claim.data;
+  check(!grant || equal(grant.started, started), 'pending recovery successor grant changed');
   check(start.hostId === 'maze-battle' && started.sessionId === start.sessionId
     && started.runId !== launch.run?.value.data.started.runId, 'pending recovery successor identity changed');
   const run: PendingRecoveryRun = { hostId: start.hostId, sessionId: started.sessionId,
     sessionEpoch: started.sessionEpoch, runId: started.runId };
   const anchor = { run, claim: detail.claim, parent: detail.action, start, endpoint: launch.binding.endpoint,
-    launchId: detail.launchId, admission: launch.guard.admissionAttemptId, cancellation: stop.value.terminal.source.attemptId };
-  return { identity, start, run, endpoint: launch.binding.endpoint, anchor };
+    launchId: detail.launchId, admission: launch.guard.admissionAttemptId, cancellation: stop.value.terminal.source.attemptId,
+    grant: grant?.record.ref ?? null };
+  return { identity, start, run, endpoint: launch.binding.endpoint, anchor, completion: !!grant };
 }
