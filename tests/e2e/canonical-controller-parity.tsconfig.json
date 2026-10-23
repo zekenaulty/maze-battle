@@ -1,0 +1,1 @@
+{ "extends": "../../tsconfig.json", "include": ["canonical-controller-parity*.ts", "canonical-controller-parity*.tsx"] }
