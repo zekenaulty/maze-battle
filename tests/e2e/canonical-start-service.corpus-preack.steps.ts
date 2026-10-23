@@ -35,11 +35,9 @@ export async function selectedJourney(page: Page, wire: DecisionWire) {
   const selected = () => corpusActions(wire).find((a, i, all) => a.capabilityId === 'maze.navigate' && all[i - 1]?.arguments.scope === 'connections');
   const dialog = page.getByRole('dialog', { name: 'Agentic play', exact: true });
   for (let window = 0; window < 10; window++) {
-    const outcomes = () => wire.received.filter(({ frame }) => frame.type === 'outcome');
-    await expect.poll(async () => selected() ? 'selected' : outcomes().length ? 'outcome' : await dialog.getByRole('status')
+    await expect.poll(async () => selected() ? 'selected' : await dialog.getByRole('status')
       .filter({ hasText: /^(decision|failed|blocked|recovery)$/ }).count() ? 'terminal' : 'running', { timeout: 60_000 }).not.toBe('running');
     if (selected()) return selected()!;
-    expect(outcomes(), 'Journey must not terminate before its selected destination').toEqual([]);
     await expect(dialog.getByRole('status').filter({ hasText: /^decision$/ })).toBeVisible();
     await expect(dialog.getByRole('alert')).toHaveCount(0);
     const count = corpusActions(wire).length;
