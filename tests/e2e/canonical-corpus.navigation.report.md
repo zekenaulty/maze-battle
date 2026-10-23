@@ -2,9 +2,10 @@
 
 2026-10-22 local. Base `07114dc6920e47a8cdf5f43de6ee6ea5a756df89`, branch
 `codex/corpus-navigation-disclosure`, isolated quest-context-boundary worktree.
-**PARTIAL: 1 native PASS / 1 native FAIL.** The failure is a reproduced production
-source-reader defect, not skipped or expected-failure. Production/SDK files are
-unchanged. This increment does not close Sprint 2 or claim final qualification.
+Initial commit `e35b76e`: **PARTIAL: 1 native PASS / 1 native FAIL**, reproducing a
+production source-reader defect without production/SDK edits. The authorized
+identity repair below now passes **2/2 native cases**. The separate storage-work
+delta remains unresolved; neither increment claims final goal qualification.
 
 ## Method
 
@@ -58,7 +59,7 @@ their own counters are separately retained. These are not physical-disk metrics.
   reservations and reserved bytes. Maximum observed result/observation/event:
   **1502 / 1113 / 892 bytes**, below unchanged 4096 / 2800 / 4096 caps.
 
-## Reproduced Blocker
+## Initial Reproduced Blocker
 
 The zero-step navigation legitimately arrives with sequence/steps zero, retains
 custody, settles, selects its successor and ACKs the predecessor. Its first
@@ -71,10 +72,10 @@ attachment retains confirmation attempt `336dcc42-8d80-4d06-8d7c-2ed7538968ae`
 and probe `custody-336dcc42-8d80-4d06-8d7c-2ed7538968ae` with their original witness.
 No synthetic event or forced advance was inserted to avoid this branch.
 
-The remaining requested S2 claim is **nonempty immediate history at the unmoved
+At `e35b76e` the remaining requested claim was **nonempty immediate history at the unmoved
 initial checkpoint**. The source reader needs exact kind-appropriate probe ID
 validation; the existing progress/transfer checks must not be relaxed. This lane
-reports the defect and leaves the positive regression failing for the runtime owner.
+reported the defect and left the positive regression failing pending authorization.
 
 ## Separate Work Difference
 
@@ -118,3 +119,62 @@ errors were corrected before the final run; runtime guards and limits were not.
 
 No existing query/UI/planner-frame cohort was rerun or relabeled as new proof.
 No paid provider, actual service, parent edit, merge, push or goal completion.
+
+## Checked Custody Identity Repair
+
+Follow-up directly after `e35b76e`, 2026-10-22 local. The sole production change is
+the final identity check in `decision.query.source.ts`: a `probe` must have exactly
+`custody-${source.attemptId}`; progress and transfer still require the bare exact
+attempt ID. No alternate ID, normalization, changed receipt or compatibility path.
+
+The full binding remains layered: confirmation loading validates the original
+action/grant/publication, admission/result, operation, custody epoch/owner, command
+input and exact producer-generated probe. Historical query validates the selected
+action's confirmation key, immutable row ID/revision/complete receipt witness and
+confirm source operation. Replay additionally binds the reserved query publication,
+successor grant, original intent, terminal settlement operation/attempt, generation,
+game, event identities and sequence. It reads retained evidence, not current sight
+or live custody. None of these checks or budgets changed.
+
+The old unit fixture incorrectly fabricated a bare-ID, sequence-two probe. It now
+uses `operationCustodyProbe` and a genuine sequence-one/zero-step probe followed by
+a sequence-two terminal. Fifteen focused tests cover exact positive query/replay,
+bare/foreign/double-prefixed IDs, wrong action/row/revision/command/witness/missing
+receipt, wrong publication/operation/terminal source, and rejection of a custody
+prefix on progress/transfer. Semantically invalid candidates with valid fixture
+witnesses exercise identity checks independently of byte-tamper rejection. Upstream
+authority/terminal mocks remain explicitly unit-fixture boundaries; native runs use
+the real canonical validators.
+
+The positive unit test failed before the runtime edit with the exact native error;
+`test-results/corpus-navigation-probe-red.json` retains this targeted red run
+(one failure, fourteen intentionally unselected tests). After repair: **217/217
+affected units**, eleven files, 3.03s; **11/11 corpus units**, 1.81s; production,
+navigation-fixture and corpus-fixture typechecks all PASS. Reports:
+`test-results/corpus-navigation-repair-units.json` and
+`test-results/corpus-navigation-repair-corpus-units.json`.
+
+```powershell
+$env:MAZE_CORPUS_NAVIGATION_RUN='corpus-navigation-custody-repaired'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-corpus.navigation.config.ts
+node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-corpus.navigation.unit.config.ts src/persistence/canonical/agentica/decision.query src/persistence/canonical/agentica/operation.probe.test.ts src/persistence/canonical/agentica/operation.records.test.ts src/persistence/canonical/agentica/operation.wire.test.ts src/persistence/canonical/agentica/decision.claim.test.ts src/persistence/canonical/agentica/decision.interaction.test.ts src/persistence/canonical/agentica/terminal.base --reporter=default --reporter=json --outputFile=test-results/corpus-navigation-repair-units.json
+```
+
+Native **2 PASS**, zero skips/retries/flaky cases, 62.001s, starting
+`2026-10-23T01:33:16.947Z`; zero case 34.927s, nonzero case 24.227s. Raw evidence:
+`test-results/corpus-navigation-custody-repaired/results.json`. Zero-step history
+preserves the originally failing `custody-336dcc42-8d80-4d06-8d7c-2ed7538968ae`,
+operation `travel-ddfddeed82f9224822904c76879495b6656b21ff2e232777bbc193029fda5e59`
+and terminal attempt `eae56f47-88ee-47ef-92dc-92100a5be5d0`, without forced progress.
+Its three historical replays after later sight use 36/38/37 reads,
+79,112/65,903/65,091 bytes, zero writes, with exact full-DB equality in both worlds.
+Missing/inconsistent source refusals and original root Stop/ACK pass in both cases.
+Maximum result/observation/event sizes are **1523/1131/923 bytes**.
+
+Step-zero work and output match exactly. At step six the same four 432/433-byte
+connection reads persist: zero-first trajectory 29,688,731/29,688,735 bytes;
+independent nonzero trajectory 14,139,822/14,139,826. No raw delta was removed or
+normalized. Continuation/query work and actor output equality still pass; step-seven
+ordinary sight differs lawfully. Storage-work repair remains parent-owned. Strict
+5456 shut down and 5457 stayed unused. No production limits, SDK, service or native
+assertions changed; no paid calls, push, parent edits or broader qualification.

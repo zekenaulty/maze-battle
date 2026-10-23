@@ -11,6 +11,7 @@ import { interactionDecisionFixture } from './decision.interaction.test-support'
 import { eventKey } from './event.records';
 import { assertLaunchGrant } from './launch.grant';
 import { loadOperationBinding } from './operation.binding';
+import { operationCustodyProbe } from './operation.probe';
 import { retainPublication, readPublication } from './publication';
 import { readRunGrantCertificate } from './run-grant.certificate';
 import type { RunGrant, SuccessorGrant } from './run-grant.types';
@@ -45,7 +46,9 @@ export async function decisionQueryFixture(options: { initial?: boolean; adopted
   const sourceKind = options.source ?? 'progress';
   const source = request(sourceKind === 'progress' ? 'navigation.advance'
     : sourceKind === 'transfer' ? 'agentica.operation.transfer' : 'agentica.operation.confirm', { action: f.identity.storageKey }, 17);
-  const previous: HostOperationEvent = { ...structuredClone(f.terminal.event), kind: sourceKind === 'transfer' ? 'transfer' : 'progress',
+  const previous: HostOperationEvent = sourceKind === 'probe'
+    ? operationCustodyProbe(f.terminal.bound.start.hostId, f.identity.action, f.terminal.bound.result, source.attemptId)
+    : { ...structuredClone(f.terminal.event), kind: sourceKind === 'transfer' ? 'transfer' : 'progress',
     sequence: 2, eventId: source.attemptId, observation: { observationId: `event-${source.attemptId}`, revision: 18,
       observedAt: '2026-10-17T23:00:00.000Z', data: { scope: 'actor', source: material.source,
         navigation: { status: 'arrived', reason: 'material-discovery', notice: material },
@@ -62,6 +65,8 @@ export async function decisionQueryFixture(options: { initial?: boolean; adopted
     : sourceKind === 'transfer' ? { transferIntent: { ...anchor, witness: canonicalJson(eventRow) }, transferTip: {} }
     : { agenticaOperation: { ...anchor, recordWitness: canonicalJson(eventRow) } });
   Object.assign(f.terminal.bound, { progress: { sequence: sourceKind === 'probe' ? 0 : 1 } });
+  f.terminal.event.sequence = previous.sequence + 1;
+  if (sourceKind === 'probe') f.terminal.event.usage = { steps: 0 };
   f.terminal.event.observation = structuredClone(previous.observation);
   if (sourceKind === 'transfer') Object.assign(f.terminal, { transfer: { reference: anchor, data: { navigationSequence: 1, event: previous } } });
   if (sourceKind === 'probe') f.terminal.confirmed!.reference = anchor;

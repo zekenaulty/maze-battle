@@ -38,6 +38,7 @@ export async function readDecisionObservation(pages: ProtocolRead, input: Decisi
   }
   const event = snapshotJson(anchor.kind === 'probe' ? data.probe : data.event) as HostOperationEvent;
   jsonBytes(event, MAX_EVENT_BYTES);
-  check(event.eventId === source.attemptId, 'historical observation event changed');
+  const eventId = anchor.kind === 'probe' ? `custody-${source.attemptId}` : source.attemptId;
+  check(event.eventId === eventId, 'historical observation event changed');
   return { event, source, revision: row.revision };
 }
