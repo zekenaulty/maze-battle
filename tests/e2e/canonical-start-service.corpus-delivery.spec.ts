@@ -2,6 +2,7 @@ import { test, expect, serviceProof } from './canonical-start-service.decision.t
 import { corpusActions, corpusEffects, reachChestBoundary, startCorpus } from './canonical-start-service.corpus-recovery.steps';
 import { custody, domain, fault, onePackItem, reloadRecovery, replay, results } from './canonical-start-service.corpus-delivery.steps';
 import type { DeliveryFault } from './canonical-start-service.corpus-delivery.fault';
+import { assertSingleCompletionAttempt, assertSingleProgressDelivery } from './canonical-start-service.corpus-delivery.checks';
 
 test.use({ freshCorpus: true });
 
@@ -72,6 +73,7 @@ for (const cut of ['interaction progress', 'completion confirmation'] as const) 
         expect(lost!.sent[0]).toMatchObject({ body: admitted.terminal.previous });
         expect(lost!.withheld[0]).toMatchObject({ status: 200 });
       } else {
+        assertSingleCompletionAttempt(lost!);
         expect(lost!.withheld).toEqual(expect.arrayContaining([
           expect.objectContaining({ type: 'action.accepted' }), expect.objectContaining({ type: 'outcome' }),
         ]));
@@ -81,6 +83,8 @@ for (const cut of ['interaction progress', 'completion confirmation'] as const) 
       onePackItem(before);
       for (const field of ['inventory', 'stash', 'quest', 'chest'] as const) expect(before[field]).toEqual(applied[field]);
       const counters = await serviceProof(), sent = structuredClone(wire.sent), actions = corpusActions(wire);
+      lost = await fault(page); stages.fault = lost;
+      if (cut === 'completion confirmation') assertSingleCompletionAttempt(lost!);
       const recovery = await reloadRecovery(page, wire), reloaded = await effects(); stages.reloaded = reloaded;
       expect(domain(reloaded)).toEqual(domain(before));
       expect(await results(page, actions)).toEqual(retained);
@@ -103,8 +107,6 @@ for (const cut of ['interaction progress', 'completion confirmation'] as const) 
         await expect(page.getByRole('region', { name: 'Original action inspection' })).toContainText(interaction.actionId);
         await recovery.getByRole('button', { name: 'Reconcile interaction', exact: true }).click();
         await expect(recovery.getByRole('status').filter({ hasText: /acknowledged/i })).toBeVisible();
-        expect(wire.http.filter(request => new URL(request.url).pathname === '/api/operations/events'
-          && JSON.stringify(request.body) === JSON.stringify(admitted.terminal.previous))).toHaveLength(1);
       } else {
         await recovery.getByRole('button', { name: 'Check service', exact: true }).click();
         await expect(recovery.getByRole('status').filter({ hasText: /Original root is (retained|settled)/ })).toBeVisible();
@@ -133,6 +135,7 @@ for (const cut of ['interaction progress', 'completion confirmation'] as const) 
       expect(await serviceProof()).toEqual(counters); expect(counters.paidProviderCalls).toBe(0);
       expect(wire.sent).toEqual(sent); expect(corpusActions(wire)).toEqual(actions);
       expect(wire.sent.filter(frame => frame.type === 'start.durable')).toHaveLength(1);
+      if (cut === 'interaction progress') assertSingleProgressDelivery(wire.http, admitted.terminal.previous!);
       stages.counters = counters;
     } finally {
       await info.attach('corpus-delivery-proof.json', { body: JSON.stringify({ ...stages, fault: lost ?? await fault(page).catch(String),

@@ -2,6 +2,7 @@ import type { AgenticaMessage } from '../../src/services/agentica/sdk/agentica-h
 
 export interface DeliveryFault {
   kind: 'progress' | 'completion';
+  completionAttempts: AgenticaMessage[];
   sent: unknown[];
   withheld: unknown[];
 }
@@ -11,7 +12,7 @@ export const deliveryFault = () => structuredClone(evidence);
 /** Test-only transport boundary. The original HTTP request reaches the real service once. */
 export function loseProgressReply(actionId: string) {
   if (evidence) throw Error('Delivery fault already installed.');
-  const state: DeliveryFault = evidence = { kind: 'progress', sent: [], withheld: [] };
+  const state: DeliveryFault = evidence = { kind: 'progress', completionAttempts: [], sent: [], withheld: [] };
   const original = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
@@ -30,7 +31,7 @@ export function loseProgressReply(actionId: string) {
 /** Withhold only real confirmation frames for the one retained host completion result. */
 export function loseCompletionConfirmation() {
   if (evidence) throw Error('Delivery fault already installed.');
-  const state: DeliveryFault = evidence = { kind: 'completion', sent: [], withheld: [] };
+  const state: DeliveryFault = evidence = { kind: 'completion', completionAttempts: [], sent: [], withheld: [] };
   const NativeSocket = globalThis.WebSocket;
   globalThis.WebSocket = class extends NativeSocket {
     private completionRun?: string;
@@ -48,7 +49,8 @@ export function loseCompletionConfirmation() {
       if (typeof data === 'string') {
         const frame: AgenticaMessage = JSON.parse(data);
         if (frame.type === 'action.result' && frame.payload.completion) {
-          if (state.sent.length) throw Error('Duplicate completion crossed the fault boundary.');
+          state.completionAttempts.push(frame);
+          if (state.completionAttempts.length > 1) throw Error('Duplicate completion crossed the fault boundary.');
           this.completionRun = frame.runId;
           state.sent.push(frame);
         }

@@ -80,3 +80,42 @@ No normalization of identities, counters, bytes, coordinates or errors. Existing
 64 steps / 48 refinements / 16 continuations / 300s / 30s action, navigation limits, read budgets and
 4096-byte result / 2800-byte observation caps are unchanged. No timing, full UI/tool-matrix, live-provider,
 full48 regression or overall Sprint completion claim. Full cohort: NOT-RUN in this child by instruction.
+
+## Independent Review Repair
+
+Follow-up to `17a03e2188622f046e6016a92d4149008bbdce00`, fixture-only:
+
+- Record every completion attempt before the duplicate guard. Assert this ledger separately from
+  guard-passed frames and actual wire sends, and resample before reload. A rejected second attempt
+  can no longer disappear behind the guard's one-forwarded-frame result.
+- After the entire recovery/replay sequence, select progress sends by POST endpoint plus exact
+  action/operation/event/sequence identity. Assert cardinality first, then structural full-payload
+  equality. Property order or a changed payload cannot filter a duplicate out of the count.
+- Seven focused tests exercise the actual injector and the same assertions used by the native cases:
+  duplicate completion on the same/new socket remains recorded despite rejection; reordered or
+  altered progress duplicates fail cardinality; one altered payload fails equality; a single reordered
+  original passes; unrelated identities/endpoints are excluded. The socket is an in-memory EventTarget,
+  with no network or service. These probes expose the two former proof gaps, not runtime defects.
+
+PASS: mutation tests **7/7** (697ms), dedicated fixture types, isolated service build (0 warnings/errors),
+and both native cases **2/2**, 186.266s total, zero skipped/flaky/failed. Interaction 71.302s: one
+identity-matched progress send and 19 exact replays. Completion 106.821s: one recorded attempt, one
+guard-passed frame, one wire completion, and 22 exact replays. Both retain zero paid calls and final
+empty allocations. No retry was needed. No production edits or new qualification scope.
+
+```powershell
+node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-start-service.corpus-delivery.unit.config.ts
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-start-service.tsconfig.json
+$env:MAZE_START_BROWSER_PORT='5426'
+$env:MAZE_START_SERVICE_PORT='5427'
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica --grep 'actual App corpus delivery'
+```
+
+New raw evidence: `test-results/maze-start-service-4R8B9E/`, with the same provenance, inline proof,
+wire, runtime-hash and trace structure as above. Logs: `corpus-delivery-mutation-01.log`,
+`corpus-delivery-types-02.log`, `corpus-delivery-native-02.log` under `test-results/` (each command's
+combined output retained with Tee-Object and its original exit code). All fixture hashes matched
+after the run. Strict ports 5426/5427 were free before/after. The pinned source/toolchain and all prior
+limits remain unchanged. Original evidence is preserved; this rerun supersedes its duplicate-attempt
+and property-order-sensitive counting coverage. Full cohort and production types were not rerun for
+this fixture-only follow-up; the production type result above belongs to the original increment.
