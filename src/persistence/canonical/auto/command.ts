@@ -9,7 +9,7 @@ import { loadRoster } from '../roster/projection';
 import { commitRosterCommand } from '../game/rosterCommand';
 import { commitContentCommand } from '../game/contentCommand';
 import { commitExplorationCommand } from '../game/explorationCommand';
-import { commitFloorPreparation } from '../game/preparation';
+import { commitFloorPreparation, findPreparation } from '../game/preparation';
 import { loadObservation, validateKnowledge } from '../knowledge/evidence';
 import { readKnowledgeRoom } from '../knowledge/roomView';
 import { same } from '../world/records';
@@ -79,14 +79,18 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attem
     const chest = here.chests.find(c => !c.opened);
     if (chest) return finish(await act('content', { kind: 'open-chest', chestId: chest.id }), 'applied', 'Explicitly collected a chest on route.');
     retainObjective(state, guild);
-    const room = await currentAutoRoom(tx.pages, state);
     if (state.objective?.kind === 'exit' && state.completed && same(state.descent, checkpoint.position)) {
       check(here.stairs.includes('down') && guild.active.length === 0 && !guild.combatRequired, 'Auto descent has unfinished work');
-      const preparation = await commitFloorPreparation(owned, { level: checkpoint.position.level + 1 }, attemptId);
-      if (preparation.phase !== 'ready') return finish({ ...preparation, kind: 'prepare-floor', channel: 'preparation' }, 'planning',
-        `Preparing dungeon ${checkpoint.position.level + 1}: ${preparation.phase}`);
+      const level = checkpoint.position.level + 1;
+      if (await findPreparation(tx.pages, level) !== 'ready') {
+        const preparation = await commitFloorPreparation(owned, { level }, attemptId);
+        // Preparation owns this tick's writes, including the final batch. Descent waits for the next tick.
+        return { kind: 'tick', outcome: 'planning', reason: `Preparing dungeon ${level}: ${preparation.phase}`,
+          action: { ...preparation, kind: 'prepare-floor', channel: 'preparation' }, rosterChanged: false, needsFloor: null };
+      }
       state.route = null; return finish(await act('exploration', { kind: 'stairs', direction: 'down' }), 'applied', 'Explicit descent after completed work.');
     }
+    const room = await currentAutoRoom(tx.pages, state);
     if (!state.route) {
       const view = await readKnowledgeRoom(tx.pages, checkpoint);
       state.descent ??= observedDescent(view.cells) ?? null;
