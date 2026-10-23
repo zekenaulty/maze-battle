@@ -15,6 +15,7 @@ import { check, sameFence } from '../../../persistence/canonical/validation';
 import { AgenticaHost, type AgenticaHostOptions } from '../sdk/agentica-host.mjs';
 import type { PlayAdoptionOffer } from './playAdoption';
 import { createGameOperationTransfer } from './operationTransfer';
+import { createGameOperationDriver } from './operationDriver';
 import { publishGamePublication } from './publication';
 import { startPlayNavigation, type PlayNavigationStatus } from './playNavigation';
 import { transportGate } from './transportGate';
@@ -56,8 +57,8 @@ export async function inspectActiveNavigation(session: GameSession, fence: Owner
     check(sameFence(read.head, fence), 'active navigation inspection changed');
     check(gameCheckpoint(read.head.checkpoint).mode === 'manual', 'active navigation requires manual dungeon control');
     const { confirmed: { bound }, operation, selected, transfer } = read.value;
-    check(bound.kind === 'navigation' && operation?.kind === 'navigation' && operation.custodyAck
-      && (!operation.event || operation.acknowledgement), 'active navigation needs acknowledged progress');
+    check(bound.kind === 'navigation' && operation?.kind === 'navigation' && operation.custodyAck,
+      'active navigation needs acknowledged custody');
     check(bound.launch.guard.state === 'admitted' && bound.active?.id === inspected.launchId
       && bound.active.sourceAttemptId === bound.launch.guard.admissionAttemptId
       && selected && equal(selected.value.data.grant, original.binding.grant)
@@ -78,14 +79,28 @@ export async function resumeActiveNavigation(session: GameSession, offer: Active
   const forbidden = async () => { throw Error('Active navigation recovery cannot invoke actions or cognition.'); };
   const sdk = factory({ url: offer.profile.endpoint, onAction: forbidden, loadAction: forbidden, saveAction: forbidden });
   let transfer: Awaited<ReturnType<typeof createGameOperationTransfer>> | undefined;
+  let prefix: Awaited<ReturnType<typeof createGameOperationDriver>> | undefined;
   let navigation: Awaited<ReturnType<typeof startPlayNavigation>> | undefined;
-  const close = () => { navigation?.close(); transfer?.close(); sdk.close(); gate.close(); lifetime.removeEventListener('abort', close); };
+  const close = () => { navigation?.close(); prefix?.close(); transfer?.close(); sdk.close(); gate.close(); lifetime.removeEventListener('abort', close); };
   lifetime.addEventListener('abort', close, { once: true });
   try {
     lifetime.throwIfAborted();
     check(equal(await inspectActiveNavigation(session, offer.fence, offer.candidate, { signal: lifetime }), offer), 'active navigation offer changed');
+    let prior = await readActiveTransfer(offer.original); lifetime.throwIfAborted();
+    if (prior.value.operation?.event && !prior.value.operation.acknowledgement) {
+      // Reconcile the committed predecessor before transfer. This port cannot advance or settle anything.
+      prefix = await createGameOperationDriver({ hostSignal: gate.signal, cleanupHostOperation: forbidden,
+        submitHostCommand(command) {
+          check(command.kind === 'fresh' && command.operation === 'agentica.operation.ack', 'active recovery only permits the retained progress ACK');
+          return gate.port.submitHostCommand(command);
+        },
+      }, sdk, offer.original.action, offer.original.binding);
+      lifetime.throwIfAborted();
+      try { check((await prefix.pulse()).status === 'acknowledged', 'original progress ACK unresolved'); lifetime.throwIfAborted(); }
+      finally { prefix.close(); }
+      prior = await readActiveTransfer(offer.original); lifetime.throwIfAborted();
+    }
     transfer = await createGameOperationTransfer(gate.port, sdk, offer.original.action, offer.original.binding);
-    const prior = await readActiveTransfer(offer.original); lifetime.throwIfAborted();
     const intent = prior.value.transfer;
     if (!intent || intent.source.expected.owner !== prior.head.owner || intent.source.expected.epoch !== prior.head.epoch) {
       if (intent && !prior.value.ack) {

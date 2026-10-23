@@ -7,7 +7,8 @@ import { createGamePlayController } from './playController';
 import type { AgenticaHost } from '../sdk/agentica-host.mjs';
 
 const m = vi.hoisted(() => ({ inspect: vi.fn(), confirm: vi.fn(), operation: vi.fn(), select: vi.fn(), intent: vi.fn(), ack: vi.fn(),
-  read: vi.fn(), transfer: vi.fn(), prepare: vi.fn(), pulse: vi.fn(), close: vi.fn(), publish: vi.fn(), navigate: vi.fn() }));
+  read: vi.fn(), transfer: vi.fn(), prepare: vi.fn(), pulse: vi.fn(), close: vi.fn(), publish: vi.fn(), navigate: vi.fn(),
+  driver: vi.fn(), prefixPulse: vi.fn(), prefixClose: vi.fn() }));
 vi.mock('../../../persistence/canonical/agentica/recovery.database', () => ({ inRecoveryDatabase: async (signal: AbortSignal, fn: (s: AbortSignal) => unknown) => fn(signal) }));
 vi.mock('../../../persistence/canonical/agentica/recovery.inspect', () => ({ inspectAgenticaRecovery: m.inspect }));
 vi.mock('../../../persistence/canonical/agentica/actions', () => ({ prepareAction: async (action: unknown) => ({ action }) }));
@@ -17,6 +18,7 @@ vi.mock('../../../persistence/canonical/agentica/operation', () => ({ loadAgenti
 vi.mock('../../../persistence/canonical/agentica/publication-selection', () => ({ readPublicationSelection: m.select }));
 vi.mock('../../../persistence/canonical/agentica/transfer.records', () => ({ loadTransfer: m.intent, loadTransferAck: m.ack }));
 vi.mock('./operationTransfer', () => ({ createGameOperationTransfer: m.transfer }));
+vi.mock('./operationDriver', () => ({ createGameOperationDriver: m.driver }));
 vi.mock('./publication', () => ({ publishGamePublication: m.publish }));
 vi.mock('./playNavigation', () => ({ startPlayNavigation: m.navigate }));
 
@@ -37,6 +39,7 @@ beforeEach(() => {
   m.select.mockImplementation(async () => ({ value: { data: f.original.binding } }));
   m.intent.mockResolvedValue(null); m.ack.mockResolvedValue(null);
   m.transfer.mockResolvedValue({ prepare: m.prepare, pulse: m.pulse, close: m.close });
+  m.driver.mockResolvedValue({ pulse: m.prefixPulse, close: m.prefixClose });
   m.publish.mockResolvedValue({ key: 'current-earned', id: 'publication' });
   m.navigate.mockResolvedValue({ close: vi.fn() });
 });
@@ -70,10 +73,40 @@ it.each(['interaction', 'settled', 'decision', 'claim'])('does not offer %s', as
   if (reason === 'claim') value.claim = {};
   expect(await inspect()).toBeNull();
 });
-it('rejects unacknowledged progress and mismatched selected binding', async () => {
-  m.operation.mockResolvedValueOnce({ kind: 'navigation', custodyAck: {}, event: {}, acknowledgement: null });
-  await expect(inspect()).rejects.toThrow('acknowledged progress');
+it('rejects unacknowledged custody and mismatched selected binding', async () => {
+  m.operation.mockResolvedValueOnce({ kind: 'navigation', custodyAck: null, event: null, acknowledgement: null });
+  await expect(inspect()).rejects.toThrow('acknowledged custody');
   m.select.mockResolvedValueOnce(null); await expect(inspect()).rejects.toThrow('selected grant');
+});
+function pendingProgress() {
+  m.operation.mockResolvedValue({ kind: 'navigation', progress: progress(), custodyAck: {}, event: {}, acknowledgement: null });
+}
+it('offers a retained unacknowledged step without effects; Resume acknowledges before any transfer or navigation', async () => {
+  pendingProgress(); const offer = await inspect(); expect(offer!.progress).toEqual(progress());
+  expect(m.driver).not.toHaveBeenCalled(); expect(m.transfer).not.toHaveBeenCalled();
+  m.prefixPulse.mockResolvedValue({ status: 'acknowledged' }); authorize();
+  const runner = await resume();
+  expect(m.driver).toHaveBeenCalledExactlyOnceWith(expect.anything(), expect.anything(), f.original.action, f.original.binding);
+  expect(m.prefixPulse).toHaveBeenCalledTimes(1); expect(m.prefixClose).toHaveBeenCalledTimes(1);
+  expect(m.prefixPulse.mock.invocationCallOrder[0]).toBeLessThan(m.transfer.mock.invocationCallOrder[0]);
+  expect(m.prefixClose.mock.invocationCallOrder[0]).toBeLessThan(m.publish.mock.invocationCallOrder[0]);
+  const port = m.driver.mock.calls[0][0];
+  const ack = { kind: 'fresh', operation: 'agentica.operation.ack', input: {}, execute: vi.fn() };
+  port.submitHostCommand(ack); expect(session.submitHostCommand).toHaveBeenCalledTimes(1);
+  for (const operation of ['navigation.advance', 'operation.settle', 'agentica.operation.transfer'])
+    expect(() => port.submitHostCommand({ ...ack, operation })).toThrow('only permits');
+  expect(() => port.submitHostCommand({ kind: 'retry', request: {} })).toThrow('only permits');
+  await expect(port.cleanupHostOperation({})).rejects.toThrow(); runner.close();
+});
+it.each(['lost ACK', 'wrong result', 'withdrawn'])('does not publish or transfer when pending progress is %s', async reason => {
+  pendingProgress();
+  m.prefixPulse.mockImplementation(async () => {
+    if (reason === 'lost ACK') throw Error('lost ACK');
+    if (reason === 'withdrawn') host.abort();
+    return { status: reason === 'wrong result' ? 'advanced' : 'acknowledged' };
+  });
+  await expect(resume()).rejects.toThrow(); expect(m.prefixClose).toHaveBeenCalled();
+  expect(m.transfer).not.toHaveBeenCalled(); expect(m.publish).not.toHaveBeenCalled(); expect(m.navigate).not.toHaveBeenCalled();
 });
 it('publishes once, authorizes through all four stages, then attaches the same action/binding', async () => {
   authorize(); const offer = (await inspect())!, runner = await resume();
