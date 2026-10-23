@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { browserOrigin, serviceOrigin } from '../agentica-start-service/service.mjs';
 export default defineConfig({
-  cacheDir: 'node_modules/.vite-canonical-start-service', envDir: false,
+  cacheDir: '.vite-dev.canonical-start-service', envDir: false,
   define: { 'import.meta.env.VITE_START_SERVICE_ORIGIN': JSON.stringify(browserOrigin),
     ...Object.fromEntries(Object.entries({ ENDPOINT: serviceOrigin.replace('http:', 'ws:') + '/api/host', PROVIDER: 'fixture',
     MODEL: 'observation-sequence', MAX_STEPS: '4', MAX_REFINEMENTS: '3', MAX_PLAN_CONTINUATIONS: '0',
