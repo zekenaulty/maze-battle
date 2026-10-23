@@ -89,3 +89,45 @@ from allocation first now passes all 21 tests. This is an arithmetic repair,
 not native storage, allocation provenance or information-boundary qualification.
 Parent affected service/driver units plus these tests pass 78/78; root and service
 fixture types pass. Runtime integration and the complete exit evidence above remain.
+
+## Reviewed Runtime Boundaries
+
+The generated-floor calculator and [fixed initialization envelope](issue-11-initialization-capacity-bound.md)
+are implemented pure prerequisites, not runtime admission. The initialization
+scope explicitly includes the fixed public boot policy once; it does not classify
+later roster writes as private. The [work-disclosure audit](issue-11-work-disclosure-audit.md)
+separates model payloads, ordinary human diagnostics and per-command work failures.
+
+1. Add the aggregate under `quota.privateCapacity`. Separate fresh-policy checks
+   from existing base-head validation so missing/invalid policy cannot disable
+   exact replay, inspection, deliberate reset clearance or funded cleanup. No
+   default, backfill, alternate store or database-version bump.
+2. Keep original-receipt lookup before current-head/deadline/policy gates. For
+   fresh work, validate policy after ownership/status checks and before preparing
+   an operation or invoking a domain callback. Adoption, resume, ordinary claim,
+   admission and callback-bearing settlement remain gated.
+3. Keep truthful raw occupancy's fixed point. Ordinary admission uses the virtual
+   private-capacity charge plus remaining operation reserves. Only trusted
+   cancellation, admitted-policy/verified ACK and explicit recovery control may
+   use raw funded headroom independently of private policy. Assert no staged
+   records/nodes, checkpoint change or restoration; preserve private policy
+   exactly. `released > 0` is NOT sufficient: settlement can carry callbacks.
+4. Trusted preparation reserves before bootstrap and attributes actual retained
+   rows/nodes/covered receipts, excluding the separately covered head. Auto calls
+   the same preparation function, so request-name checks alone are insufficient.
+   The first next-floor call includes bootstrap and one generation step. A fresh
+   ready-floor no-op is ordinary work; closing never refunds hidden slack.
+5. Genesis captures/validates its exact boot values once and writes those same
+   values. Lifecycle currently has no birth receipt: source-backed allocation
+   needs the already-budgeted birth receipt atomically created, not an invented
+   source reference. Stage and validate everything before any reset clears.
+6. Restoring a named snapshot retains current accounting/execution. Never reopen
+   a closed allocation or reclaim earlier slack. An incompatible unfinished
+   preparation must explicitly refuse or obtain a new funded identity without
+   refunding abandoned capacity. Do not scan historical allocations.
+
+Here, "funded terminal" means valid-policy settlement under existing reservation
+rules. Policy-independent cleanup means the narrow cancel/ACK/control path above,
+not authority to execute arbitrary work against malformed policy. These are
+reviewed design constraints; native atomic rollback, admission equivalence and
+cleanup at limits are still required before the quota defect can be closed.
