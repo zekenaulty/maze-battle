@@ -139,6 +139,61 @@ node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-capacity.un
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
+## Preparation With Populated Public Namespaces
+
+Follow-up on `b5e1cba7a6ba9afe89cfa6c4efd824154355ce44`: two actual-writer
+cases use seeds **42 and 781**, the split-prefix birth UUID stream and normal
+wrappers. Each imports the actual complete initializer's retained records/nodes
+into the existing preparation harness. A matching private-bootstrap snapshot
+uses the same world identity, recipe, checkpoint and revision as the control.
+No production helper, formula or work/storage bound changes.
+
+Both prepare floors 1-16 to retain the real preceding tree. Assertions focus on
+every phase at floors **1, 2 and 16**: 14 phase groups per seed, 28 total. Floor 1
+bootstrap is already present and remains covered by the complete-birth tests
+above. Each phase's record, node and receipt components fit the existing bounds;
+call counts match. The harness still splits later bootstrap from first expansion
+and flushes separately, conservatively retaining extra COW nodes.
+
+| Seed / floor | Record bytes | Node bytes | Receipt bytes | Extra node bytes vs private-only |
+| --- | ---: | ---: | ---: | ---: |
+| 42 / 1 (after birth) | 70,901 | 218,874 | 9,550 | 10,084 |
+| 42 / 2 | 100,240 | 348,368 | 13,651 | 14,380 |
+| 42 / 16 | 369,985 | 1,985,390 | 49,604 | 51,102 |
+| 781 / 1 (after birth) | 66,846 | 207,348 | 9,550 | 10,084 |
+| 781 / 2 | 100,057 | 350,844 | 13,651 | 14,380 |
+| 781 / 16 | 377,271 | 1,987,838 | 49,604 | 51,192 |
+
+The shared-ancestor cost is measured, not assumed zero. Every selected phase
+flushes a shared root/record ancestor. Its largest phase delta is **27,602 B**
+in floor 16 generation; the larger actual node cost is **1,430,052 B**, below
+that phase's unchanged **15,756,746 B** node bound. Focused per-call maxima are
+226 reads and 121,032 read bytes, within the unchanged 256-read/1-MiB limits.
+Preparation writes no roster/settings row. Point reads preserve every original
+public record including its identity/value; the three pack index rows and roster
+subtree witness also remain exact through each selected floor.
+
+Raw costs are retained before bound assertions and again on failure/exit in
+`test-results/initialization-capacity-populated/seed-{42,781}.json`: exact focused
+phase components, controls, bounds/deltas, all intermediate per-call costs, work
+counters, staged node prefixes, original public rows and birth root identities.
+The paired tests pass independently (46.51 s); the combined cohort is **43 PASS**
+in 46.77 s, with root `tsc --noEmit` PASS. Final suite output is
+`test-results/initialization-capacity-populated-final.json`; the initial paired
+run remains `initialization-capacity-populated-first.json`.
+
+```powershell
+node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-capacity.unit.config.ts src/persistence/canonical/game/initializationCapacity.test.ts src/persistence/canonical/game/initializationCapacity.writer.test.ts src/persistence/canonical/game/initializationCapacity.preparation.test.ts src/persistence/canonical/world/preparationCapacity.test.ts src/persistence/canonical/world/preparationCapacity.shapes.test.ts src/persistence/canonical/world/preparationCapacity.tree.test.ts src/persistence/canonical/world/preparationCapacity.generated.test.ts --reporter=default --reporter=json --outputFile=test-results/initialization-capacity-populated-final.json
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+This closes the populated-default-namespace writer-size caveat for the declared
+cohort, not a native integration gate. Storage is in memory, receipt wrappers
+are synthesized, and the harness positions the checkpoint at the preceding
+exit to prepare the next floor without playing a journey. Intermediate floors
+are retained-tree setup, not new movement/depth evidence. No kernel allocation,
+native ledger, quota rollback, service, provider or owner data was exercised.
+
 ## Required Integration Checks
 
 - Capture the public boot inputs once before awaits, validate exact versioned
@@ -154,6 +209,6 @@ node node_modules/typescript/bin/tsc --noEmit
 - Preserve lifecycle staging before destructive reset writes, fixed head charging,
   unchanged transaction limits and original funded recovery. Callback-free cleanup
   and exact replay must not depend on a fresh initialization-capacity calculation.
-- Subsequent preparation must still validate its shared-ancestor bound with the
-  populated roster namespaces. Native ledger, failure rollback and useful played
-  endurance are integration gates, not proven by these writer-size tests.
+- The populated-default-namespace writer cohort above passes unchanged bounds.
+  Native ledger, failure rollback and useful played endurance remain integration
+  gates, not proven by these writer-size tests.
