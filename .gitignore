@@ -27,3 +27,7 @@ tests/e2e/directed-storage-results/
 *.njsproj
 *.sln
 *.sw?
+
+# Local generated reference schematics and AI edits; not redistribution-ready
+local-assets/
+reference-schematics/
