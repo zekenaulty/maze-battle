@@ -115,7 +115,7 @@ test('paired corpus actual planner inputs: initial, refinement and explicit succ
       await recovery.getByRole('button', { name: 'Stop Agentic session', exact: true }).click();
       await expect(recovery.getByRole('status').filter({ hasText: 'Root Stop acknowledged' })).toBeVisible();
       const allocations = await page.evaluate(async () => {
-        // @ts-expect-error Independent cleanup assertion, never policy input.
+        // Independent cleanup assertion, never policy input.
         const { readCanonicalHead }: typeof import('../../src/persistence/canonical/read') = await import('/src/persistence/canonical/read.ts');
         return (await readCanonicalHead()).head.allocations;
       });

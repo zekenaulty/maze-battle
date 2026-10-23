@@ -8,9 +8,8 @@ import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint'
 const frontierWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
 async function pack(page: Page) {
   return page.evaluate(async () => {
-    // @ts-expect-error Read-only native test inspection, never delivered to the planner.
+    // Read-only native test inspection, never delivered to the planner.
     const { readCanonical } = await import('/src/persistence/canonical/read.ts');
-    // @ts-expect-error Native Vite module path.
     const { required, containerHeader, containerItems } = await import('/src/persistence/canonical/roster/records.ts');
     return (await readCanonical(async (pages: Parameters<typeof required>[0]) => {
       const header = containerHeader(await required(pages, 'pack'), 'pack');

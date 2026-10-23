@@ -44,9 +44,8 @@ test('actual App explicitly queries an accepted quest and its opaque detail with
   const actor = launch.binding.start.observation.data.actor as Record<string, unknown>;
   expect(actions[2].arguments).toEqual({ level: actor.level, spaceId: actor.spaceId, row: actor.row, column: actor.column });
   const evidence = await page.evaluate(async ({ ids, selected }) => {
-    // @ts-expect-error Inspect original canonical results, not provider inputs.
+    // Inspect original canonical results, not provider inputs.
     const { prepareAction }: typeof import('../../src/persistence/canonical/agentica/actions') = await import('/src/persistence/canonical/agentica/actions.ts');
-    // @ts-expect-error Native local read-only audit.
     const { readCanonical }: typeof import('../../src/persistence/canonical/read') = await import('/src/persistence/canonical/read.ts');
     // @ts-expect-error Same game state oracle as the chest proof.
     const { chestEffects }: typeof import('./canonical-start-service.chest-fixture') = await import('/tests/e2e/canonical-start-service.chest-fixture.ts');

@@ -21,11 +21,14 @@ export async function confirmNavigation(session: GameSession, seed: TransferSeed
       async tx => (await retainOperationCustodyAck(tx, r, identity, confirmation.reference, entry)).receipt, options) });
 }
 export async function advanceNavigation(session: GameSession, seed: TransferSeed) {
-  const identity = await prepareAction(seed.action), before = (await readAgenticaOperation(identity)).value!;
+  const identity = await prepareAction(seed.action), before = (await readAgenticaOperation(identity)).value;
+  if (before?.kind !== 'navigation') throw Error('Expected navigation operation before advance');
   await session.submitHostCommand({ kind: 'fresh', operation: 'navigation.advance',
     input: { operationId: seed.operationId, sequence: before.progress.sequence },
     execute: (r, options) => executeNavigationCommand(r, { ...options, host: operationProgressHooks(identity, before.confirmation.reference) }) });
-  const after = (await readAgenticaOperation(identity)).value!, event = after.event!;
+  const after = (await readAgenticaOperation(identity)).value;
+  if (after?.kind !== 'navigation') throw Error('Expected navigation operation after advance');
+  const event = after.event!;
   const entry = { ...structuredClone(seed.entry), latestEvent: event.data.event };
   await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.operation.ack',
     input: json({ action: identity.storageKey, event: event.reference, entry }), execute: (r, options) => executeCanonical(r,

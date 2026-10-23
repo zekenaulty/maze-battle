@@ -13,7 +13,8 @@ test('Stop settles at accepted transfer epoch while its ACK response is still in
     expect(remote.entry.latestEvent).toMatchObject({ kind: 'cancelled', sessionEpoch: accepted.nextSessionEpoch, sequence: accepted.sequence + 1 });
     remote.releaseReply(); expect(await pending).toContain('Game control unavailable');
     const state = await page.evaluate(() => window.canonicalOperationTransfer.state());
-    expect(state.retained!.ack).toBeNull(); expect(state.retained!.authority).toBeUndefined(); expect(state.value!.progress.steps).toBe(0);
+    if (state.value?.kind !== 'navigation') throw Error('Expected navigation operation');
+    expect(state.retained!.ack).toBeNull(); expect(state.retained!.authority).toBeUndefined(); expect(state.value.progress.steps).toBe(0);
   } finally { remote.releaseReply(); await pending; }
 });
 

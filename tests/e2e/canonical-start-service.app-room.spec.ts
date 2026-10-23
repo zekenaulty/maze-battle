@@ -14,9 +14,8 @@ test.use({ roomProof: true });
 const roomWindow = { instances: 1, createCalls: 1, refineCalls: 1, stepsPlanned: 2, emptyPlans: 0 };
 async function pack(page: Page) {
   return page.evaluate(async () => {
-    // @ts-expect-error Read-only native inspection, never delivered to the offline planner.
+    // Read-only native inspection, never delivered to the offline planner.
     const { readCanonical } = await import('/src/persistence/canonical/read.ts');
-    // @ts-expect-error Native Vite module path.
     const { required, containerHeader, containerItems } = await import('/src/persistence/canonical/roster/records.ts');
     return (await readCanonical(async (pages: Parameters<typeof required>[0]) => {
       const header = containerHeader(await required(pages, 'pack'), 'pack');
@@ -28,9 +27,8 @@ async function evidence(page: Page, action: AgenticaAction) {
   return page.evaluate(async original => {
     // @ts-expect-error Exact original custody and receipts, not a new game or transport.
     const { appNavigationEvidence } = await import('/tests/e2e/canonical-start-service.app-evidence.ts');
-    // @ts-expect-error Native Vite module path.
     const { readCanonical } = await import('/src/persistence/canonical/read.ts');
-    // @ts-expect-error Knowledge-only source validation, never authoritative world geometry.
+    // Knowledge-only source validation, never authoritative world geometry.
     const { sourceReader, loadObservation } = await import('/src/persistence/canonical/knowledge/evidence.ts');
     const retained = await appNavigationEvidence(original), notice = retained.parent.progress.notice;
     if (!notice) throw Error('Expected a retained material notice, not mere arrival or scope exhaustion.');
@@ -101,7 +99,7 @@ test('actual App explicitly explores one earned room until a source-bound materi
   expect(reasons[p.notice.kind]).toBe(p.reason);
   if (p.notice.kind === 'unopened-chest') expect(proof.observed.cell.chests.some((chest: { id: string; opened: boolean }) =>
     !chest.opened && !proof.observed.previous?.chests.some((prior: { id: string }) => prior.id === chest.id))).toBe(true);
-  if (p.notice.kind === 'stairs-discovered') expect(proof.observed.cell.stairs.some((stair: string) =>
+  if (p.notice.kind === 'stairs-discovered') expect(proof.observed.cell.stairs.some(stair =>
     !proof.observed.previous?.stairs.includes(stair))).toBe(true);
   const terminal = proof.retained.parentTerminal.event;
   expect(terminal).toMatchObject({ kind: 'decision', actionId: actions[1].actionId,
