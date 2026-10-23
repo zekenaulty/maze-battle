@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 47,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 48,
 2026-10-22. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -787,6 +787,33 @@ evidence. This closes the bounded planner-frame gap, not all exposed-surface
 information pairing. Neither increment authorizes provider calls.
 
 ### Closing Sequence And Estimate Discipline
+
+2026-10-22 closeout increment: [integrated evidence](reviews/issue-11-corpus-closeout-integration.md)
+repairs zero-step custody-probe identity in historical decision reads. The paired
+navigation/nonempty-history cohort now passes both native cases, including exact
+retained replay and source refusals. Existing payload/query checks pass on the
+integrated candidate. The bounded payload claims have evidence; overall
+information noninterference is NOT complete because of the capacity defect below.
+
+Two actual-App/service cuts now pass after lost accepted interaction-progress ACK
+and lost accepted completion confirmation. These do not substitute for pre-ACK
+active-navigation crashes, lost transfer ACKs or pre-acceptance result loss.
+The three-controller chest-effect cohort passes with independent-review repairs
+for complete inventory conservation and pre-reload checkpoint/root preservation.
+Neither report claims all-controller feature or policy parity.
+
+The [controlled quota characterization](../tests/e2e/canonical-corpus.work.report.md)
+changes the remaining S4 work from a suspected threshold channel to a demonstrated
+FAIL: identical public state and common capacity admit A's ordinary move but
+reject B's due solely to four private world bytes. Full native-store rollback
+passes. A green characterization runner is not a green information gate. The
+[next capacity repair](reviews/issue-11-private-world-capacity-plan.md) separates
+truthful measured occupancy from deterministic private generation allocation;
+its first obligation is a useful, source-derived storage bound. No runtime quota,
+schema, reserve, SDK or old-save behavior changed in this increment. Raw-I/O
+disclosure, the remaining S3 cuts, S5 endurance and S6 final qualification stay
+open. Keep the 32-64h planning range provisional rather than automatically crediting
+test counts against a newly demonstrated accounting defect.
 
 The revised 32-64 hours are remaining implementation, review, integration and
 debugging effort, not suite runtime or a commitment to unattended wall-clock
