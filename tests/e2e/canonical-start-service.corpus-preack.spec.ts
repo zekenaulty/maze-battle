@@ -138,6 +138,9 @@ for (const cut of ['progress', 'transfer'] as const) test(`actual App preack rec
     await expect(recovery.getByRole('status').filter({ hasText: 'Root Stop acknowledged' })).toBeVisible();
     const settled = await snapshot(page);
     expect(settled.head.allocations).toEqual({}); expect(settled.head.quota.reservations).toBe(0);
+    expect(settled.head.checkpoint).toEqual(arrivedEffects.head.checkpoint);
+    expect(settled.head.roots.world).toEqual(arrivedEffects.head.roots.world);
+    expect(settled.head.roots.knowledge).toEqual(arrivedEffects.head.roots.knowledge);
     expect(content(await effects())).toEqual(content(beforeEffects)); expect(await serviceProof()).toEqual(counters);
     const settledCustody = await evidence(page, action);
     expect(settledCustody.operation.operation.state).toBe('acknowledged'); expect(settledCustody.root.guard.state).toBe('acknowledged');
