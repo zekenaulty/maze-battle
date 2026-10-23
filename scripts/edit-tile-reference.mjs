@@ -10,7 +10,7 @@ import { basename, dirname, extname, resolve } from 'node:path';
 function printUsage() {
   console.log([
     'Usage: node scripts/edit-tile-reference.mjs --input ref.png --output new-tile.png',
-    '  [--style "description"] [--columns 1|2|4|8] [--rows 1|2|4|8]',
+    '  [--style "description"] [--columns N] [--rows N] [--size WIDTHxHEIGHT]',
     '  [--model gpt-image-2.5-flare] [--source-label "Pack name / example"]',
     '  [--source-license "rights notes"] [--dry-run]',
     'OPENAI_API_KEY is required for real API calls, not dry runs.',
@@ -32,10 +32,27 @@ function options(argv) {
 
 function gridDimension(value, name) {
   const result = Number(value);
-  if (![1, 2, 4, 8].includes(result)) {
-    throw new Error(name + ' must be 1, 2, 4, or 8 (must divide 1024 exactly).');
+  if (!Number.isInteger(result) || result < 1 || result > 8) {
+    throw new Error(name + ' must be an integer from 1 to 8.');
   }
   return result;
+}
+
+function validatedSize(value, columns, rows) {
+  const match = /^(\d+)x(\d+)$/.exec(value);
+  if (!match) throw new Error('--size must be WIDTHxHEIGHT.');
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  const pixels = width * height;
+  if (width % 16 || height % 16 || width > 3840 || height > 3840 ||
+    pixels < 655360 || pixels > 8294400 || width / height > 3 || height / width > 3) {
+    throw new Error('Image size exceeds supported GPT Image 2.5 dimensions.');
+  }
+  if (width % columns || height % rows || width / columns !== height / rows) {
+    throw new Error('The output dimensions must divide into equal square tiles: columns=' +
+      columns + ', rows=' + rows + ', size=' + value);
+  }
+  return value;
 }
 
 function editPrompt(style, columns, rows) {
@@ -62,6 +79,7 @@ async function run() {
   if (resolve(input) === resolve(output)) throw new Error('Output cannot overwrite the reference.');
   const columns = gridDimension(args.get('--columns') ?? '1', '--columns');
   const rows = gridDimension(args.get('--rows') ?? '1', '--rows');
+  const size = validatedSize(args.get('--size') ?? '1024x1024', columns, rows);
   const model = args.get('--model') ?? 'gpt-image-2.5-flare';
   const style = args.get('--style') ?? 'Original dark fantasy dungeon stone, weathered masonry, cool muted palette, no imitation.';
   const mime = {
@@ -84,7 +102,7 @@ async function run() {
     inputSha256: createHash('sha256').update(bytes).digest('hex'),
     referenceSource: args.get('--source-label') ?? 'User-supplied image',
     referenceRights: args.get('--source-license') ?? 'Unverified; review before redistribution',
-    model, columns, rows, prompt,
+    model, columns, rows, size, prompt,
   };
   if (args.has('--dry-run')) {
     console.log(JSON.stringify({ dryRun: true, ...receipt }, null, 2));
@@ -103,7 +121,7 @@ async function run() {
   data.append('model', model);
   data.append('image[]', new Blob([bytes], { type: mime }), basename(input));
   data.append('prompt', prompt);
-  data.append('size', '1024x1024');
+  data.append('size', size);
   data.append('output_format', 'png');
   const response = await fetch('https://api.openai.com/v1/images/edits', {
     method: 'POST',
