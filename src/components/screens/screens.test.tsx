@@ -12,6 +12,7 @@ import { Controls } from '../Controls';
 import { canReceiveTownItem } from './townCapacity';
 
 vi.mock('../MazeCanvas', () => ({ MazeCanvas: () => <canvas aria-label="Maze" /> }));
+vi.mock('../Maze3DProjection', () => ({ Maze3DProjection: () => <canvas aria-label="3D dungeon projection" /> }));
 afterEach(cleanup);
 const noop = () => {};
 const exploreProps = {
@@ -61,6 +62,22 @@ describe('exploration controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New game' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start new game' }));
     await waitFor(() => expect(onNewGame).toHaveBeenCalledOnce());
+  });
+});
+
+describe('experimental 3D projection view', () => {
+  it('is opt-in and leaves the original map accessible without changing the game', () => {
+    const game = createNewGameState();
+    const before = JSON.stringify(game);
+    render(<ExploreScreen {...exploreProps} game={game} />);
+    expect(screen.getByLabelText('Maze')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Expedition settings' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Experimental 3D projection (visual only)' }));
+    expect(screen.getByLabelText('3D dungeon projection')).toBeInTheDocument();
+    expect(JSON.stringify(game)).toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
+    expect(screen.getByLabelText('Maze')).toBeInTheDocument();
+    expect(JSON.stringify(game)).toBe(before);
   });
 });
 
