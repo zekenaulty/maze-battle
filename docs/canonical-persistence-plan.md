@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 46,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 47,
 2026-10-22. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -599,9 +599,14 @@ without separate limits/authorization. Issue #11 is not complete.
 
 ## Finite Goal Closeout
 
-2026-10-22 progress checkpoint: the six-sprint scope and **40-80 focused-hour**
-planning range below remain the closeout estimate, not six already-completed
-sprints. [Earned room/connection queries](reviews/issue-11-earned-graph.md) add
+2026-10-22 progress checkpoint: **Sprint 1 is complete at its declared bounded
+evidence level**; Sprints 2-6 remain open. Independent reconciliation at
+`bbdadf1` found no additional Sprint-1-specific claim. The revised remaining
+range is **32-64 focused hours**, not a restarted 40-80-hour budget. The original
+planning checkpoint and its uncertainty remain below. No native >64-step proof
+or impossibility theorem is implied: the declared alternative is the retained
+128-seed representability search and its explicit limitation.
+[Earned room/connection queries](reviews/issue-11-earned-graph.md) add
 source-bound room-only pages and explicit space-link reads; the subsequent
 room-map and sustained-journey increments are recorded below. A native
 160-move case exposed a real evidence-read-budget failure. The
@@ -632,7 +637,7 @@ step recovery remain separately bounded requirements, not claims from that run.
 The [paired actual-App UI checks](../tests/e2e/canonical-corpus-ui.report.md)
 pass desktop/portrait dungeon, room map and fog comparisons before lawful sight
 divergence, plus zero-write DB checks. Parent dedicated UI **2/2** and affected
-native corpus **8/8** pass; they do not yet compare complete planner frames.
+native corpus **8/8** pass; complete planner frames have their separate gate below.
 [Controlled A/B query evidence](../tests/e2e/canonical-corpus.disclosure.report.md)
 does not finish the all-surface information gate. The
 [clean locked install repair](reviews/issue-11-clean-locked-install.md) qualifies
@@ -658,9 +663,9 @@ cases collectively cover the listed invariants, preserving failed attempts.
 Parallel fixture/review lanes are appropriate; integrate and qualify one immutable
 candidate at a time. Checked increments continue to be committed and pushed.
 
-| Sprint | Remaining deliverable and exit gate | Estimate |
+| Sprint | Deliverable and exit gate | Remaining estimate |
 | --- | --- | ---: |
-| 1. Sustained exploration | A lawful native journey crosses several retained prefixes, returns to remembered off-window evidence, and explicitly selects another room. Provide earned room/connection scopes and deliberate off-window room recall, not only coordinate windows. Preserve original allowances and target windows; no hidden hints or per-cell model calls. Qualify the >64-step prefix repair natively only if existing geometry can actually produce that route; document an honest representability limit otherwise. | 8-16h |
+| 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
 | 2. Information boundaries | Fixed-action authored A/B comparison through the first lawful observation difference: all exposed inspect scopes, schemas, UI/map/fog, remembered facts, route proposals, progress/refusals and exact planner input. Declare field normalization first and preserve raw traces. | 8-16h |
 | 3. Active-work recovery | Cover outbound travel, committed collection with uncertain delivery, active return and retained completion with uncertain delivery. Distribute reload, duplicate delivery, lost ACK, takeover and capacity failure across these states. Exact original identity, one effect, no unauthorized restart, and funded Stop/ACK are required. | 8-16h |
 | 4. Work and controller parity | Resolve pre-divergence storage-work differences under controlled public state. Public cost hints and scheduling must not reveal hidden variants. Equivalent explicitly authorized Manual/Auto/Agentic commands produce identical domain effects; Auto's routing/interaction policy grants no agent authority. | 6-10h |
@@ -741,13 +746,14 @@ paired cases to thirteen actions: select a source from the public map, verify
 partial versus earned complete connections, and require identical opaque
 unknown/passage refusals. All eight combined native cases pass (78.547s), with
 exact pre-divergence frames/work and no domain mutation. Decision history here
-is initially unavailable; nonempty successor history, paged connections and
-complete planner-frame coverage remain. This is offline admission with real
-dispatch, not another actual-service or model test. The separate actual-App
+is initially unavailable; nonempty successor history and paged connections
+remain outside this query cohort. Complete planner frames are checked in the
+separate increment below. This is offline admission with real dispatch, not
+another actual-service or model test. The separate actual-App
 desktop/portrait UI gate now passes without normalization or native writes;
 its integration reruns the same eight corpus cases successfully (130.810s).
 
-### Active Recovery Gap
+### Active Recovery Increment
 
 The 45-case journey proof reloads after arrival, not during an unfinished
 navigation. Source review finds two distinct mounted gaps: recovery exposes
@@ -756,23 +762,40 @@ transfer path; after such a transfer, Continue still compares original action
 epochs with the new owner rather than validated effective custody. Existing
 post-transfer history evidence reloads again and does not close this path.
 
-The next bounded repair must mount inspected explicit unfinished-operation
-resume, preserve exact original action/grant/target/progress/deadline/limits,
-and permit later explicit Continue only from the validated transfer/terminal
-chain. Require the original committed-progress ACK and both kernel adoptions;
-do not weaken epoch checks or implicitly adopt. Qualify outbound and active
-return interruptions in the actual App with exact replay and one pack item,
-including no second reload to make continuation work. Planner-frame capture
-is an isolated parallel test lane; neither task authorizes provider calls.
+The [mounted repair](../tests/e2e/canonical-start-service.active-journey.md) now
+adds inspected explicit unfinished-operation resume, preserving exact original
+action/grant/target/progress/deadline/limits. Later explicit Continue derives
+effective custody from the validated transfer/terminal chain. The committed
+progress ACK and both kernel adoptions remain mandatory; ordinary epoch checks
+are not weakened, and inspection never resumes movement or cognition.
+The isolated lane's two actual-App outbound/return cases pass without a second
+reload, with exact replay and one pack item. Independent source review found no
+actionable defect. The [integrated frozen 48-case service run](reviews/issue-11-active-recovery-integration.md)
+passes with no failures, skips or retries (2,459.005s).
+Native pre-ACK crashes, lost transfer ACKs and uncertain collection/completion
+delivery remain separate Sprint 3 checks; this is not all recovery qualification.
+
+[Complete planner input capture](../tests/e2e/canonical-start-service.planner.md)
+is an isolated test-only lane, not a new production context store. Its bounded
+pre-policy captures include initial, refinement and first explicit successor
+windows. Independent review strengthened compact/full reference consistency
+and binding to actual service-created run IDs, original admission and wake.
+The 13 comparison/wire regression checks and integrated native pair pass. All
+16 complete inputs retain raw evidence; the first seven match under declared
+metadata allowances, and the eighth differs only in newly earned frontier
+evidence. This closes the bounded planner-frame gap, not all exposed-surface
+information pairing. Neither increment authorizes provider calls.
 
 ### Closing Sequence And Estimate Discipline
 
-The 40-80 hours are remaining implementation, review, integration and debugging
-effort, not suite runtime or a commitment to unattended wall-clock completion.
-Five to ten eight-hour working days is the arithmetic equivalent; allow ten to
-fifteen working days if the bounded cohorts expose further integrity/recovery
-defects. Confidence is moderate on scope and lower on defect-driven timing.
-Re-estimate after Sprints 1 and 3, recording which gate changed the estimate.
+The revised 32-64 hours are remaining implementation, review, integration and
+debugging effort, not suite runtime or a commitment to unattended wall-clock
+completion. Four to eight eight-hour working days is the arithmetic equivalent;
+allow eight to twelve working days if the bounded cohorts expose further
+integrity/recovery defects. The reduction from the original 40-80 range credits
+Sprint 1's bounded completion; partially passing Sprint 2/3 work is not treated
+as whole-sprint completion. Confidence is moderate on scope and lower on
+defect-driven timing. Re-estimate after Sprint 3 and record which gate changed it.
 Do not silently add features or expand the matrix to every possible combination.
 
 1. Retain the checked integrated memory/room-map and authored scoped-room journey
@@ -800,9 +823,12 @@ Do not silently add features or expand the matrix to every possible combination.
    result. This waiting/authorization interval is not included in engineering
    effort above.
 
-The runtime baseline at `3e04e91` contains 4,747 passing unit tests
-(one existing optional skip); the unchanged runtime plus strengthened journey
-fixtures at `6f5508f` passes 45 actual-service cases. Remaining work is defined by
+The previous runtime baseline at `3e04e91` contains 4,747 passing unit tests
+(one existing optional skip); its strengthened journey fixtures at `6f5508f`
+pass 45 actual-service cases. The integrated recovery runtime at `0c86d11`
+passes 4,783 units with the same optional skip, production/fixture types, build
+and paired desktop/portrait UI; the later fixture-only review corrections at
+`bbdadf1` pass the frozen 48-case service run. Remaining work is defined by
 these acceptance claims, not a promise that a fixed number of additional tests
 will finish the goal. Full RPG feature parity, combat, remote mechanisms and
 unlimited-world/compaction work remain outside this closeout.

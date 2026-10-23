@@ -137,3 +137,13 @@ ACK are NOT-RUN. No claim of service-process restart recovery, generated-world
 generality, provider quality, mobile layout, full tool/UI matrix, or SDK-pin proof.
 Parent full service/unit campaigns, paid providers and owner preview are NOT-RUN
 here. No push, parent integration or issue closure is performed by this lane.
+
+## Parent Qualification
+
+Integrated as `ec35694`, independently reviewed, and qualified in the frozen
+parent `bbdadf1` full **48/48 service** run. Both active cases pass (205.552s
+outbound, 208.545s return), with the same no-second-reload and original-custody
+assertions. Full runtime units pass **4,783 / one existing optional skip**;
+production/fixture types, isolated build and paired desktop/portrait UI pass.
+See the [parent report](../../docs/reviews/issue-11-active-recovery-integration.md)
+for exact evidence, source identities, SDK limits and remaining sprint gates.

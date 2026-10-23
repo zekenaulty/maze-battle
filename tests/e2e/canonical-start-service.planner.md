@@ -142,3 +142,16 @@ for (const root of p.roots) assertPlannerWindows(root.entries[0].root, root.entr
 const pair = plannerPair();
 console.log(p.roots[0].entries.map((entry, i) => pair.compare(entry.raw, p.roots[1].entries[i].raw).length));
 ```
+
+## Parent Qualification
+
+Integrated as `0c86d11` plus the reviewed proof repairs in `bbdadf1`. The full
+frozen parent service cohort passes **48/48**; this paired case passes in
+90.330s with all strengthened assertions. It captures 16 complete inputs,
+523,611 raw bytes, maximum 45,501 bytes/call; residual counts remain
+`[0,0,0,0,0,0,0,60]`. Parent comparator/wire checks pass **13/13** and the newly
+built capture self-tests pass **3 groups**. Evidence is
+`test-results/maze-start-service-Wl7MZr/`, with raw inputs, wire, applied
+allowances and independent window binding. See the
+[parent report](../../docs/reviews/issue-11-active-recovery-integration.md)
+for exact source/runtime identity and remaining qualification boundaries.
