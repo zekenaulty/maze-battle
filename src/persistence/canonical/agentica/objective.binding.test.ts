@@ -49,6 +49,7 @@ async function fixture(status: 'active' | 'complete' | 'claimed' = 'active', flo
     }),
   } as unknown as CanonicalPages;
   const tx = { head, pages, setCheckpoint() { throw Error('Forbidden checkpoint write'); },
+    privatePreparation() { throw Error('Forbidden private preparation'); },
     restoreSnapshot() { throw Error('Forbidden restore'); }, liveOperation() { throw Error('Forbidden operation read'); } } as CanonicalWork;
   async function publish() {
     const original = structuredClone(request), written = await retainPublication(tx, request);

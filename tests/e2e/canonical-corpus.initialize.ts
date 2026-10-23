@@ -7,6 +7,7 @@ import { readCanonicalHead } from '../../src/persistence/canonical/read';
 import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { checkpointJson, gameCheckpoint, rosterContext, type GameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
 import { prepareGameFloor } from '../../src/persistence/canonical/game/preparation';
+import { floorPreparationSpec } from '../../src/persistence/canonical/game/floorCapacity';
 import { DEFAULT_SETTINGS, SETTINGS_KEY } from '../../src/persistence/canonical/game/settings';
 import { seedRoster } from '../../src/persistence/canonical/roster/write';
 import { entityKey, fresh, json } from '../../src/persistence/canonical/world/records';
@@ -47,7 +48,7 @@ export async function authorSurveyContract(pages: CanonicalPages) {
 
 /** Does not start GameSession, look, move, accept, collect, bind an objective, or touch an existing game. */
 export async function initializeCorpus(variant: CorpusVariant, owner: string) {
-  corpusLayout(variant);
+  const allocation = floorPreparationSpec(corpusLayout(variant).recipe);
   const checkpoint: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual',
     position: { level: 1, cell: { spaceId: 'entry', row: 2, column: 2 } }, knowledge: null,
     facing: 'east', wave: 1, createdAt: CORPUS_TIME, updatedAt: CORPUS_TIME, activityLog: [] };
@@ -56,7 +57,7 @@ export async function initializeCorpus(variant: CorpusVariant, owner: string) {
     await pages.set('world', SETTINGS_KEY, DEFAULT_SETTINGS);
     await seedRoster(pages, { ...rosterContext(checkpoint), party: createInitialParty('canonical-survey'),
       inventory: createInitialInventory(), stash: createInitialStash(), inventoryPolicy: { ...DEFAULT_INVENTORY_POLICY } });
-  });
+  }, { privatePreparation: allocation });
   const preparation = [];
   for (let i = 0; i < 16; i++) {
     const { head } = await readCanonicalHead();

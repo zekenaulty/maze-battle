@@ -2,6 +2,7 @@ import { openCanonicalDatabase } from './database';
 import { workBudget } from './budget';
 import { CanonicalPages, type SnapshotValidator } from './pages';
 import { accountHead, appendedBytes, assertPrivateAdmission } from './accounting';
+import { PrivatePreparation, type PrivatePreparationSpec } from './privatePreparation';
 import { operationAt, prepareOperation } from './operations';
 import { operationInput, type OperationAction } from './operationValidation';
 import { controlInput, type ControlAction, type ControlIntent } from './controlValidation';
@@ -16,6 +17,7 @@ export interface CanonicalWork {
   setCheckpoint(value: JsonObject): void;
   restoreSnapshot(key: string, validate?: SnapshotValidator): Promise<void>;
   liveOperation(id: string): ReturnType<typeof operationAt>;
+  privatePreparation(spec: PrivatePreparationSpec, allowsWorldWrite: (key: string, index?: boolean) => boolean): Promise<{ close(): void }>;
 }
 
 type Options = { limits?: CanonicalWorkLimits; signal?: AbortSignal };
@@ -91,7 +93,8 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     if (!cleanup) assertPrivateAdmission(current, true);
     const change = operation ? await prepareOperation(tx, current, original, operation, budget) : undefined;
     const pages = new CanonicalPages(tx, current, budget);
-    let operationFailed = false, pendingOperations = 0, closed = false;
+    const preparation = new PrivatePreparation(current, pages, original);
+    let operationFailed = false, preparationFailed = false, pendingOperations = 0, closed = false;
     const liveOperation = async (id: string) => {
       pendingOperations++;
       try { check(!closed, 'operation view is closed'); return await operationAt(tx, current, id, budget); }
@@ -101,11 +104,21 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     let state = checkpoint(current.checkpoint), checkpointChanged = false;
     const outcome = result(await work({ head: structuredClone(current), pages, operation: change && structuredClone(change.before ?? change.after),
       setCheckpoint: value => { state = checkpoint(value); checkpointChanged = true; },
-      restoreSnapshot: (key, validate) => pages.restoreSnapshot(key, validate), liveOperation }));
+      restoreSnapshot: (key, validate) => pages.restoreSnapshot(key, validate), liveOperation,
+      privatePreparation: async (spec, allows) => {
+        try {
+          check(!control && !operation && !checkpointChanged, 'private preparation cannot mix control or gameplay');
+          return await preparation.begin(spec, allows);
+        } catch (error) { preparationFailed = true; throw error; }
+      } }));
     if (operation === 'admit' && isObject(outcome) && isObject(outcome.host) && outcome.host.actionResult !== undefined)
       check(change?.after.ackPolicy === 'verified-host', 'host-linked operation requires verified acknowledgement policy');
     closed = true; check(!operationFailed && pendingOperations === 0, 'operation read is not usable');
+    check(!preparationFailed, 'private preparation is not usable');
+    preparation.assertUsable();
     const staged = await pages.prepare(), revision = current.revision + 1;
+    if (preparation.declared) check(!checkpointChanged && !staged.snapshot && !control && !operation,
+      'private preparation cannot mix control or gameplay');
     if (cleanup) check(!checkpointChanged && !staged.snapshot && staged.records.length === 0 && staged.nodes.length === 0
       && Object.entries(staged.roots).every(([area, root]) => root === current.roots[area as keyof typeof current.roots]),
     'capacity cleanup cannot change gameplay');
@@ -113,13 +126,18 @@ async function run(input: CanonicalRequest, work: (tx: CanonicalWork & { operati
     if (staged.snapshot) state = checkpoint(staged.snapshot.checkpoint);
     check(integer(revision), 'revision exhausted');
     const receipt: CanonicalReceipt = { generation: schema.generation, gameId: current.gameId, attemptId: original.attemptId,
-      fingerprint: signature, beforeRevision: current.revision, afterRevision: revision, committedAt: new Date().toISOString(), result: outcome };
+      fingerprint: signature, beforeRevision: current.revision, afterRevision: revision, committedAt: new Date().toISOString(), result: result(preparation.decorate(outcome)) };
+    const addedBytes = appendedBytes(staged.records, staged.nodes, receipt) + (change?.chargedBytes ?? 0);
+    if (preparation.declared) check(jsonBytes(['receipts', [receipt.gameId, receipt.attemptId], receipt], 128 * 1024) <= 4096,
+      'private preparation receipt exceeds its allowance');
+    const quota = preparation.declared ? { ...current.quota, privateCapacity: preparation.finish(addedBytes) }
+      : change?.quota ?? current.quota;
+    preparation.assertUsable();
     const controlled = control ? { status: control.action === 'resume' ? 'ready' as const : 'stopped' as const,
       owner: control.owner, epoch: current.epoch + 1 } : {};
     check(!control || integer(current.epoch + 1, 1), 'owner epoch exhausted');
     const next = accountHead(current, { ...current, ...controlled, revision, checkpoint: state, roots: staged.roots,
-      quota: change?.quota ?? current.quota, allocations: change?.allocations ?? current.allocations },
-      appendedBytes(staged.records, staged.nodes, receipt) + (change?.chargedBytes ?? 0),
+      quota, allocations: change?.allocations ?? current.allocations }, addedBytes,
       !!control?.recovery || !!change?.released, cleanup ? 'cleanup' : 'private');
     if (cleanup) check(Object.hasOwn(next.quota, 'privateCapacity') === Object.hasOwn(current.quota, 'privateCapacity')
       && JSON.stringify(next.quota.privateCapacity) === JSON.stringify(current.quota.privateCapacity), 'capacity cleanup changed policy');

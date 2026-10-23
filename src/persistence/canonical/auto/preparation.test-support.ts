@@ -31,6 +31,8 @@ export async function preparationFixture(care: 'none' | 'unavailable' | 'availab
     const set = vi.spyOn(pages, 'set'), remove = vi.spyOn(pages, 'delete');
     const setCheckpoint = vi.fn<CanonicalWork['setCheckpoint']>(value => { checkpoint = structuredClone(value); });
     const result = await effect({ head: structuredClone(before), pages, setCheckpoint,
+      // Policy isolation fixture, not allocation-accounting qualification.
+      privatePreparation: async () => ({ close() {} }),
       restoreSnapshot: async () => { throw Error('Unexpected restore'); }, liveOperation: async () => { throw Error('Unexpected operation'); } });
     const staged = await pages.prepare();
     const after = accountHead(initialized ? before : undefined,

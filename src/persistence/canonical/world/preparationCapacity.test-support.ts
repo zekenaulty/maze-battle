@@ -72,7 +72,11 @@ export function preparationMemory(seed: number, inputBirth?: PreparationBirth) {
     });
     let phase: PreparationCapacityPhase | 'ready' = 'generation';
     while (phase !== 'ready') {
-      const output = await commit(level, phase, (pages, attemptId) => commitFloorPreparation({ head, pages } as CanonicalWork, { level }, attemptId));
+      // This writer-bound harness excludes kernel allocation/receipt metadata; native tests own that proof.
+      const output = await commit(level, phase, (pages, attemptId) => commitFloorPreparation({ head, pages,
+        privatePreparation: async () => ({ close() {} }), setCheckpoint() { throw Error('Unexpected checkpoint'); },
+        restoreSnapshot() { throw Error('Unexpected restore'); }, liveOperation() { throw Error('Unexpected custody'); }
+      } satisfies CanonicalWork, { level }, attemptId));
       phase = (output as { phase: PreparationCapacityPhase | 'ready' }).phase;
     }
     return recipe;

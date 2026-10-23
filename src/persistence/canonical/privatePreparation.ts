@@ -3,11 +3,10 @@ import { storedBytes } from './accounting';
 import type { CanonicalPages } from './pages';
 import { closePrivateCapacity, consumePrivateCapacity, privateAdmissionBytes, reservePrivateCapacity,
   validatePrivateCapacity, type PrivateCapacity } from './privateCapacity';
-import type { CanonicalHead, CanonicalRecord, CanonicalRequest, Json, JsonObject, RecordArea } from './types';
+import type { CanonicalHead, CanonicalRecord, CanonicalRequest, Json, JsonObject } from './types';
 import { check, head as validateHead, integer, isObject, jsonBytes, record, request, result, sameFence, validId } from './validation';
 
 export interface PrivatePreparationSpec { id: string; budgetBytes: number; policy: JsonObject }
-type RestrictedPages = CanonicalPages & { restrictWrites(allow: (area: RecordArea, key: string) => boolean): void };
 type Phase = 'idle' | 'beginning' | 'open' | 'sealed' | 'decorated' | 'finished';
 const fields = (value: object, names: string) => Object.keys(value).sort().join(',') === names;
 
@@ -22,7 +21,7 @@ function specification(value: PrivatePreparationSpec, sourceAttemptId: string) {
 /** Transaction-local declaration; no operation name grants private capacity. */
 export class PrivatePreparation {
   private readonly head: CanonicalHead;
-  private readonly pages: RestrictedPages;
+  private readonly pages: CanonicalPages;
   private readonly source: CanonicalRequest;
   private phase: Phase = 'idle';
   private failed = false;
@@ -34,7 +33,7 @@ export class PrivatePreparation {
   constructor(head: CanonicalHead, pages: CanonicalPages, source: CanonicalRequest) {
     this.head = structuredClone(head); validateHead(this.head);
     this.source = request(source); check(sameFence(this.head, this.source.expected), 'private preparation source fence changed');
-    this.pages = pages as RestrictedPages;
+    this.pages = pages;
   }
 
   get declared() { return this.spec !== undefined; }
@@ -50,7 +49,7 @@ export class PrivatePreparation {
     } catch (error) { this.fail(error); }
   }
 
-  async begin(input: PrivatePreparationSpec, allowsWorldWrite: (key: string) => boolean): Promise<{ close(): void }> {
+  async begin(input: PrivatePreparationSpec, allowsWorldWrite: (key: string, index?: boolean) => boolean): Promise<{ close(): void }> {
     try {
       this.usable(); check(this.phase === 'idle', 'private preparation already declared or sealed');
       this.phase = 'beginning'; this.spec = specification(input, this.source.attemptId);
@@ -70,11 +69,11 @@ export class PrivatePreparation {
       const q = this.head.quota, charge = privateAdmissionBytes(this.capacity, q.usedBytes, storedBytes('heads', this.head.gameId, this.head));
       check(integer(charge + q.reservedBytes) && charge + q.reservedBytes <= q.limitBytes - q.reserveBytes, 'storage quota exhausted');
       check(typeof this.pages.restrictWrites === 'function', 'private preparation write restriction unavailable');
-      this.pages.restrictWrites((area, requested) => {
+      this.pages.restrictWrites((area, requested, index) => {
         try {
           this.usable(); check((this.phase === 'beginning' || this.phase === 'open') && !this.closing, 'private preparation writes are sealed');
-          const allowed = area === 'world' ? allowsWorldWrite(requested) === true
-            : !anchor && this.phase === 'beginning' && area === 'execution' && requested === key;
+          const allowed = area === 'world' ? allowsWorldWrite(requested, index) === true
+            : !index && !anchor && this.phase === 'beginning' && area === 'execution' && requested === key;
           check(allowed, 'write outside private preparation scope'); return true;
         } catch (error) { return this.fail(error); }
       });

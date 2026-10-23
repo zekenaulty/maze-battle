@@ -24,6 +24,7 @@ import type { DecisionQueryProof } from './decision.query.proof';
 export async function decisionQueryFixture(options: { initial?: boolean; adopted?: boolean; newerPublication?: boolean; source?: 'progress' | 'transfer' | 'probe'; padding?: number } = {}) {
   const f = await interactionDecisionFixture('navigation');
   const tx: CanonicalWork = { head: f.head, pages: f.pages, liveOperation: f.pages.liveOperation,
+    privatePreparation() { throw Error('Query cannot prepare a private floor'); },
     setCheckpoint() { throw Error('Query cannot mutate checkpoint'); }, restoreSnapshot() { throw Error('Query cannot restore state'); } };
   let serial = 100;
   const request = (operation: string, input: unknown, revision = f.head.revision): CanonicalRequest => ({

@@ -20,12 +20,28 @@ export class CanonicalPages {
   private busy = false;
   private failed = false;
   private prepared = false;
+  private mutated = false;
+  private allowedWrite?: (area: RecordArea, key: string, index: boolean) => boolean;
   private restored?: CanonicalGameSnapshot;
   private readonly tx: CanonicalWrite | CanonicalRead;
   private readonly head: CanonicalHead;
   private readonly budget: WorkBudget;
   constructor(tx: CanonicalWrite | CanonicalRead, head: CanonicalHead, budget: WorkBudget) {
     this.tx = tx; this.head = head; this.budget = budget;
+  }
+
+  /** A trusted batch may narrow writes only before its first mutation. */
+  restrictWrites(allow: (area: RecordArea, key: string, index: boolean) => boolean) {
+    try {
+      check(!this.busy && !this.failed && !this.prepared && !this.mutated && !this.restored && !this.allowedWrite
+        && typeof allow === 'function', 'private preparation must precede mutations');
+      this.allowedWrite = allow;
+    } catch (error) { this.failed = true; throw error; }
+  }
+
+  private mutation(area: RecordArea, key: string, index = false) {
+    check(!this.allowedWrite || this.allowedWrite(area, key, index), 'write outside private preparation');
+    this.mutated = true;
   }
 
   private async operation<T>(work: () => Promise<T>): Promise<T> {
@@ -129,6 +145,7 @@ export class CanonicalPages {
   restoreSnapshot(key: string, validate?: SnapshotValidator) {
     return this.operation(async () => {
       check(this.tx.mode === 'readwrite', 'read-only record view');
+      check(!this.allowedWrite && !this.head.quota.privateCapacity?.active, 'snapshot restore requires no active private preparation');
       check(!this.restored && !this.trees.has('world') && !this.trees.has('knowledge'), 'snapshot restore must be isolated');
       check(this.head.quota.reservations === 0 && this.head.quota.reservedBytes === 0
         && Object.keys(this.head.allocations).length === 0, 'snapshot restore requires no live allocations');
@@ -143,7 +160,7 @@ export class CanonicalPages {
           check(!candidate.failed && !candidate.busy, 'snapshot validation is not usable');
         } finally { candidate.prepared = true; }
       }
-      this.restored = snapshot;
+      this.restored = snapshot; this.mutated = true;
     });
   }
 
@@ -158,14 +175,16 @@ export class CanonicalPages {
   async set(area: RecordArea, key: string, value: Json, indexes: string[] = []) {
     return this.operation(async () => {
       check(this.tx.mode === 'readwrite', 'read-only record view');
+      this.mutation(area, key);
       recordKey(key); jsonBytes(value);
       check(Array.isArray(indexes) && indexes.length <= 8 && new Set(indexes).size === indexes.length, 'invalid indexes');
       indexes.forEach(recordKey);
       const row: CanonicalRecord = { generation: this.head.generation, gameId: this.head.gameId, id: crypto.randomUUID(),
         area, key, value: structuredClone(value), indexes: [...indexes], revision: this.head.revision + 1 };
       const bytes = jsonBytes(row), tree = this.tree(area), previous = await this.lookup(area, key);
-      if (previous) for (const index of previous.indexes) await tree.delete(`index/${index}`);
+      if (previous) for (const index of previous.indexes) { this.mutation(area, index, true); await tree.delete(`index/${index}`); }
       for (const index of row.indexes) {
+        this.mutation(area, index, true);
         const occupied = await tree.get(`index/${index}`);
         check(occupied === undefined, 'index key already assigned');
         await tree.set(`index/${index}`, row.id);
@@ -180,10 +199,11 @@ export class CanonicalPages {
   async delete(area: RecordArea, key: string) {
     return this.operation(async () => {
       check(this.tx.mode === 'readwrite', 'read-only record view');
+      this.mutation(area, key);
       const previous = await this.lookup(area, key);
       if (!previous) return;
       const tree = this.tree(area);
-      for (const index of previous.indexes) await tree.delete(`index/${index}`);
+      for (const index of previous.indexes) { this.mutation(area, index, true); await tree.delete(`index/${index}`); }
       await tree.delete(`record/${key}`);
       this.records.delete(previous.id);
     });

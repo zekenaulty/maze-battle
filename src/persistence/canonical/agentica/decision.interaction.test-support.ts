@@ -73,6 +73,7 @@ export async function interactionDecisionFixture(kind: 'interaction' | 'navigati
     async liveOperation() { throw Error('Unexpected kernel operation read outside terminal fixture'); },
   } as unknown as CanonicalPages & OperationRead;
   const tx = { head, pages, liveOperation: pages.liveOperation,
+    privatePreparation() { throw Error('Decision evidence must not prepare a floor'); },
     setCheckpoint() { throw Error('Decision evidence must not change the checkpoint'); },
     restoreSnapshot() { throw Error('Decision evidence must not restore the world'); },
   } as CanonicalWork;

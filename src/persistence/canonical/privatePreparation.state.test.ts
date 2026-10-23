@@ -6,14 +6,14 @@ import type { Json, RecordArea } from './types';
 it.each(['set', 'absent-delete'] as const)('refuses declaration after prior %s', async method => {
   const f = preparationFixture(), w = f.stage();
   if (method === 'set') await w.pages.set('world', 'before', 1); else await w.pages.delete('world', 'missing');
-  await expect(w.controller.begin(specification(), worldKey)).rejects.toThrow('already started');
+  await expect(w.controller.begin(specification(), worldKey)).rejects.toThrow('precede mutations');
   expect(() => w.controller.assertUsable()).toThrow('not usable');
 });
 
 it.each([['knowledge', 'anything'], ['execution', 'other'], ['execution', 'private-capacity/floor-1'], ['world', 'roster/party']])(
   'poisons on a caught out-of-scope write %s/%s', async (area, key) => {
     const w = preparationFixture().stage(); await w.controller.begin(specification(), worldKey);
-    expect(() => w.pages.set(area as RecordArea, key, null)).toThrow('scope');
+    await expect(w.pages.set(area as RecordArea, key, null)).rejects.toThrow('scope');
     expect(() => w.controller.assertUsable()).toThrow('not usable');
   });
 
@@ -58,7 +58,7 @@ it.each(['duplicate', 'sealed', 'finished'])('a caught %s close poisons finaliza
 
 it('cannot write after close and cannot finish twice', async () => {
   const first = preparationFixture().stage(), handle = await first.controller.begin(specification(), worldKey); handle.close();
-  expect(() => first.pages.set('world', 'dungeon/1', null)).toThrow('sealed');
+  await expect(first.pages.set('world', 'dungeon/1', null)).rejects.toThrow('sealed');
   expect(() => first.controller.assertUsable()).toThrow();
   const second = preparationFixture().stage(); await second.controller.begin(specification(), worldKey);
   second.controller.decorate({}); second.controller.finish(1);

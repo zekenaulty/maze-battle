@@ -10,6 +10,7 @@ import { beginWorldFloorQuality, advanceWorldFloorQuality } from '../world/quali
 import { beginWorldRoomRoles, advanceWorldRoomRoles } from '../world/roles';
 import { beginWorldContent, advanceWorldContent, requireWorldContent } from '../content/preparation';
 import { gameCheckpoint } from './checkpoint';
+import { floorPreparationSpec, preparationWorldWrite } from './floorCapacity';
 
 export type PreparationPhase = 'generation' | 'quality' | 'roles' | 'content' | 'ready';
 const key = (level: number) => `game/preparation/${level}`;
@@ -35,17 +36,22 @@ export function prepareGameFloor(request: CanonicalRequest, options: { signal?: 
 export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, attemptId: string) {
   const args = fields(input, 'level'), c = gameCheckpoint(tx.head.checkpoint), level = args.level as number;
   check(level === c.position.level || level === c.position.level + 1, 'preparation outside the local floor boundary');
+  let batch: { close(): void } | undefined;
   if (level !== c.position.level) {
     const here = await loadFloor(tx.pages, c.position.level);
     check(here.exit && same(here.exit, c.position.cell), 'prepare the next floor only at descending stairs');
     const world = await loadWorld(tx.pages);
     if (world.deepestLevel < level) {
-      await createWorldFloor(tx.pages, createModuleRecipe(world.worldId, level, here.generation.recipe.seed + 1));
+      const recipe = createModuleRecipe(world.worldId, level, here.generation.recipe.seed + 1);
+      batch = await tx.privatePreparation(floorPreparationSpec(recipe), preparationWorldWrite(level));
+      await createWorldFloor(tx.pages, recipe);
       await tx.pages.set('world', key(level), { schema: 1, level, phase: 'generation' });
     }
   }
   let phase = await readPreparation(tx.pages, level);
   if (phase === 'ready') { await requireWorldContent(tx.pages, level); return { level, phase }; }
+  if (!batch) batch = await tx.privatePreparation(floorPreparationSpec((await loadFloor(tx.pages, level)).generation.recipe),
+    preparationWorldWrite(level));
   if (phase === 'generation') {
     const { floor } = await expandWorldFloor(tx.pages, level, attemptId);
     if (floor.exit) { await beginWorldFloorQuality(tx.pages, level); phase = 'quality'; }
@@ -60,5 +66,6 @@ export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, 
     if (result.nextRoom === result.binding.roomCount) phase = 'ready';
   }
   await tx.pages.set('world', key(level), { schema: 1, level, phase });
+  if (phase === 'ready') batch.close();
   return { level, phase };
 }
