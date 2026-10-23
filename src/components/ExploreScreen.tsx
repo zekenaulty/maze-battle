@@ -6,6 +6,7 @@ import { Controls } from './Controls';
 import type { MazeRenderMode } from './maze/drawMaze';
 import { DEFAULT_MAZE_CAMERA, zoomMazeCamera, type MazeCameraState } from './maze/mazeCamera';
 import { MazeCanvas } from './MazeCanvas';
+import { Maze3DProjection } from './Maze3DProjection';
 import { createMazeViewModel } from '../viewModels/mazeViewModel';
 import { Dialog } from './Dialog';
 import { ConfirmActionDialog } from './screens/ConfirmActionDialog';
@@ -52,12 +53,13 @@ export function ExploreScreen({
   onDiagnostics,
 }: ExploreScreenProps) {
   const [mazeMode, setMazeMode] = useState<MazeRenderMode>('camera');
+  const [view3D, setView3D] = useState(false);
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const portalCount = portalScrollCount ?? game.inventory.items.reduce((count, item) =>
     item.consumableEffect === 'townPortal' ? count + Math.max(0, Math.floor(item.quantity ?? 1)) : count, 0);
-  const isOverview = mazeMode === 'overview';
+  const isOverview = !view3D && mazeMode === 'overview';
   const mazeView = createMazeViewModel(game, chests);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
 
@@ -84,7 +86,7 @@ export function ExploreScreen({
           <button type="button" onClick={onTown} disabled={portalCount < 1} title={portalCount > 0 ? 'Use one town portal scroll' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
             Portal ({portalCount})
           </button>
-          <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview" aria-label="Map" aria-pressed={isOverview} onClick={() => setMazeMode(isOverview ? 'camera' : 'overview')}>
+          <button className={`screen-icon ${isOverview ? 'is-active' : ''}`} type="button" title="Map overview" aria-label="Map" aria-pressed={isOverview} onClick={() => { setView3D(false); setMazeMode(isOverview ? 'camera' : 'overview'); }}>
             <Map size={18} aria-hidden="true" />
           </button>
           <button className="screen-icon" type="button" title="Party" aria-label="Party" onClick={onCharacters}>
@@ -101,6 +103,9 @@ export function ExploreScreen({
       </div>
       <AutoStatus game={game} active={autoActive} />
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''}`}>
+        {view3D ? (
+          <Maze3DProjection maze={mazeView.maze} facing={mazeView.facing} textureId={game.mazeTexture} />
+        ) : (
         <MazeCanvas
           maze={mazeView.maze}
           chests={mazeView.chests}
@@ -110,7 +115,8 @@ export function ExploreScreen({
           mode={mazeMode}
           onCameraChange={setCamera}
         />
-        {mazeMode === 'camera' && (
+        )}
+        {!view3D && mazeMode === 'camera' && (
           <div className="camera-controls" aria-label="Camera controls">
             <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => setCamera((current) => zoomMazeCamera(current, -0.15))}>
               <ZoomOut aria-hidden="true" size={16} />
@@ -133,6 +139,10 @@ export function ExploreScreen({
             <span>Encounters</span>
           </label>
           <AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} />
+          <label className="compact-toggle">
+            <input type="checkbox" checked={view3D} onChange={event => setView3D(event.currentTarget.checked)} />
+            <span>Experimental 3D projection (visual only)</span>
+          </label>
           <button type="button" onClick={() => { setSettingsOpen(false); setConfirmNew(true); }}>New game</button>
         </div>
       </Dialog>}
