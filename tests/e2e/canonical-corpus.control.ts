@@ -5,6 +5,7 @@ export interface CorpusNativeRead {
 /** Serialized before fixture modules load. Only these isolated documents, never an owner App or provider. */
 export function installCorpusControl() {
   if (!['http://127.0.0.1:5266/tests/e2e/canonical-corpus.html',
+    'http://127.0.0.1:5456/tests/e2e/canonical-corpus.navigation.html',
     'http://127.0.0.1:5446/tests/e2e/canonical-corpus-ui.html'].includes(location.href) || window.corpusControl)
     throw Error('Deterministic identities are restricted to a fresh isolated corpus document');
   const allocations: { id: string; caller: string }[] = [], seen = new Set<string>();
