@@ -23,6 +23,10 @@ export function preparationNodeBytes(prefixLength: number, children: number) {
 
 export interface PreparationKeys { count: number; length: number; variablePositions: number; localBranches?: number }
 
+export function preparationBucketKeyLength(levelDigits: number, coordinateDigits: number) {
+  return 'dungeon/'.length + levelDigits + '/bucket/'.length + 2 * (coordinateDigits + 1) + ','.length;
+}
+
 export function preparationPathsBytes(keys: PreparationKeys[]) {
   return keys.reduce((sum, key) => sum + key.count * (
     preparationNodeBytes(key.length, 0) + key.variablePositions * preparationNodeBytes(key.length, 11)

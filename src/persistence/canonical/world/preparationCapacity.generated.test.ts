@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { preparationCapacity } from './preparationCapacity';
+import { preparationBucketKeyLength } from './preparationCapacity.bytes';
 import { preparationMemory } from './preparationCapacity.test-support';
 import { DEFAULT_MODULE_POLICY } from '../../../domain/expedition/topology/modules/policy';
 
@@ -22,6 +23,8 @@ function assertValues(f: ReturnType<typeof preparationMemory>, level: number, ro
   for (const call of f.measurements.filter(m => m.level === level)) {
     const buckets = call.values.filter(v => v.bucketEntries !== undefined);
     expect(buckets.length).toBeLessThanOrEqual(25);
+    const bucketKeyLength = preparationBucketKeyLength(String(level).length, String(Math.ceil(22 * (rooms + 1) / 16)).length);
+    for (const bucket of buckets) expect(bucket.key.length, bucket.key).toBeLessThanOrEqual(bucketKeyLength);
     expect(buckets.reduce((sum, v) => sum + v.bucketEntries!, 0)).toBeLessThanOrEqual(6 * rooms - 2);
     for (const value of call.values.filter(v => v.bucketEntries === undefined))
       expect(value.valueBytes, value.key).toBeLessThanOrEqual(valueBound(value.key));
@@ -29,10 +32,21 @@ function assertValues(f: ReturnType<typeof preparationMemory>, level: number, ro
 }
 
 function retain(name: string, value: unknown) {
-  const directory = resolve('test-results/private-capacity-final');
+  const directory = resolve('test-results/private-capacity-comma-repair');
   mkdirSync(directory, { recursive: true });
   writeFileSync(resolve(directory, `${name}.json`), JSON.stringify(value, null, 2));
 }
+
+it('bounds actual bootstrap bucket keys with both negative coordinates and their comma', async () => {
+  const f = preparationMemory(0);
+  await f.floor(1, { roomBudget: 3 });
+  const buckets = f.measurements.find(m => m.phase === 'bootstrap')!.values.filter(v => v.bucketEntries !== undefined);
+  expect(buckets.map(v => v.key)).toContain('dungeon/1/bucket/-1,-1');
+  const bound = preparationBucketKeyLength(1, 1);
+  expect(bound).toBe(22);
+  for (const bucket of buckets) expect(bucket.key.length, bucket.key).toBeLessThanOrEqual(bound);
+  assertValues(f, 1, 3);
+});
 
 it.each([42, 781])('bounds actual retained writers through 16 floors, seed %s', async seed => {
   const f = preparationMemory(seed), summary = [];

@@ -3,7 +3,7 @@ import { validateModuleRecipe } from '../../../domain/expedition/topology/module
 import { fields } from '../roster/codec';
 import { check, integer } from '../validation';
 import { preparationRecordBytes as row, preparationTreeBytes as tree, preparationPathsBytes as paths,
-  preparationAllocationBytes, preparationBucketNodes, type PreparationKeys } from './preparationCapacity.bytes';
+  preparationAllocationBytes, preparationBucketNodes, preparationBucketKeyLength, type PreparationKeys } from './preparationCapacity.bytes';
 
 export interface PreparationPublicBounds {
   version: 'modules-v3'; level: number; roomBudget: number; policy: ModulePolicy;
@@ -29,7 +29,7 @@ export function preparationCapacity(input: PreparationPublicBounds): Preparation
   check(Number.isSafeInteger(coordinate), 'preparation capacity coordinate bound exceeds safe arithmetic');
   const d = String(n).length, l = String(b.level).length, c = String(Math.ceil(coordinate / 16)).length;
   const floor = 8 + l, space = 16 + d, key = floor + 12 + space;
-  const bucketKey = floor + 8 + 2 * (c + 1);
+  const bucketKey = preparationBucketKeyLength(l, c);
   const ordinary: PreparationKeys = { count: 0, length: key + 7, variablePositions: d, localBranches: 3 };
   const indexed = (count: number): PreparationKeys => ({ ...ordinary, count });
   const bucketNodes = preparationBucketNodes(bucketKey + 7, c, n);

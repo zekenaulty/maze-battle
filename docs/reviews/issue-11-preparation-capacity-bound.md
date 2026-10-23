@@ -25,7 +25,7 @@ Phase byte figures are **whole-phase totals**, not fresh allowances per call.
 The head is deliberately outside this API. Parent admission must replace the
 actual serialized head charge with its fixed, validated head allowance **once per
 game**, not add that allowance to raw usage or charge it once per floor. The
-reported prospective 12-KiB parent policy leaves 20,693,982 ordinary bytes after
+reported prospective 12-KiB parent policy leaves 20,578,062 ordinary bytes after
 16 floors and the unchanged 8-MiB recovery reserve.
 
 `allocationBytes` is a prospective **one immutable unindexed execution anchor**
@@ -71,6 +71,15 @@ P<=R-1 passages and Q<=N-R pending rooms, total duplicated current bin entries a
 `4R + 2P + 6Q <= 6N-2`. Bootstrap needs <=28. Across the entire floor, **including
 empty bins left after reservation removal**, there are at most
 `4N + 2(N-1) + 6(N-1) = 12N-8` distinct bucket keys.
+
+The complete bucket key `dungeon/<level>/bucket/<row>,<column>` is bounded by
+`8 + L + 8 + 2*(C+1) + 1` characters, including both possible negative signs
+and the comma. The same bound prices record keys and, with the seven-character
+`record/` prefix, tree nodes. Independent review found that the original formula
+omitted the comma: actual seed-0, level-1, room-budget-3 bootstrap writes
+`dungeon/1/bucket/-1,-1` (22 characters), exceeding the former 21-character bound.
+The actual-writer regression reproduced that failure before correction. No
+aggregate overrun was demonstrated; the primitive bound was nevertheless wrong.
 
 `topology/buckets.ts:neighborhood` loads five by five bins; `PagedOccupancy.stage`
 only rewrites dirty bins. Bootstrap's bounded entry/reservations also fit five
@@ -118,26 +127,37 @@ ledger enforcement, recovery or public outcome noninterference follows.
 
 | Retained floors | Reserved total B | Actual B, seed 42 | Actual B, seed 781 |
 | --- | ---: | ---: | ---: |
-| 1 | 5,123,976 | 312,551 | 296,956 |
-| 1-8 | 75,782,833 | 5,705,559 | 5,748,583 |
-| 1-16 | 239,340,578 | 20,265,526 | 20,154,138 |
+| 1 | 5,126,496 | 312,551 | 296,956 |
+| 1-8 | 75,820,633 | 5,705,559 | 5,748,583 |
+| 1-16 | 239,456,498 | 20,265,526 | 20,154,138 |
 
-The 16-floor reservation is 228.253 MiB, **11.810x / 11.876x** actual retention:
+The 16-floor reservation is 228.36351203918457 MiB, approximately
+**11.815953x / 11.881257x** actual retention:
 loose but sufficient for the declared finite cohort at unchanged 256 MiB. Even
 using the current 128-KiB stored-head ceiling once leaves room for the unchanged
-8-MiB recovery reserve. This is not a useful-unbounded-depth claim. The sampled
+8-MiB recovery reserve (20,459,278 ordinary bytes remain with that larger head
+ceiling). This is not a useful-unbounded-depth claim. The sampled
 direct-only/passage-only floor-1 policies retain 293,196 / 343,981 B against the
-same 5,123,976-B allowance; both use 32 placement attempts. All 700 phase calls
-per 16-floor sequence and each record-value family are checked, not only totals.
+same 5,126,496-B allowance; both use 32 placement attempts. All 700 phase calls
+per 16-floor sequence, each record-value family and every emitted bucket-key
+width are checked, not only totals.
+
+The comma repair increases reservations by exactly 2,520 B for floor 1,
+37,800 B for floors 1-8 and 115,920 B for floors 1-16. Ordinary headroom falls
+by the same 115,920 B, from 20,693,982 to 20,578,062 B with the 12-KiB head.
+Rerun per-call measurements are identical to the prior artifacts for both
+16-floor seeds and both join-policy samples; actual retention has not changed.
 
 ## Qualification And Hookup Limits
 
-- Focused tests: **23 PASS**, 21.26 s. Root `tsc --noEmit`: PASS; no emitted build.
-- Evidence: `test-results/private-capacity-final.json` and
-  `test-results/private-capacity-final/{seed-42,seed-781,policy-direct,policy-passage}.json`
+- Focused tests: **24 PASS**, 23.67 s. Root `tsc --noEmit`: PASS; no emitted build.
+- Evidence: `test-results/private-capacity-comma-repair.json` and
+  `test-results/private-capacity-comma-repair/{seed-42,seed-781,policy-direct,policy-passage}.json`
   retain per-call record/node/receipt bytes, counts and value sizes. Failed first
-  bounds (300/279 MiB) and the initial typecheck failure were not erased.
-- Command: `node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-capacity.unit.config.ts src/persistence/canonical/world/preparationCapacity.test.ts src/persistence/canonical/world/preparationCapacity.shapes.test.ts src/persistence/canonical/world/preparationCapacity.tree.test.ts src/persistence/canonical/world/preparationCapacity.generated.test.ts --reporter=default --reporter=json --outputFile=test-results/private-capacity-final.json`.
+  bounds (300/279 MiB), the initial typecheck failure and prior successful
+  `private-capacity-final*` artifacts were not erased. The pre-fix negative-bucket
+  regression is retained in `test-results/private-capacity-comma-red.json`.
+- Command: `node node_modules/vitest/vitest.mjs run --config tests/e2e/canonical-capacity.unit.config.ts src/persistence/canonical/world/preparationCapacity.test.ts src/persistence/canonical/world/preparationCapacity.shapes.test.ts src/persistence/canonical/world/preparationCapacity.tree.test.ts src/persistence/canonical/world/preparationCapacity.generated.test.ts --reporter=default --reporter=json --outputFile=test-results/private-capacity-comma-repair.json`.
 - Parent must reserve before bootstrap, bind the exact producer/recipe/allocation
   lineage, measure actual retained private writes and refuse an overrun atomically.
   Keep raw `usedBytes` and real IO telemetry truthful. Closed unused slack remains
