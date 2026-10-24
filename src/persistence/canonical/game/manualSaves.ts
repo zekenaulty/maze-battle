@@ -9,6 +9,7 @@ import { loadParty } from '../roster/projection';
 import { validateKnowledge } from '../knowledge/evidence';
 import { gameCheckpoint } from './checkpoint';
 import { projectGameSnapshot } from './projection';
+import { findPreparation } from './preparation';
 import { MAX_MANUAL_SAVES, ManualSaveLimitError } from './saveLimits';
 
 export { MAX_MANUAL_SAVES } from './saveLimits';
@@ -85,7 +86,11 @@ export function executeSaveCommand(request: CanonicalRequest, options: { signal?
     }
     check(ids.includes(input.id), 'manual save not found');
     await saved(tx.pages, input.id);
-    if (input.kind === 'load') await tx.restoreSnapshot(saveKey(input.id), projectGameSnapshot);
+    if (input.kind === 'load') await tx.restoreSnapshot(saveKey(input.id), async (pages, snapshot) => {
+      const phase = await findPreparation(pages, gameCheckpoint(snapshot.checkpoint).position.level);
+      check(phase === null || phase === 'ready', 'cannot restore an unfinished floor');
+      await projectGameSnapshot(pages, snapshot);
+    });
     else {
       await tx.pages.delete('execution', saveKey(input.id));
       await tx.pages.set('execution', CATALOG, { schema: 1, ids: ids.filter(id => id !== input.id) });

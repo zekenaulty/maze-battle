@@ -13,9 +13,10 @@ import { loadFloor } from '../../src/persistence/canonical/world/records';
 import { privateAdmissionBytes } from '../../src/persistence/canonical/privateCapacity';
 import { storedBytes } from '../../src/persistence/canonical/accounting';
 import { initializeCanonical } from '../../src/persistence/canonical/lifecycle';
+import * as nextFloor from './canonical-private-capacity.next-floor';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5440') throw Error('Isolated private-capacity fixture only');
-const api = { ...transaction, ...reader, ...support, openCanonicalDatabase, emptyPrivateCapacity,
+const api = { ...transaction, ...reader, ...support, ...nextFloor, openCanonicalDatabase, emptyPrivateCapacity,
   createCanonicalGame, prepareGameFloor, floorPreparationSpec, preparationWorldWrite, loadFloor,
   privateAdmissionBytes, storedBytes, initializeCanonical,
   MIN_TERMINAL_BYTES, ACKNOWLEDGEMENT_BYTES, storageProbe, rootOnlyCleanupFault };
