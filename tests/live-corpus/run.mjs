@@ -8,6 +8,8 @@ import { observeWire, stopThroughUi } from './wire.mjs';
 const origin = 'http://127.0.0.1:5488', lab = 'http://127.0.0.1:5078';
 const paid = process.argv.includes('--paid-authorized'), prepareOnly = process.argv.includes('--prepare-only');
 if (paid === prepareOnly) throw Error('Choose exactly --prepare-only or --paid-authorized; no paid start is implicit');
+const paidStop = path.resolve('test-results/live-corpus-paid-stop.json');
+if (paid && fs.existsSync(paidStop)) throw Error(`Previous paid trial requires reconciliation and fresh authorization: ${paidStop}`);
 const output = path.resolve('test-results', `live-corpus-${Date.now()}`);
 fs.mkdirSync(output, { recursive: true });
 const write = (name, value) => fs.writeFileSync(path.join(output, name), JSON.stringify(value, null, 2));
@@ -15,6 +17,18 @@ const settings = await fetch(lab + '/api/providers/openai/settings').then(r => r
 if (settings.model !== 'gpt-6-luna' || settings.thinkingEffort !== 'high' || paid && !settings.configured)
   throw Error('The approved OpenAI Luna/high provider is not ready');
 const budget = new LiveBudget(), results = [];
+async function reconcile(wire) {
+  const ids = new Set(wire.received.map(x => x.frame.runId).filter(Boolean));
+  for (let n = 0; n < 25; n++) {
+    const runs = await fetch(lab + '/api/runs', { signal: AbortSignal.timeout(5000) }).then(r => r.json());
+    budget.reconcileService(runs, ids);
+    try { return budget.check({ admission: true }); }
+    catch (error) {
+      if (budget.failure || n === 24 || !/Reconcile|provider-call count/.test(String(error))) throw error;
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+}
 write('manifest.json', { source: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   trackedDelta: execFileSync('git', ['diff', '--stat', 'HEAD'], { encoding: 'utf8' }).trim(),
   paid, limits: APPROVED_LIMITS, rates: RATES, origin, lab, model: settings.model, effort: settings.thinkingEffort,
@@ -61,11 +75,11 @@ try {
         if (alerts.length) throw Error(alerts.join('; '));
         const phase = await dialog.getByRole('status').first().innerText();
         const actions = wire.received.filter(x => x.frame.type === 'action.request').length;
-        if (phase === 'satisfied') { record.status = 'SATISFIED'; break; }
+        if (phase === 'satisfied') { await reconcile(wire); record.status = 'SATISFIED'; break; }
         if (['failed', 'blocked', 'recovery', 'completed', 'stopped'].includes(phase)) throw Error(`Host stopped: ${phase}`);
         const next = dialog.getByRole('button', { name: 'Continue', exact: true });
         if (phase === 'decision' && actions !== lastDecisionActions && await next.isEnabled()) {
-          budget.check({ admission: true });
+          await reconcile(wire);
           record.decisions.push({ at: Date.now(), actions, phase, budget: budget.snapshot() });
           lastDecisionActions = actions; await next.click();
         }
@@ -77,6 +91,7 @@ try {
       const completion = replies.findLast(x => x.completion);
       if (record.final.questItems.length !== 1 || record.final.questItems[0].quantity !== 1
         || JSON.stringify(record.final.checkpoint.position) !== JSON.stringify(record.setup.position)
+        || !record.final.chest.chest.opened || record.final.quest.quest.status !== 'complete'
         || completion?.observation?.data?.status !== 'satisfied') throw Error('Host-proven objective completion is missing');
       await page.screenshot({ path: path.join(output, `${variant}-satisfied.png`) });
       console.log(variant, record.status, JSON.stringify(budget.snapshot()));
@@ -85,14 +100,21 @@ try {
       await page.screenshot({ path: path.join(output, `${variant}-failed.png`) }).catch(() => {});
       throw error;
     } finally {
+      let cleanupFailure;
       await stopThroughUi(page, wire.sent.some(x => x.frame.type === 'start.durable'))
-        .catch(error => { record.cleanupError = String(error); });
+        .catch(error => { record.cleanupError = String(error); record.status = 'RECOVERY-REQUIRED'; cleanupFailure = error; });
       record.afterStop = await page.evaluate(() => window.liveCorpus.snapshot()).catch(String);
       write(`${variant}.json`, record); write('budget.json', budget.snapshot());
       await context.close();
+      if (cleanupFailure) throw cleanupFailure;
     }
   }
-} catch (error) { write('failure.json', { error: String(error), budget: budget.snapshot() }); process.exitCode = 1; }
+} catch (error) {
+  const failure = { error: String(error), budget: budget.snapshot() };
+  write('failure.json', failure);
+  if (paid && budget.calls.size) fs.writeFileSync(paidStop, JSON.stringify({ output, ...failure }, null, 2));
+  process.exitCode = 1;
+}
 finally {
   if (vite.exitCode === null) vite.kill('SIGTERM');
   await new Promise(resolve => vite.exitCode !== null ? resolve() : vite.once('exit', resolve));

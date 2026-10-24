@@ -7,8 +7,27 @@ export const RATES = Object.freeze({ inputPerMillion: 0.10, outputPerMillion: 0.
 export class LiveBudget {
   constructor(limits = APPROVED_LIMITS, now = Date.now) {
     this.limits = limits; this.now = now; this.startedAt = null; this.calls = new Map(); this.failure = null;
+    this.serviceCounts = new Map(); this.telemetryDrops = new Map(); this.serviceValid = false;
   }
   begin() { this.startedAt ??= this.now(); }
+  observeDrops(runId, count) {
+    if (Number.isSafeInteger(count) && count > 0)
+      this.telemetryDrops.set(runId, Math.max(this.telemetryDrops.get(runId) ?? 0, count));
+  }
+  reconcileService(runs, selectedRunIds) {
+    this.serviceValid = false;
+    if (!Array.isArray(runs) || this.calls.size && selectedRunIds.size === 0)
+      throw Error('Fresh authoritative run snapshots are required');
+    const selected = runs.filter(run => selectedRunIds.has(run.runId));
+    if (selected.length !== selectedRunIds.size || new Set(selected.map(run => run.runId)).size !== selectedRunIds.size)
+      throw Error('Missing or duplicated authoritative run snapshot');
+    for (const run of selected) {
+      const calls = run.usage?.providerCalls;
+      if (!run.sessionId || !Number.isSafeInteger(calls) || calls < 0) throw Error('Invalid authoritative provider-call count');
+      this.serviceCounts.set(run.sessionId, Math.max(this.serviceCounts.get(run.sessionId) ?? 0, calls));
+    }
+    this.serviceValid = true;
+  }
   record(runId, event) {
     if (!event?.callId || !event.kind) return;
     const key = `${runId}/${event.callId}`, prior = this.calls.get(key);
@@ -34,7 +53,8 @@ export class LiveBudget {
       estimatedUsd: (inputTokens * RATES.inputPerMillion + outputTokens * RATES.outputPerMillion) / 1_000_000,
       elapsedMs: this.startedAt === null ? 0 : this.now() - this.startedAt,
       unresolved: calls.filter(c => !c.terminal || !c.usage).map(c => `${c.runId}/${c.callId}`),
-      failure: this.failure, attempts: calls };
+      failure: this.failure, attempts: calls,
+      serviceCounts: Object.fromEntries(this.serviceCounts), telemetryDrops: Object.fromEntries(this.telemetryDrops) };
   }
   check({ admission = false } = {}) {
     const s = this.snapshot(), l = this.limits;
@@ -42,6 +62,9 @@ export class LiveBudget {
     if (s.calls >= l.calls || s.inputTokens >= l.inputTokens || s.outputTokens >= l.outputTokens
       || s.estimatedUsd >= l.estimatedUsd || s.elapsedMs >= l.durationMs) throw Error('Approved cumulative live-test ceiling reached');
     if (admission && s.unresolved.length) throw Error('Reconcile original provider attempts before continuing');
+    if (admission && s.calls && !this.serviceValid) throw Error('Fresh authoritative run snapshots are required');
+    if (admission && this.serviceCounts.size && [...this.serviceCounts.values()].reduce((n, count) => n + count, 0) !== s.calls)
+      throw Error('Authoritative provider-call count differs from captured accounting');
     return s;
   }
 }

@@ -1,10 +1,13 @@
 import { defineConfig } from '@playwright/test';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const run = process.env.MAZE_LIVE_CORPUS_RUN ?? 'live-corpus-preflight';
 export default defineConfig({
+  metadata: { source: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    trackedDelta: execFileSync('git', ['diff', '--stat', 'HEAD'], { encoding: 'utf8' }).trim() },
   testDir: '.', testMatch: 'preflight.pw.ts', tsconfig: './tsconfig.json', workers: 1, retries: 0, timeout: 60_000,
   outputDir: resolve('test-results', run, 'browser'), reporter: [['list'], ['json', { outputFile: resolve('test-results', run, 'results.json') }]],
   use: { baseURL: 'http://127.0.0.1:5488', serviceWorkers: 'block', trace: 'retain-on-failure', viewport: { width: 1280, height: 900 },

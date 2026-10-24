@@ -5,6 +5,12 @@ This report maps the existing goal to the bounded provider-free deliverable;
 it does not authorize provider spending, close #11, merge, deploy, replace the
 owner's preview or reset owner data. The umbrella goal remains active.
 
+Subsequent [authorized Luna live attempt](issue-11-live-luna-attempt.md): PARTIAL /
+INTERRUPTED, not M4 acceptance. It made three provider attempts and two inspect
+choices before a monitor defect cancelled call three. Its usage remains unknown;
+B and a paid retry were not run. The NOT RUN live-gate rows below describe this
+M3 checkpoint, not that later attempt. M3 evidence is not relabeled.
+
 ## Scope And Identity
 
 The actual Maze Battle App, Manual, Auto and Agentic Play share GameSession,

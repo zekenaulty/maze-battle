@@ -5,6 +5,14 @@ Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 59,
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
+
+Live-gate update, 2026-10-24: owner authorized OpenAI Luna/high and cumulative
+64-call / 1.1M-input / 262,144-output / $1-estimated / 30-minute ceilings. The
+[first paid A trial](reviews/issue-11-live-luna-attempt.md) reached three provider
+attempts and two inspect choices before a test-monitor defect cancelled call
+three. Its usage remains unknown; original work is settled and no paid retry or
+B trial followed. The monitor repair passes provider-free checks. M3 remains
+complete; **M4 is PARTIAL / INTERRUPTED, not accepted**.
 P3 Auto now uses that same playable App and canonical commands, with earned
 waypoints, explicit collection/guild/care policy, interruption and bounded floor
 preparation. [Auto integration evidence](reviews/issue-11-auto-cutover.md).
@@ -739,7 +747,7 @@ Do not turn this completion into an expanded feature or fault matrix.
 | M1: information and capacity qualified (bounded complete) | S2/S4 integration and independent deadline review pass at their recorded levels. Preserve raw strict failures, source correspondence, allocation/work-bound evidence and reports. | Required final S6 integration passes on compatible recorded inputs. |
 | M2: generated endurance qualified (bounded complete) | Same App/canonical store, declared generated cohort and retained raw I/O, graph paging, revisit and active-owner recovery evidence. | S5 seven-case parent cohort passes its finite separated scopes without hidden routing or altered limits. Depth setup is not played descent. |
 | M3: provider-free candidate qualified (bounded complete) | Exact Maze/Agentica/SDK inputs, 47-configuration manifest, retained failures, affected reruns and independent final audit published. | All mandatory provider-free gates pass on compatible recorded identities. This is not live-model evidence or owner acceptance. |
-| M4: separately authorized live qualification | After M3, obtain model, cumulative call/token/cost/time limits and stop rules; run the two-dungeon live gate and report choices, tools, usage, latency and completion separately. | Actual provider evidence, not the offline planner, decides this gate. No paid run is currently authorized. |
+| M4: authorized live qualification, PARTIAL / INTERRUPTED | Luna/high and cumulative ceilings confirmed. Paid A had three provider attempts, two inspect choices; the monitor cancelled call three on a false accounting alarm. Unknown third-call usage and original evidence retained; monitor repaired provider-free. | No frontier travel, collection or return was completed; B and a paid retry remain unrun after the agreed stop condition. This is not live competence acceptance. |
 
 Initial bounded S5 manifest: two deterministic generated seeds, retained-depth
 samples at 1/8/16 floors, and one fixed-depth 1,024-action history sample (versus

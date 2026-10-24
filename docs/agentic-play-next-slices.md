@@ -9,9 +9,11 @@ now close the bounded S1-S6 deliverable. The original exact manifest passes
 affected-helper reruns and independent evidence review. This is the actual App's
 shared canonical noncombat vertical, not a separate test game. Original failures,
 finite generated-world limits and the existing optional unit skip remain explicit.
-Paid live-model qualification is NOT RUN and requires separate bounded authority;
-the umbrella goal and issue remain open. The dated checkpoints below are retained
-history, not the current implementation status.
+The subsequent [authorized Luna live attempt](reviews/issue-11-live-luna-attempt.md)
+is PARTIAL / INTERRUPTED: three provider attempts, two inspect choices, then a
+monitor-triggered cancellation with unknown third-call usage. B and a paid retry
+were not run; the monitor is repaired provider-free. The umbrella goal and issue
+remain open. The dated checkpoints below are retained history, not current status.
 
 Historical checkpoint, 2026-10-20: the [canonical plan, revision 42](canonical-persistence-plan.md)
 is the implementation ledger, including the finite six-sprint closeout and

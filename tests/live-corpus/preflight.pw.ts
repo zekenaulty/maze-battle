@@ -71,7 +71,8 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App prefligh
   expect(forbidden).toEqual([]); expect(errors).toEqual([]);
   await page.screenshot({ path: info.outputPath(`preflight-${variant}.png`) });
   await info.attach('provider-free-preflight.json', { contentType: 'application/json', body: JSON.stringify({
-    source: '999ba1bc44c7a6cad238f29b4890774e7434c2aa', variant, proposed, authorization: 'NOT AUTHORIZED TO START',
+    source: info.config.metadata.source, trackedDelta: info.config.metadata.trackedDelta,
+    variant, proposed, authorization: 'PROVIDER-FREE PREFLIGHT; NO START',
     genesis, initial, accepted, ready, effects, final, forbidden, errors, modules, developmentSockets,
   }) });
 });

@@ -18,7 +18,7 @@ export function observeWire(page, budget) {
         const frame = JSON.parse(String(event.payload));
         if (frame.type === 'progress' && frame.payload?.record) {
           const { thoughtSummaryDelta: _summary, ...record } = frame.payload.record;
-          if (frame.payload.droppedRecords) budget.failure = 'Provider telemetry loss; stop rather than assume zero usage';
+          budget.observeDrops(frame.runId, frame.payload.droppedRecords);
           budget.record(frame.runId, record);
           wire.received.push({ at: Date.now(), frame: { ...frame, payload: { ...frame.payload, record } } });
         } else wire.received.push({ at: Date.now(), frame });
@@ -30,7 +30,9 @@ export function observeWire(page, budget) {
 
 export async function stopThroughUi(page, started = false) {
   const dialog = page.getByRole('dialog', { name: 'Agentic play', exact: true });
-  if (await dialog.isVisible().catch(() => false)) {
+  const visible = await dialog.isVisible().catch(() => false);
+  if (started && !visible) throw Error('Started session cleanup UI is unavailable; recovery required');
+  if (visible) {
     const stop = dialog.getByRole('button', { name: 'Stop Agentic play', exact: true });
     if (await stop.isEnabled().catch(() => false)) await stop.click({ timeout: 5000 });
     if (started) {
