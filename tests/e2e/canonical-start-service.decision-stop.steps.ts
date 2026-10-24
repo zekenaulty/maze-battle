@@ -26,7 +26,11 @@ export async function fundedQuota(page: Page, alreadyRefused = false) {
   expect(full.refusal).toContain(alreadyRefused ? 'Game control unavailable' : 'quota');
   expect(full.view.controlled).toBe(false);
   const quota = full.head.quota;
-  expect(quota.limitBytes).toBe(quota.usedBytes + quota.reserveBytes + quota.reservedBytes);
+  expect(quota.limitBytes).toBe(full.admissionBytes + quota.reserveBytes + quota.reservedBytes);
+  expect(full.ordinaryRemaining).toBe(0);
+  expect(quota.usedBytes).toBe(full.actualStoredBytes);
+  expect(quota.privateCapacity).toEqual(full.before.quota.privateCapacity);
+  expect(full.head.allocations).toEqual(full.before.allocations);
   return full.head;
 }
 

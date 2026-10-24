@@ -27,7 +27,11 @@ for (const variant of ['A', 'B'] as const) for (const collected of [false, true]
       expect(wire.sent.filter(frame => frame.type === 'action.result').every(frame => !frame.payload.completion)).toBe(true);
       const quota = await page.evaluate(() => window.canonicalStartService.fillQuota());
       expect(quota.refusal).toContain('Manual control is unavailable during Agentic Play');
-      expect(quota.head.quota.limitBytes).toBe(quota.head.quota.usedBytes + quota.head.quota.reserveBytes + quota.head.quota.reservedBytes);
+      expect(quota.head.quota.limitBytes).toBe(quota.admissionBytes + quota.head.quota.reserveBytes + quota.head.quota.reservedBytes);
+      expect(quota.ordinaryRemaining).toBe(0);
+      expect(quota.head.quota.usedBytes).toBe(quota.actualStoredBytes);
+      expect(quota.head.quota.privateCapacity).toEqual(quota.before.quota.privateCapacity);
+      expect(quota.head.allocations).toEqual(quota.before.allocations);
       await page.reload();
       await expect(page.getByRole('region', { name: 'Game recovery', exact: true }).getByRole('status'))
         .toContainText('storage quota exhausted');

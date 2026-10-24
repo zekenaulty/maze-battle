@@ -6,7 +6,6 @@ import { createLaunchRecovery } from '../../src/services/agentica/game/launchRec
 import { readLaunch } from '../../src/persistence/canonical/agentica/launch';
 import { readCanonical, readCanonicalHead } from '../../src/persistence/canonical/read';
 import type { ProtocolRef } from '../../src/persistence/canonical/agentica/types';
-import { openCanonicalDatabase } from '../../src/persistence/canonical/database';
 import { startObservationSequence } from './canonical-start-service.actions';
 import { attachServiceTransfer } from './canonical-start-service.transfer';
 import { startDecisionSequence, type DecisionScriptMode } from './canonical-start-service.decision-script';
@@ -18,6 +17,7 @@ import { readPendingCustody, readExactPendingCustody, recoverPendingCustody } fr
 import { readPendingCanonicalEvidence } from './canonical-start-service.pending-evidence';
 import { recoverPendingNoEffect, producePendingInterim, postPendingRecovery, readLostPendingReply, readPendingRecoveryTransactions } from './canonical-start-service.pending-repair';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
+import { exhaustOrdinaryQuota } from './canonical-start-service.quota';
 
 if (!import.meta.env.DEV || location.origin !== import.meta.env.VITE_START_SERVICE_ORIGIN) throw Error('Isolated start-service origin required');
 let session: GameSession;
@@ -125,12 +125,10 @@ const api = { boot, loseStart, snapshot, recover, readPendingCustody, readExactP
     try { await prepareGameLaunch(session, options()); return ''; } catch (error) { return String(error); }
   },
   async fillQuota() {
-    const { head } = await readCanonicalHead(), db = await openCanonicalDatabase();
-    head.quota.limitBytes = head.quota.usedBytes + head.quota.reserveBytes + head.quota.reservedBytes;
-    await db.put('heads', head, head.gameId); db.close();
+    const boundary = await exhaustOrdinaryQuota();
     let refusal = '';
     try { await session.execute('settings', { kind: 'throttle', ms: 100 }); } catch (error) { refusal = String(error); }
-    return { refusal, view: session.view, head: (await readCanonicalHead()).head };
+    return { ...boundary, refusal, view: session.view, head: (await readCanonicalHead()).head };
   },
   stop() { navigationCleanup?.close(); controller?.close(); restoredDecision?.close(); decision?.close(); transferred?.close(); scripted?.close(); recovery?.close(); client?.close(); session?.stop(); },
 };
