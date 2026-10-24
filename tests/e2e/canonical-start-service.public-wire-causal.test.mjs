@@ -28,6 +28,18 @@ test('two ACKs can exchange while unrelated core events and source order stay st
   assert.throws(() => noResiduals(raw));
 });
 
+test('only the direct request can interleave with the FIFO waiting/pending pair', () => {
+  const waiting = frame('status', { status: 'awaiting_host' }), request = frame('action.request', pending.payload);
+  const step = frame('execution.event', { type: 'step.started', context: { stepId: 'step-1' }, sequence: 5 });
+  const base = [waiting, request, pending], alternatives = [[request, waiting, pending], [waiting, pending, request]];
+  const make = rows => ({ sent: payload([]).sent,
+    received: structuredClone([step, ...rows, running, evidence, direct, observation]), progress: [] });
+  for (const rows of alternatives) noResiduals([make(base), make(rows)]);
+  assert.throws(() => noResiduals([make(base), make([pending, request, waiting])]));
+  const changed = [make(base), make(alternatives[0])]; changed[1].received[0].payload.sequence++;
+  assert.throws(() => noResiduals(changed));
+});
+
 for (const [name, change] of Object.entries({
   'missing ACK': raw => raw[1].received.splice(2, 1),
   'extra ACK': raw => raw[1].received.splice(2, 0, structuredClone(direct)),

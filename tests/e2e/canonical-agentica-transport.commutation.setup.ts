@@ -57,8 +57,17 @@ export async function commutationConsumer(browser: Browser) {
     capabilityId: 'maze.observe', arguments: {}, expectedRevision: request.observation.revision,
     deadlineAt: new Date(now + 120_000).toISOString() });
   const send = (frame: ConsumerFrame) => socket.send(JSON.stringify(frame));
-  async function invoke(value: AgenticaAction) {
-    send({ protocolVersion: 1, type: 'action.request', runId: value.runId, payload: value });
+  async function invoke(value: AgenticaAction, order?: 'waiting-first' | 'request-first' | 'queued-first') {
+    const request: ConsumerFrame = { protocolVersion: 1, type: 'action.request', runId: value.runId, payload: value };
+    if (!order) send(request);
+    else {
+      const waiting: ConsumerFrame = { ...request, requestId: null, type: 'status', payload: { status: 'awaiting_host' } };
+      const pending: ConsumerFrame = { ...request, requestId: null, type: 'action.pending' };
+      request.requestId = null;
+      const rows = order === 'waiting-first' ? [waiting, request, pending]
+        : order === 'request-first' ? [request, waiting, pending] : [waiting, pending, request];
+      rows.forEach(send);
+    }
     await expect.poll(() => incoming.filter(frame => frame.type === 'action.result' && frame.payload.actionId === value.actionId).length).toBe(1);
     await page.evaluate(() => window.transportReview.drain());
     return incoming.find(frame => frame.type === 'action.result' && frame.payload.actionId === value.actionId)!.payload;

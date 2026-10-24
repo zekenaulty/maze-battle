@@ -6,5 +6,5 @@ export interface PublicWireComparison {
   correspondence: { mapping: number[]; blocks: unknown[] };
 }
 export function compareCausalPublicPayloads(raw: unknown[], seededAllowances?: unknown[]): PublicWireComparison;
-export function compareCausalPublicWire(roots: unknown, wire: unknown): PublicWireComparison;
+export function compareCausalPublicWire(roots: unknown, wire: unknown, custody: unknown[]): PublicWireComparison;
 export function assertCausalPublicWireDisclosure(result: PublicWireComparison): void;

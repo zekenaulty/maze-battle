@@ -52,3 +52,24 @@ test('real SDK and shared game commute acceptance notices but preserve terminal 
   expect(cases[3].next).toBeNull(); expect(cases[4].next?.disposition).toBe('applied');
   expect(cases[3].final.database).not.toEqual(cases[4].final.database);
 });
+
+test('real SDK preserves effects when direct dispatch interleaves with FIFO waiting and pending', async ({ browser }, info) => {
+  const cases = [];
+  for (const order of ['waiting-first', 'request-first', 'queued-first'] as const) {
+    const c = await commutationConsumer(browser);
+    try {
+      const before = await c.snapshot(), action = c.action('commutation-dispatch');
+      const result = await c.invoke(action, order), after = await c.snapshot();
+      expect(result.disposition).toBe('applied'); expect(after.phases).toEqual(['attached']);
+      cases.push({ order, before, result, after, sent: structuredClone(c.incoming) });
+    } finally { await c.close(); }
+  }
+  await info.attach('dispatch-commutation-raw.json', { body: JSON.stringify(cases), contentType: 'application/json' });
+  for (const value of cases.slice(1)) {
+    expect(value.before.database).toEqual(cases[0].before.database);
+    expect(value.after.database).toEqual(cases[0].after.database);
+    expect(value.after.authority).toEqual(cases[0].after.authority);
+    expect(value.result).toEqual(cases[0].result); expect(value.sent).toEqual(cases[0].sent);
+    expect(value.after.messages).not.toEqual(cases[0].after.messages);
+  }
+});

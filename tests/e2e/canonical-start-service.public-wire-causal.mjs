@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { comparePublicWire, comparePublicPayloads, assertPublicWireDisclosure } from './canonical-start-service.public-wire.mjs';
+import { assertOriginalDeadlines } from './canonical-start-service.public-wire-deadlines.mjs';
 
 const fields = (value, keys) => value && Object.keys(value).sort().join(',') === keys;
 function role(frame) {
@@ -14,12 +15,15 @@ function role(frame) {
 }
 
 function blocks(frames) {
-  const found = new Map();
+  const found = new Map(), dispatches = dispatchBlocks(frames);
   for (let start = 1; start < frames.length; start++) {
-    if (frames[start - 1].type !== 'action.pending') continue;
+    const dispatch = [...dispatches.values()].find(block => block.end === start);
+    const pending = frames[start - 1].type === 'action.pending' ? frames[start - 1]
+      : dispatch && frames.slice(dispatch.start, dispatch.end).find(frame => frame.type === 'action.pending');
+    if (!pending) continue;
     let end = start;
     while (end < frames.length && role(frames[end])) end++;
-    const pending = frames[start - 1], next = frames[end], rows = frames.slice(start, end), roles = rows.map(role);
+    const next = frames[end], rows = frames.slice(start, end), roles = rows.map(role);
     if (pending.requestId !== null || typeof pending.payload?.actionId !== 'string'
       || typeof pending.payload?.stepId !== 'string' || pending.payload.runId !== pending.runId
       || ![2, 3].includes(rows.length) || new Set(roles).size !== rows.length
@@ -51,18 +55,41 @@ function acknowledgements(raw) {
   });
 }
 
+function dispatchBlocks(frames) {
+  const found = new Map();
+  const role = frame => frame?.requestId !== null ? null : frame.type === 'action.request' ? 'request'
+    : frame.type === 'action.pending' ? 'pending'
+      : frame.type === 'status' && fields(frame.payload, 'status') && frame.payload.status === 'awaiting_host' ? 'waiting' : null;
+  for (let start = 1; start + 3 < frames.length; start++) {
+    const step = frames[start - 1], rows = frames.slice(start, start + 3), roles = rows.map(role);
+    if (step.type !== 'execution.event' || step.payload?.type !== 'step.started'
+      || new Set(roles).size !== 3 || roles.includes(null) || roles.indexOf('waiting') > roles.indexOf('pending')) continue;
+    const request = rows[roles.indexOf('request')], pending = rows[roles.indexOf('pending')], next = frames[start + 3];
+    if (rows.some(row => row.runId !== step.runId || row.protocolVersion !== step.protocolVersion)
+      || request.payload.stepId !== step.payload.context?.stepId || !roleAfter(next, request)) continue;
+    assert.deepEqual(request.payload, pending.payload, 'Dispatch and pending original changed');
+    found.set(start, { start, end: start + 3, roles, actionId: request.payload.actionId });
+  }
+  return found;
+}
+function roleAfter(frame, request) {
+  return frame?.runId === request.runId && (role(frame) === 'running'
+    || ['direct', 'evidence'].includes(role(frame)) && frame.payload.actionId === request.payload.actionId);
+}
+
 /** Explicit occurrence bijection inside complete acceptance blocks; raw arrays never change. */
 export function receivedCorrespondence(left, right) {
   assert.equal(left.length, right.length, 'Incoming frame multiplicity changed');
-  const mapping = left.map((_, i) => i), changes = [], a = blocks(left), b = blocks(right);
-  for (const [start, block] of a) {
-    const other = b.get(start);
+  const mapping = left.map((_, i) => i), changes = [];
+  for (const [kind, find] of [['acceptance', blocks], ['dispatch', dispatchBlocks]]) for (const [start, block] of find(left)) {
+    const other = find(right).get(start);
     if (!other || block.end !== other.end || block.roles.some(key => !other.roles.includes(key))) continue;
     for (let i = start; i < block.end; i++) mapping[i] = start + other.roles.indexOf(block.roles[i - start]);
     if (mapping.slice(start, block.end).some((j, offset) => j !== start + offset)) changes.push({
       start, end: block.end, leftActionId: block.actionId, rightActionId: other.actionId,
       leftRoles: block.roles, rightRoles: other.roles,
-      reason: 'Uncorrelated acceptance notices after one pending action and before its first observation event',
+      kind, reason: kind === 'acceptance' ? 'Uncorrelated acceptance notices between original pending and observation'
+        : 'Direct request interleaves with FIFO waiting/pending notices between its step event and acceptance',
     });
   }
   assert.equal(new Set(mapping).size, left.length, 'Incoming correspondence must preserve every occurrence');
@@ -82,8 +109,9 @@ export function compareCausalPublicPayloads(raw, seededAllowances = []) {
     allowances: comparison.allowances.map(row => ({ ...row, rightPath: rightPath(row.path) })) };
 }
 
-export function compareCausalPublicWire(roots, wire) {
+export function compareCausalPublicWire(roots, wire, custody) {
   const strict = comparePublicWire(roots, wire);
-  return { ...compareCausalPublicPayloads(strict.raw, strict.allowances), strictDifferences: strict.differences };
+  const deadlineProof = assertOriginalDeadlines(strict.raw, custody);
+  return { ...compareCausalPublicPayloads(strict.raw, strict.allowances), strictDifferences: strict.differences, deadlineProof };
 }
 export const assertCausalPublicWireDisclosure = assertPublicWireDisclosure;

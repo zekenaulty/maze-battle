@@ -17,6 +17,7 @@ test.use({ freshCorpus: true });
 test('paired corpus actual planner inputs: initial, refinement and explicit successor', async ({ page, wire }, info) => {
   test.setTimeout(240_000);
   const roots: { variant: 'A' | 'B'; entries: CaptureEntry[]; actions: AgenticaAction[] }[] = [];
+  const custody: unknown[] = [];
   try {
     for (const variant of ['A', 'B'] as const) {
       await page.goto('/tests/e2e/canonical-start-service.html');
@@ -122,6 +123,13 @@ test('paired corpus actual planner inputs: initial, refinement and explicit succ
       });
       expect(allocations).toEqual({}); expect(await serviceProof()).toEqual(counters);
       expect(await capture()).toEqual(snapshot);
+      for (const action of actions.slice(0, 7)) {
+        const url = new URL('/api/recovery/action', serviceOrigin);
+        url.search = new URLSearchParams({ hostId: submissions[0].payload.request.hostId,
+          sessionId: action.sessionId, actionId: action.actionId }).toString();
+        const response = await fetch(url);
+        expect(response.ok).toBe(true); custody.push(await response.json());
+      }
     }
     expect(roots).toHaveLength(2);
     const pair = plannerPair();
@@ -132,11 +140,19 @@ test('paired corpus actual planner inputs: initial, refinement and explicit succ
     expect(differences[7]).toContainEqual({ path: '/request/ContextFrames/0/Payload/currentObservation/Data/frontiers/0/direction', left: 'east', right: 'north' });
     const disclosed = /^\/(request\/Observations\/2\/Data\/observation\/data|request\/ContextFrames\/0\/Payload\/currentObservation\/Data|refinementObservation\/Data\/observation\/data)\/frontiers\/[0-3]\/(direction|at\/(column|row)|source\/index|frontier\/selection\/(direction|at\/cell\/(column|row)|source\/index))$/;
     expect(differences[7].every((difference: { path: string }) => disclosed.test(difference.path))).toBe(true);
-    const comparison = compareCausalPublicWire(roots, wire);
+    const comparison = compareCausalPublicWire(roots, wire, custody);
     await info.attach('public-wire-causal-comparison.json', { body: JSON.stringify(comparison, null, 2), contentType: 'application/json' });
     assertCausalPublicWireDisclosure(comparison);
+    for (const matchingPending of [false, true]) {
+      const mutated = structuredClone(wire), actionId = roots[0].actions[0].actionId;
+      for (const { frame } of mutated.received) if (frame.payload.actionId === actionId
+        && (frame.type === 'action.request' || matchingPending && frame.type === 'action.pending'))
+        frame.payload.deadlineAt = new Date(Date.parse(frame.payload.deadlineAt) + 3_600_000).toISOString();
+      expect(() => compareCausalPublicWire(roots, mutated, custody)).toThrow(/differs from original service custody/);
+    }
   } finally {
     await info.attach('planner-inputs-raw.json', { body: JSON.stringify(await capture(), null, 2), contentType: 'application/json' });
     await info.attach('planner-pair-raw.json', { body: JSON.stringify({ roots, sent: wire.sent, received: wire.received }, null, 2), contentType: 'application/json' });
+    await info.attach('original-action-custody.json', { body: JSON.stringify(custody, null, 2), contentType: 'application/json' });
   }
 });
