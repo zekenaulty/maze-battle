@@ -1,9 +1,10 @@
 import { test, expect, type WebSocketRoute } from '@playwright/test';
 import type {} from './canonical-agentica-transport.fixture';
-import type { AgenticaAction } from '../../src/services/agentica/contracts';
+import type { AgenticaAction, AgenticaCapability } from '../../src/services/agentica/contracts';
 import type { AgenticaMessage } from '../../src/services/agentica/sdk/agentica-host.mjs';
 import { durableStarted, durableSubmission } from './canonical-agentica-transport.wire';
 import { launchTerminalFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
+import { MAX_LAUNCH_START_BYTES } from '../../src/persistence/canonical/agentica/launch.types';
 
 const origin = 'http://127.0.0.1:5244';
 let socket: WebSocketRoute, incoming: AgenticaMessage[], external: string[], errors: string[];
@@ -46,7 +47,10 @@ test('preparation has no network; correlated start holds early action until dura
   await page.evaluate(async () => { await window.canonicalTransport.attach(); window.canonicalTransport.hold('agentica.launch.grant'); window.canonicalTransport.begin(); });
   const start = await waitStart(), retained = (await page.evaluate(() => window.canonicalTransport.launch()))!;
   expect(start.payload).toEqual({ attemptId: retained.dispatch!.source.attemptId, request: boot.start });
-  expect(Buffer.byteLength(JSON.stringify(start.payload.request))).toBeLessThanOrEqual(3072);
+  expect(Buffer.byteLength(JSON.stringify(start.payload.request))).toBeLessThanOrEqual(MAX_LAUNCH_START_BYTES);
+  expect(start.payload.request.capabilities.map((capability: AgenticaCapability) => capability.id)).toEqual([
+    'maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact',
+  ]);
   send(await announce(start)); const request = await action(start);
   send({ protocolVersion: 1, type: 'action.request', runId: request.runId, payload: request });
   await page.waitForFunction(() => window.canonicalTransport.status().held);
