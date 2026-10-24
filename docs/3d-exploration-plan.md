@@ -144,3 +144,11 @@ Scope expansion is limited to the owner-authorized 2D issue, draw continuity and
 The owner requested fog to soften the square disclosure edges. Existing Three.js fog began at 12 units and completed at 26, beyond much of the currently disclosed floor. Brought the fade to one tile (3.2 units) through 3.5 tiles (11.2 units), retaining the matching dark background color. Nearby details stay clear while distant floor and ceiling blend into the background. This is a renderer setting only.
 
 Production build/types and the browser material/view-switch/recovery check PASS. Inspected the refreshed live stage at 5196; screenshot and browser artifacts are retained under `canonical-3d/fog-20261024`. No new renderer or gameplay change.
+
+## Directional bookcases — 2026-10-24
+
+The owner requested planks on all bookcase faces except the front. The stage now uses the existing `bookshelf:oak_planks` surface on the back, top, bottom and both sides, with the bounded book artwork only on local +Z. Seeded wall placements include an inward-facing direction; the renderer rotates the complete mesh on all four walls. East/west placements exchange local width/depth before rotation, so rendered bounds still exactly match the existing world-space collision boxes. Placement RNG, doorway clearance and collision dimensions are unchanged. Source artwork and the TileLab authoring manifest remain intact; this is the stage's bookcase appearance.
+
+Verification: 40 focused 3D tests PASS, including all four front normals, full unmirrored front UVs, world-space rendered/collision bounds and inward wall placement. Production build/types and browser-fixture types PASS. Three browser checks PASS: material/view switching/recovery, wall/dialog/context recovery, and a disclosed-route bookcase front/side inspection. Side inspection stayed inside the committed tile without a game write. Inspected the captured images; plank grain replaces the squeezed side books. Artifacts are under `canonical-3d/bookshelf-20261024`; live preview at 5196 was refreshed without moving its actor.
+
+The canonical branch advanced to `9bb5ec2` with documentation and provider-test/monitor fixtures only, without runtime/package changes. Rebased this isolated lane onto that base; the other development checkouts remain untouched. No live-provider test was run, and nothing was pushed or merged.

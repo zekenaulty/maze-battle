@@ -157,6 +157,39 @@ function route(observation: any, predicate: (cell: any) => boolean): string[] | 
   }
 }
 
+test('wall bookcases show books on the room face and planks on the sides', async ({ page }, info) => {
+  await page.goto('/tests/e2e/canonical-3d.html?view=stage3d'); await ready(page);
+  const before = await state(page);
+  // Test oracle uses only the same published observation as the renderer.
+  const shelves = await page.evaluate(async () => {
+    const { readCanonicalHead } = await import('/src/persistence/canonical/read.ts');
+    const { projectGame } = await import('/src/persistence/canonical/game/projection.ts');
+    const { compileStageScene } = await import('/src/components/maze3d/scene.ts');
+    const game = (await projectGame((await readCanonicalHead()).head)).value, scene = compileStageScene(game)!;
+    return scene.boxes.filter(b => b.material === 'bookshelf').map(box => ({
+      at: scene.cells.find(cell => box.id.startsWith(`${cell.key}/`))!.source.at, center: box.center,
+    }));
+  });
+  const targets = shelves.map(shelf => ({ ...shelf, path: route(before.observation, c => JSON.stringify(c.at) === JSON.stringify(shelf.at)) }))
+    .filter(shelf => shelf.path).sort((a, b) => a.path!.length - b.path!.length);
+  expect(targets.length).toBeGreaterThan(0);
+  const shelf = targets[0];
+  for (const step of shelf.path!) await walkOne(page, step);
+  const aim = async () => {
+    const [x, z] = xy(await canvas(page).getAttribute('data-pose'));
+    await lookYaw(page, Math.atan2(x - shelf.center[0], z - shelf.center[2]));
+  };
+  await aim();
+  const bounds = (await canvas(page).boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.25); await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.25 + 240, { steps: 8 }); await page.mouse.up();
+  await page.screenshot({ path: info.outputPath('bookshelf-front.png') });
+  const atShelf = await state(page);
+  await page.keyboard.down('d'); await page.waitForTimeout(320); await page.keyboard.up('d'); await aim();
+  expect((await state(page)).head.revision).toBe(atShelf.head.revision);
+  await page.screenshot({ path: info.outputPath('bookshelf-plank-side.png') });
+});
+
 test('materials survive repeated view switches and can recover from an unavailable manifest', async ({ page }, info) => {
   await page.goto('/?view=stage3d'); await ready(page);
   await expect.poll(async () => Number(await canvas(page).getAttribute('data-textures-count'))).toBeGreaterThan(0);

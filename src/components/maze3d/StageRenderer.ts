@@ -10,6 +10,7 @@ import type { SceneBox, StageScene } from './scene';
 import { StageWalker } from './movement';
 import { CELL_SIZE, EYE_HEIGHT } from './constants';
 import { alignBoxUVs } from './boxUVs';
+import { bookshelfMesh } from './bookshelf';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -102,6 +103,7 @@ export class StageRenderer {
     }
   }
   private buildBox(box: SceneBox): THREE.Object3D {
+    if (box.material === 'bookshelf') return bookshelfMesh(box, this.registry, this.library);
     if (box.material === 'chest' && this.registry.pack?.blocks.chest) {
       const group = blockGeometry(this.registry.resolve('chest', { state: 'closed' }), this.library);
       group.position.set(box.center[0], 0, box.center[2]); group.scale.setScalar(1.2); group.rotation.y = Math.PI;

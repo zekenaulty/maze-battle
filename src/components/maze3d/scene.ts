@@ -3,11 +3,12 @@ import type { GameView } from '../../services/game/GameView';
 import type { ObservedCell } from '../../persistence/canonical/knowledge/types';
 import { DIRECTIONS, MAX_VISIBLE_CELLS } from '../../persistence/canonical/knowledge/types';
 import { currentVisibleCell } from '../../viewModels/canonicalPerceivedMaze';
+import { opposite } from '../../domain/maze/movement';
 import { CELL_SIZE, DOOR_HEIGHT, DOOR_WIDTH, WALL_HEIGHT } from './constants';
 
 export type Point = { x: number; z: number };
 export interface Bounds2D { minX: number; maxX: number; minZ: number; maxZ: number }
-export interface SceneBox { id: string; material: string; center: [number, number, number]; size: [number, number, number]; solid: boolean }
+export interface SceneBox { id: string; material: string; center: [number, number, number]; size: [number, number, number]; solid: boolean; facing?: Direction }
 export interface StageCell { key: string; source: ObservedCell; center: Point; seed: number; kind: 'room' | 'passage' }
 export interface StageScene {
   version: 'canonical-stage-v1'; scope: string; origin: GridPosition; level: number; actor: StageCell;
@@ -47,7 +48,8 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
   const active = cells.find(c => c.key === addressKey(actor.at));
   if (!active || new Set(cells.map(c => worldKey(c.source.world))).size !== cells.length) throw new Error('Invalid disclosed stage coordinates');
   const byWorld = new Map(cells.map(c => [worldKey(c.source.world), c])), boxes: SceneBox[] = [];
-  const box = (id: string, material: string, center: SceneBox['center'], size: SceneBox['size'], solid = true) => boxes.push({ id, material, center, size, solid });
+  const box = (id: string, material: string, center: SceneBox['center'], size: SceneBox['size'], solid = true, facing?: Direction) =>
+    boxes.push({ id, material, center, size, solid, ...(facing ? { facing } : {}) });
   for (const cell of cells) {
     const { x, z } = cell.center, half = CELL_SIZE / 2;
     box(`${cell.key}/floor`, 'cobblestone', [x, -0.09, z], [CELL_SIZE, 0.18, CELL_SIZE], false);
@@ -76,7 +78,7 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
         const random = seededRandom(visualSeed(`${cell.seed}/${direction}`));
         if (target === null && cell.kind === 'room' && random() < 0.25) {
           box(`${edge}/shelf`, 'bookshelf', [cx - dx * 0.25, 1.1, cz - dz * 0.25],
-            horizontal ? [1.5, 2.2, 0.34] : [0.34, 2.2, 1.5]);
+            horizontal ? [1.5, 2.2, 0.34] : [0.34, 2.2, 1.5], true, opposite(direction));
         }
       }
     }

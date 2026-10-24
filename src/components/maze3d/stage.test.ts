@@ -1,10 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { stageFixture } from './stage.test-support';
-import { compileStageScene, seededRandom } from './scene';
+import { compileStageScene, directionVector, seededRandom } from './scene';
 import { diskBlocked, PREDICTION_LIMIT, slideDisk, StageWalker } from './movement';
 import { CELL_SIZE, PLAYER_RADIUS, WALK_SPEED } from './constants';
-import { earnedCell } from '../../persistence/canonical/knowledge/region.test-support';
+import { earnedCell, knowledgeFixture } from '../../persistence/canonical/knowledge/region.test-support';
+import { exploreView } from '../ExploreScreen.test-support';
+import { checkpointJson } from '../../persistence/canonical/game/checkpoint';
 
 describe('canonical stage disclosure and seeded scene compilation', () => {
   it('replays scene data independently of observation order/revision and never consumes Math.random', async () => {
@@ -30,6 +32,22 @@ describe('canonical stage disclosure and seeded scene compilation', () => {
     expect(diskBlocked({ x: CELL_SIZE * 1.5, z: 0 }, scene.colliders)).toBe(false);
     expect(diskBlocked({ x: CELL_SIZE * 1.5, z: 1.2 }, scene.colliders)).toBe(true);
     for (const box of scene.boxes.filter(b => b.material === 'bookshelf')) expect(box.solid).toBe(true);
+  });
+  it('faces seeded shelves into the room on all four wall orientations', async () => {
+    const game = exploreView(), fixture = knowledgeFixture(), covered = new Set<string>();
+    for (let row = 0; row < 32 && covered.size < 4; row++) {
+      const cell = earnedCell(row, 0, 'library'); cell.chests = [];
+      game.observation = await fixture.observe([cell], { graph: 'available', spaces: [{ spaceId: 'library', kind: 'room', index: 0 }] });
+      game.checkpoint = fixture.checkpoint(); game.snapshot.checkpoint = checkpointJson(game.checkpoint);
+      const scene = compileStageScene(game)!;
+      for (const shelf of scene.boxes.filter(box => box.material === 'bookshelf')) {
+        expect(shelf.facing).toBeDefined();
+        const normal = directionVector[shelf.facing!];
+        expect((scene.actor.center.x - shelf.center[0]) * normal.x + (scene.actor.center.z - shelf.center[2]) * normal.z).toBeGreaterThan(0);
+        covered.add(shelf.facing!);
+      }
+    }
+    expect([...covered].sort()).toEqual(['east', 'north', 'south', 'west']);
   });
 });
 describe('planar capsule traversal and canonical crossing custody', () => {
