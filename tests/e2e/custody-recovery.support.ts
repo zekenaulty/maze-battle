@@ -1,6 +1,7 @@
 import { accountHead, storedBytes } from '../../src/persistence/canonical/accounting';
 import { openCanonicalDatabase } from '../../src/persistence/canonical/database';
 import { initializeCanonical } from '../../src/persistence/canonical/lifecycle';
+import { privateAdmissionBytes, validatePrivateCapacity } from '../../src/persistence/canonical/privateCapacity';
 import { readCanonical, readCanonicalHead } from '../../src/persistence/canonical/read';
 import { canonicalFence, controlCanonical, operateCanonical } from '../../src/persistence/canonical/transaction';
 import { CANONICAL_STORES, MIN_RECOVERY_BYTES, MIN_TERMINAL_BYTES, type CanonicalHead,
@@ -29,15 +30,20 @@ export async function dump() {
   } finally { db.close(); }
 }
 
+export const quotaBoundaries: { before: CanonicalHead; after: CanonicalHead; actualStoredBytes: number }[] = [];
 export async function fullNormalQuota() {
-  const head = await current(), db = await openCanonicalDatabase();
+  const head = await current();
+  validatePrivateCapacity(head.quota.privateCapacity);
+  const charge = privateAdmissionBytes(head.quota.privateCapacity, head.quota.usedBytes, storedBytes('heads', head.gameId, head));
+  const db = await openCanonicalDatabase();
   try {
     // Fixture-only capacity policy injection preserves accounting and all funded operation bytes.
     const next = accountHead(head, { ...head, quota: { ...head.quota,
       reserveBytes: MIN_RECOVERY_BYTES,
-      limitBytes: head.quota.usedBytes + head.quota.reservedBytes + MIN_RECOVERY_BYTES + 32 } }, 0);
+      limitBytes: charge + head.quota.reservedBytes + MIN_RECOVERY_BYTES + 32 } }, 0);
     await db.put('heads', next, next.gameId);
   } finally { db.close(); }
+  quotaBoundaries.push({ before: head, after: await current(), actualStoredBytes: (await dump()).bytes });
 }
 
 export async function admit(count: number) {

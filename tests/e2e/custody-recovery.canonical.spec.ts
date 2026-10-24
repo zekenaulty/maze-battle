@@ -1,10 +1,32 @@
 import { expect, test } from '@playwright/test';
 import type {} from './custody-recovery.fixture';
+import { HEAD_CAPACITY_BYTES } from '../../src/persistence/canonical/privateCapacity';
+import { MIN_RECOVERY_BYTES } from '../../src/persistence/canonical/types';
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/*', route => new URL(route.request().url()).origin === 'http://127.0.0.1:5242' ? route.continue() : route.abort());
   await page.goto('/tests/e2e/custody-recovery.html');
   await page.waitForFunction(() => !!window.custodyRecovery);
+});
+
+test.afterEach(async ({ page }, info) => {
+  const boundaries = await page.evaluate(async () => {
+    const path = '/tests/e2e/custody-recovery.support.ts';
+    const support: typeof import('./custody-recovery.support') = await import(/* @vite-ignore */ path);
+    return support.quotaBoundaries;
+  });
+  if (info.title.startsWith('recovery claim cannot enter ready state')) { expect(boundaries).toEqual([]); return; }
+  await info.attach('quota-boundary.json', { body: JSON.stringify(boundaries), contentType: 'application/json' });
+  expect(boundaries).toHaveLength(1);
+  const { before, after, actualStoredBytes } = boundaries[0], q = after.quota, policy = q.privateCapacity;
+  if (!policy) throw Error('Expected private capacity');
+  const charge = actualStoredBytes - Buffer.byteLength(JSON.stringify(['heads', after.gameId, after]))
+    + policy.allocatedBytes - policy.consumedBytes + HEAD_CAPACITY_BYTES;
+  expect(q.limitBytes - q.reserveBytes - q.reservedBytes - charge).toBe(32);
+  expect(q.usedBytes).toBe(actualStoredBytes); expect(q.reserveBytes).toBe(MIN_RECOVERY_BYTES);
+  expect(after).toEqual({ ...before, quota: { ...before.quota, usedBytes: q.usedBytes, limitBytes: q.limitBytes, reserveBytes: MIN_RECOVERY_BYTES } });
+  if (info.title.startsWith('new GameSession')) expect(policy.allocatedBytes).toBeGreaterThan(0);
+  else expect(policy.allocatedBytes).toBe(0);
 });
 
 test('explicit stopped foreign claim protects all 16 funded originals without adoption or resume', async ({ page }) => {
