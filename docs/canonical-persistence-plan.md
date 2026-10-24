@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 52,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 53,
 2026-10-23. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -614,8 +614,14 @@ threshold run records `0755438`. These are separate cohorts, not a final suite.
 Artifacts: `test-results/private-preparation-parent-first.json`,
 `test-results/private-preparation-native-first/results.json`, and
 `test-results/private-allocation-corpus-first/results.json`.
-At this planning checkpoint four implementation commits are local beyond remote
-`77e149c`; publication and broader integration checks remain to be done.
+That planning checkpoint was published at `1d00fff`. The subsequent
+[preparation and restore integration](reviews/issue-11-private-preparation-integration.md)
+qualifies next-floor allocation and adds receipt-bound restored-world identities.
+Completed saves can generate later floors with new funding while earlier charges
+remain retained; unfinished current-floor saves explicitly refuse. Full units
+now pass 5,017 with the same existing optional skip, and both focused actual-App
+cold-start service journeys pass. Command-work/diagnostic boundaries, generated
+endurance and frozen final qualification remain open.
 The remaining range stays **28-56 focused hours**, not a restarted budget or a
 claim that focused test counts establish the remaining integration cost.
 The original planning checkpoints and their uncertainty remain below.
@@ -684,7 +690,7 @@ candidate at a time. Checked increments continue to be committed and pushed.
 | 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
 | 2. Information boundaries | Retain passing scoped-query, navigation/history, UI and complete-planner-frame evidence. Finish wire/status/diagnostic composition through the first lawful A/B observation difference. Review the observed independent status/ACK delivery interleaving, retain the strict ordered FAIL, and add an explicit correspondence plus consumer-order regression rather than sorting away differences. Capacity and command-work thresholds are Sprint 4. | 2-4h |
 | 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. The final combined rerun belongs to Sprint 6. | Complete |
-| 4. Capacity, work and controller parity | Local allocation binding and the original authored quota regression now pass focused/native checks. Integrate independent index-guard tests; qualify next-floor allocation, restore/stale-anchor refusal, abort/replay and App/service composition. Separately close command-work/diagnostic exposure, retaining truthful occupancy and funded cleanup. No Auto policy bleed into manual or agent authority. | 12-24h |
+| 4. Capacity, work and controller parity | Allocation binding, index guards, next-floor preparation, restored-world fresh funding, atomic refusal/rollback, replay, App regression and focused cold-start service composition now pass at their recorded levels. Close finite command-work threshold and diagnostic exposure checks, retaining truthful occupancy and funded cleanup. No Auto policy bleed into manual or agent authority. | 12-24h; re-estimate after the work gate |
 | 5. Generated-world endurance | Declare a small generated-layout cohort, shallow/deep retained topology samples and a larger fixed-depth history sample than the existing 128 moves. Prove paged known-room/connection graph retrieval across multiple pages and bounded underlying reads/payloads as topology grows. Include active Agentica/two-tab recovery, actual IndexedDB I/O/latency, and preserved old records/receipts, not unchanged current knowledge roots. | 6-12h |
 | 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
 
