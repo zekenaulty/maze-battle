@@ -3,8 +3,13 @@ import { measuredMove } from './canonical-corpus.work';
 import type { CanonicalWorkLimits } from '../../src/persistence/canonical/types';
 import { DEFAULT_WORK_LIMITS } from '../../src/persistence/canonical/types';
 
+interface WorkPair {
+  limits: CanonicalWorkLimits;
+  boots: Awaited<ReturnType<Window['canonicalCorpus']['boot']>>[];
+  samples: Awaited<ReturnType<typeof measuredMove>>[];
+}
 test('same earned move has equal read/write/byte threshold outcomes and truthful diagnostics', async ({ browser }, info) => {
-  const pairs = [];
+  const pairs: WorkPair[] = [];
   async function pair(limits: CanonicalWorkLimits) {
     const samples = [], boots = [];
     for (const variant of ['A', 'B'] as const) {
