@@ -40,5 +40,6 @@ for (const changed of ['missing', 'id', 'epoch', 'observation', 'old-epoch-event
     const before = await c.dump(), error = await c.claim(p).then(() => 'accepted', String);
     return { error, unchanged: before === await c.dump(), state: await c.state() };
   }, changed);
-  expect(r.error).toContain('exact decision successor'); expect(r.unchanged).toBe(true); expect(r.state.claim).toBeNull();
+  expect(r.error).toBe('Error: Canonical storage: service did not retain exact decision operation');
+  expect(r.unchanged).toBe(true); expect(r.state.claim).toBeNull();
 });
