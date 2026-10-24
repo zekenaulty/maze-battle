@@ -1,4 +1,24 @@
 import { test, expect } from './canonical-navigation-test';
+import { storedBytes } from '../../src/persistence/canonical/accounting';
+import { HEAD_CAPACITY_BYTES, privateAdmissionBytes, validatePrivateCapacity } from '../../src/persistence/canonical/privateCapacity';
+import { CANONICAL_STORES, type CanonicalHead } from '../../src/persistence/canonical/types';
+
+function quotaAudit(head: CanonicalHead, dump: { content: string; bytes: number }) {
+  const stores: unknown = JSON.parse(dump.content);
+  if (!Array.isArray(stores) || stores.some(row => !Array.isArray(row) || row.length !== 2 || !Array.isArray(row[1]))) {
+    throw Error('Invalid native store dump');
+  }
+  expect(stores.map(row => row[0])).toEqual([...CANONICAL_STORES]);
+  expect(stores.find(row => row[0] === 'heads')[1]).toEqual([head]);
+  const q = head.quota, actualHeadBytes = storedBytes('heads', head.gameId, head);
+  expect(q.usedBytes).toBe(dump.bytes); validatePrivateCapacity(q.privateCapacity);
+  const admissionBytes = privateAdmissionBytes(q.privateCapacity, dump.bytes, actualHeadBytes);
+  const privateSlack = q.privateCapacity.allocatedBytes - q.privateCapacity.consumedBytes;
+  expect(admissionBytes).toBe(dump.bytes - actualHeadBytes + privateSlack + HEAD_CAPACITY_BYTES);
+  return { actualStoredBytes: dump.bytes, actualHeadBytes, privateSlack, admissionBytes,
+    rawRemaining: q.limitBytes - q.reserveBytes - q.reservedBytes - dump.bytes,
+    ordinaryRemaining: q.limitBytes - q.reserveBytes - q.reservedBytes - admissionBytes };
+}
 
 for (const store of ['records', 'nodes', 'receipts', 'heads']) test(`failed ${store} write rolls back movement, knowledge, progress and receipt`, async ({ page }) => {
   const result = await page.evaluate(async store => {
@@ -36,19 +56,36 @@ test('normal-capacity refusal cannot consume the funded cancellation and acknowl
   expect(result.final.head.quota.usedBytes).toBe(result.dump.bytes);
 });
 
-test('arrived progress settles and acknowledges from its reservation at normal capacity exhaustion', async ({ page }) => {
+test('arrived progress settles and acknowledges from its reservation at normal capacity exhaustion', async ({ page }, info) => {
   const result = await page.evaluate(async () => {
     const c = window.canonicalNavigation, targets = await c.seed({ limitBytes: 3 * 1024 * 1024, reserveBytes: 128 * 1024 });
     const admitted = await c.admit(targets.adjacent); await c.advance(admitted.id); await c.fillNormalCapacity();
-    const before = await c.readDestination(admitted.id), settled = await c.settle(admitted.id);
-    await c.operateCanonical(c.command((await c.readCanonicalHead()).head, 'operation.acknowledge', {
+    const before = await c.readDestination(admitted.id), beforeDump = await c.dump(), settled = await c.settle(admitted.id);
+    const decision = await c.readDestination(admitted.id), decisionDump = await c.dump();
+    const ack = await c.operateCanonical(c.command((await c.readCanonicalHead()).head, 'operation.acknowledge', {
       operationId: admitted.id, terminalAttemptId: settled.request.attemptId }), 'acknowledge');
-    return { before, after: await c.readDestination(admitted.id), dump: await c.dump() };
+    return { before, beforeDump, settled, decision, decisionDump, ack, after: await c.readDestination(admitted.id), dump: await c.dump() };
   });
-  expect(result.before.head.quota.limitBytes - result.before.head.quota.reserveBytes - result.before.head.quota.usedBytes
-    - result.before.head.quota.reservedBytes).toBeLessThan(8192);
+  await info.attach('arrived-at-quota-native.json', { body: JSON.stringify(result), contentType: 'application/json' });
+  const accounting = { before: quotaAudit(result.before.head, result.beforeDump), decision: quotaAudit(result.decision.head, result.decisionDump),
+    after: quotaAudit(result.after.head, result.dump) };
+  await info.attach('arrived-at-quota-accounting.json', { body: JSON.stringify(accounting), contentType: 'application/json' });
+  expect(accounting.before.ordinaryRemaining).toBeGreaterThanOrEqual(0);
+  expect(accounting.before.ordinaryRemaining).toBeLessThan(8192);
+  expect(result.before.value.status).toBe('arrived'); expect(result.settled.outcome.replayed).toBe(false);
+  expect(result.decision.value.operation.state).toBe('settled'); expect(result.ack.replayed).toBe(false);
+  const terminalBytes = result.before.value.operation.terminalBytes;
+  expect(result.before.head.quota.reservedBytes - result.decision.head.quota.reservedBytes).toBe(terminalBytes);
+  expect(result.decision.head.quota.usedBytes - result.before.head.quota.usedBytes).toBeLessThanOrEqual(terminalBytes);
+  expect(result.after.head.quota.usedBytes - result.decision.head.quota.usedBytes).toBeLessThanOrEqual(result.decision.head.quota.reservedBytes);
   expect(result.after.value.operation.state).toBe('acknowledged'); expect(result.after.value.operation.terminal?.disposition).toBe('completed');
   expect(result.after.value.progress).toEqual(result.before.value.progress); expect(result.after.head.quota.reservations).toBe(0);
+  expect(result.after.head.quota.reservedBytes).toBe(0);
+  for (const current of [result.decision, result.after]) {
+    expect(current.head.roots).toEqual(result.before.head.roots); expect(current.head.checkpoint).toEqual(result.before.head.checkpoint);
+    expect(current.head.quota.privateCapacity).toEqual(result.before.head.quota.privateCapacity);
+    expect(current.head.quota.limitBytes).toBe(result.before.head.quota.limitBytes);
+  }
   expect(result.after.head.quota.usedBytes).toBe(result.dump.bytes);
 });
 
