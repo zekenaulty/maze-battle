@@ -5,7 +5,6 @@ import { createGameTransport } from '../../src/services/agentica/game/transport'
 import { createLaunchRecovery } from '../../src/services/agentica/game/launchRecovery';
 import { mazeManifestDigest } from '../../src/services/agentica/game/manifestDigest';
 import { HostCleanupError, type CanonicalRecoveryPort } from '../../src/services/game/CanonicalHostRecovery';
-import { openCanonicalDatabase } from '../../src/persistence/canonical/database';
 import { deferred } from '../../src/services/agentica/game/transportGate';
 import { loadGameAction, reconcileGameAction } from '../../src/services/agentica/game/actionRead';
 import { readLaunch, executeLaunchCommand } from '../../src/persistence/canonical/agentica/launch';
@@ -13,6 +12,7 @@ import { readCanonicalHead } from '../../src/persistence/canonical/read';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { launchProofFixture } from '../../src/persistence/canonical/agentica/launch.test-support';
 import { earnedTargets } from './canonical-agentica-actions.setup';
+import * as quota from './canonical-agentica-transport.quota';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5244') throw Error('Isolated transport fixture origin required');
 let session: GameSession, client: Awaited<ReturnType<typeof createGameTransport>> | undefined;
@@ -78,11 +78,7 @@ const api = { boot, attach, begin, loadGameAction, reconcileGameAction,
       input: { launchId: l.binding.launchId, run: { ...l.run!.ref }, publication: { ...l.binding.publication } } });
   },
   closeRecovery() { recovery?.close(); recovery = undefined; },
-  async fillQuota() {
-    const { head } = await readCanonicalHead(), db = await openCanonicalDatabase();
-    head.quota.limitBytes = head.quota.usedBytes + head.quota.reserveBytes + head.quota.reservedBytes;
-    await db.put('heads', head, head.gameId); db.close();
-  },
+  fillQuota: quota.fillQuota, quota,
   failCleanupOnce() {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function(...args) {

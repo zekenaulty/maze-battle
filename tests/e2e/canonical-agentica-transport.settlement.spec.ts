@@ -8,11 +8,34 @@ test('terminal exact GET settles through funded ACK without another remote Stop'
   expect(server.gets).toHaveLength(1); expect(server.posts).toEqual([]); expect(server.starts).toHaveLength(1);
 });
 
-for (const reason of ['stopped', 'interrupted'] as const) test(`${reason} full terminal reply supports verified ACK at exhausted normal quota`, async ({ page, durableServer: server }) => {
+for (const reason of ['stopped', 'interrupted'] as const) test(`${reason} full terminal reply supports verified ACK at exhausted normal quota`, async ({ page, durableServer: server }, info) => {
   const boot = await loseStart(page, server); server.entry = original(server);
   server.stopReply = launchTerminalFixture(server.entry, reason); server.requireLocalStop = true;
-  await page.evaluate(() => window.canonicalTransport.fillQuota());
-  expect(await recover(page, 'stop')).toMatchObject({ localStopped: true, settled: true });
+  const full = await page.evaluate(() => window.canonicalTransport.fillQuota());
+  const refused = await page.evaluate(() => window.canonicalTransport.quota.refuseOrdinary());
+  await info.attach('quota-boundary.json', { body: JSON.stringify({ full, refused }), contentType: 'application/json' });
+  expect(full.ordinaryRemaining).toBe(0); expect(full.actualStoredBytes).toBe(full.head.quota.usedBytes);
+  expect(full.admissionBytes).toBeGreaterThan(full.head.quota.usedBytes);
+  expect(full.head.quota.privateCapacity).toEqual(full.before.quota.privateCapacity);
+  expect(full.head.quota.reserveBytes).toBe(full.before.quota.reserveBytes);
+  expect(full.head.quota.reservedBytes).toBe(full.before.quota.reservedBytes);
+  expect(full.head.allocations).toEqual(full.before.allocations);
+  expect(refused).toMatchObject({ error: 'Error: Canonical storage: storage quota exhausted', called: true, unchanged: true });
+  expect(refused.afterBytes).toBe(full.actualStoredBytes);
+  expect(refused.native.operations.length).toBeGreaterThan(0);
+  expect(refused.native.operations.every(op => op.method === 'get' && op.status === 'success')).toBe(true);
+  expect(refused.native.transactions.some(tx => tx.mode === 'readwrite' && tx.outcome === 'abort')).toBe(true);
+  await page.evaluate(() => window.canonicalTransport.quota.startProbe());
+  try { expect(await recover(page, 'stop')).toMatchObject({ localStopped: true, settled: true }); }
+  finally {
+    const native = await page.evaluate(() => window.canonicalTransport.quota.finishProbe());
+    await info.attach('funded-cleanup-native.json', { body: JSON.stringify(native), contentType: 'application/json' });
+    expect(native.operations.every(op => op.status === 'success')).toBe(true);
+    expect(native.transactions.every(tx => tx.outcome === 'complete')).toBe(true);
+    const writes = native.operations.filter(op => ['add', 'put', 'delete', 'clear'].includes(op.method));
+    expect(writes.length).toBeGreaterThan(0);
+    expect(writes.every(op => ['heads', 'receipts', 'operations'].includes(op.store) && ['add', 'put'].includes(op.method))).toBe(true);
+  }
   const launch = (await page.evaluate(() => window.canonicalTransport.launch()))!, head = await page.evaluate(() => window.canonicalTransport.head());
   expect(launch.guard).toMatchObject({ ackPolicy: 'verified-host', state: 'acknowledged', terminal: { disposition: 'cancelled' } });
   expect(launch.run).toBeNull(); expect(launch.grant).toBeNull(); expect(head.quota.reservations).toBe(0);
@@ -20,6 +43,15 @@ for (const reason of ['stopped', 'interrupted'] as const) test(`${reason} full t
   expect(server.posts).toHaveLength(1); expect(server.starts).toHaveLength(1);
   await reload(page);
   expect((await page.evaluate(() => window.canonicalTransport.launch()))!.guard).toEqual(launch.guard);
+  const loaded = await page.evaluate(() => window.canonicalTransport.quota.audit());
+  await info.attach('quota-after-reload.json', { body: JSON.stringify({ settled: head, loaded }), contentType: 'application/json' });
+  expect(loaded.actualStoredBytes).toBe(loaded.head.quota.usedBytes);
+  expect(loaded.head.quota.limitBytes).toBe(full.head.quota.limitBytes);
+  expect(loaded.head.quota.privateCapacity).toEqual(full.head.quota.privateCapacity);
+  expect(loaded.ordinaryRemaining).toBeGreaterThan(0);
+  expect(loaded.head.owner).not.toBe(head.owner); expect(loaded.head.status).toBe('ready');
+  expect(loaded.head.roots).toEqual(full.head.roots); expect(loaded.head.checkpoint).toEqual(boot.head.checkpoint);
+  expect(loaded.head.quota.reservations).toBe(0); expect(loaded.head.quota.reservedBytes).toBe(0);
 });
 
 test('pending Stop stays funded across reload until a later full terminal response', async ({ page, durableServer: server }) => {
