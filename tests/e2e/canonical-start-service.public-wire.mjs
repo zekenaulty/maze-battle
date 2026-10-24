@@ -4,7 +4,8 @@ import { assertPlannerWindows } from './canonical-start-service.planner-wire.mjs
 import { publicWireShape } from './canonical-start-service.public-wire-shape.mjs';
 
 const one = (rows, label) => { assert.equal(rows.length, 1, label); return rows[0]; };
-const workFields = new Set(['reads', 'writes', 'readbytes', 'writebytes', 'usedbytes', 'reservedbytes', 'workstats']);
+const workFields = new Set(['reads', 'writes', 'readbytes', 'writebytes', 'usedbytes', 'reservedbytes', 'workstats',
+  'allocatedbytes', 'consumedbytes', 'privatecapacity', 'privateallocation', 'preparationlineage']);
 function noWork(value, path = '') {
   if (!value || typeof value !== 'object') return;
   for (const [key, item] of Object.entries(value)) {

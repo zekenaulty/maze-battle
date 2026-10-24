@@ -35,7 +35,8 @@ test('status, error, diagnostic, gameplay and unknown fields are never discarded
 });
 
 test('new nested storage work is refused even when equal in both worlds', () => {
-  for (const field of ['readBytes', 'writeBytes', 'reads', 'writes', 'usedBytes', 'reservedBytes', 'workStats']) {
+  for (const field of ['readBytes', 'writeBytes', 'reads', 'writes', 'usedBytes', 'reservedBytes', 'workStats',
+    'allocatedBytes', 'consumedBytes', 'privateCapacity', 'privateAllocation', 'preparationLineage']) {
     const a = fixture(1), b = fixture(2);
     for (const v of [a, b]) v.received[0].payload.diagnostics = { [field]: 1 };
     assert.throws(() => compare(a, b), /storage work disclosure/);

@@ -11,6 +11,7 @@ import { readCanonical, readCanonicalHead } from '../../src/persistence/canonica
 import { prepareAction, readAction } from '../../src/persistence/canonical/agentica/actions';
 import { destinationKey } from '../../src/persistence/canonical/navigation/records';
 import { earnedTargets } from './canonical-agentica-actions.setup';
+import { openCanonicalDatabase } from '../../src/persistence/canonical/database';
 
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5243') throw Error('Isolated review fixture origin required');
 type Client = Awaited<ReturnType<typeof createGameTransport>>;
@@ -65,6 +66,28 @@ async function audit(action: AgenticaAction) {
   return { head: read.head, ...read.value };
 }
 const api = { boot, attach, begin, audit,
+  async consumerSnapshot() {
+    const db = await openCanonicalDatabase();
+    try {
+      const names = Array.from(db.objectStoreNames), tx = db.transaction(names, 'readonly'), database = [];
+      for (const name of names) {
+        const store = tx.objectStore(name);
+        database.push({ store: name, keys: await store.getAllKeys(), values: await store.getAll() });
+      }
+      await tx.done;
+      // Read-only observation of the real SDK; no private dispatch method is invoked.
+      const authority = sdks.map(sdk => ({ connected: sdk.connected,
+        pending: [...(Reflect.get(sdk, 'pending') as Map<string, unknown>).keys()],
+        runs: [...(Reflect.get(sdk, 'runs') as Map<string, unknown>)],
+        actions: [...(Reflect.get(sdk, 'actions') as Map<string, unknown>)],
+        operations: [...(Reflect.get(sdk, 'operations') as Map<string, unknown>)],
+        stopped: [...(Reflect.get(sdk, 'stoppedRuns') as Set<string>)],
+        queued: Reflect.get(sdk, 'queuedActions'), dropped: Reflect.get(sdk, 'droppedMessages') }));
+      return { database, authority, phases: clients.map(c => c.phase),
+        messages: sdks.map(sdk => Reflect.get(sdk, 'messages') as unknown[]),
+        controlled: session.view.controlled, recoveryRequired: session.view.recoveryRequired ?? false };
+    } finally { db.close(); }
+  },
   hold(operation: string, stage: Barrier['stage']) {
     if (barrier) throw Error('Review barrier already installed');
     barrier = { operation, stage, claimed: false, entered: false, release: deferred<void>() };

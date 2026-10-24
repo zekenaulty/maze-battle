@@ -4,6 +4,7 @@ import { serviceOrigin } from '../agentica-start-service/service.mjs';
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
 import { plannerPair } from './canonical-start-service.planner-compare.mjs';
 import { assertPlannerWindows } from './canonical-start-service.planner-wire.mjs';
+import { compareCausalPublicWire, assertCausalPublicWireDisclosure } from './canonical-start-service.public-wire-causal.mjs';
 
 interface CaptureEntry { root: string; window: string; call: number; method: 'create' | 'refine'; bytes: number; sha256: string; raw: string }
 interface Capture { entries: CaptureEntry[]; maxRoots: number; maxWindows: number; maxCalls: number; maxBytes: number }
@@ -131,6 +132,9 @@ test('paired corpus actual planner inputs: initial, refinement and explicit succ
     expect(differences[7]).toContainEqual({ path: '/request/ContextFrames/0/Payload/currentObservation/Data/frontiers/0/direction', left: 'east', right: 'north' });
     const disclosed = /^\/(request\/Observations\/2\/Data\/observation\/data|request\/ContextFrames\/0\/Payload\/currentObservation\/Data|refinementObservation\/Data\/observation\/data)\/frontiers\/[0-3]\/(direction|at\/(column|row)|source\/index|frontier\/selection\/(direction|at\/cell\/(column|row)|source\/index))$/;
     expect(differences[7].every((difference: { path: string }) => disclosed.test(difference.path))).toBe(true);
+    const comparison = compareCausalPublicWire(roots, wire);
+    await info.attach('public-wire-causal-comparison.json', { body: JSON.stringify(comparison, null, 2), contentType: 'application/json' });
+    assertCausalPublicWireDisclosure(comparison);
   } finally {
     await info.attach('planner-inputs-raw.json', { body: JSON.stringify(await capture(), null, 2), contentType: 'application/json' });
     await info.attach('planner-pair-raw.json', { body: JSON.stringify({ roots, sent: wire.sent, received: wire.received }, null, 2), contentType: 'application/json' });
