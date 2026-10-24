@@ -40,7 +40,7 @@ node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-gene
 
 - Node 22.13.0, npm 11.6.2, Playwright 1.61.0, TypeScript 6.0.3; installed dependencies unchanged.
 - First checked fixture commit: `9a24247` (seed-42 history verified; depth and other seed explicitly pending in that commit).
-- Final cohort: 6 unique cases in 4 spec files. Seven successful executions across the commands below, zero skips/retries. This was not a single six-case rerun.
+- Initial cohort: 6 unique cases in 4 spec files. Seven successful executions across the commands below, zero skips/retries. This was not a single six-case rerun. The active-transfer follow-up below adds a seventh case separately.
 - Initial fixture typecheck: FAIL, Playwright recursive receipt argument inference (TS2589); repaired with the existing JSON-wire boundary. Original log retained.
 - First seed-42 history attempt: FAIL before history measurement because the new audit passed checkpoint knowledge rather than the exact observation reference. Fixed in fixture only; original trace/results retained under `history42-first`.
 - Additional new-helper type errors (array annotations, recursive return annotation, shared fixture globals) were corrected in owned files; failed logs retained. Corrected fixture and root typechecks: PASS.
@@ -74,4 +74,29 @@ The 1,024 history moves alone add 41,638,079 logical bytes (42) and 43,539,611 (
 
 ## Not Proven By This Increment
 
-No played depth-16 descent, combined depth-16 plus 1,024-history cross-product, generated route longer than 16 moves, discovery of five rooms by travel, takeover/transfer during active navigation, live-service custody, provider behavior, full UI/tool matrix, or full S5 qualification is claimed. Connections are recalled through their existing public reader, not a connection UI. One early complete observation/receipt pair per depth/history case is checked, not every historical source. Retained-depth, fixed-depth history, short room return and offline host cases are separate proofs, not a single sustained service journey. Existing authored/service evidence is not substituted for these missing invariants.
+No played depth-16 descent, combined depth-16 plus 1,024-history cross-product, generated route longer than 16 moves, discovery of five rooms by travel, live-service custody, provider behavior, full UI/tool matrix, or full S5 qualification is claimed. Connections are recalled through their existing public reader, not a connection UI. One early complete observation/receipt pair per depth/history case is checked, not every historical source. Retained-depth, fixed-depth history, short room return and offline host cases are separate proofs, not a single sustained service journey. Existing authored/service evidence is not substituted for these missing invariants.
+
+## Active Generated Transfer Follow-Up
+
+Same runtime base `eb99753`, on top of fixture commits `9a24247` and `937eb81`; no production changes. New `canonical-generated-endurance.transfer.spec.ts`, `.transfer.ts`, and `.transfer-peer.ts` only, plus this report. The original read-only second-tab case is unchanged.
+
+- Generated seed 781, actual mounted App in two tabs, no fixture positioning. One public-sight-selected three-edge destination and one original offline-admitted navigation action. The initial driver pauses after a real acknowledged, nonterminal step 1.
+- The second tab uses **Take control**, then **Agentic play -> Inspect original 1 -> Resume navigation**. In this retained offline-launch state the first operation opens Recovery directly. Takeover changes owner/epoch without changing world/knowledge roots, checkpoint or progress. The old tab's driver rejects a new pulse; inspection performs no writes or peer requests.
+- The strict context-wide offline peer records every POST attempt before validation. It checks original host/session/action/operation, contiguous sequence, exact duplicate content, current epoch, monotonic observation revision and unchanged original request/admission/usage. Transfer changes only its simulated active epoch, not original authority. No actual network connection reaches the retained helper endpoint.
+- The transfer reply is held after peer acceptance. Canonical intent exists, but ACK, named adoptions and authority remain absent; progress and both original allocations remain unchanged. Releasing the reply permits the production mounted recovery/transfer/operation-driver chain to finish the original navigation. No head/operation mutation or fabricated progress is used.
+- Proof retains original root/action/grant/publication/destination, confirmation, start time, deadline and navigation limits. Action allowance stays 10 seconds; navigation stays 64 steps / 4 replans / 120,000ms. Actual progress is 1 -> 3 steps, replans 0 -> 1. ACK and named guard/navigation adoptions precede retained authority; checked evidence revisions are 33 -> 34 -> 35 -> 36 -> 37. Current ownership is checked on root, navigation allocation and progress.
+- Both exact named adoption requests replay after arrival with their original receipts, zero writes/bytes and unchanged head/store counts. Pack/stash/quests remain exact. Explicit offline child/root cleanup leaves zero reservations/reserved bytes; root ACK uses the existing synthetic-service proof helper. This does **not** claim service success or objective completion.
+- HTTP evidence: four registry GETs and six POST attempts, kinds `progress, progress, transfer, progress, progress, decision`, sequences 1..6; exactly one transfer. Provider usage, unexpected requests/WebSockets, peer errors and cleanup cognition callbacks are zero. No Start/wake/adoption WebSocket connection occurs.
+
+Evidence: `test-results/generated-active-transfer-eb99753-01/`. `native-first` was **INTERRUPTED**, not PASS: the fixture waited for the wrong dialog after actual takeover; raw trace/resources and log remain. No runtime defect was identified. Corrected `native-second`: **1 PASS**, 14.064s runner / 11.076s case. `native-checked`: unchanged read-only-tab baseline plus transfer, **2 PASS**, 20.778s runner / 7.032s and 10.751s cases, no skips/retries. Final explicit receipt-order/equality assertions: `native-final`, **1 PASS**, 13.932s runner / 10.873s case. Fixture/root types pass (`types-checked.log`, `root-types-final.log`); discovery lists seven tests in five specs. All sessions are terminal and 5474 is released. The complete seven-case cohort was not rerun.
+
+```powershell
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-generated-endurance.tsconfig.json
+node node_modules/typescript/bin/tsc --noEmit
+$env:MAZE_ENDURANCE_RUN = 'generated-active-transfer-eb99753-01/native-checked'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-generated-endurance.config.ts canonical-generated-endurance.agent.spec.ts canonical-generated-endurance.transfer.spec.ts
+$env:MAZE_ENDURANCE_RUN = 'generated-active-transfer-eb99753-01/native-final'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-generated-endurance.config.ts canonical-generated-endurance.transfer.spec.ts
+```
+
+This closes only the generated **offline** active-takeover/adoption gap. It is not live-service admission/ACK durability, a long route, repeated takeovers, reload during transfer, terminal delivery uncertainty, or composition with the separate paged-room return journey. All production admission/work/result caps are unchanged. Parent/owner ports and data are untouched; strict 5474 is the only owned listener.
