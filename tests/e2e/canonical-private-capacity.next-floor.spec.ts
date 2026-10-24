@@ -112,3 +112,55 @@ test('a completed-floor save restores without rewinding allocation accounting an
   expect(result.replay.replayed).toBe(true); expect(result.replay.receipt).toEqual(result.restored.receipt);
   expect(result.afterReplay).toEqual(result.once);
 });
+
+for (const moment of ['before-next-floor', 'during-next-floor'] as const) test(`restored ${moment} save funds a new preparation without reusing closed capacity`, async ({ page }, info) => {
+  const result = await page.evaluate(async moment => {
+    const c = window.privateCapacityFixture, setup = await c.capacityNextFloorSetup();
+    if (moment === 'during-next-floor') await c.prepareGameFloor(c.command(await c.current(), 'game.prepare', { level: 2 }));
+    const create = c.command(await c.current(), 'save.command', { kind: 'create', label: moment });
+    await c.executeSaveCommand(create); await c.readyCapacityFloor(2);
+    const completed = await c.current(), load = c.command(completed, 'save.command', { kind: 'load', id: create.attemptId });
+    const restored = await c.executeSaveCommand(load), original = c.command(restored.head!, 'game.prepare', { level: 2 });
+    const begun = await c.prepareGameFloor(original), steps = await c.readyCapacityFloor(2), finished = await c.current();
+    const beforeReplay = await c.dump(), loadReplay = await c.executeSaveCommand(load), preparationReplay = await c.prepareGameFloor(original);
+    const oldAnchor = (await c.readCanonical(p => p.get('execution', 'private-capacity/floor-2'))).value;
+    return { setup, completed, restored, original, begun, steps, finished, beforeReplay,
+      loadReplay, preparationReplay, afterReplay: await c.dump(), oldAnchor };
+  }, moment);
+  await info.attach('restored-preparation.json', { body: JSON.stringify(result), contentType: 'application/json' });
+  const originalPolicy = result.completed.quota.privateCapacity!, freshPolicy = result.begun.head!.quota.privateCapacity!;
+  expect(result.restored.head!.quota.privateCapacity).toEqual(originalPolicy);
+  expect(freshPolicy.allocatedBytes).toBe(originalPolicy.allocatedBytes + result.setup.specification.budgetBytes);
+  expect(freshPolicy.consumedBytes).toBeGreaterThan(originalPolicy.consumedBytes);
+  expect(freshPolicy.active!.id).toBe(`floor-2:restore-${result.restored.head!.revision}`);
+  expect(result.oldAnchor).not.toBeUndefined();
+  expect(result.finished.quota.privateCapacity?.active).toBeNull();
+  expect(result.finished.quota.usedBytes).toBe(result.beforeReplay.bytes);
+  expect(result.loadReplay.replayed).toBe(true); expect(result.loadReplay.receipt).toEqual(result.restored.receipt);
+  expect(result.preparationReplay.replayed).toBe(true); expect(result.preparationReplay.receipt).toEqual(result.begun.receipt);
+  expect(result.afterReplay).toEqual(result.beforeReplay);
+});
+
+test('restored generation requires its new reservation and exact retained load source', async ({ page }, info) => {
+  const result = await page.evaluate(async () => {
+    const c = window.privateCapacityFixture, setup = await c.capacityNextFloorSetup();
+    const create = c.command(await c.current(), 'save.command', { kind: 'create', label: 'earlier prepared floor' });
+    await c.executeSaveCommand(create); await c.readyCapacityFloor(2);
+    const load = c.command(await c.current(), 'save.command', { kind: 'load', id: create.attemptId });
+    await c.executeSaveCommand(load);
+    await c.nextCapacityLimit(setup.specification.budgetBytes, -1);
+    const quotaRefusal = await c.refusal(async () => c.prepareGameFloor(c.command(await c.current(), 'game.prepare', { level: 2 })));
+    await c.nextCapacityLimit(setup.specification.budgetBytes, 0);
+    const original = c.command(await c.current(), 'game.prepare', { level: 2 }), committed = await c.prepareGameFloor(original);
+    const db = await c.openCanonicalDatabase();
+    try { await db.delete('receipts', [committed.head!.gameId, load.attemptId]); } finally { db.close(); }
+    const beforeReplay = await c.dump(), replay = await c.prepareGameFloor(original), afterReplay = await c.dump();
+    const sourceRefusal = await c.refusal(async () => c.prepareGameFloor(c.command(await c.current(), 'game.prepare', { level: 2 })));
+    return { quotaRefusal, original, committed, beforeReplay, replay, afterReplay, sourceRefusal };
+  });
+  await info.attach('restored-source-and-quota.json', { body: JSON.stringify(result), contentType: 'application/json' });
+  expect(result.quotaRefusal.error).toContain('storage quota exhausted'); expect(result.quotaRefusal.after).toEqual(result.quotaRefusal.before);
+  expect(result.replay.replayed).toBe(true); expect(result.replay.receipt).toEqual(result.committed.receipt);
+  expect(result.afterReplay).toEqual(result.beforeReplay);
+  expect(result.sourceRefusal.error).toContain('missing source receipt'); expect(result.sourceRefusal.after).toEqual(result.sourceRefusal.before);
+});

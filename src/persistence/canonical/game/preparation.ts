@@ -10,7 +10,7 @@ import { beginWorldFloorQuality, advanceWorldFloorQuality } from '../world/quali
 import { beginWorldRoomRoles, advanceWorldRoomRoles } from '../world/roles';
 import { beginWorldContent, advanceWorldContent, requireWorldContent } from '../content/preparation';
 import { gameCheckpoint } from './checkpoint';
-import { floorPreparationSpec, preparationWorldWrite } from './floorCapacity';
+import { currentFloorPreparationSpec, preparationWorldWrite } from './floorCapacity';
 
 export type PreparationPhase = 'generation' | 'quality' | 'roles' | 'content' | 'ready';
 const key = (level: number) => `game/preparation/${level}`;
@@ -43,14 +43,14 @@ export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, 
     const world = await loadWorld(tx.pages);
     if (world.deepestLevel < level) {
       const recipe = createModuleRecipe(world.worldId, level, here.generation.recipe.seed + 1);
-      batch = await tx.privatePreparation(floorPreparationSpec(recipe), preparationWorldWrite(level));
+      batch = await tx.privatePreparation(await currentFloorPreparationSpec(tx.pages, recipe), preparationWorldWrite(level));
       await createWorldFloor(tx.pages, recipe);
       await tx.pages.set('world', key(level), { schema: 1, level, phase: 'generation' });
     }
   }
   let phase = await readPreparation(tx.pages, level);
   if (phase === 'ready') { await requireWorldContent(tx.pages, level); return { level, phase }; }
-  if (!batch) batch = await tx.privatePreparation(floorPreparationSpec((await loadFloor(tx.pages, level)).generation.recipe),
+  if (!batch) batch = await tx.privatePreparation(await currentFloorPreparationSpec(tx.pages, (await loadFloor(tx.pages, level)).generation.recipe),
     preparationWorldWrite(level));
   if (phase === 'generation') {
     const { floor } = await expandWorldFloor(tx.pages, level, attemptId);
