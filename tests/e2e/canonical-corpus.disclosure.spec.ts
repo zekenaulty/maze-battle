@@ -87,8 +87,16 @@ test('controlled A/B prefix has exact earned payload and native storage work', a
         expect.soft(a.surface.metrics.stats, `Exact native work at step ${step}`).toEqual(b.surface.metrics.stats);
         // Explicit private payload inequality, not a normalization or equality claim.
         expect(heads[1].quota.usedBytes - heads[0].quota.usedBytes).toBe(authoredByteDelta);
+        const policies = heads.map(head => head.quota.privateCapacity!);
+        expect(policies[1].consumedBytes - policies[0].consumedBytes).toBe(authoredByteDelta);
+        expect(policies[0].allocatedBytes).toBe(policies[1].allocatedBytes);
+        expect(policies[0].active).toBeNull(); expect(policies[1].active).toBeNull();
+        expect(heads[0].quota.usedBytes - policies[0].consumedBytes)
+          .toBe(heads[1].quota.usedBytes - policies[1].consumedBytes);
         expect(nativeDifferences).toEqual([{ path: '/1/result/quota/usedBytes',
-          left: { present: true, value: heads[0].quota.usedBytes }, right: { present: true, value: heads[1].quota.usedBytes } }]);
+          left: { present: true, value: heads[0].quota.usedBytes }, right: { present: true, value: heads[1].quota.usedBytes } },
+        { path: '/1/result/quota/privateCapacity/consumedBytes',
+          left: { present: true, value: policies[0].consumedBytes }, right: { present: true, value: policies[1].consumedBytes } }]);
       } else expect(a.surface.raw).not.toEqual(b.surface.raw);
     }
     expect(firstDivergence).toBe(7);
