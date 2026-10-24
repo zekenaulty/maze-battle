@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "pack": {
+    "id": "dungeon-occult-01",
+    "version": "1"
+  },
+  "blocks": [
+    {
+      "source": "glowstone",
+      "label": "Glowstone",
+      "review": {
+        "status": "preview",
+        "reviewer": "Codex",
+        "note": "32 pinned 2048x2048 fixed-master lighting frames from run-20261023-195400-9ba6d5db. Preserve producer order and 50 ms timing; inspect the 1.6 second loop without modifying artwork."
+      },
+      "images": {
+        "glowstone": {
+          "variant": "raw_edit",
+          "frames": {
+            "0": "15d320c395e8c99fec2f8d663a45a2812d87a772649c933a30171e30cd9be55d",
+            "1": "599cd11b5cba673cfff2478a4fa38d50902cc4b8fe5122d81bed58e466f67210",
+            "2": "9ffd54f1138dde614665f9d5e425a51491ec37d62bc257704dd57e7804fc6370",
+            "3": "870cc5628bf4a8c5902332bf6a11d617002881b76fd8cbb520cef7cd8052b26b",
+            "4": "4f7d1565099b8ac9dd8b8c5245f7e0dce36c48218833e0437cc885bf09966d74",
+            "5": "126f6e77e57411ee7b1b44107e1c5badd4ffc5c07f8c89c62b10128abc368500",
+            "6": "4403f89d1970e97f843fa11ccbec3bb4b6af7c0e852d8233340af7d929d7dae2",
+            "7": "27b4664e61094b44d0fdb7b10109ea04a28488dfbce76e727935316e99813e64",
+            "8": "08e3fa956695d5eb511306638844bb5461681bddf6dd19b61ab8d58f925ebd8b",
+            "9": "f0b29094ca044525deae63e80c0e037b69bf013395668e84c6d7f41ccf065f83",
+            "10": "8b40a80a1c3e9458aced9fb577733a9c2724b6728da59186627eeca8fadbed8d",
+            "11": "50cd2c027bc1cbe3894a79f8cf0026b3de7c88839c0922a1ecac158e628ec2a3",
+            "12": "ffbf6778b7d9cb55be6b3887c399752981da6d995e5c13297be9a8587bbf304e",
+            "13": "442577561757fa492d66e763619660cd2a9863f37004bd96820208b4465c8e78",
+            "14": "0223973b1b8061472f3d11de0bab894df171b8a2bb832661684ebc12622d4246",
+            "15": "9523014865bb48c64fbc5ee9a6a826b645b734ee146a76ae1b34aef6066f6bd8",
+            "16": "c0538e9edb570ffcfc00a686c495abff0affb6b99378b0a306c11752b3bdcf96",
+            "17": "dec07c5c5c46787d64fd650b4678e511a5a85c3953d30499c00ee490cba98771",
+            "18": "bbba15487937162490cac87e692c26a51f6da79e1c4666a156d379bac421b11b",
+            "19": "b0e21014833a3895e0021a2d6c23f4a4e5f888eb7587c1c08cd6f0fe13abf9dd",
+            "20": "0c71a497c2a9601a6aacdc80929fb58b873e6e7f702c4f6c7569e025ba2ecc29",
+            "21": "565243234981ce6eea3a16fd960a049882410a6abc67e3d8ed995b9d03cc677b",
+            "22": "e228b5bb7fb255a6ab8606169f0492302795ceee729ef14e93822cb65a0f966d",
+            "23": "8d32973ce75be15988024e6f140ce6dc45dc0f4cf0828da384f970068772800b",
+            "24": "8796808aa7ec64c2ddcd5efa49004d4abd75a978e194514c4496148556790482",
+            "25": "62918818834b58a23ee0e1ce1a206ab303bf52998618ab17d53c446ba7dcbf4e",
+            "26": "22a4b46d95fb952aa7840874147a621264a91208394fdd1203612e685cb6f4dc",
+            "27": "9e59e4e74b0145a2c0e3ae6e8fe8ef6a197e0bec8f63b601cfb92bbafea1c493",
+            "28": "da058a52dd69d6bf2bf4b5e1580aa16ffa4b1e4b9ccf834cfc3dca0484b16ec2",
+            "29": "f72a88e7537e2aa5d2ce8d62f8ff59678ba902a651f4600cb7b8d1700916f2f0",
+            "30": "e715b8484b1bf91636d6f1768ce48d31d8af8ed19c7b11e52039d1defe82170c",
+            "31": "aa5a1df5f5435b4168794dfc759fc0db120e60b52cf0cba0ea16fb71b6f0f0c1"
+          }
+        }
+      },
+      "states": {
+        "glowing": {
+          "emission": {
+            "faces": [
+              "right",
+              "left",
+              "top",
+              "bottom",
+              "front",
+              "back"
+            ],
+            "color": "#fff0ca",
+            "intensity": 0.4
+          }
+        }
+      }
+    }
+  ]
+}

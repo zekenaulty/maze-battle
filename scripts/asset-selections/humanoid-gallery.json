@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "source": "run-20261023-165849-8ec61866/ec0dd3fe109e8ade",
+      "selection": {
+        "reportSha256": "ea058e58427120cedb6cce2c275215fac8417eac97dec2aeea76d6ad3782a8fb",
+        "rawSheetSha256": "f52658632c0318c144eb059c6d3e7ab8fdd937f5e95f23616e6edd0e3313e27c",
+        "skins": [
+          {
+            "id": "fantasy-hd",
+            "label": "Fantasy adventurer — 512×512",
+            "filename": "skin_upgraded.png",
+            "kind": "generated",
+            "sha256": "54c6220d2b1bbe02164020ad530e21d53025b40e7ec5bb504b0d691451c2a22b"
+          },
+          {
+            "id": "fantasy-original",
+            "label": "Original reference — 64×64",
+            "filename": "skin_original.png",
+            "kind": "source",
+            "sha256": "d0d02c4f8a8f8945d2c67a5f7de95ff19657f81eac0c8bb531860d2fe9e00395"
+          }
+        ]
+      }
+    },
+    {
+      "source": "run-20261023-152759-735058e1/056db80131851526",
+      "selection": {
+        "reportSha256": "08335e3238c3847ab2bd6a7e48c6c6edfb37e5823ba4423c7ba7e14678e4cf30",
+        "rawSheetSha256": "1e2c3ff1ec3788e8c716989e9f43cae5b0bef0f24b7a646b15ef83c854e9e9e5",
+        "skins": [
+          {
+            "id": "masked-alchemist",
+            "label": "Masked alchemist — 512×512",
+            "filename": "skin_upgraded.png",
+            "kind": "generated",
+            "sha256": "bedad6c14c113e5af42e403f863987f0b62586e6bb26f5895d07275ee50e91a4"
+          }
+        ]
+      }
+    },
+    {
+      "source": "run-20261023-153047-040a5b4d/4f20c920e577af0b",
+      "selection": {
+        "reportSha256": "73055192333067ffe6c0abb068e1254321ea98a046973d6a5aaae331b8644ee7",
+        "rawSheetSha256": "fa403b3369cad04de584235028a0c41e2045746982227fb34421d2370063766b",
+        "skins": [
+          {
+            "id": "crimson-arcanist",
+            "label": "Crimson arcanist — 512×512",
+            "filename": "skin_upgraded.png",
+            "kind": "generated",
+            "sha256": "b2f68d1fbcff9d8b1168b75fc90c0ed2c18dfbd9502dcea5cf46f297bff28fc6"
+          }
+        ]
+      }
+    },
+    {
+      "source": "run-20261023-153224-889cf3fb/c5989efe79fc2bd4",
+      "selection": {
+        "reportSha256": "155f7028d8af437485ec0305e76e030b124da1c9a7588b5da79dd865e48652bc",
+        "rawSheetSha256": "8e7f40143c308834e7db55681a9bd9234901459e8101d3d042588f9cb4ceeb6e",
+        "skins": [
+          {
+            "id": "ivory-herbalist",
+            "label": "Ivory herbalist — 512×512",
+            "filename": "skin_upgraded.png",
+            "kind": "generated",
+            "sha256": "c9d1b0cfef98b87927b093dec1c183be58bf33e9ca8650bdc1709d1a08e01cdb"
+          }
+        ]
+      }
+    },
+    {
+      "source": "run-20261023-153517-e0c37cfc/4c4327b63cd5a612",
+      "selection": {
+        "reportSha256": "5f002312a6a4aee3fda63e1d6856b1e2eed43447ab6c6217cb1dd12aa4e3b44f",
+        "rawSheetSha256": "5c305be799c269920e6ffb04e01146f9815bceeeada2382bb45afa0c6d530aab",
+        "skins": [
+          {
+            "id": "gilded-mage",
+            "label": "Gilded mage — 512×512",
+            "filename": "skin_upgraded.png",
+            "kind": "generated",
+            "sha256": "8a3f57a50b38b2a24e63efa72e27954748ed2599b089da5d54e66945e4242cae"
+          }
+        ]
+      }
+    }
+  ]
+}

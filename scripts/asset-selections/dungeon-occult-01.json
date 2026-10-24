@@ -1,0 +1,139 @@
+{
+  "pack": {
+    "version": "1",
+    "id": "dungeon-occult-01"
+  },
+  "schemaVersion": 1,
+  "blocks": [
+    {
+      "source": "stone_bricks",
+      "review": {
+        "note": "Inspected raw artwork for local showroom preview; human acceptance and redistribution rights remain unresolved.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "stone_bricks": {
+          "variant": "raw_edit",
+          "sha256": "1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337"
+        }
+      }
+    },
+    {
+      "source": "cobblestone",
+      "review": {
+        "note": "Inspected raw artwork for local showroom preview; human acceptance and redistribution rights remain unresolved.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "cobblestone": {
+          "variant": "raw_edit",
+          "sha256": "61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3"
+        }
+      }
+    },
+    {
+      "source": "basalt",
+      "review": {
+        "note": "Inspected raw artwork for local showroom preview; human acceptance and redistribution rights remain unresolved.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "basalt_side": {
+          "variant": "raw_edit",
+          "sha256": "85458a4874130bfb5b675f482e5e16f82380a6682f58b6c9b4c08d0afafe7a9b"
+        },
+        "basalt_top": {
+          "variant": "raw_edit",
+          "sha256": "aaaedd2b2079594bdb769dab5cc1f69b8578c066dd400ba0a11b80af6bd2d8b7"
+        }
+      }
+    },
+    {
+      "source": "obsidian",
+      "review": {
+        "note": "Inspected raw artwork for local showroom preview; human acceptance and redistribution rights remain unresolved.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "obsidian": {
+          "variant": "raw_edit",
+          "sha256": "89828bf2a5acc8a8e9a2af1bd584d291a394531793e3f533c9dbfbd48d423d5c"
+        }
+      }
+    },
+    {
+      "label": "Occult ritual table",
+      "source": "deepslate",
+      "review": {
+        "note": "Preserved as a special fixture; wooden ritual-table top is not ordinary deepslate.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "deepslate": {
+          "variant": "raw_edit",
+          "sha256": "fd165d56866be354652e2273568c198401526f42be5dd5ea94a1f5087c9616d1"
+        },
+        "deepslate_top": {
+          "variant": "raw_edit",
+          "sha256": "535c6cd08b39b6f8a9b1a779db77e275dd022d1e44a0d8263cfbfb403399f519"
+        }
+      },
+      "id": "occult_ritual_table"
+    },
+    {
+      "enabled": true,
+      "source": "furnace",
+      "review": {
+        "note": "Raw coordinated atlas inspected: correct side, top, cobblestone bottom and matching front/front_on firebox. Local preview; human acceptance pending.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "furnace_front_on": {
+          "variant": "raw_edit",
+          "sha256": "931f79ebbab5aed5de58084cd920936a7049ad27c310789cef1613a34c09ae94"
+        },
+        "furnace_top": {
+          "variant": "raw_edit",
+          "sha256": "e984ee4627539bebb556ad9f197c17f38b33d68344e89a21dc577150607c229a"
+        },
+        "furnace_side": {
+          "variant": "raw_edit",
+          "sha256": "754d29e869308f1d5350df9895953a60d1b4abf59c905f7cc32af79a081086c5"
+        },
+        "cobblestone": {
+          "variant": "raw_edit",
+          "sha256": "c9d00c3aa27c1d6a2c695ab9baf12be69c9c90c49eb6483a75087b7a9f320244"
+        },
+        "furnace_front": {
+          "variant": "raw_edit",
+          "sha256": "bc7672bfa67b8062ada6cebd8609606cad80171db06ccb8b3a4b4af9b0b37cd5"
+        }
+      }
+    },
+    {
+      "enabled": true,
+      "source": "bookshelf",
+      "review": {
+        "note": "Raw bookshelf and plank atlas inspected for local preview. Human acceptance and redistribution rights remain unresolved.",
+        "reviewer": "Codex",
+        "status": "preview"
+      },
+      "images": {
+        "bookshelf": {
+          "sha256": "28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb",
+          "variant": "raw_edit"
+        },
+        "oak_planks": {
+          "sha256": "0addd2c8a0f0a24552459b4279e09d510c70ffbae6942350cf58f3dfb3784c0c",
+          "variant": "raw_edit"
+        }
+      }
+    }
+  ]
+}

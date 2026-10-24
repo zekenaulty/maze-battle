@@ -19,6 +19,10 @@ dist-ssr
 test-results
 playwright-report
 
+# Curated generated artwork stays local; recipes and provenance contracts are tracked.
+public/assets/material-packs/*/
+public/assets/character-skins/*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -12,7 +12,9 @@
     "test:d1-measurements": "node --test scripts/d1-measurements/worker-output.test.mjs",
     "ns6:readiness": "node scripts/ns6-readiness.mjs",
     "e2e": "playwright test",
-    "self-play": "node scripts/self-play.mjs"
+    "self-play": "node scripts/self-play.mjs",
+    "assets:import": "node --experimental-strip-types scripts/import-tilelab-pack.ts",
+    "assets:import-skin": "node --experimental-strip-types scripts/import-tilelab-skin.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
@@ -21,6 +23,7 @@
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "^6.0.2",
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
@@ -32,6 +35,7 @@
     "idb": "^8.0.3",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "three": "0.186.1"
   }
 }

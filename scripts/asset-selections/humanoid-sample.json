@@ -1,0 +1,20 @@
+{
+  "reportSha256": "ea058e58427120cedb6cce2c275215fac8417eac97dec2aeea76d6ad3782a8fb",
+  "rawSheetSha256": "f52658632c0318c144eb059c6d3e7ab8fdd937f5e95f23616e6edd0e3313e27c",
+  "skins": [
+    {
+      "id": "fantasy-hd",
+      "label": "Fantasy adventurer — 512×512",
+      "filename": "skin_upgraded.png",
+      "kind": "generated",
+      "sha256": "54c6220d2b1bbe02164020ad530e21d53025b40e7ec5bb504b0d691451c2a22b"
+    },
+    {
+      "id": "fantasy-original",
+      "label": "Original reference — 64×64",
+      "filename": "skin_original.png",
+      "kind": "source",
+      "sha256": "d0d02c4f8a8f8945d2c67a5f7de95ff19657f81eac0c8bb531860d2fe9e00395"
+    }
+  ]
+}
