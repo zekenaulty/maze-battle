@@ -2,6 +2,9 @@ import { test, expect, corpusBrowser, evidence } from './canonical-corpus.test';
 import { measuredMove } from './canonical-corpus.work';
 import type { CanonicalWorkLimits } from '../../src/persistence/canonical/types';
 import { DEFAULT_WORK_LIMITS } from '../../src/persistence/canonical/types';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 interface WorkPair {
   limits: CanonicalWorkLimits;
@@ -9,6 +12,11 @@ interface WorkPair {
   samples: Awaited<ReturnType<typeof measuredMove>>[];
 }
 test('same earned move has equal read/write/byte threshold outcomes and truthful diagnostics', async ({ browser }, info) => {
+  const files = execFileSync('git', ['ls-files', 'src', 'tests/e2e/canonical-corpus*'], { encoding: 'utf8' }).trim().split(/\r?\n/);
+  const hashes = Object.fromEntries(files.map(file => [file, createHash('sha256').update(readFileSync(file)).digest('hex')]));
+  await evidence(info, 'work-limits-provenance.json', { hashes, node: process.version, browser: browser.version(),
+    head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    scope: 'Isolated native GameSession trusted budget injection; shared movement executor; no service/provider calls' });
   const pairs: WorkPair[] = [];
   async function pair(limits: CanonicalWorkLimits) {
     const samples = [], boots = [];
@@ -63,5 +71,7 @@ test('same earned move has equal read/write/byte threshold outcomes and truthful
       scope: 'One actual shared command at the authored common earned prefix; no duration equality or general-world claim' });
   } finally {
     await evidence(info, 'work-limits-raw.json', pairs);
+    for (const [file, hash] of Object.entries(hashes))
+      expect(createHash('sha256').update(readFileSync(file)).digest('hex'), file).toBe(hash);
   }
 });
