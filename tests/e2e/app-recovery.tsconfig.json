@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "paths": { "/src/*": ["../../src/*"], "/tests/*": ["../*"] } },
+  "include": ["app-recovery*.ts", "../../src/vite-env.d.ts"]
+}

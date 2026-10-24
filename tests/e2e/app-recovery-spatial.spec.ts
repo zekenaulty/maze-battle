@@ -3,22 +3,17 @@ import type { CanonicalHead, CanonicalRecord } from '../../src/persistence/canon
 
 async function storage(page: Page) {
   return page.evaluate(async () => {
-    // @ts-expect-error Native Vite URL, reusing the isolated actual-App fixture.
-    const fixture = await import('/tests/e2e/app-recovery.fixture.ts') as typeof import('./app-recovery.fixture');
+    const fixture = await import('/tests/e2e/app-recovery.fixture.ts');
     await window.__appRecoverySession.flush();
     return Object.fromEntries(JSON.parse(await fixture.dump())) as { heads: CanonicalHead[]; records: CanonicalRecord[] };
   });
 }
 async function spatial(page: Page, remove = false) {
   return page.evaluate(async remove => {
-    // @ts-expect-error Native Vite module URL.
-    const { readCanonical } = await import('/src/persistence/canonical/read.ts') as typeof import('../../src/persistence/canonical/read');
-    // @ts-expect-error Native Vite module URL.
-    const { worldBlockKey, loadWorldIndexBlock } = await import('/src/persistence/canonical/knowledge/worldIndex.ts') as typeof import('../../src/persistence/canonical/knowledge/worldIndex');
-    // @ts-expect-error Native Vite module URL.
-    const { worldIndexEvidenceKey } = await import('/src/persistence/canonical/knowledge/worldIndex.evidence.ts') as typeof import('../../src/persistence/canonical/knowledge/worldIndex.evidence');
-    // @ts-expect-error Native Vite module URL.
-    const { openCanonicalDatabase } = await import('/src/persistence/canonical/database.ts') as typeof import('../../src/persistence/canonical/database');
+    const { readCanonical } = await import('/src/persistence/canonical/read.ts');
+    const { worldBlockKey, loadWorldIndexBlock } = await import('/src/persistence/canonical/knowledge/worldIndex.ts');
+    const { worldIndexEvidenceKey } = await import('/src/persistence/canonical/knowledge/worldIndex.evidence.ts');
+    const { openCanonicalDatabase } = await import('/src/persistence/canonical/database.ts');
     const game = window.__appRecoverySession.view.game!, actor = game.observation!.cells.find(c => JSON.stringify(c.at) === JSON.stringify(game.checkpoint.position))!;
     const key = worldBlockKey(actor.at.level, actor.world);
     const { head, value } = await readCanonical(async pages => {
@@ -56,7 +51,6 @@ for (const funded of [false, true]) test(`missing spatial proof reload ${funded 
   });
   await page.goto('/'); await rendered(page);
   if (funded) await page.evaluate(async () => {
-    // @ts-expect-error Existing provider-free local admission through the hook-owned session.
     await (await import('/tests/e2e/app-recovery.fixture.ts')).seedNavigation();
   });
   const original = await storage(page), seed = await spatial(page, true), damaged = await storage(page);

@@ -100,3 +100,28 @@ node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-gene
 ```
 
 This closes only the generated **offline** active-takeover/adoption gap. It is not live-service admission/ACK durability, a long route, repeated takeovers, reload during transfer, terminal delivery uncertainty, or composition with the separate paged-room return journey. All production admission/work/result caps are unchanged. Parent/owner ports and data are untouched; strict 5474 is the only owned listener.
+
+## S6 App-Recovery Fixture Types
+
+Isolated source base `4710ba3e4e8dee9c1a771d397975ef03e6a76a87`; production,
+dependencies, depth setup and native probe are identical to parent `585f507`.
+New `app-recovery.tsconfig.json` inherits all root compiler options and adds only
+Vite `/src/*` and `/tests/*` resolution. Its five owned roots are the fixture,
+both specs, Playwright config and Vite config; `src/vite-env.d.ts` is included.
+
+First check: **FAIL**, 16 fixture diagnostics: eight browser-relative import
+paths, six now-unused `@ts-expect-error` directives and two untyped transform
+parameters. Imports now use their equivalent root-absolute browser URLs;
+obsolete suppression/module casts are removed and transform parameters are
+typed strings. No assertion, runtime behavior or compiler check is weakened.
+Corrected check: **PASS**, exit 0, zero diagnostics:
+
+```powershell
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/app-recovery.tsconfig.json
+```
+
+Evidence: `test-results/generated-depth-paging-4710ba3-01/app-types-initial.log`,
+`app-types-corrected.log`, and `toolchain-and-types.json` (resolved roots/options).
+Node 22.13.0, npm 11.6.2, TypeScript 6.0.3, Playwright 1.61.0; existing physical
+worktree-local dependencies unchanged. App-recovery native tests **NOT RUN**:
+only port 5474 is authorized in this lane. No production edits or providers.

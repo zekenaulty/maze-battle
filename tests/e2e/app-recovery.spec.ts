@@ -17,12 +17,12 @@ async function auditNetwork(page: Page) {
   });
   return { calls, sockets };
 }
-async function dump(page: Page) { return page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).dump()); }
+async function dump(page: Page) { return page.evaluate(async () => (await import('/tests/e2e/app-recovery.fixture.ts')).dump()); }
 
 test('actual App recovery stays local and renders one retained original on desktop and mobile', async ({ page }, info) => {
   const network = await auditNetwork(page), errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await ready(page);
-  const seed = await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).seedNavigation());
+  const seed = await page.evaluate(async () => (await import('/tests/e2e/app-recovery.fixture.ts')).seedNavigation());
   const before = await dump(page);
   for (const [width, height] of [[1440, 900], [390, 844]]) {
     await page.setViewportSize({ width, height });
@@ -52,8 +52,8 @@ test('actual App recovery stays local and renders one retained original on deskt
 
 test('actual App quota recovery Stop uses the same live controller and does not claim remote clearance', async ({ page }, info) => {
   const network = await auditNetwork(page); await ready(page);
-  await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).seedNavigation());
-  const state = await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).quotaFailure());
+  await page.evaluate(async () => (await import('/tests/e2e/app-recovery.fixture.ts')).seedNavigation());
+  const state = await page.evaluate(async () => (await import('/tests/e2e/app-recovery.fixture.ts')).quotaFailure());
   expect(state).toEqual({ controlled: false, recovery: true, live: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Agentica recovery', exact: true }).click();
@@ -66,7 +66,7 @@ test('actual App quota recovery Stop uses the same live controller and does not 
   await dialog.getByRole('button', { name: 'Stop Agentic session' }).click();
   await expect(dialog.getByText('Local Stop recorded; original service start is unknown. Session clearance remains unknown.')).toBeVisible();
   const after = await page.evaluate(async () => {
-    const fixture = await import('./tests/e2e/app-recovery.fixture.ts'), launch = (await fixture.readLaunch()).value!;
+    const fixture = await import('/tests/e2e/app-recovery.fixture.ts'), launch = (await fixture.readLaunch()).value!;
     return { terminal: launch.guard.terminal?.disposition, live: !window.__appRecoverySession.hostSignal.aborted,
       owner: launch.guard.owner === window.__appRecoverySession.owner };
   });
@@ -92,14 +92,14 @@ test('actual App storage loading failure still exposes local recovery without ne
 for (const legacy of [false, true]) for (const button of ['Check service', 'Stop Agentic session']) {
   test(`actual App ${button} refuses ${legacy ? 'obsolete' : 'missing'} schema before ordinary root reads`, async ({ page }) => {
     const network = await auditNetwork(page); await ready(page);
-    await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).seedNavigation());
+    await page.evaluate(async () => (await import('/tests/e2e/app-recovery.fixture.ts')).seedNavigation());
     await page.getByRole('button', { name: 'Agentic play', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Agentica recovery' });
     await expect(dialog.getByRole('button', { name: button })).toBeEnabled();
-    await page.evaluate(async old => (await import('./tests/e2e/app-recovery.fixture.ts')).prepareRootSchemaFailure(old), legacy);
+    await page.evaluate(async old => (await import('/tests/e2e/app-recovery.fixture.ts')).prepareRootSchemaFailure(old), legacy);
     await dialog.getByRole('button', { name: button }).click();
     await expect(dialog.getByRole('alert')).toContainText('no upgrade was performed');
-    const evidence = await page.evaluate(async () => (await import('./tests/e2e/app-recovery.fixture.ts')).rootSchemaFailureEvidence());
+    const evidence = await page.evaluate(async () => (await import('/tests/e2e/app-recovery.fixture.ts')).rootSchemaFailureEvidence());
     expect(evidence.after).toEqual(evidence.before);
     expect(evidence.mutations).toEqual([]); expect(evidence.sentinel).toBe(legacy ? 'preserve' : null);
     expect(evidence.live).toBe(true); expect(network.calls).toEqual([]); expect(network.sockets).toEqual([]);
