@@ -30,7 +30,7 @@ deployment is authorized by this ledger.
 | Production and affected fixture types/build | PASS, nine projects including broad canonical and explicit App recovery; production build 2,156 modules / 1.22s, existing bundle warning retained |
 | Seven-case generated endurance | PASS, combined parent 7/7 at `2c67b31`, 18.7m, no skips/retries; S5 bounded complete |
 | Affected native/known-destination/controller/capacity/UI suites | IN PROGRESS, serialized native run; discovered manifest has 1,521 unique native cases including seven generated endurance cases |
-| Full pinned actual-service cohort | Original default-port run 53 PASS / 1 FAIL; corrected helper follow-up 15 PASS. Fresh full 54-case run IN PROGRESS at `60c1346`; no relabeling |
+| Full pinned actual-service cohort | PASS, fresh full 54/54 at `60c1346`, 44.4m, no skips/retries. Original 53 PASS / 1 FAIL and corrected-helper 15-case follow-up retained separately |
 | Desktop/portrait production smoke | PASS at `d57884d`, three production-build viewports (desktop, phone portrait/landscape); screenshots inspected |
 | Final source/environment/evidence reconciliation | NOT RUN; required before any acceptance claim |
 
@@ -195,8 +195,11 @@ selected actual-service cases** (7.6m) at `6f7aa50`, evidence
 `test-results/maze-start-service-UNuhYX/` in the parent checkout. Its source,
 assembly and SDK provenance are retained. The original failure remains failed.
 A fresh full run on candidate `60c1346`, evidence
-`test-results/maze-start-service-NUOwKR/` in the qualification checkout, is in
-progress on default 5258/5259. All runs remain provider-free.
+`test-results/maze-start-service-NUOwKR/` in the qualification checkout, passes
+**54/54** (44.4m), with zero skips/retries, on default 5258/5259. The launcher
+retains fresh assembly hashes, exact fixture hashes and SDK provenance. This is
+the complete pinned-service gate, not a relabeled partial result or model test.
+All runs remain provider-free.
 
 Further bounded fixture integration:
 
@@ -215,10 +218,13 @@ Further bounded fixture integration:
   **75 PASS / 5 FAIL**. Five mutations reach an earlier retained-operation guard
   than the obsolete expected successor error. Exact updated refusal, whole-DB
   equality, null claim and valid-adoption controls pass; full child **80/80 PASS**.
-- Frontier exploration has **11 PASS / 1 FAIL** in its A/B comparison fixture:
+- Frontier exploration originally has **11 PASS / 1 FAIL** in its A/B comparison fixture:
   raw chunk commitments vary with original record identities, which its older
-  derived comparison did not account for. A strict source-bound comparison
-  correction is under review; the digest must not simply be omitted or ignored.
+  derived comparison did not account for. The [strict source-bound correction](issue-11-frontier-prefix-commitment-fixture.md)
+  validates complete original records and commitments before an explicit identity
+  correspondence and derived commitment recomputation. Tampering controls remain;
+  nothing is dropped. Parent full **12/12 PASS** (58.7s), fixture types PASS,
+  `test-results/s6-frontier-commitment-final/`, integrated at `3d281a3`.
 
 `test-results/s6-60c1346/source-compatibility.json` lists every changed fixture
 input. All production source, manifest and lockfile bytes remain exact from
@@ -226,3 +232,35 @@ input. All production source, manifest and lockfile bytes remain exact from
 has 1,689 tracked inputs. Unchanged evidence keeps its actual earlier identity;
 affected native configurations rerun under this explicit candidate. No new
 distinct cases or Cartesian matrix are added to the discovered 1,575.
+
+## Final Native Follow-Through
+
+Parent fixture-only integrations after `60c1346` retain the frozen production
+and package bytes. Exact original test IDs and counts remain the acceptance
+list; successful compatible runs retain their actual source identity.
+
+- Launch: original **101 PASS / 1 FAIL** expected an obsolete missing-grant
+  message. Exact current `missing run grant` refusal, whole-store equality and
+  valid-grant control remain. Parent **102/102 PASS** (1.4m) at `d7e333a`,
+  `test-results/s6-launch-refusal-final/`.
+- [Interaction admission assertions](issue-11-interaction-quota-assertions.md):
+  original **14 PASS / 2 FAIL** used raw free bytes as ordinary admission
+  headroom. Actual stored-byte/fixed-head/private-capacity audits preserve the
+  existing filler, refusal, rollback, settlement and ACK checks. Parent full
+  **16/16 PASS** (37.482s) at `f94f96d`,
+  `test-results/s6-interaction-quota-final/`.
+- [Navigation admission assertion](issue-11-navigation-quota-assertions.md):
+  original single-case failure retained; the same read-only accounting audit
+  corrects the proxy without changing funding or caps. Parent full **56/56 PASS**
+  (104.890s) after integration at `f143200`. Manual save/reload also passes
+  **65/65** (51.438s). Combined ledger:
+  `test-results/s6-f143200/native-final/execution.json` in the parent checkout.
+- Objective-check: original full **12 PASS / 1 FAIL** under `60c1346`, evidence
+  `test-results/s6-60c1346/native-rest2/canonical-objective-check/`. The first
+  collection/return case's strict history probe rejects an observation integrity
+  read. Investigation remains open; neither a fixture defect nor runtime defect
+  is assumed from the error alone. No allowance has been widened to mark it green.
+- Remaining independent frozen suites run serially in
+  `test-results/s6-60c1346/native-rest3/`. Pregrant **29/29**, private capacity
+  **35/35** and publication selection **5/5** have passed. Later gates and final
+  cross-source reconciliation remain open.
