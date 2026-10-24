@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 53,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 54,
 2026-10-23. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -599,8 +599,8 @@ without separate limits/authorization. Issue #11 is not complete.
 
 ## Finite Goal Closeout
 
-2026-10-23 progress checkpoint: **Sprints 1 and 3 are complete at their declared
-bounded evidence levels**; Sprints 2, 4, 5 and 6 remain open. Independent
+2026-10-23 progress checkpoint: **Sprints 1, 3 and 4 are complete at their declared
+bounded evidence levels**; Sprints 2, 5 and 6 remain open. Independent
 reconciliation at `bbdadf1` found no additional Sprint-1-specific claim; the
 [S3 matrix audit](reviews/issue-11-recovery-matrix.md) accounts for its eight
 distinct new recovery cuts and retained takeover/duplicate/cleanup proofs.
@@ -620,10 +620,13 @@ qualifies next-floor allocation and adds receipt-bound restored-world identities
 Completed saves can generate later floors with new funding while earlier charges
 remain retained; unfinished current-floor saves explicitly refuse. Full units
 now pass 5,017 with the same existing optional skip, and both focused actual-App
-cold-start service journeys pass. Command-work/diagnostic boundaries, generated
-endurance and frozen final qualification remain open.
-The remaining range stays **28-56 focused hours**, not a restarted budget or a
-claim that focused test counts establish the remaining integration cost.
+cold-start service journeys pass. The subsequent
+[command-work qualification](reviews/issue-11-command-work-qualification.md)
+closes the declared S4 read/write/byte thresholds, diagnostics and controller
+cohort. Generated endurance and frozen final qualification remain open.
+The remaining range is now **16-32 focused hours**: S2 2-4h, S5 6-12h and S6
+8-16h. This credits S4's completed acceptance rather than subtracting runner time
+or treating focused test counts as final qualification.
 The original planning checkpoints and their uncertainty remain below.
 No native >64-step proof
 or impossibility theorem is implied: the declared alternative is the retained
@@ -690,24 +693,24 @@ candidate at a time. Checked increments continue to be committed and pushed.
 | 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
 | 2. Information boundaries | Retain passing scoped-query, navigation/history, UI and complete-planner-frame evidence. Finish wire/status/diagnostic composition through the first lawful A/B observation difference. Review the observed independent status/ACK delivery interleaving, retain the strict ordered FAIL, and add an explicit correspondence plus consumer-order regression rather than sorting away differences. Capacity and command-work thresholds are Sprint 4. | 2-4h |
 | 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. The final combined rerun belongs to Sprint 6. | Complete |
-| 4. Capacity, work and controller parity | Allocation binding, index guards, next-floor preparation, restored-world fresh funding, atomic refusal/rollback, replay, App regression and focused cold-start service composition now pass at their recorded levels. Close finite command-work threshold and diagnostic exposure checks, retaining truthful occupancy and funded cleanup. No Auto policy bleed into manual or agent authority. | 12-24h; re-estimate after the work gate |
+| 4. Capacity, work and controller parity: COMPLETE (bounded) | Allocation binding, index guards, next-floor preparation, restored-world fresh funding, atomic rollback/replay, App/service composition, authored read/write/byte threshold neighbors, diagnostic checks and Manual/Auto/Agentica effect parity pass at their recorded levels. Final integrated rerun remains S6; generated-world bounds remain S5. | Complete |
 | 5. Generated-world endurance | Declare a small generated-layout cohort, shallow/deep retained topology samples and a larger fixed-depth history sample than the existing 128 moves. Prove paged known-room/connection graph retrieval across multiple pages and bounded underlying reads/payloads as topology grows. Include active Agentica/two-tab recovery, actual IndexedDB I/O/latency, and preserved old records/receipts, not unchanged current knowledge roots. | 6-12h |
 | 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
 
-Execution order: finish S2's evidence composition while S4's domain allocation
-work proceeds in an isolated lane; integrate and qualify S4 before S5. S6 freezes
+Execution order: finish S2's evidence composition while S5's generated endurance
+work proceeds in an isolated lane; S4's bounded gate is complete. S6 freezes
 one integrated candidate after review. Parallel review/fixtures can shorten the
 critical path, but dependency-sensitive integration and shared-port suites remain
 serialized. Do not replace these gates with another unrestricted test matrix.
 
 ### Delivery Forecast And Sprint Handoffs
 
-The 28-56 hours are focused engineering, integration and review effort, not a
-wall-clock countdown and not a sum of runner durations. Plan on **4-8 eight-hour
-workdays**, with **8-12 workdays as a contingency envelope** if new defects are
+The remaining 16-32 hours are focused engineering, integration and review effort,
+not a wall-clock countdown or a sum of runner durations. Plan on **2-4 eight-hour
+workdays**, with **5-8 workdays as a contingency envelope** if new defects are
 demonstrated. This is not an overnight completion promise. Parallel work reduces
-waiting where dependencies permit, but does not make the serial S4 -> S5 -> S6
-critical path disappear. Re-estimate after S4's broader gates and the first
+waiting where dependencies permit, but does not remove the serial S5 -> S6
+critical path. Re-estimate after the first
 generated-endurance pass, not after every green focused test.
 
 | Milestone | Lane and concrete handoff | Completion decision |

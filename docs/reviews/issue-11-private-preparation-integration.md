@@ -103,8 +103,9 @@ node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex
 
 ## Remaining Gate
 
-S4 still needs the finite command-work threshold and diagnostic disclosure
-qualification. S2's explicit status/ACK correspondence and consumer-order proof,
+The subsequent [command-work qualification](issue-11-command-work-qualification.md)
+closes the declared S4 threshold/controller cohort at its bounded evidence level.
+S2's explicit status/ACK correspondence and consumer-order proof,
 S5 generated topology/history endurance, and S6 frozen-candidate qualification
 remain open. The original strict wire-order failure is not erased by these
 capacity results. No live-model qualification, schema migration, owner reset,
