@@ -1,7 +1,7 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 54,
-2026-10-23. Status: the actual App now uses canonical storage for the checked
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 55,
+2026-10-24. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
 routes mount this same App. [Evidence and limits](reviews/issue-11-playable-cutover.md).
@@ -624,9 +624,18 @@ cold-start service journeys pass. The subsequent
 [command-work qualification](reviews/issue-11-command-work-qualification.md)
 closes the declared S4 read/write/byte thresholds, diagnostics and controller
 cohort. Generated endurance and frozen final qualification remain open.
-The remaining range is now **16-32 focused hours**: S2 2-4h, S5 6-12h and S6
-8-16h. This credits S4's completed acceptance rather than subtracting runner time
-or treating focused test counts as final qualification.
+The [S2 integration](reviews/issue-11-s2-integration.md) now closes the bounded
+wire/consumer gate, including independently bound original deadlines and explicit
+source-supported delivery correspondence. The
+[generated endurance cohort](reviews/issue-11-generated-endurance.md) adds retained
+depths 1/8/16, 1,024-command histories for two seeds, paged earned-room returns,
+and actual-App offline takeover/adoption. Child evidence passes; parent combined
+qualification is underway on frozen source `585f507` in a fresh checkout.
+The remaining range is now **10-20 focused hours**: S5 integration 2-4h and S6
+8-16h. This credits checked S2 and generated fixture work, not final acceptance.
+There is no production change in these last S2/S5 increments; runtime remains
+the checked `5125cbe` lineage. Retained failed attempts and exact limits remain
+in the linked reports and the [S6 rolling ledger](reviews/issue-11-s6-qualification.md).
 The original planning checkpoints and their uncertainty remain below.
 No native >64-step proof
 or impossibility theorem is implied: the declared alternative is the retained
@@ -691,31 +700,31 @@ candidate at a time. Checked increments continue to be committed and pushed.
 | Sprint | Deliverable and exit gate | Remaining estimate |
 | --- | --- | ---: |
 | 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
-| 2. Information boundaries | Retain passing scoped-query, navigation/history, UI and complete-planner-frame evidence. Finish wire/status/diagnostic composition through the first lawful A/B observation difference. Review the observed independent status/ACK delivery interleaving, retain the strict ordered FAIL, and add an explicit correspondence plus consumer-order regression rather than sorting away differences. Capacity and command-work thresholds are Sprint 4. | 2-4h |
+| 2. Information boundaries: COMPLETE (bounded) | Scoped queries, history, UI and complete planner frames pass at their recorded levels. Wire comparison through the first lawful A/B difference retains strict ordered failures, checks exact original custody/deadlines, and permits only source-supported ACK/status/dispatch correspondence. Actual SDK consumers qualify those orders and terminal controls; independent review closes the deadline finding. Final combined rerun remains S6. | Complete |
 | 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. The final combined rerun belongs to Sprint 6. | Complete |
 | 4. Capacity, work and controller parity: COMPLETE (bounded) | Allocation binding, index guards, next-floor preparation, restored-world fresh funding, atomic rollback/replay, App/service composition, authored read/write/byte threshold neighbors, diagnostic checks and Manual/Auto/Agentica effect parity pass at their recorded levels. Final integrated rerun remains S6; generated-world bounds remain S5. | Complete |
-| 5. Generated-world endurance | Declare a small generated-layout cohort, shallow/deep retained topology samples and a larger fixed-depth history sample than the existing 128 moves. Prove paged known-room/connection graph retrieval across multiple pages and bounded underlying reads/payloads as topology grows. Include active Agentica/two-tab recovery, actual IndexedDB I/O/latency, and preserved old records/receipts, not unchanged current knowledge roots. | 6-12h |
+| 5. Generated-world endurance: INTEGRATION | Seven declared native cases now cover two generated seeds, retained depths 1/8/16, two separate 1,024-command histories, paged off-window recall/returns, and offline active two-tab recovery. Original observations/receipts and admission/work limits are retained. Parent combined run remains; these are separate bounded samples, not played deep descent, arbitrary histories, or live-service custody. | 2-4h |
 | 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
 
-Execution order: finish S2's evidence composition while S5's generated endurance
-work proceeds in an isolated lane; S4's bounded gate is complete. S6 freezes
-one integrated candidate after review. Parallel review/fixtures can shorten the
+Execution order: S2 and S4's bounded gates are complete. Integrate S5 and qualify
+frozen source `585f507` in an isolated checkout with its own locked dependencies.
+S6 records a deduplicated discovered manifest before execution. Parallel review/fixtures can shorten the
 critical path, but dependency-sensitive integration and shared-port suites remain
 serialized. Do not replace these gates with another unrestricted test matrix.
 
 ### Delivery Forecast And Sprint Handoffs
 
-The remaining 16-32 hours are focused engineering, integration and review effort,
-not a wall-clock countdown or a sum of runner durations. Plan on **2-4 eight-hour
-workdays**, with **5-8 workdays as a contingency envelope** if new defects are
+The remaining 10-20 hours are focused engineering, integration and review effort,
+not a wall-clock countdown or a sum of runner durations. Plan on **2-3 eight-hour
+workdays**, with **4-6 workdays as a contingency envelope** if new defects are
 demonstrated. This is not an overnight completion promise. Parallel work reduces
 waiting where dependencies permit, but does not remove the serial S5 -> S6
-critical path. Re-estimate after the first
-generated-endurance pass, not after every green focused test.
+critical path. Re-estimate after the frozen-candidate gates or a newly demonstrated
+runtime defect, not after every green focused test.
 
 | Milestone | Lane and concrete handoff | Completion decision |
 | --- | --- | --- |
-| M1: information and capacity qualified | Parent integrates S4; isolated reviewer/test lane finishes S2 and independent guard tests. Verify next-floor/restore behavior and work-limit channels, run affected App/service regression, publish checked commits and a short findings report. | S2 and S4 must have no unresolved required disclosure, capacity or cleanup defect. A green quota test alone is insufficient. |
+| M1: information and capacity qualified (bounded complete) | S2/S4 integration and independent deadline review pass at their recorded levels. Preserve raw strict failures, source correspondence, allocation/work-bound evidence and reports. | S6 still reruns required integration on the frozen candidate. |
 | M2: generated endurance qualified | Use the same App, canonical store and existing offline Agentica service. Freeze a small deterministic cohort before running; isolate topology growth from history growth. Publish raw I/O, graph paging, revisit and active-owner recovery results. | S5 passes its declared limits without hidden routing, fixture teleportation during measured journeys, whole-history scans or altered admission bounds. |
 | M3: provider-free candidate qualified | Freeze Maze and Agentica source, dependencies, SDK and the deduplicated test manifest. Run S6, review failures, and rerun affected gates after repairs. Push the exact candidate and acceptance report. | All mandatory provider-free gates pass on compatible recorded identities. Earlier partial runs do not substitute for the final combined result. |
 | M4: separately authorized live qualification | After M3, obtain model, cumulative call/token/cost/time limits and stop rules; run the two-dungeon live gate and report choices, tools, usage, latency and completion separately. | Actual provider evidence, not the offline planner, decides this gate. No paid run is currently authorized. |
