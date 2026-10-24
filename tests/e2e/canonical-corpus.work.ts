@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { CanonicalHead } from '../../src/persistence/canonical/types';
+import type { CanonicalHead, CanonicalWorkLimits } from '../../src/persistence/canonical/types';
 import type {} from './canonical-corpus.fixture';
 
 /** Independent fault oracle; never exposed to a controller or used to select a route. */
@@ -49,8 +49,8 @@ export async function injectQuota(page: Page, limitBytes: number) {
   }, limitBytes);
 }
 
-export async function measuredMove(page: Page, completeSnapshot = false) {
-  return page.evaluate(async completeSnapshot => {
+export async function measuredMove(page: Page, completeSnapshot = false, limits?: CanonicalWorkLimits) {
+  return page.evaluate(async ({ completeSnapshot, limits }) => {
     const snapshot = async () => {
       if (!completeSnapshot) return null;
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -73,10 +73,10 @@ export async function measuredMove(page: Page, completeSnapshot = false) {
     const before = await window.canonicalCorpus.audit();
     const databaseBefore = await snapshot();
     let receipts: Awaited<ReturnType<typeof window.canonicalCorpus.move>> = [], error: string | null = null;
-    try { receipts = await window.canonicalCorpus.move('east'); }
+    try { receipts = limits ? await window.canonicalCorpus.workLimitedMove(limits) : await window.canonicalCorpus.move('east'); }
     catch (caught) { error = caught instanceof Error ? caught.message : String(caught); }
     return { before, after: await window.canonicalCorpus.audit(), receipts, error,
       databaseBefore, databaseAfter: await snapshot(), status: window.canonicalCorpus.status(),
       identities: window.corpusControl!.allocations() };
-  }, completeSnapshot);
+  }, { completeSnapshot, limits });
 }

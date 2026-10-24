@@ -1,7 +1,9 @@
 import { GameSession } from '../../src/services/game/GameSession';
 import type { Direction } from '../../src/domain/types';
 import { opposite } from '../../src/domain/maze/movement';
-import type { JsonObject } from '../../src/persistence/canonical/types';
+import type { CanonicalWorkLimits, JsonObject } from '../../src/persistence/canonical/types';
+import { executeCanonical } from '../../src/persistence/canonical/transaction';
+import { commitExplorationCommand } from '../../src/persistence/canonical/game/explorationCommand';
 import { initializeCorpus } from './canonical-corpus.initialize';
 import type { CorpusVariant } from './canonical-corpus.layout';
 import { corpusAudit } from './canonical-corpus.audit';
@@ -56,12 +58,21 @@ async function collect() {
   if (actor.chests.length !== 1 || actor.chests[0].opened) throw Error('No unopened chest at the observed actor');
   return session.execute('content', { kind: 'open-chest', chestId: actor.chests[0].id });
 }
+/** Trusted test-only budget injection around the same shared movement command and session queue. */
+async function workLimitedMove(limits: CanonicalWorkLimits) {
+  const game = session.view.game!, actor = game.observation!.cells.find(cell =>
+    JSON.stringify(cell.at) === JSON.stringify(game.checkpoint.position))!;
+  if (!actor.edges.east) throw Error('Work-limit test move lacks an earned destination');
+  const input = { kind: 'move', direction: 'east', triggerStairs: false };
+  return [await session.submitHostCommand({ kind: 'fresh', operation: 'exploration.command', input,
+    execute: (request, options) => executeCanonical(request, tx => commitExplorationCommand(tx, request.input), { ...options, limits }) })];
+}
 async function returnAlongReceipts() {
   const path = outbound.splice(0).reverse(), receipts = [];
   for (const direction of path) receipts.push(...await move(opposite(direction), 1, false));
   return receipts;
 }
-const api = { boot, move, branch, collect, returnAlongReceipts, audit: corpusAudit,
+const api = { boot, move, workLimitedMove, branch, collect, returnAlongReceipts, audit: corpusAudit,
   status: () => ({ status: session.view.status, controlled: session.view.controlled,
     recoveryRequired: session.view.recoveryRequired ?? false, diagnostics: structuredClone(session.view.diagnostics) }),
   reinitialize: (variant: CorpusVariant) => initializeCorpus(variant, session.owner),
