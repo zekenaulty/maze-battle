@@ -6,7 +6,7 @@ deployment is authorized by this ledger.
 
 ## Candidate And Boundaries
 
-- Frozen Maze source: `585f507d250b7628b55ad995a63ba37614167293`.
+- Frozen Maze source: `d57884de84e6e952dc5768a22cd3ed10b5c566fc`.
 - Qualification checkout: `C:/Users/Zythis/.codex/worktrees/s6-qualification/maze-battle`,
   isolated branch `codex/s6-qualification`, initially no dependencies installed.
 - Parent integration/report branch: `codex/agentic-game-a1`. Subsequent report-only
@@ -23,12 +23,12 @@ deployment is authorized by this ledger.
 
 | Gate | Current status |
 | --- | --- |
-| Clean locked install | IN PROGRESS; first isolated install failed on network reset, retry retained separately |
-| Full units and Node comparison tests | NOT RUN on frozen candidate |
-| Production and affected fixture types/build | NOT RUN on frozen candidate |
+| Clean locked install | PASS, 123 packages / 12s, physical checkout-local dependencies, unchanged manifest/lock |
+| Full units and Node comparison tests | PASS, 5,017 units / one existing optional skip (333.36s); 20 extra fixture units; 46 Node audit tests |
+| Production and affected fixture types/build | PASS, nine projects including broad canonical and explicit App recovery; production build 2,156 modules / 1.22s, existing bundle warning retained |
 | Seven-case generated endurance | Child cases pass incrementally; combined frozen run NOT RUN |
-| Affected native/known-destination/controller/capacity/UI suites | Final manifest under independent read-only review; NOT RUN on frozen candidate |
-| Full pinned actual-service cohort | Final deduplicated discovery and run NOT RUN on frozen candidate |
+| Affected native/known-destination/controller/capacity/UI suites | IN PROGRESS, serialized native run; discovered manifest has 1,521 unique native cases including seven generated endurance cases |
+| Full pinned actual-service cohort | Discovery PASS, 54 distinct cases; execution NOT RUN on frozen candidate |
 | Desktop/portrait production smoke | NOT RUN on frozen candidate |
 | Final source/environment/evidence reconciliation | NOT RUN; required before any acceptance claim |
 
@@ -48,6 +48,48 @@ locked install failed `ECONNRESET` (with a cleanup warning); the original
 `npm-ci.log` and npm debug log are retained under that checkout's
 `test-results/s6-585f507/`. A separate `npm-ci-retry.log` records the
 `--prefer-offline` retry, without relaxing locked dependency validation.
+
+That retry passed (123 packages / 11s). A preliminary `585f507` source run then
+passed 5,017 units with one optional skip, static checks, 20 fixture units, 46
+Node audits and build. Final fixture review identified missing depth-scaled
+query metering and App-recovery type coverage. Those test-only additions plus
+native desktop-wheel/phone-touch controls produce the declared new candidate
+`d57884d`; `git diff 585f507 d57884d -- src package.json package-lock.json` is empty.
+Final clean install and static/unit gates were rerun under the new identity,
+not silently relabeled from that preliminary run.
+
+## Frozen Discovery And Review
+
+Evidence root: the qualification checkout's `test-results/s6-d57884d/`.
+`source-before.json` records all 1,687 tracked source/fixture/config input hashes,
+Node 22.13.0 and npm 11.6.2. Native Chrome is 155.0.8059.85 on Windows x64.
+`discovery/manifest.json` retains each discovered case ID, source/title and exact
+selector across 47 configurations, with duplicate IDs rejected: **1,575 unique
+cases**, comprising **1,521 native + 54 service**. These are selected counts,
+not current pass counts. Generated endurance is seven of the native cases.
+
+Four broad configurations use explicit filename selectors: canonical kernel,
+Agentica admission, base transport and App recovery. Overlapping Auto-exclusive,
+service-chest and operation-review wrappers are omitted. The service's eight-cut
+recovery cases are already in its 54, not counted again. Discovery corrects
+source-only estimates (quality is 40, launch is 102, extra fixture units are 20).
+The first service discovery correctly refused missing launcher context. The
+subsequent discovery uses verified retained constructor inputs and starts no
+service; full execution must use the pinned launcher and its fresh build.
+
+Independent source review found no blocking issue in the final width-two depth
+pager, snapshot binding, native metering or camera-control assertions. Room
+pages request two and connections request one; production caps remain unchanged.
+The old width-four seed-781 feasibility failure remains retained. This is not a
+claim of more discovered rooms or a second four-room UI page on that seed.
+The two new camera checks passed before the final freeze, with screenshots
+visually inspected; final integrated browser execution still must rerun them.
+
+The native runner serializes configuration/port ownership and retains
+`native/<config>/results.json`, runner logs and failure traces. It verifies the
+selected count, rejects skips/flakes/errors, and stops at the first failed gate.
+`native/execution.json` is its incremental ledger. Final service qualification
+will retain its independently generated provenance, assembly hashes and results.
 
 The final report will distinguish test failures, fixture corrections and
 environment failures, retain original attempts, and name all unmet gates.

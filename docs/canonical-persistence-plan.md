@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 55,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 56,
 2026-10-24. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -630,7 +630,7 @@ source-supported delivery correspondence. The
 [generated endurance cohort](reviews/issue-11-generated-endurance.md) adds retained
 depths 1/8/16, 1,024-command histories for two seeds, paged earned-room returns,
 and actual-App offline takeover/adoption. Child evidence passes; parent combined
-qualification is underway on frozen source `585f507` in a fresh checkout.
+qualification is underway on frozen source `d57884d` in a fresh checkout.
 The remaining range is now **10-20 focused hours**: S5 integration 2-4h and S6
 8-16h. This credits checked S2 and generated fixture work, not final acceptance.
 There is no production change in these last S2/S5 increments; runtime remains
@@ -707,7 +707,7 @@ candidate at a time. Checked increments continue to be committed and pushed.
 | 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
 
 Execution order: S2 and S4's bounded gates are complete. Integrate S5 and qualify
-frozen source `585f507` in an isolated checkout with its own locked dependencies.
+frozen source `d57884d` in an isolated checkout with its own locked dependencies.
 S6 records a deduplicated discovered manifest before execution. Parallel review/fixtures can shorten the
 critical path, but dependency-sensitive integration and shared-port suites remain
 serialized. Do not replace these gates with another unrestricted test matrix.
