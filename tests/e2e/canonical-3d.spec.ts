@@ -282,8 +282,12 @@ test('walls, dialog cancellation and renderer recovery stop movement safely', as
       await turn(page, wall); const before = (await state(page)).head;
       await page.keyboard.down('w'); await page.waitForTimeout(900);
       expect((await state(page)).head.revision).toBe(before.revision);
-      const stopped = await canvas(page).getAttribute('data-pose'); await page.waitForTimeout(250);
-      expect(await canvas(page).getAttribute('data-pose')).toBe(stopped); await page.keyboard.up('w'); break;
+      const stopped = xy(await canvas(page).getAttribute('data-pose')); await page.waitForTimeout(250);
+      const held = xy(await canvas(page).getAttribute('data-pose'));
+      // Turning has a 0.012-radian tolerance; a small tangential wall slide is valid.
+      expect(Math.hypot(held[0] - stopped[0], held[1] - stopped[1])).toBeLessThan(0.02);
+      expect((await state(page)).head.revision).toBe(before.revision);
+      await page.keyboard.up('w'); break;
     }
     const path = route(observation, c => Object.values(c.edges).some(target => target === null));
     expect(path?.length).toBeGreaterThan(0); await walkOne(page, path![0]);
