@@ -1,4 +1,6 @@
 import { test, expect, evidence } from './canonical-objective-check.test';
+import { observationKey } from '../../src/persistence/canonical/knowledge/keys';
+import { observationHeaderRecord } from '../../src/persistence/canonical/knowledge/observation.validation';
 
 test('ordinary collection and earned return satisfy; stashing clears custody; exact result survives reload', async ({ page }, info) => {
   const initial = await page.evaluate(async () => {
@@ -19,6 +21,7 @@ test('ordinary collection and earned return satisfy; stashing clears custody; ex
     const satisfied = await f.check(true);
     return { returned, before, satisfied, after: await f.fingerprint(true) };
   });
+  await evidence(info, 'arrival-read-scope.json', { observation: collected.satisfied.observation, accesses: collected.satisfied.accesses });
   expect(collected.returned.steps).toBeGreaterThan(0);
   expect(collected.returned.effects.questItems).toHaveLength(1);
   expect(collected.returned.effects.quest.quest.status).toBe('complete');
@@ -31,6 +34,25 @@ test('ordinary collection and earned return satisfy; stashing clears custody; ex
   expect(collected.satisfied.accesses.filter(r => r.area === 'world' && r.method === 'scan').map(r => r.count)).toEqual([1, 1]);
   expect(collected.satisfied.accesses.filter(r => r.area === 'knowledge' && r.method === 'get').length).toBeLessThanOrEqual(18);
   expect(collected.satisfied.accesses.filter(r => r.area === 'knowledge' && r.method === 'witness')).toHaveLength(1);
+  const probe = collected.satisfied.observation;
+  if (!probe?.anchor || !probe.header || !probe.integrity) throw Error('Missing original arrival observation proof');
+  const header = observationHeaderRecord(probe.header, { sequence: probe.anchor.sequence, id: probe.anchor.id });
+  const key = observationKey(probe.anchor.sequence), pass = [key, `${key}/integrity`, ...header.chunks.map((_, index) => `${key}/${index}`)];
+  expect(collected.satisfied.retained.source.objective!.evidence.arrival).toMatchObject({ sequence: probe.anchor.sequence, id: probe.anchor.id });
+  const integrity = probe.integrity.value;
+  if (!integrity || typeof integrity !== 'object' || Array.isArray(integrity)) throw Error('Invalid original integrity record');
+  expect(probe.integrity.key).toBe(`${key}/integrity`); expect(integrity.recordId).toBe(probe.anchor.id);
+  expect(collected.satisfied.accesses.filter(r => r.area === 'knowledge')).toEqual([
+    { method: 'witness', area: 'knowledge', key: 'perception/' },
+    ...[...pass, ...pass].map(key => ({ method: 'get', area: 'knowledge', key })),
+  ]);
+  const rejected = await page.evaluate(async anchor => {
+    const f = window.canonicalObjectiveCheck, before = await f.fingerprint();
+    return { before, reads: await f.rejectForeignObservationReads(anchor), after: await f.fingerprint() };
+  }, probe.anchor);
+  expect(rejected.after).toEqual(rejected.before);
+  expect(rejected.reads.refusals).toHaveLength(6);
+  for (const refusal of rejected.reads.refusals) expect(refusal.message).toBe(`Error: Unexpected memory or history read: ${refusal.key}`);
   expect(JSON.stringify(collected.satisfied.result)).not.toContain(initial.boot.questId);
   const stashed = await page.evaluate(async () => {
     const f = window.canonicalObjectiveCheck; await f.stash();
@@ -53,7 +75,7 @@ test('ordinary collection and earned return satisfy; stashing clears custody; ex
   expect(replay.result).toEqual(collected.satisfied.result);
   expect(replay.after).toEqual(replay.before);
   expect(replay.retained.accesses.every(r => r.area === 'execution')).toBe(true);
-  await evidence(info, 'pending-satisfied-stashed-historical-replay.json', { initial, collected, stashed, replay });
+  await evidence(info, 'pending-satisfied-stashed-historical-replay.json', { initial, collected, rejected, stashed, replay });
 });
 
 test('unbound launch refuses the objective query without claiming completion', async ({ page }, info) => {

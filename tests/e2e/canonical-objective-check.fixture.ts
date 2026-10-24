@@ -9,10 +9,11 @@ import { readPublication } from '../../src/persistence/canonical/agentica/public
 import { readPublicationSelection } from '../../src/persistence/canonical/agentica/publication-selection';
 import { readCanonical, readCanonicalHead, snapshotOf } from '../../src/persistence/canonical/read';
 import { executeCanonical } from '../../src/persistence/canonical/transaction';
+import { gameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
 import { gameRequest } from '../../src/services/game/canonicalRequests';
 import { observeMaze } from '../../src/services/agentica/game/observation';
 import { setup, renew, collectAndReturn, stash } from './canonical-objective-check.setup';
-import { guarded, retained, damage, type Access } from './canonical-objective-check.probes';
+import { guarded, retained, damage, rejectForeignObservationReads, type Access, type ObservationProbe } from './canonical-objective-check.probes';
 import { startGame } from './canonical-agentica-actions.setup';
 import { domainState } from './canonical-agentica-quests.setup';
 import { dump, refusal } from './canonical-frontier.support';
@@ -43,15 +44,17 @@ async function reserve(original: AgenticaAction) {
 }
 async function check(probe = false) {
   const original = await action(), identity = await prepareAction(original), accesses: Access[] = [];
+  let observation: ObservationProbe | undefined;
   await reserve(original);
   if (probe) await session.submitHostCommand({ kind: 'fresh', operation: 'agentica.action.resolve', input: { action: identity.storageKey },
     execute: (request, options) => executeCanonical(request, async tx => {
-      const measured = { ...tx, pages: guarded(tx.pages, seeded!.questId, accesses) };
+      observation = { anchor: structuredClone(gameCheckpoint(tx.head.checkpoint).knowledge), header: null, integrity: null };
+      const measured = { ...tx, pages: guarded(tx.pages, seeded!.questId, accesses, observation) };
       const checked = await queryObjective(measured, identity, binding);
       return (await retainActionResult(measured, request, identity, checked.result, undefined, checked.proof)).receipt;
     }, options) });
   const result = await hooks.onAction!(original);
-  return { original, result, retained: await retained(original), accesses };
+  return { original, result, retained: await retained(original), accesses, observation };
 }
 async function forge(kind: 'cloned' | 'mutated' | 'false-completion' | 'arbitrary' | 'observe') {
   const original = await action(kind === 'observe' ? 'maze.observe' : 'maze.inspect', kind === 'observe' ? {} : { scope: 'objective' });
@@ -75,7 +78,7 @@ async function forge(kind: 'cloned' | 'mutated' | 'false-completion' | 'arbitrar
   return { before, result, after: await dump() };
 }
 const api = {
-  boot, action, reserve, check, forge, retained, damage, domainState, dump, refusal,
+  boot, action, reserve, check, forge, retained, damage, domainState, dump, refusal, rejectForeignObservationReads,
   async fingerprint(domain = false) {
     const serialized = domain ? JSON.stringify(await domainState()) : await dump();
     const bytes = new TextEncoder().encode(serialized);

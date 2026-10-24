@@ -1,22 +1,36 @@
 import type { AgenticaAction } from '../../src/services/agentica/contracts';
-import type { CanonicalPages } from '../../src/persistence/canonical/pages';
 import type { ActionResult, ProtocolRead } from '../../src/persistence/canonical/agentica/types';
 import { prepareAction, readAction } from '../../src/persistence/canonical/agentica/actions';
 import { readActionResultSource } from '../../src/persistence/canonical/agentica/actions.result';
 import { readCanonical, readCanonicalHead } from '../../src/persistence/canonical/read';
 import { openCanonicalDatabase } from '../../src/persistence/canonical/database';
 import { canonicalJson } from '../../src/services/agentica/sdk/agentica-host.mjs';
-import type { JsonObject } from '../../src/persistence/canonical/types';
+import type { CanonicalRecord, JsonObject } from '../../src/persistence/canonical/types';
+import type { KnowledgeAnchor, KnowledgeRead } from '../../src/persistence/canonical/knowledge/types';
+import { observationKey } from '../../src/persistence/canonical/knowledge/keys';
+import { observationHeaderRecord } from '../../src/persistence/canonical/knowledge/observation.validation';
 
 export interface Access { method: string; area: string; key: string; count?: number }
-export function guarded(pages: CanonicalPages, questId: string, accesses: Access[]): CanonicalPages {
+export interface ObservationProbe { anchor: KnowledgeAnchor | null; header: CanonicalRecord | null; integrity: CanonicalRecord | null }
+export function guarded<T extends KnowledgeRead>(pages: T, questId: string, accesses: Access[], observation: ObservationProbe): T {
+  const anchor = structuredClone(observation.anchor), root = anchor ? observationKey(anchor.sequence) : null;
+  let chunks: string[] = [];
   return new Proxy(pages, { get(target, name) {
     if (name === 'get' || name === 'scan' || name === 'witness') return (area: string, key: string, ...args: unknown[]) => {
       accesses.push({ method: name, area, key, ...(name === 'scan' ? { count: args[1] as number } : {}) });
+      if (name === 'get' && area === 'knowledge') {
+        if (!anchor || key !== root && !(observation.header && key === `${root}/integrity`)
+          && !chunks.some((_, index) => key === `${root}/${index}`)) throw Error(`Unexpected memory or history read: ${key}`);
+        return target.get('knowledge', key).then(row => {
+          if (key === root) {
+            chunks = observationHeaderRecord(row, { sequence: anchor.sequence, id: anchor.id }).chunks;
+            observation.header = structuredClone(row ?? null);
+          } else if (key === `${root}/integrity`) observation.integrity = structuredClone(row ?? null);
+          return row;
+        });
+      }
       if (name === 'get' && area === 'world' && ![`quest/${questId}`, `contract/${questId}`, 'roster/pack',
         'roster/stash', `roster/item/quest-item:${questId}`].includes(key)) throw Error(`Hidden world read: ${key}`);
-      if (name === 'get' && area === 'knowledge' && !/^perception\/observation\/[0-9]{16}(\/[0-7])?$/.test(key))
-        throw Error(`Unexpected memory or history read: ${key}`);
       if (name === 'scan' && (area !== 'world' || args[0] !== undefined || args[1] !== 1
         || key !== `roster/quest-items/${questId}/` && !key.startsWith('roster/items/'))) throw Error('Unbounded or foreign scan');
       if (name === 'witness' && area !== 'execution' && (area !== 'knowledge' || key !== 'perception/'))
@@ -25,6 +39,20 @@ export function guarded(pages: CanonicalPages, questId: string, accesses: Access
     };
     const value = Reflect.get(target, name); return typeof value === 'function' ? value.bind(target) : value;
   } });
+}
+export async function rejectForeignObservationReads(input: KnowledgeAnchor) {
+  const anchor = structuredClone(input), sequence = anchor.sequence, key = observationKey(sequence), accesses: Access[] = [];
+  const foreign = observationKey(sequence > 1 ? sequence - 1 : sequence + 1);
+  return (await readCanonical(async pages => {
+    const read = guarded(pages, 'unused', accesses, { anchor, header: null, integrity: null }), refusals = [];
+    for (const requested of [foreign, `${key}/previous`, `${foreign}/integrity`,
+      `${key}/integrity/extra`, `${key}/8`, 'perception/room/1/entry']) {
+      let message = '';
+      try { await read.get('knowledge', requested); } catch (cause) { message = String(cause); }
+      refusals.push({ key: requested, message });
+    }
+    return { refusals, accesses };
+  })).value;
 }
 export async function retained(action: AgenticaAction, forbidCurrent = false) {
   const identity = await prepareAction(action), accesses: Access[] = [];
