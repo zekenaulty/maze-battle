@@ -8,7 +8,8 @@ import type { SkinCatalog } from '../../assets3d/humanoid/contract';
 import { compileStageScene } from './scene';
 import type { SceneBox, StageScene } from './scene';
 import { StageWalker } from './movement';
-import { CELL_SIZE, EYE_HEIGHT } from './constants';
+import { EYE_HEIGHT } from './constants';
+import { alignBoxUVs } from './boxUVs';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -29,9 +30,10 @@ export class StageRenderer {
   private thirdPerson = false;
   private registry: AssetRegistry;
   private failure: (message: string) => void;
+  private materialWarning: (message: string) => void;
   yaw = 0; pitch = 0;
-  constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void) {
-    this.registry = registry; this.failure = failure;
+  constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void, materialWarning = (_message: string) => {}) {
+    this.registry = registry; this.failure = failure; this.materialWarning = materialWarning;
     const initial = compileStageScene(game);
     if (!initial) throw new Error('Observe the current position before entering 3D.');
     this.walker = new StageWalker(initial);
@@ -58,7 +60,13 @@ export class StageRenderer {
     this.canvas.dataset.actor = next.actor.key; this.canvas.dataset.world = `${next.actor.source.world.row},${next.actor.source.world.column}`;
     this.canvas.dataset.center = `${next.actor.center.x},${next.actor.center.z}`;
     this.canvas.dataset.revision = String(game.snapshot.revision); this.canvas.dataset.cells = String(next.cells.length);
-    void this.library.ready().then(() => { if (this.alive) this.canvas.dataset.textures = 'ready'; });
+    this.canvas.dataset.textures = 'loading';
+    void this.library.ready().then(() => {
+      if (!this.alive) return;
+      const loaded = !!this.registry.pack && !this.library.warnings.size;
+      this.canvas.dataset.textures = loaded ? 'ready' : 'fallback';
+      if (!loaded) this.materialWarning('Textures are unavailable. Showing plain materials.');
+    });
   }
   private syncScene(snapshot: StageScene) {
     const retained = new Set([...snapshot.boxes.map(box => box.id), ...snapshot.cells.filter(cell => cell.source.stairs.length).map(cell => `${cell.key}/stairs`)]);
@@ -95,9 +103,11 @@ export class StageRenderer {
       this.chestStates.set(box.id, group); return group;
     }
     const face = box.id.endsWith('/floor') ? 2 : box.id.endsWith('/ceiling') ? 3 : 4;
-    const material = box.material === 'unknown' ? this.unknown : this.library.material(this.registry.resolve(box.material).faces[face],
-      [Math.max(box.size[0], box.size[2]) / 1.6, box.size[1] > 0.2 ? box.size[1] / 1.6 : CELL_SIZE / 1.6]);
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...box.size), material); mesh.position.set(...box.center); return mesh;
+    const surface = this.registry.resolve(box.material).faces[face];
+    const material = box.material === 'unknown' ? this.unknown : this.library.material(surface);
+    const geometry = new THREE.BoxGeometry(...box.size);
+    if (surface.material?.surface === 'tileable') alignBoxUVs(geometry, box.center);
+    const mesh = new THREE.Mesh(geometry, material); mesh.position.set(...box.center); return mesh;
   }
   async setPlayer(catalog: SkinCatalog, selectedId?: string) {
     if (!this.alive || !catalog.skins.length) return;

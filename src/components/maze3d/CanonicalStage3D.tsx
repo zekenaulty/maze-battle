@@ -20,19 +20,22 @@ export default function CanonicalStage3D(props: Props) {
   const dragging = useRef<{ id: number; x: number; y: number } | null>(null);
   const held = useRef(new Set<string>()), epoch = useRef(0), clear = () => { held.current.clear(); dragging.current = null; epoch.current++; };
   const [message, setMessage] = useState('Loading local dungeon materials…'), [failure, setFailure] = useState('');
+  const [assetWarning, setAssetWarning] = useState('');
   const [restart, setRestart] = useState(0), [skins, setSkins] = useState<SkinCatalog>(), [skinId, setSkinId] = useState('');
   const [thirdPerson, setThirdPerson] = useState(false), [locked, setLocked] = useState(false);
   const settings = useRef({ thirdPerson, skinId }); settings.current = { thirdPerson, skinId };
   useEffect(() => {
     let alive = true, graphicsFailed = false, frame = 0, previous = 0, elapsed = 0, inFlight = false;
-    const abort = new AbortController(); setFailure('');
+    const abort = new AbortController(); setFailure(''); setAssetWarning('');
     void (async () => {
       let registry: AssetRegistry;
       try { registry = await loadAssetRegistry(abort.signal); }
       catch { registry = new AssetRegistry(); }
       if (!alive || !host.current) return;
       try {
-        const renderer = new StageRenderer(host.current, registry, latest.current.game, error => { graphicsFailed = true; clear(); setFailure(error); });
+        const renderer = new StageRenderer(host.current, registry, latest.current.game, error => { graphicsFailed = true; clear(); setFailure(error); }, warning => {
+          if (alive) setAssetWarning(warning);
+        });
         renderer.setThirdPerson(settings.current.thirdPerson);
         view.current = renderer; setMessage('WASD to walk · drag to look · E opens a chest on your tile · M opens the map');
         void loadSkinCatalog(abort.signal).then(async catalog => {
@@ -99,6 +102,7 @@ export default function CanonicalStage3D(props: Props) {
       onPointerUp={() => { dragging.current = null; }} onPointerCancel={() => { dragging.current = null; }} />
     <div className="stage-3d-toolbar">
       <button onClick={() => { clear(); props.onReturn(); }}>Return to 2D</button>
+      {assetWarning && <><span className="stage-3d-asset-warning" role="status">{assetWarning}</span><button onClick={() => { clear(); setRestart(n => n + 1); }}>Retry materials</button></>}
       <button disabled={props.disabled || !!failure} onClick={() => { void view.current?.canvas.requestPointerLock()?.catch(() => setMessage('Mouse capture unavailable; drag the view to look around.')); }}>{locked ? 'Mouse captured · Esc releases' : 'Capture mouse'}</button>
       {skins?.skins.length ? <><label>Camera<select aria-label="3D camera" value={thirdPerson ? 'third' : 'first'} onChange={event => {
         const value = event.target.value === 'third'; clear(); setThirdPerson(value); view.current?.setThirdPerson(value);

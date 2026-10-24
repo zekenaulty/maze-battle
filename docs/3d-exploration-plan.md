@@ -103,3 +103,13 @@ Remaining limits: planar movement only; stairs are explicit transitions rather t
 ## Next
 
 The approved goal is complete locally; nothing was pushed or merged. The next recommended slice is a small versioned prefab/schematic placement contract using the shared scene dimensions, explicit door clearance, collision bounds and canonical interaction references. Add one authored library room and seeded replay fixture before an editor. Keep NPC identity/authority and behavior separate. Re-fetch the in-flight canonical branch before the next implementation slice.
+
+## Follow-up fixes — 2026-10-24
+
+The owner reported missing textures after 3D → 2D → 3D and misaligned masonry above doorways. The live preview server was no longer listening on 5196: the loaded page still worked, but remounting could not fetch its manifests. Restarted Vite as a hidden background process independent of the earlier terminal session. Material loading now distinguishes `ready` from `fallback`; unavailable textures show a visible warning and **Retry materials** instead of silently passing the ready check.
+
+Doorway jambs and lintels previously repeated the masonry image relative to each box, restarting the brick rows at the lintel's raised bottom. Tileable box faces now share a 1.6-unit spatial UV grid across full walls, partial walls and floor cells. Chest/skin atlases and bounded bookshelf faces retain their own UVs. This changes rendering only; canonical geometry, collision dimensions and interaction state remain unchanged.
+
+Verification: 51 focused component/asset tests PASS; five browser tests PASS, including four repeated round trips with identical rendered canvas images, an intentionally refused manifest request, visible fallback status, and successful texture recovery. Dedicated UV seam tests cover both sides of X/Z walls and adjacent floors. Production build and browser-fixture types PASS. The first build exposed a test-only Three.js attribute type mismatch, corrected by reading the UV components directly. The existing build-size warning and intentional context-loss disposal warning remain.
+
+Live visual inspection confirms restored textures and aligned door headers. Follow-up evidence is under `canonical-3d/fixes-20261024` in the evidence directory above, including `aligned-doorway.png`, the five-test JSON report and browser screenshots. No assets were regenerated, and no other checkout was modified.

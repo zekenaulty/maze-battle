@@ -56,6 +56,31 @@ function route(observation: any, predicate: (cell: any) => boolean): string[] | 
   }
 }
 
+test('materials survive repeated view switches and can recover from an unavailable manifest', async ({ page }, info) => {
+  await page.goto('/?view=stage3d'); await ready(page);
+  await expect.poll(async () => Number(await canvas(page).getAttribute('data-textures-count'))).toBeGreaterThan(0);
+  const before = await state(page), original = await canvas(page).screenshot();
+  for (let i = 0; i < 4; i++) {
+    await page.getByRole('button', { name: 'Return to 2D', exact: true }).click();
+    await page.getByRole('button', { name: '3D view', exact: true }).click(); await ready(page);
+    await expect.poll(async () => Number(await canvas(page).getAttribute('data-textures-count'))).toBeGreaterThan(0);
+    expect(await canvas(page).screenshot()).toEqual(original);
+    expect((await state(page)).head.revision).toBe(before.head.revision);
+  }
+  const manifest = '**/assets/material-packs/**/manifest.json';
+  await page.route(manifest, route => route.abort('connectionrefused'));
+  await page.getByRole('button', { name: 'Return to 2D', exact: true }).click();
+  await page.getByRole('button', { name: '3D view', exact: true }).click();
+  await expect(canvas(page)).toHaveAttribute('data-textures', 'fallback');
+  await expect(page.getByText('Textures are unavailable. Showing plain materials.', { exact: true })).toBeVisible();
+  await page.unroute(manifest);
+  await page.getByRole('button', { name: 'Retry materials', exact: true }).click(); await ready(page);
+  await expect.poll(async () => Number(await canvas(page).getAttribute('data-textures-count'))).toBeGreaterThan(0);
+  expect(await canvas(page).screenshot()).toEqual(original);
+  expect((await state(page)).head.revision).toBe(before.head.revision);
+  await page.screenshot({ path: info.outputPath('restored-materials.png') });
+});
+
 for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 844 }]) {
   test(`canonical 3D local movement, committed step, map and reload ${viewport.width}`, async ({ page }, info) => {
     const errors: string[] = [], requests: string[] = [];

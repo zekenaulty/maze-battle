@@ -3,6 +3,7 @@
 .canonical-3d-host { touch-action: none; }
 .stage-3d-toolbar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; pointer-events: none; }
 .stage-3d-toolbar > * { pointer-events: auto; }
+.stage-3d-asset-warning { color: #ffe0a0; background: #332819ed; border-radius: 4px; padding: 6px; font-size: 12px; }
 .stage-3d-toolbar button, .stage-3d-touch button, .stage-3d-error button { background: #1c2631e8; border: 1px solid #637184; color: #e9dec8; border-radius: 5px; padding: 8px 12px; cursor: pointer; }
 .stage-3d-toolbar label { display: flex; align-items: center; gap: 6px; background: #111923dc; padding: 5px; border-radius: 5px; font-size: 12px; }
 .stage-3d-toolbar select { background: #24303e; color: #e9dec8; border: 1px solid #637184; border-radius: 4px; max-width: 190px; padding: 4px; }
