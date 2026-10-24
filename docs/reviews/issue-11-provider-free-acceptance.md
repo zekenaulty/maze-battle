@@ -5,7 +5,11 @@ This report maps the existing goal to the bounded provider-free deliverable;
 it does not authorize provider spending, close #11, merge, deploy, replace the
 owner's preview or reset owner data. The umbrella goal remains active.
 
-Subsequent [authorized Luna live attempt](issue-11-live-luna-attempt.md): PARTIAL /
+Later closeout: [final authorized Luna A/B qualification](issue-11-live-luna-qualification.md)
+passes separately, following the owner's fresh $4 repair grant. This report's M3
+evidence and original NOT RUN rows remain historical, not relabeled live proof.
+
+Earlier [authorized Luna live attempt](issue-11-live-luna-attempt.md): PARTIAL /
 INTERRUPTED, not M4 acceptance. It made three provider attempts and two inspect
 choices before a monitor defect cancelled call three. Its usage remains unknown;
 B and a paid retry were not run. The NOT RUN live-gate rows below describe this

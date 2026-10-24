@@ -1,5 +1,8 @@
 # Luna Live Qualification Attempt
 
+Historical interrupted attempt. The later [fresh-grant live A/B qualification](issue-11-live-luna-qualification.md)
+passes separately; this original failure and its unknown usage are retained.
+
 2026-10-24. **PARTIAL / INTERRUPTED, not M4 acceptance.** The actual model was
 called. World A stopped because of a test-monitor defect; World B was NOT RUN.
 The defect is repaired provider-free, but no paid retry was made after the
