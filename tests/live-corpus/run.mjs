@@ -4,12 +4,11 @@ import { execFileSync, spawn } from 'node:child_process';
 import { chromium } from '@playwright/test';
 import { LiveBudget, APPROVED_LIMITS, RATES } from './budget.mjs';
 import { observeWire, stopThroughUi } from './wire.mjs';
+import { RepairGrant } from './grant.mjs';
 
 const origin = 'http://127.0.0.1:5488', lab = 'http://127.0.0.1:5078';
 const paid = process.argv.includes('--paid-authorized'), prepareOnly = process.argv.includes('--prepare-only');
 if (paid === prepareOnly) throw Error('Choose exactly --prepare-only or --paid-authorized; no paid start is implicit');
-const paidStop = path.resolve('test-results/live-corpus-paid-stop.json');
-if (paid && fs.existsSync(paidStop)) throw Error(`Previous paid trial requires reconciliation and fresh authorization: ${paidStop}`);
 const output = path.resolve('test-results', `live-corpus-${Date.now()}`);
 fs.mkdirSync(output, { recursive: true });
 const write = (name, value) => fs.writeFileSync(path.join(output, name), JSON.stringify(value, null, 2));
@@ -17,6 +16,28 @@ const settings = await fetch(lab + '/api/providers/openai/settings').then(r => r
 if (settings.model !== 'gpt-6-luna' || settings.thinkingEffort !== 'high' || paid && !settings.configured)
   throw Error('The approved OpenAI Luna/high provider is not ready');
 const budget = new LiveBudget(), results = [];
+const grant = paid ? new RepairGrant(path.resolve('test-results/live-grant-20261024-usd4.json')) : null;
+let window, windowNumber = 0;
+function reserveWindow() {
+  if (!grant) return;
+  if (window) throw Error('Original execution window has not settled');
+  const id = `${path.basename(output)}-${++windowNumber}`;
+  grant.reserve(id, output);
+  window = { id, keys: new Set(budget.snapshot().attempts.map(c => `${c.runId}/${c.callId}`)),
+    calls: [...budget.serviceCounts.values()].reduce((n, count) => n + count, 0) };
+}
+async function settleWindow(wire) {
+  if (!window) return;
+  const ids = new Set(wire.received.map(x => x.frame.runId).filter(Boolean));
+  if (!ids.size) throw Error('Original run identity missing; conservative window reservation retained');
+  const runs = await fetch(lab + '/api/runs', { signal: AbortSignal.timeout(5000) }).then(r => r.json());
+  budget.reconcileService(runs, ids);
+  if (runs.some(run => ids.has(run.runId) && !['parked', 'succeeded', 'cancelled', 'failed', 'blocked'].includes(run.status)))
+    throw Error('Original execution is not quiescent; conservative window reservation retained');
+  const calls = [...budget.serviceCounts.values()].reduce((n, count) => n + count, 0) - window.calls;
+  grant.settle(window.id, budget.snapshot().attempts.filter(c => !window.keys.has(`${c.runId}/${c.callId}`)), calls);
+  window = null; write('grant.json', grant.snapshot());
+}
 async function reconcile(wire) {
   const ids = new Set(wire.received.map(x => x.frame.runId).filter(Boolean));
   for (let n = 0; n < 25; n++) {
@@ -31,9 +52,10 @@ async function reconcile(wire) {
 }
 write('manifest.json', { source: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   trackedDelta: execFileSync('git', ['diff', '--stat', 'HEAD'], { encoding: 'utf8' }).trim(),
-  paid, limits: APPROVED_LIMITS, rates: RATES, origin, lab, model: settings.model, effort: settings.thinkingEffort,
+  paid, limits: { ...APPROVED_LIMITS, calls: 'unlimited', inputTokens: 'unlimited', outputTokens: 'unlimited', durationMs: 'unlimited' },
+  grant: grant?.snapshot(), rates: RATES, origin, lab, model: settings.model, effort: settings.thinkingEffort,
   method: 'Actual App and canonical store; authored topology, ordinary guild acceptance, no discovery prelude; UI Continue only at earned decisions',
-  limitsBoundary: 'Coordinator observes provider attempts/usage and cancels; not a service-side pre-dispatch or billing cap. Unknown/failed usage stops both trials.' });
+  limitsBoundary: 'Fresh $4 repair grant, persisted across retries. Local windows reserved before Start/wake. Unknown terminal usage retains conservative charges; not a provider billing fence. Prior one-shot stop is historical evidence, not revoked authority.' });
 const log = fs.openSync(path.join(output, 'vite.log'), 'w');
 const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--config', 'tests/live-corpus/vite.config.ts',
   '--configLoader', 'runner'], { windowsHide: true, stdio: ['ignore', log, log] });
@@ -65,7 +87,7 @@ try {
       await dialog.getByRole('textbox', { name: 'Objective', exact: true }).fill('Retrieve the survey seal from an ordinary chest, then return to the entrance.');
       await page.screenshot({ path: path.join(output, `${variant}-cold-start.png`) });
       if (prepareOnly) { record.status = 'PREPARED-NO-PROVIDER'; continue; }
-      budget.check({ admission: true }); budget.begin();
+      budget.check({ admission: true }); budget.begin(); reserveWindow();
       await dialog.getByRole('button', { name: 'Start Agentic play', exact: true }).click();
       let lastDecisionActions = -1;
       for (;;) {
@@ -75,11 +97,12 @@ try {
         if (alerts.length) throw Error(alerts.join('; '));
         const phase = await dialog.getByRole('status').first().innerText();
         const actions = wire.received.filter(x => x.frame.type === 'action.request').length;
-        if (phase === 'satisfied') { await reconcile(wire); record.status = 'SATISFIED'; break; }
+        if (phase === 'satisfied') { await reconcile(wire); await settleWindow(wire); record.status = 'SATISFIED'; break; }
         if (['failed', 'blocked', 'recovery', 'completed', 'stopped'].includes(phase)) throw Error(`Host stopped: ${phase}`);
         const next = dialog.getByRole('button', { name: 'Continue', exact: true });
         if (phase === 'decision' && actions !== lastDecisionActions && await next.isEnabled()) {
           await reconcile(wire);
+          await settleWindow(wire); reserveWindow();
           record.decisions.push({ at: Date.now(), actions, phase, budget: budget.snapshot() });
           lastDecisionActions = actions; await next.click();
         }
@@ -104,6 +127,7 @@ try {
       await stopThroughUi(page, wire.sent.some(x => x.frame.type === 'start.durable'))
         .catch(error => { record.cleanupError = String(error); record.status = 'RECOVERY-REQUIRED'; cleanupFailure = error; });
       record.afterStop = await page.evaluate(() => window.liveCorpus.snapshot()).catch(String);
+      if (!cleanupFailure) await settleWindow(wire).catch(error => { record.accountingError = String(error); });
       write(`${variant}.json`, record); write('budget.json', budget.snapshot());
       await context.close();
       if (cleanupFailure) throw cleanupFailure;
@@ -112,12 +136,12 @@ try {
 } catch (error) {
   const failure = { error: String(error), budget: budget.snapshot() };
   write('failure.json', failure);
-  if (paid && budget.calls.size) fs.writeFileSync(paidStop, JSON.stringify({ output, ...failure }, null, 2));
   process.exitCode = 1;
 }
 finally {
   if (vite.exitCode === null) vite.kill('SIGTERM');
   await new Promise(resolve => vite.exitCode !== null ? resolve() : vite.once('exit', resolve));
   fs.closeSync(log); write('summary.json', { output, results: results.map(({ variant, status, error }) => ({ variant, status, error })), budget: budget.snapshot() });
+  if (grant) { write('grant.json', grant.snapshot()); grant.close(); }
   console.log('Evidence:', output);
 }

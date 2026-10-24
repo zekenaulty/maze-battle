@@ -1,5 +1,6 @@
-export const APPROVED_LIMITS = Object.freeze({ calls: 64, inputTokens: 1_100_000,
-  outputTokens: 262_144, estimatedUsd: 1, durationMs: 30 * 60_000 });
+// Fresh owner grant: repair/retry until completion or $4, with local execution windows retained.
+export const APPROVED_LIMITS = Object.freeze({ calls: Infinity, inputTokens: Infinity,
+  outputTokens: Infinity, estimatedUsd: 4, durationMs: Infinity });
 export const RATES = Object.freeze({ inputPerMillion: 0.10, outputPerMillion: 0.50,
   source: 'https://developers.openai.com/api/docs/models/gpt-6-luna' });
 

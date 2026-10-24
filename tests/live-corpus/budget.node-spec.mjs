@@ -4,8 +4,8 @@ import { LiveBudget, APPROVED_LIMITS } from './budget.mjs';
 
 const usage = { promptTokens: 10_000, outputTokens: 1000, thinkingTokens: 500 };
 test('approved limits remain exactly the owner-confirmed cumulative ceilings', () => {
-  assert.deepEqual(APPROVED_LIMITS, { calls: 64, inputTokens: 1_100_000,
-    outputTokens: 262_144, estimatedUsd: 1, durationMs: 1_800_000 });
+  assert.deepEqual(APPROVED_LIMITS, { calls: Infinity, inputTokens: Infinity,
+    outputTokens: Infinity, estimatedUsd: 4, durationMs: Infinity });
 });
 test('calls deduplicate and thinking tokens do not double-charge output', () => {
   const b = new LiveBudget(); b.begin();
@@ -32,7 +32,7 @@ test('call ceiling is cumulative across distinct dungeon runs', () => {
   assert.throws(() => b.check(), /ceiling/);
 });
 test('elapsed ceiling does not reset at a new execution window', () => {
-  let now = 0; const b = new LiveBudget(APPROVED_LIMITS, () => now);
+  let now = 0; const b = new LiveBudget({ ...APPROVED_LIMITS, durationMs: 1_800_000 }, () => now);
   b.begin(); now = 1_800_000; b.begin(); assert.throws(() => b.check(), /ceiling/);
 });
 test('each token/cost ceiling independently stops the coordinator', () => {
