@@ -54,8 +54,8 @@ describe('perception scope display policy', () => {
     const actor = { row: 25, column: 13 };
     const surface: MazeState = { rows: limit, columns: limit, active: actor, start: actor, end: actor, visited: [], cells: [] };
     const panned = panMazeCamera(surface, size, follow, 3, 4), before = structuredClone(panned);
-    expect(panned).toEqual({ mode: 'manual', zoom: 1, origin: { row: 20, column: 4 } });
-    const expected = { floor: 1, row: 20, column: 4, rows: 17, columns: 21 };
+    expect(panned).toEqual({ mode: 'manual', zoom: 1, origin: { row: 20, column: 7 } });
+    const expected = { floor: 1, row: 20, column: 7, rows: 17, columns: 21 };
     expect(perceptionScope(1, actor, size, panned, 'camera')).toEqual(expected);
     expect(perceptionScope(1, { row: 800, column: 900 }, size, panned, 'camera')).toEqual(expected);
     expect(perceptionScope(1, actor, size, zoomMazeCamera(panned, -100), 'camera'))

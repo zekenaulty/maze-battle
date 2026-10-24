@@ -25,6 +25,7 @@ export class StageRenderer {
   private observer: ResizeObserver;
   private alive = true;
   private graphicsLost = false;
+  private snapshotKey = '';
   private skinResources?: HumanoidResources;
   private player?: HumanoidModel;
   private thirdPerson = false;
@@ -54,8 +55,11 @@ export class StageRenderer {
   }
   private contextLost = (event: Event) => { event.preventDefault(); this.graphicsLost = true; this.failure('Graphics context lost. Restart 3D or return to 2D.'); };
   update(game: GameView) {
+    const key = JSON.stringify(game.snapshot);
+    if (!this.alive || key === this.snapshotKey) return;
     const next = compileStageScene(game, this.walker.scene.origin);
     if (!next || !this.alive) return;
+    this.snapshotKey = key;
     this.walker.update(next); this.syncScene(next);
     this.canvas.dataset.actor = next.actor.key; this.canvas.dataset.world = `${next.actor.source.world.row},${next.actor.source.world.column}`;
     this.canvas.dataset.center = `${next.actor.center.x},${next.actor.center.z}`;

@@ -2,8 +2,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { stageFixture } from './stage.test-support';
 import { compileStageScene, seededRandom } from './scene';
-import { diskBlocked, slideDisk, StageWalker } from './movement';
-import { CELL_SIZE, PLAYER_RADIUS } from './constants';
+import { diskBlocked, PREDICTION_LIMIT, slideDisk, StageWalker } from './movement';
+import { CELL_SIZE, PLAYER_RADIUS, WALK_SPEED } from './constants';
+import { earnedCell } from '../../persistence/canonical/knowledge/region.test-support';
 
 describe('canonical stage disclosure and seeded scene compilation', () => {
   it('replays scene data independently of observation order/revision and never consumes Math.random', async () => {
@@ -47,8 +48,80 @@ describe('planar capsule traversal and canonical crossing custody', () => {
     let crossing; for (let i = 0; i < 100 && !crossing; i++) crossing = walker.advance(0.016, 0, 1, 0);
     expect(crossing?.direction).toBe('east'); const held = { ...walker.position };
     for (let i = 0; i < 100; i++) expect(walker.advance(0.05, 0, 1, 0)).toBeUndefined();
-    expect(walker.position).toEqual(held);
+    expect(walker.position.x).toBeGreaterThan(held.x);
+    expect(walker.position.x).toBeCloseTo(CELL_SIZE / 2 + PREDICTION_LIMIT);
+    expect(walker.scene.actor.center.x).toBe(0);
     expect(walker.settle(crossing!)).toBe(false); expect(walker.pending).toBeUndefined();
+    expect(walker.position.x).toBeLessThan(CELL_SIZE / 2);
+  });
+  it.each([25, 100, 250])('predicts only one disclosed neighbour during a %i ms commit', async delay => {
+    const { game, setActor } = await stageFixture(), before = structuredClone(game), walker = new StageWalker(compileStageScene(game)!);
+    let crossing; while (!crossing) crossing = walker.advance(0.016, 0, 1, 0);
+    const x = walker.position.x;
+    for (let elapsed = 0; elapsed < delay; elapsed += 5) expect(walker.advance(0.005, 0, 1, 0)).toBeUndefined();
+    expect(walker.position.x - x).toBeCloseTo(Math.min(delay / 1000 * WALK_SPEED, CELL_SIZE / 2 + PREDICTION_LIMIT - x));
+    expect(game).toEqual(before); // Presentation never changes checkpoint, sight, inventory or saves.
+    const predicted = { ...walker.position };
+    walker.update(compileStageScene(await setActor(1), walker.scene.origin)!);
+    expect(walker.position).toEqual(predicted);
+    expect(walker.settle(crossing)).toBe(true); expect(walker.position).toEqual(predicted);
+    walker.advance(0.016, 0, 1, 0);
+    expect(walker.position.x - predicted.x).toBeCloseTo(WALK_SPEED * 0.016);
+  });
+  it('anchors pending bounds to the original cell even after accepted props publish', async () => {
+    const { game, setActor } = await stageFixture(), walker = new StageWalker(compileStageScene(game)!);
+    let crossing; while (!crossing) crossing = walker.advance(0.016, 0, 1, 0);
+    walker.update(compileStageScene(await setActor(1), walker.scene.origin)!);
+    for (let i = 0; i < 200; i++) expect(walker.advance(0.05, 0, 1, 0)).toBeUndefined();
+    expect(walker.position.x).toBeCloseTo(CELL_SIZE / 2 + PREDICTION_LIMIT);
+    expect(walker.settle(crossing)).toBe(true);
+  });
+  it('keeps reversal inside the admitted neighbour until settlement, without automatic return commands', async () => {
+    const { game, setActor } = await stageFixture(), walker = new StageWalker(compileStageScene(game)!);
+    let crossing; while (!crossing) crossing = walker.advance(0.016, 0, 1, 0);
+    for (let i = 0; i < 10; i++) walker.advance(0.016, 0, 1, 0);
+    for (let i = 0; i < 100; i++) expect(walker.advance(0.016, 0, -1, 0)).toBeUndefined();
+    expect(walker.position.x).toBeGreaterThan(CELL_SIZE / 2);
+    walker.update(compileStageScene(await setActor(1), walker.scene.origin)!); walker.settle(crossing);
+    expect(walker.advance(0.016, 0, 0, 0)).toBeUndefined();
+    expect(walker.advance(0.016, 0, 1, 0)).toBeUndefined();
+    expect(walker.advance(0.05, 0, -1, 0)?.direction).toBe('west');
+  });
+  it('sweeps prediction against props, bounds diagonal motion and rolls back only the active refusal', async () => {
+    const { game, setActor } = await stageFixture(), scene = compileStageScene(game)!, walker = new StageWalker(scene);
+    scene.colliders.push({ minX: 2.1, maxX: 2.3, minZ: -0.8, maxZ: 0.8 });
+    let crossing; while (!crossing) crossing = walker.advance(0.016, 0, 1, 0);
+    for (let i = 0; i < 100; i++) walker.advance(0.05, -1, 1, 0);
+    expect(walker.position.x).toBeLessThanOrEqual(CELL_SIZE / 2 + PREDICTION_LIMIT);
+    expect(walker.position.z).toBeLessThan(CELL_SIZE / 2);
+    expect(diskBlocked(walker.position, scene.colliders)).toBe(false);
+    walker.reject(crossing); expect(walker.position).toEqual(crossing.sourcePosition);
+    while (!walker.pending) walker.advance(0.016, 0, 1, 0);
+    const stale = walker.pending!;
+    walker.update(compileStageScene(await setActor(2), scene.origin)!);
+    const relocated = { ...walker.position };
+    walker.reject(stale); expect(walker.settle(stale)).toBe(false);
+    expect(walker.position).toEqual(relocated); expect(walker.pending).toBeUndefined();
+  });
+  it('admits no crossing when a constrained diagonal entry is stopped by a corner prop', async () => {
+    const { game, cells, setActor } = await stageFixture();
+    const south = earnedCell(1, 0, 'library', 1, 0), southeast = earnedCell(1, 1, 'library', 1, 1);
+    south.chests = []; southeast.chests = [];
+    cells[0].edges.south = south.at; south.edges.north = cells[0].at;
+    cells[1].edges.south = southeast.at; southeast.edges.north = cells[1].at;
+    south.edges.east = southeast.at; southeast.edges.west = south.at;
+    cells.push(south, southeast); await setActor(0);
+    const scene = compileStageScene(game)!, walker = new StageWalker(scene);
+    scene.colliders.push({ minX: 1.85, maxX: 2.1, minZ: 0.8, maxZ: 1.3 });
+    walker.position = { x: 1.535, z: 1.54 };
+    expect(diskBlocked(walker.position, scene.colliders)).toBe(false);
+    // The unrestricted diagonal can clear the prop by entering the southern cell first.
+    // Restricting prediction to the east neighbour must not authorize that same route.
+    expect(slideDisk(walker.position, { x: 0.19 / Math.SQRT2, z: 0.19 / Math.SQRT2 }, scene.colliders).x).toBeGreaterThan(CELL_SIZE / 2);
+    expect(walker.advance(0.05, -1, 1, 0)).toBeUndefined();
+    expect(walker.pending).toBeUndefined();
+    expect(walker.position.x).toBeLessThanOrEqual(CELL_SIZE / 2);
+    expect(diskBlocked(walker.position, scene.colliders)).toBe(false);
   });
   it('adopts committed local and cross-space addresses without jumping to cell centers', async () => {
     const { game, setActor } = await stageFixture(), walker = new StageWalker(compileStageScene(game)!);

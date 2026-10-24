@@ -60,11 +60,12 @@ export function currentVisibleCell(game: Pick<GameView, 'checkpoint' | 'observat
 /** Signed camera policy, independent of hidden room/floor extents. Overview remains a bounded window. */
 export function canonicalPerceptionScope(floor: number, actor: GridPosition, size: { width: number; height: number },
   camera: MazeCameraState, mode: 'camera' | 'overview'): KnowledgeRegionScope {
-  const extent = createMazeCamera({ rows: 64, columns: 64, active: { row: 0, column: 0 } }, size, camera);
+  const extent = createMazeCamera({ rows: 64, columns: 64, active: actor }, size, camera);
   const rows = mode === 'overview' ? Math.min(32, extent.rows * 2 + 1) : extent.rows;
   const columns = mode === 'overview' ? Math.min(32, extent.columns * 2 + 1) : extent.columns;
-  const origin = camera.mode === 'manual' && camera.origin ? camera.origin
-    : { row: Math.floor(actor.row / rows) * rows, column: Math.floor(actor.column / columns) * columns };
+  const origin = mode === 'camera' ? { row: extent.rowStart, column: extent.columnStart }
+    : camera.mode === 'manual' && camera.origin ? camera.origin
+      : { row: Math.floor(actor.row / rows) * rows, column: Math.floor(actor.column / columns) * columns };
   const scope = { floor, rows, columns, row: clampWorldOrigin(origin.row, rows), column: clampWorldOrigin(origin.column, columns) };
   validateRegionScope(scope); return scope;
 }

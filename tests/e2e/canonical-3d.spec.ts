@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 
 async function state(page: Page) {
   return page.evaluate(async () => {
@@ -10,6 +11,106 @@ async function state(page: Page) {
 }
 const canvas = (page: Page) => page.getByLabel('Explorable 3D dungeon', { exact: true });
 const xy = (value: string | null) => (value ?? '0,0').split(',').map(Number);
+for (const width of [1440, 390]) for (const dpr of [1, 2]) {
+  test(`2D follow, inspect, click and fog continuity ${width} DPR ${dpr}`, async ({ browser }, info) => {
+    const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 960 }, deviceScaleFactor: dpr });
+    const page = await context.newPage(), map = page.getByLabel('Dungeon map', { exact: true });
+    try {
+      await page.goto('http://127.0.0.1:5206/tests/e2e/canonical-3d.html');
+      await expect(map).toBeVisible(); await expect(map).not.toHaveAttribute('aria-busy', 'true');
+      const assertCentered = async () => {
+        const current = await state(page), actor = current.observation!.cells.find((c: any) => JSON.stringify(c.at) === JSON.stringify(current.observation!.header.actor))!;
+        await expect.poll(async () => map.evaluate((c, world) => {
+          const canvas = c as HTMLCanvasElement;
+          return [world.row - Number(canvas.dataset.rowStart), world.column - Number(canvas.dataset.columnStart)];
+        }, actor.world)).toEqual([Math.floor(Number(await map.getAttribute('data-rows')) / 2), Math.floor(Number(await map.getAttribute('data-columns')) / 2)]);
+        return actor;
+      };
+      await assertCentered();
+      expect(Number(await map.getAttribute('data-row-start'))).toBeLessThan(0);
+      expect(Number(await map.getAttribute('data-column-start'))).toBeLessThan(0);
+      // Sample every presented frame around the actor; an empty evidence frame is background-only.
+      await page.evaluate(() => {
+        const probe = { active: true, bright: [] as number[] }; (window as any).__fogProbe = probe;
+        const tick = () => {
+          const c = document.querySelector<HTMLCanvasElement>('[aria-label="Dungeon map"]');
+          if (!probe.active || !c) return;
+          const pixels = c.getContext('2d')!.getImageData(Math.floor(c.width / 2) - 16, Math.floor(c.height / 2) - 16, 32, 32).data;
+          let max = 0; for (let i = 0; i < pixels.length; i += 4) max = Math.max(max, pixels[i], pixels[i + 1], pixels[i + 2]);
+          probe.bright.push(max); requestAnimationFrame(tick);
+        }; requestAnimationFrame(tick);
+      });
+      for (let i = 0; i < 6; i++) {
+        const before = (await state(page)).head;
+        await page.keyboard.press('ArrowRight');
+        await expect.poll(async () => (await state(page)).head.revision).toBe(before.revision + 1);
+        await assertCentered(); await expect(map).not.toHaveAttribute('aria-busy', 'true');
+      }
+      const bright = await page.evaluate(() => { const p = (window as any).__fogProbe; p.active = false; return p.bright as number[]; });
+      expect(bright.length).toBeGreaterThan(10); expect(Math.min(...bright)).toBeGreaterThan(40);
+      await writeFile(info.outputPath('fog-continuity.json'), JSON.stringify({ samples: bright.length, darkestFrameMaximum: Math.min(...bright) }));
+      await page.screenshot({ path: info.outputPath('centered-2d.png') });
+
+      const beforeInspect = (await state(page)).head;
+      await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+      const zoom = await page.getByLabel(/Camera zoom/).getAttribute('aria-label');
+      const area = (await map.boundingBox())!, origin = await map.getAttribute('data-column-start');
+      await page.mouse.move(area.x + area.width / 2, area.y + area.height / 2); await page.mouse.down();
+      await page.mouse.move(area.x + area.width / 2 + 80, area.y + area.height / 2, { steps: 5 }); await page.mouse.up();
+      await expect(map).not.toHaveAttribute('data-column-start', origin!);
+      expect((await state(page)).head.revision).toBe(beforeInspect.revision);
+      // CSS hit geometry must be independent of backing-store DPR.
+      const current = await state(page), actor = current.observation!.cells.find((c: any) => JSON.stringify(c.at) === JSON.stringify(beforeInspect.checkpoint.position))!;
+      const to = current.observation!.cells.find((c: any) => JSON.stringify(c.at) === JSON.stringify(actor.edges.east))!;
+      const point = await map.evaluate((c, target) => {
+        const canvas = c as HTMLCanvasElement, b = c.getBoundingClientRect(), w = Math.floor(b.width), h = Math.floor(b.height);
+        const rows = Number(canvas.dataset.rows), columns = Number(canvas.dataset.columns), cell = Math.floor(Math.min((w - 16) / columns, (h - 16) / rows));
+        return { x: b.x + Math.floor((w - columns * cell) / 2) + (target.column - Number(canvas.dataset.columnStart) + 0.5) * cell,
+          y: b.y + Math.floor((h - rows * cell) / 2) + (target.row - Number(canvas.dataset.rowStart) + 0.5) * cell };
+      }, to.world);
+      await page.mouse.click(point.x, point.y);
+      await expect.poll(async () => (await state(page)).head.checkpoint.position).toEqual(to.at);
+      await assertCentered(); expect(await page.getByLabel(/Camera zoom/).getAttribute('aria-label')).toBe(zoom);
+      await page.setViewportSize({ width: width === 390 ? 460 : 1000, height: 800 });
+      await expect(map).not.toHaveAttribute('aria-busy', 'true'); await assertCentered();
+      await page.screenshot({ path: info.outputPath('inspect-move-resized.png') });
+    } finally { await context.close(); }
+  });
+}
+
+test('continuous movement timing through twenty canonical cells', async ({ page }, info) => {
+  await page.goto('/tests/e2e/canonical-3d.html?view=stage3d'); await ready(page);
+  await turn(page, 'east');
+  await page.evaluate(() => {
+    const sample: Array<{ t: number; x: number; pending: boolean }> = [];
+    const probe = { sample, active: true };
+    (window as any).__stageMotion = probe;
+    const tick = (t: number) => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[aria-label="Explorable 3D dungeon"]');
+      if (!probe.active || !canvas) return;
+      if (sample.length < 3600) sample.push({ t, x: Number(canvas.dataset.pose?.split(',')[0]), pending: canvas.dataset.pending === 'true' });
+      requestAnimationFrame(tick);
+    }; requestAnimationFrame(tick);
+  });
+  await page.keyboard.down('w');
+  await expect.poll(async () => Number((await canvas(page).getAttribute('data-world'))?.split(',')[1]), { timeout: 60_000, intervals: [50] }).toBeGreaterThanOrEqual(22);
+  await page.keyboard.up('w');
+  const samples = await page.evaluate(() => { const probe = (window as any).__stageMotion; probe.active = false; return probe.sample as Array<{ t: number; x: number; pending: boolean }>; });
+  const frames = samples.slice(1).map((s, i) => ({ ms: s.t - samples[i].t, dx: s.x - samples[i].x, pending: s.pending || samples[i].pending }));
+  const percentile = (values: number[], p: number) => [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * p))];
+  let stopped = 0, longest = 0;
+  for (const frame of frames) { stopped = frame.pending && Math.abs(frame.dx) < 0.0001 ? stopped + frame.ms : 0; longest = Math.max(longest, stopped); }
+  const stats = { frames: frames.length, elapsedMs: samples.at(-1)!.t - samples[0].t,
+    rafP50: percentile(frames.map(f => f.ms), 0.5), rafP95: percentile(frames.map(f => f.ms), 0.95), maxFrameMs: Math.max(...frames.map(f => f.ms)),
+    pendingStoppedFrames: frames.filter(f => f.pending && Math.abs(f.dx) < 0.0001).length, longestPendingStopMs: longest,
+    distance: samples.at(-1)!.x - samples[0].x };
+  await writeFile(info.outputPath('motion.json'), JSON.stringify(stats, null, 2));
+  console.log('Motion profile', JSON.stringify(stats));
+  expect(stats.distance).toBeGreaterThan(60);
+  // Canonical commits must not repeatedly freeze the camera at cell boundaries.
+  expect(stats.longestPendingStopMs).toBeLessThan(50);
+  expect(stats.pendingStoppedFrames).toBeLessThan(10);
+});
 async function ready(page: Page) {
   await expect(canvas(page)).toBeVisible({ timeout: 60_000 });
   await expect(canvas(page)).toHaveAttribute('data-textures', 'ready');

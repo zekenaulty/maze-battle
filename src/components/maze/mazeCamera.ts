@@ -41,13 +41,13 @@ export function createMazeCamera(maze: Pick<MazeState, 'rows' | 'columns' | 'act
   const isCompact = size.width < 760 || size.height < 640;
   const zoom = clampCameraZoom(camera.zoom ?? DEFAULT_MAZE_CAMERA.zoom);
   const targetCell = (isCompact ? MOBILE_TARGET_CELL : DESKTOP_TARGET_CELL) * zoom;
-  const maxRows = maxVisibleCount(isCompact ? MOBILE_MAX_ROWS : DESKTOP_MAX_ROWS, MIN_ROWS, maze.rows, zoom);
-  const maxColumns = maxVisibleCount(isCompact ? MOBILE_MAX_COLUMNS : DESKTOP_MAX_COLUMNS, MIN_COLUMNS, maze.columns, zoom);
-  const rows = visibleCount(size.height, targetCell, MIN_ROWS, maxRows, maze.rows);
-  const columns = visibleCount(size.width, targetCell, MIN_COLUMNS, maxColumns, maze.columns);
-  const origin = camera.mode === 'manual' && camera.origin ? camera.origin : pageOriginFor(maze.active, rows, columns);
-  const rowStart = clamp(origin.row, 0, Math.max(0, maze.rows - rows));
-  const columnStart = clamp(origin.column, 0, Math.max(0, maze.columns - columns));
+  const maxRows = maxVisibleCount(isCompact ? MOBILE_MAX_ROWS : DESKTOP_MAX_ROWS, MIN_ROWS, zoom);
+  const maxColumns = maxVisibleCount(isCompact ? MOBILE_MAX_COLUMNS : DESKTOP_MAX_COLUMNS, MIN_COLUMNS, zoom);
+  const rows = visibleCount(size.height, targetCell, MIN_ROWS, maxRows);
+  const columns = visibleCount(size.width, targetCell, MIN_COLUMNS, maxColumns);
+  const origin = camera.mode === 'manual' && camera.origin ? camera.origin : followOriginFor(maze.active, rows, columns);
+  // Empty space around a small map or a map edge belongs to the viewport too.
+  const { row: rowStart, column: columnStart } = clampCameraOrigin({ rows, columns }, origin);
 
   return {
     rowStart,
@@ -66,7 +66,6 @@ export function panMazeCamera(maze: MazeState, size: CanvasSize, camera: MazeCam
     ...camera,
     mode: 'manual',
     origin: clampCameraOrigin(
-      maze,
       viewport,
       {
         row: viewport.rowStart + deltaRows,
@@ -95,27 +94,27 @@ export function isInViewport(position: GridPosition, viewport: MazeViewport) {
   return position.row >= viewport.rowStart && position.row < viewport.rowEnd && position.column >= viewport.columnStart && position.column < viewport.columnEnd;
 }
 
-function visibleCount(availablePixels: number, targetCell: number, min: number, max: number, mapCount: number) {
+function visibleCount(availablePixels: number, targetCell: number, min: number, max: number) {
   const capacity = Math.max(min, oddFloor(Math.floor((availablePixels - PADDING) / targetCell)));
-  return Math.min(mapCount, Math.max(min, Math.min(max, capacity)));
+  return Math.max(min, Math.min(max, capacity));
 }
 
-function maxVisibleCount(baseMax: number, min: number, mapCount: number, zoom: number) {
+function maxVisibleCount(baseMax: number, min: number, zoom: number) {
   const scaled = oddFloor(Math.floor(baseMax / zoom));
-  return Math.min(mapCount, Math.max(min, scaled));
+  return Math.max(min, scaled);
 }
 
-function pageOriginFor(position: GridPosition, rows: number, columns: number): GridPosition {
+function followOriginFor(position: GridPosition, rows: number, columns: number): GridPosition {
   return {
-    row: Math.floor(position.row / rows) * rows,
-    column: Math.floor(position.column / columns) * columns,
+    row: position.row - Math.floor(rows / 2),
+    column: position.column - Math.floor(columns / 2),
   };
 }
 
-function clampCameraOrigin(maze: MazeState, viewport: MazeViewport, origin: GridPosition): GridPosition {
+function clampCameraOrigin(viewport: Pick<MazeViewport, 'rows' | 'columns'>, origin: GridPosition): GridPosition {
   return {
-    row: clamp(origin.row, 0, Math.max(0, maze.rows - viewport.rows)),
-    column: clamp(origin.column, 0, Math.max(0, maze.columns - viewport.columns)),
+    row: clamp(origin.row, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - viewport.rows),
+    column: clamp(origin.column, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - viewport.columns),
   };
 }
 

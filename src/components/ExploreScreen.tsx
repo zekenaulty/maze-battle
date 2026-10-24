@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GridPosition } from '../domain/types';
 import type { GameView } from '../services/game/GameView';
@@ -77,6 +77,7 @@ export function ExploreScreen({
   const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor; centered: boolean } | null>(null);
   const nearbyTab = useRef<HTMLButtonElement>(null);
   const [camera, setCamera] = useState<MazeCameraState>(DEFAULT_MAZE_CAMERA);
+  const [inspectedFrom, setInspectedFrom] = useState<string>();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
@@ -89,7 +90,13 @@ export function ExploreScreen({
   const activeRecall = recall?.root === root ? recall : null;
   const readOnlyMap = showRooms || mapVisible && !!activeRecall;
   const floor = game.checkpoint.position.level, facing = game.checkpoint.facing;
-  let activeCamera: MazeCameraState = recall && !activeRecall ? { ...camera, mode: 'follow', origin: undefined } : camera;
+  const actorFrame = JSON.stringify([game.id, game.snapshot.generation, game.checkpoint.position]);
+  useLayoutEffect(() => {
+    if (camera.mode === 'manual' && inspectedFrom !== actorFrame)
+      setCamera(current => ({ ...current, mode: 'follow', origin: undefined }));
+  }, [actorFrame, inspectedFrom, camera.mode]);
+  let activeCamera: MazeCameraState = recall && !activeRecall || camera.mode === 'manual' && inspectedFrom !== actorFrame
+    ? { ...camera, mode: 'follow', origin: undefined } : camera;
   if (activeRecall?.centered) {
     const area = canonicalPerceptionScope(floor, activeRecall.anchor.world, canvasSize, camera, 'camera');
     activeCamera = { ...camera, mode: 'manual', origin: {
@@ -102,7 +109,7 @@ export function ExploreScreen({
   const actor = currentCell?.world;
   const scope = canonicalPerceptionScope(floor, actor ?? { row: 0, column: 0 }, canvasSize, activeCamera, mazeMode);
   const scopeKey = JSON.stringify(scope);
-  const perception = useMazePerception(game.snapshot, scope);
+  const perception = useMazePerception(game.snapshot, scope, game, (!view3D || mapVisible) && !showRooms);
   const mazeView = useMemo(() => perception.region ? createCanonicalMazeView(perception.region, facing)
     : emptyCanonicalMazeView(scope, facing), [perception.region, facing, scopeKey]);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
@@ -118,6 +125,7 @@ export function ExploreScreen({
   };
   const changeCamera = (next: SetStateAction<MazeCameraState>) => {
     setCamera(typeof next === 'function' ? next(activeCamera) : next);
+    setInspectedFrom(actorFrame);
     setRecall(current => current ? { ...current, centered: false } : null);
   };
   const interact = () => { onStopWalking?.(); if (!blocked && !readOnlyMap && chest) onOpenChest?.(chest.id); };

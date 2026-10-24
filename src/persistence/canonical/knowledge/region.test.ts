@@ -71,7 +71,7 @@ describe('canonical earned world regions', () => {
     expect(f.reads.filter(key => key.includes('/world/'))).toHaveLength(128);
     expect(f.reads.filter(key => key.includes('/cell/') && !key.endsWith('/integrity'))).toHaveLength(64);
     expect(f.reads.filter(key => key.includes('/cell/') && key.endsWith('/integrity'))).toHaveLength(64);
-    expect(f.reads.filter(key => key.includes('/observation/')).length).toBe(136); // 32 header/manifest/two-chunk sources plus two full current loads.
+    expect(f.reads.filter(key => key.includes('/observation/')).length).toBe(132); // 32 header/manifest/two-chunk sources plus one validated current load.
   });
 
   it('rejects a forged mapping, missing visible entry and source mutation', async () => {

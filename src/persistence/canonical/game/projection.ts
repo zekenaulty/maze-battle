@@ -2,7 +2,7 @@ import type { GameView } from '../../../services/game/GameView';
 import { readCanonical, snapshotOf, type CanonicalQuery } from '../read';
 import type { CanonicalHead, CanonicalSnapshot } from '../types';
 import { loadRoster } from '../roster/projection';
-import { validateKnowledge, loadObservation } from '../knowledge/evidence';
+import { validateKnowledge } from '../knowledge/evidence';
 import { listFloorContracts, listFloorQuests } from '../content/queries';
 import { check } from '../validation';
 import { gameCheckpoint, rosterContext } from './checkpoint';
@@ -17,9 +17,7 @@ export function projectGame(head: CanonicalHead, previous?: GameView) {
 export async function projectGameSnapshot(pages: Pick<CanonicalQuery, 'get' | 'scan' | 'witness'>,
   snapshot: CanonicalSnapshot, previous?: GameView): Promise<GameView> {
   const checkpoint = gameCheckpoint(snapshot.checkpoint);
-  await validateKnowledge(pages, checkpoint.knowledge);
-  const observation = checkpoint.knowledge ? await loadObservation(pages,
-    { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id }) : null;
+  const observation = await validateKnowledge(pages, checkpoint.knowledge);
   const roster = previous?.id === snapshot.gameId ? previous : (await loadRoster(pages, rosterContext(checkpoint))).state;
   const quests = [];
   for (const status of ['active', 'complete', 'claimed'] as const) {

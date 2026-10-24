@@ -22,8 +22,9 @@ export function slideDisk(point: Point, delta: Point, boxes: Bounds2D[], radius 
   }
   return result;
 }
-export interface Crossing { direction: Direction; source: string; target: string }
-/** Sub-cell presentation pose. Crossing a cell is gated by an awaited canonical command. */
+export const PREDICTION_LIMIT = 0.8;
+export interface Crossing { direction: Direction; source: string; target: string; sourceCenter: Point; sourcePosition: Point }
+/** Sub-cell presentation pose; one disclosed neighbour may be predicted while its command commits. */
 export class StageWalker {
   position: Point;
   pending?: Crossing;
@@ -34,29 +35,53 @@ export class StageWalker {
     this.scene = scene;
     if (scene.scope !== old.scope) { this.position = { ...scene.actor.center }; this.pending = undefined; return; }
     if (scene.actor.key !== old.actor.key) {
-      if (crossing?.target === scene.actor.key) {
-        const v = directionVector[crossing.direction];
-        this.position = { x: this.position.x + v.x * 0.015, z: this.position.z + v.z * 0.015 };
-      } else this.position = { ...scene.actor.center };
+      if (crossing?.target !== scene.actor.key) this.position = { ...scene.actor.center };
       if (crossing?.target !== scene.actor.key) this.pending = undefined;
     }
   }
-  settle(crossing: Crossing) { const applied = this.scene.actor.key === crossing.target; this.pending = undefined; return applied; }
+  settle(crossing: Crossing) {
+    if (this.pending !== crossing) return false;
+    const applied = this.scene.actor.key === crossing.target;
+    if (!applied) this.position = { ...crossing.sourcePosition };
+    this.pending = undefined; return applied;
+  }
+  reject(crossing: Crossing) { if (this.pending === crossing) this.settle(crossing); }
+  private predictionTarget(point: Point, crossing: Crossing): Point {
+    const center = crossing.sourceCenter, half = CELL_SIZE / 2, v = directionVector[crossing.direction];
+    const clamp = (value: number, middle: number, direction: number) => direction
+      ? middle + direction * Math.max(half + 0.001, Math.min((value - middle) * direction, half + PREDICTION_LIMIT))
+      : Math.max(middle - half + 0.001, Math.min(value, middle + half - 0.001));
+    return { x: clamp(point.x, center.x, v.x), z: clamp(point.z, center.z, v.z) };
+  }
   advance(seconds: number, forward: number, strafe: number, yaw: number): Crossing | undefined {
-    if (this.pending || !Number.isFinite(seconds) || seconds <= 0) return;
+    if (!Number.isFinite(seconds) || seconds <= 0 || !(forward || strafe)) return;
     const length = Math.max(1, Math.hypot(forward, strafe)), distance = Math.min(seconds, 0.05) * WALK_SPEED;
     const delta = { x: (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) / length * distance,
       z: (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) / length * distance };
+    if (this.pending) {
+      const target = this.predictionTarget({ x: this.position.x + delta.x, z: this.position.z + delta.z }, this.pending);
+      // Clamp the requested sweep, never teleport a post-collision result into a prop.
+      this.position = slideDisk(this.position, { x: target.x - this.position.x, z: target.z - this.position.z }, this.scene.colliders);
+      return;
+    }
     const next = slideDisk(this.position, delta, this.scene.colliders), center = this.scene.actor.center, half = CELL_SIZE / 2;
     const direction: Direction | undefined = next.x > center.x + half ? 'east' : next.x < center.x - half ? 'west'
       : next.z > center.z + half ? 'south' : next.z < center.z - half ? 'north' : undefined;
     if (direction) {
       const target = this.scene.actor.source.edges[direction];
       const visible = target && this.scene.cells.find(cell => cell.key === addressKey(target));
-      this.position = { x: Math.max(center.x - half + 0.001, Math.min(next.x, center.x + half - 0.001)),
-        z: Math.max(center.z - half + 0.001, Math.min(next.z, center.z + half - 0.001)) };
-      if (!visible) return;
-      this.pending = { direction, source: this.scene.actor.key, target: visible.key }; return this.pending;
+      if (!visible) {
+        const bounded = { x: Math.max(center.x - half + 0.001, Math.min(next.x, center.x + half - 0.001)),
+          z: Math.max(center.z - half + 0.001, Math.min(next.z, center.z + half - 0.001)) };
+        this.position = slideDisk(this.position, { x: bounded.x - this.position.x, z: bounded.z - this.position.z }, this.scene.colliders); return;
+      }
+      const crossing = { direction, source: this.scene.actor.key, target: visible.key, sourceCenter: { ...center }, sourcePosition: { ...this.position } };
+      const bounded = this.predictionTarget(next, crossing);
+      this.position = slideDisk(this.position, { x: bounded.x - this.position.x, z: bounded.z - this.position.z }, this.scene.colliders);
+      const v = directionVector[direction];
+      if ((this.position.x - center.x) * v.x + (this.position.z - center.z) * v.z <= half) return;
+      this.pending = crossing;
+      return this.pending;
     }
     this.position = next;
   }

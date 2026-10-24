@@ -10,5 +10,5 @@ export async function validateKnowledge(pages: KnowledgeRead, input: KnowledgeAn
   knowledgeAnchor(input); const anchor = structuredClone(input);
   const actual = await pages.witness('knowledge', KNOWLEDGE_PREFIX);
   check(anchor ? actual === anchor.witness : actual === null, 'knowledge namespace differs from checkpoint');
-  if (anchor) await readCompleteObservation(pages, { sequence: anchor.sequence, id: anchor.id });
+  return anchor ? readCompleteObservation(pages, { sequence: anchor.sequence, id: anchor.id }) : null;
 }

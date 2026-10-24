@@ -59,4 +59,51 @@ describe('canonical draw-only maze', () => {
         }
       }
   });
+
+  it('centers the actor at each zoom without reading hidden dimensions or accepting stale manual origins', () => {
+    for (const size of [{ width: 1440, height: 1000 }, { width: 390, height: 480 }, { width: 1, height: 1 }])
+      for (const zoom of [0.7, 1, 1.6]) for (const actor of [{ row: 0, column: 0 }, { row: -5, column: -2 }, { row: 1000, column: 500 }]) {
+        for (const name of ['rows', 'columns', 'maze', 'layout']) Object.defineProperty(actor, name, { configurable: true, get() { throw new Error(`Hidden geometry: ${name}`); } });
+        const follow = { ...camera, zoom, origin: { row: 200, column: 300 } };
+        const scope = canonicalPerceptionScope(1, actor, size, follow, 'camera');
+        expect(scope.row).toBe(actor.row - Math.floor(scope.rows / 2));
+        expect(scope.column).toBe(actor.column - Math.floor(scope.columns / 2));
+        const moved = canonicalPerceptionScope(1, { row: actor.row + 1, column: actor.column - 1 }, size, follow, 'camera');
+        expect(moved).toEqual({ ...scope, row: scope.row + 1, column: scope.column - 1 });
+        expect(canonicalPerceptionScope(1, actor, size, { mode: 'manual', zoom }, 'camera')).toEqual(scope);
+      }
+  });
+
+  it('retains explicit overview paging and a signed manual anchor through movement and zoom', () => {
+    const size = { width: 1440, height: 1000 }, actor = { row: -5, column: 10 };
+    const first = canonicalPerceptionScope(1, actor, size, camera, 'overview');
+    expect(first).toEqual({ floor: 1, row: -32, column: 0, rows: 32, columns: 32 });
+    expect(canonicalPerceptionScope(1, { row: -1, column: 31 }, size, camera, 'overview')).toEqual(first);
+    expect(canonicalPerceptionScope(1, { row: 0, column: 32 }, size, camera, 'overview')).toEqual({ ...first, row: 0, column: 32 });
+    const manual = { mode: 'manual' as const, zoom: 1, origin: { row: -100, column: -200 } };
+    for (const mode of ['camera', 'overview'] as const) for (const zoom of [0.7, 1, 1.6]) {
+      const scope = canonicalPerceptionScope(1, actor, size, { ...manual, zoom }, mode);
+      expect(scope).toMatchObject(manual.origin);
+      expect(canonicalPerceptionScope(1, { row: 500, column: -1000 }, size, { ...manual, zoom }, mode)).toEqual(scope);
+    }
+  });
+
+  it('keeps the centered scope local for drawing and world hit addresses across negative origins and zoom', async () => {
+    for (const world of [{ row: 0, column: 0 }, { row: -5, column: -2 }, { row: 25, column: 13 }]) {
+      const f = knowledgeFixture(), cell = earnedCell(world.row, world.column); await f.observe([cell]);
+      for (const zoom of [0.7, 1, 1.6]) {
+        const camera = { mode: 'follow' as const, zoom }, bounds = { left: 4.5, top: 12.25, width: 600.75, height: 400.5 };
+        const pixels = { width: Math.floor(bounds.width), height: Math.floor(bounds.height) };
+        const scope = canonicalPerceptionScope(1, world, pixels, camera, 'camera');
+        const view = createCanonicalMazeView(await readKnowledgeRegion(f.pages, f.checkpoint(), scope), 'south');
+        expect(view.maze.active).toEqual({ row: Math.floor(scope.rows / 2), column: Math.floor(scope.columns / 2) });
+        const grid = mazeGridGeometry(view.maze, pixels, camera, 'camera', view.viewport);
+        const x = bounds.left + (grid.x + (view.maze.active.column + 0.5) * grid.cellSize) * bounds.width / pixels.width;
+        const y = bounds.top + (grid.y + (view.maze.active.row + 0.5) * grid.cellSize) * bounds.height / pixels.height;
+        const hit = mazeTileAt(view.maze, bounds, camera, 'camera', x, y, view.viewport)!;
+        expect(hit).toEqual(view.maze.active);
+        expect({ row: hit.row + view.origin.row, column: hit.column + view.origin.column }).toEqual(world);
+      }
+    }
+  });
 });

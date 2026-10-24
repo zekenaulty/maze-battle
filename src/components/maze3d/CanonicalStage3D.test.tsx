@@ -154,6 +154,42 @@ describe('canonical 3D input and lifetime', () => {
     expect(onMove).toHaveBeenCalledExactlyOnceWith('east', expect.objectContaining({ level: 1, cell: expect.objectContaining({ spaceId: 'library', row: 0, column: 0 }) }));
   });
 
+  it.each(['disabled', 'dialog', 'blur', 'hidden'] as const)('stops an already predicted crossing on %s without resuming after acceptance', async cause => {
+    const { onMove, renderer, rerender, props, setActor } = await setup(), movement = deferred<GameView | undefined>();
+    onMove.mockReturnValueOnce(movement.promise);
+    fireEvent.keyDown(window, { key: 'd' }); await frames(12);
+    const pose = { ...renderer.walker.position };
+    expect(pose.x).toBeGreaterThan(2); expect(onMove).toHaveBeenCalledOnce();
+    const dialog = document.createElement('dialog');
+    await act(async () => {
+      if (cause === 'disabled') rerender(<CanonicalStage3D {...props} disabled />);
+      if (cause === 'dialog') { dialog.open = true; document.body.append(dialog); }
+      if (cause === 'blur') fireEvent.blur(window);
+      if (cause === 'hidden') { hidden.mockReturnValue(true); fireEvent(document, new Event('visibilitychange')); }
+    });
+    await frames(10); expect(renderer.walker.position).toEqual(pose);
+    await act(async () => {
+      movement.resolve(await setActor(1));
+      if (cause === 'disabled') rerender(<CanonicalStage3D {...props} disabled={false} />);
+      if (cause === 'dialog') dialog.remove();
+      if (cause === 'hidden') { hidden.mockReturnValue(false); fireEvent(document, new Event('visibilitychange')); }
+    });
+    fireEvent.keyDown(window, { key: 'd', repeat: true }); await frames(20);
+    expect(renderer.walker.position).toEqual(pose); expect(onMove).toHaveBeenCalledOnce();
+    expect(renderer.walker.pending).toBeUndefined();
+  });
+
+  it('rolls back predicted position on command exception and cancels the held input', async () => {
+    const { onMove, renderer } = await setup();
+    let reject!: (error: Error) => void;
+    onMove.mockReturnValueOnce(new Promise((_resolve, fail) => { reject = fail; }));
+    fireEvent.keyDown(window, { key: 'd' }); await frames(12);
+    expect(renderer.walker.position.x).toBeGreaterThan(2);
+    await act(async () => reject(new Error('Writer unavailable'))); await frames(20);
+    expect(renderer.walker.position.x).toBeLessThan(1.6); expect(renderer.walker.pending).toBeUndefined();
+    expect(onMove).toHaveBeenCalledOnce(); expect(screen.getByRole('status')).toHaveTextContent('Writer unavailable');
+  });
+
   it('disposes the renderer and ignores a command completion after teardown', async () => {
     const { onMove, renderer, unmount, setActor } = await setup(), movement = deferred<GameView | undefined>();
     onMove.mockReturnValueOnce(movement.promise);

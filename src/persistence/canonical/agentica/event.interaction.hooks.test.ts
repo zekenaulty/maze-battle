@@ -46,7 +46,7 @@ async function fixture() {
   vi.mocked(loadTransfer).mockResolvedValue(null);
   vi.mocked(chestArgs).mockReturnValue({ publication: binding.publication, source: { sequence: 1, id: 'sight', index: 0 }, chestIndex: 0 });
   vi.mocked(resolveChestSelection).mockResolvedValue({ command: { kind: 'open-chest', chestId: 'private-chest' }, position: structuredClone(cp.position) });
-  vi.mocked(validateKnowledge).mockResolvedValue(undefined);
+  vi.mocked(validateKnowledge).mockResolvedValue(null);
   vi.mocked(loadObservation).mockResolvedValue({ header: { revision: 8, observedAt: '2026-10-18T00:00:00.000Z' } } as Awaited<ReturnType<typeof loadObservation>>);
   const appendExecution = vi.fn(async () => ({ key: 'event', recordId: 'event', revision: 8, sourceAttemptId: 'apply', recordWitness: '{}' }));
   const view = { head, operation, request: { attemptId: 'apply', operation: 'interaction.apply',

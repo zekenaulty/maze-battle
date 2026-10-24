@@ -9,7 +9,7 @@ import { resolveFloorTravel, resolveWorldStep } from '../world/residency';
 import { requireWorldContent } from '../content/preparation';
 import { recordRoomQuestVisit } from '../content/questActions';
 import { recordGameObservation, type ObservationReview } from '../knowledge/write';
-import { loadObservation, validateKnowledge } from '../knowledge/evidence';
+import { validateKnowledge } from '../knowledge/evidence';
 import { DIRECTIONS } from '../knowledge/types';
 import { checkpointJson, gameCheckpoint, type GameCheckpoint } from './checkpoint';
 import { findPreparation } from './preparation';
@@ -32,13 +32,12 @@ export function executeExplorationCommand(request: CanonicalRequest, options: { 
 /** Noncombat game commands. Controller choice cannot change movement's interaction policy. */
 export async function commitExplorationCommand(tx: CanonicalWork, input: unknown, review?: ObservationReview) {
   const command = explorationCommand(input), before = gameCheckpoint(tx.head.checkpoint);
-  await validateKnowledge(tx.pages, before.knowledge);
+  const prior = await validateKnowledge(tx.pages, before.knowledge);
   if (before.mode === 'town' || !(await loadParty(tx.pages)).some(actor => actor.hp > 0)) return { kind: command.kind, outcome: 'unavailable' };
   await requireWorldContent(tx.pages, before.position.level);
   if (command.kind !== 'look') {
     check(before.knowledge, 'observe the starting position before movement');
-    const prior = await loadObservation(tx.pages, { sequence: before.knowledge.sequence, id: before.knowledge.id });
-    check(same(prior.header.actor, before.position), 'checkpoint position differs from its observation');
+    check(prior && same(prior.header.actor, before.position), 'checkpoint position differs from its observation');
   }
   const now = new Date().toISOString();
   let next: GameCheckpoint = { ...before, updatedAt: now }, moved = false, crossed = false, needsFloor: number | null = null;

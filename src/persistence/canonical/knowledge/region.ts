@@ -4,7 +4,7 @@ import { readCanonical } from '../read';
 import type { CanonicalSnapshot, CanonicalWorkLimits } from '../types';
 import { check } from '../validation';
 import { same } from '../world/records';
-import { loadObservation, sourceReader, validateKnowledge } from './evidence';
+import { sourceReader, validateKnowledge } from './evidence';
 import { blockKey, cellKey, localKey } from './keys';
 import { loadMemoryBlock, validateCellEvidence } from './memory';
 import { DIRECTIONS, type KnowledgeRead, type MemoryBlock, type ObservedCell, type RememberedCell } from './types';
@@ -28,8 +28,7 @@ const contains = (s: KnowledgeRegionScope, p: GridPosition) => p.row >= s.row &&
 /** At most 1024 coordinate probes, 1024 local blocks and five original sources per cell; no scans. */
 export async function readKnowledgeRegion(pages: KnowledgeRead, checkpoint: GameCheckpoint, scope: KnowledgeRegionScope): Promise<KnowledgeRegion> {
   validateRegionScope(scope);
-  await validateKnowledge(pages, checkpoint.knowledge);
-  const current = checkpoint.knowledge ? await loadObservation(pages, { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id }) : null;
+  const current = await validateKnowledge(pages, checkpoint.knowledge);
   const visible = new Map(checkpoint.mode !== 'town' && current && same(current.header.actor, checkpoint.position)
     ? current.cells.map(c => [cellKey(c.at), c]) : []);
   const actor = visible.get(cellKey(checkpoint.position));
