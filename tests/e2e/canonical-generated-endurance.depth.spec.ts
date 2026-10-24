@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { attach, audit, comparable, isolated, local, move, retain, retained, sample, state, witness } from './canonical-generated-endurance.support';
+import { pagedRecall, comparablePages } from './canonical-generated-endurance.paging';
 
 for (const seed of [42, 781]) test(`generated seed ${seed}: actual App local I/O with 1, 8 and 16 retained floors`, async ({ page, context }, info) => {
   const evidence: Record<string, unknown> = { seed, setup: 'retainFloors bypasses stair journeys while App is unmounted; measured movement is earned-only on floor 1' };
   const samples: { depth: number; key: string; result: Awaited<ReturnType<typeof sample>> }[] = [];
   evidence.samples = samples;
+  const pages: { depth: number; result: Awaited<ReturnType<typeof pagedRecall>> }[] = [];
+  evidence.pages = pages;
   try {
     const boot = await isolated(context, page, seed); evidence.boot = boot;
     let old: Awaited<ReturnType<typeof witness>> | undefined;
@@ -21,8 +24,12 @@ for (const seed of [42, 781]) test(`generated seed ${seed}: actual App local I/O
         comparable(samples[0].result.native, samples.at(-2)!.result.native);
         comparable(samples[1].result.native, samples.at(-1)!.result.native);
       }
+      const result = await pagedRecall(page, info, `depth-${depth}`, pages[0]?.result.selected);
+      pages.push({ depth, result });
+      if (depth > 1) comparablePages(pages[0].result, result);
       evidence[`retained-${depth}`] = await retained(page, old);
     }
-    expect(samples).toHaveLength(6); expect(boot.unexpected).toEqual([]); expect(boot.errors).toEqual([]);
+    expect(samples).toHaveLength(6); expect(pages).toHaveLength(3);
+    expect(boot.unexpected).toEqual([]); expect(boot.errors).toEqual([]);
   } finally { await attach(info, 'generated-depth.json', evidence); }
 });

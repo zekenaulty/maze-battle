@@ -125,3 +125,64 @@ Evidence: `test-results/generated-depth-paging-4710ba3-01/app-types-initial.log`
 Node 22.13.0, npm 11.6.2, TypeScript 6.0.3, Playwright 1.61.0; existing physical
 worktree-local dependencies unchanged. App-recovery native tests **NOT RUN**:
 only port 5474 is authorized in this lane. No production edits or providers.
+
+## S6 Retained-Depth Paging: Partial, Not Qualified
+
+On top of App-recovery type commit `fc85a32a9db80d67725c1a307e0d80d356924d38`,
+the two existing depth tests now require two public room pages (unchanged UI
+size 4) and two connection pages (existing query size 1) at each of 1/8/16
+retained floors. Only the delivered first two room pages may select a connection
+source, at most eight candidates; the selected ID must remain in that scope at
+later depths. Every attempted query retains its own native trace, canonical
+stats, exact returned payload and payload-byte count, including failures.
+
+The existing depth setup is unchanged: it positions the actor while the App is
+unmounted. Queries and ordinary measured moves run in the actual mounted App on
+floor 1. This is growth of retained generated topology and earned indexes, not
+played descent or a new exploration journey. No world lookup guides selection.
+Readers retain their 256 logical reads / 1 MiB graph budget, canonical 2,048 reads
+/ 4 MiB budget and 4,096-byte result bound. All native reads (including ordinary
+App refresh) stay counted and bounded; no reads/bytes/errors are normalized away.
+Comparisons retain the existing +100-read / +160,000-read-byte strict deltas.
+No writes, enumeration, dungeon-record reads, failed/pending native operations
+or changed App state/head are accepted. Existing old-source/receipt and replay
+checks remain after each sample.
+
+Evidence root: `test-results/generated-depth-paging-4710ba3-01/`.
+`paging-source.json` records exact tested source hashes. Commands:
+
+```powershell
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-generated-endurance.tsconfig.json
+node node_modules/typescript/bin/tsc --noEmit
+$env:MAZE_ENDURANCE_RUN = 'generated-depth-paging-4710ba3-01/native-final'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-generated-endurance.config.ts canonical-generated-endurance.depth.spec.ts
+```
+
+- Types: **PASS** (`types-final.log`, `root-types.log`), zero diagnostics.
+- `native-first`: **2 FAIL**, retained. Seed 42 exposed a fixture assumption that native totals equal query-only stats: the mounted App's normal 750ms refresh added one readonly meta/head transaction (2 reads / 1,075 bytes). The helper now verifies that exact additional metadata accounting while retaining the full raw total under the same bounds. Seed 781 exposed the scope limitation below.
+- `native-depth42`: **1 PASS**, 45.460s runner, selected by `--grep 'seed 42:'` after fixing the meter assertion.
+- `native-final`: **1 PASS / 1 FAIL**, 50.302s runner, no skips/retries. Seed 42 passes all three depths and 12 pages; seed 781 fails at depth 1 before connection selection. All attempts/logs/results/traces remain; no history, service, provider or full-manifest run occurred.
+
+Final seed-42 per-page native reads / logical read bytes / public payload bytes:
+
+| Page | Depth 1 | Depth 8 | Depth 16 |
+| --- | --- | --- | --- |
+| Rooms 1 | 90 / 127889 / 1342 | 95 / 133123 / 1344 | 97 / 135668 / 1344 |
+| Rooms 2 | 71 / 98059 / 371 | 102 / 152634 / 617 | 104 / 155179 / 617 |
+| Connections 1 | 153 / 188009 / 1096 | 159 / 194407 / 1098 | 162 / 198096 / 1098 |
+| Connections 2 | 153 / 188009 / 1094 | 161 / 195486 / 1096 | 162 / 198096 / 1096 |
+
+All 12 pages write zero bytes/records. Elapsed measured windows: 58.7-216.5ms,
+not equal-time or physical disk-I/O claims. Depth-8 connection page 2 includes
+one refresh (2 reads / 1,079 bytes); query-only work is separately retained.
+The largest same-page depth growth is 33 native reads / 57,120 logical bytes.
+
+**Remaining required invariant:** seed 781's unmodified depth-1 setup delivers
+exactly `entry`, `socket-1:room`, `socket-3:room`, `socket-0:room`, with no room
+cursor. Its first page measured 92 native reads / 125,252 bytes / 1,081 payload
+bytes including one refresh. A second four-room page does not exist. Its deeper
+paging/connection samples are therefore **NOT RUN**. No smaller room-page size,
+new scouting route, substituted seed, hidden setup or skip was introduced to
+force success. Both-seed closure requires an explicit cohort/setup or page-scope
+decision; the paging commit must not be counted as a green final gate. The
+App-recovery type commit is independently usable. Production remains unchanged.
