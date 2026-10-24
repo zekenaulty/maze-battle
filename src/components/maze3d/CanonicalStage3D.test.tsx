@@ -190,6 +190,23 @@ describe('canonical 3D input and lifetime', () => {
     expect(onMove).toHaveBeenCalledOnce(); expect(screen.getByRole('status')).toHaveTextContent('Writer unavailable');
   });
 
+  it('does not strand a new crossing behind an obsolete in-flight command after relocation', async () => {
+    const { onMove, renderer, setActor, rerender, props, cells } = await setup(), movement = deferred<GameView | undefined>();
+    onMove.mockReturnValueOnce(movement.promise);
+    fireEvent.keyDown(window, { key: 'd' }); await frames(12);
+    const late = await setActor(1), relocated = await setActor(2);
+    rerender(<CanonicalStage3D {...props} game={relocated} />);
+    fireEvent.keyUp(window, { key: 'd' }); fireEvent.keyDown(window, { key: 'a' }); await frames(30);
+    expect(renderer.walker.pending).toBeUndefined(); expect(onMove).toHaveBeenCalledOnce();
+    expect(renderer.walker.scene.actor.key).toBe(addressKey(cells[2].at));
+    onMove.mockReturnValueOnce(new Promise(() => {}));
+    await act(async () => movement.resolve(late));
+    expect(renderer.walker.scene.actor.key).toBe(addressKey(cells[2].at));
+    await frames(15);
+    expect(onMove).toHaveBeenCalledTimes(2);
+    expect(renderer.walker.pending?.direction).toBe('west');
+  });
+
   it('disposes the renderer and ignores a command completion after teardown', async () => {
     const { onMove, renderer, unmount, setActor } = await setup(), movement = deferred<GameView | undefined>();
     onMove.mockReturnValueOnce(movement.promise);

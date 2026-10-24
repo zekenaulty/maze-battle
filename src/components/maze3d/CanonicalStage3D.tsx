@@ -62,7 +62,9 @@ export default function CanonicalStage3D(props: Props) {
           const keys = held.current, blocked = latest.current.disabled || !!document.querySelector('dialog[open]') || document.hidden;
           const forward = blocked ? 0 : Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
           const strafe = blocked ? 0 : Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
-          if (!blocked) { const crossing = renderer.walker.advance(dt, forward, strafe, renderer.yaw); if (crossing) void move(crossing.direction); }
+          if (!blocked && (!inFlight || renderer.walker.pending)) {
+            const crossing = renderer.walker.advance(dt, forward, strafe, renderer.yaw); if (crossing) void move(crossing.direction);
+          }
           renderer.render(elapsed, !blocked && !!(forward || strafe)); frame = requestAnimationFrame(tick);
         }; frame = requestAnimationFrame(tick);
       } catch (error) { if (alive) { graphicsFailed = true; clear(); setFailure(error instanceof Error ? error.message : String(error)); } }
