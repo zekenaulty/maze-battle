@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chromium } from '@playwright/test';
 import { validateCompletion } from './validate.mjs';
 
 const output = path.resolve(process.argv[2] ?? ''), variant = process.argv[3];
 assert(['A', 'B'].includes(variant), 'Usage: node audit.mjs EVIDENCE_DIRECTORY A|B');
 const record = JSON.parse(fs.readFileSync(path.join(output, `${variant}.json`))), origin = 'http://127.0.0.1:5488';
+const runManifest = JSON.parse(fs.readFileSync(path.join(output, 'manifest.json')));
+const digest = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const completion = validateCompletion(record), actions = record.wire.received.filter(x => x.frame.type === 'action.request').map(x => x.frame.payload);
 const replies = record.wire.sent.filter(x => x.frame.type === 'action.result').map(x => x.frame.payload);
 assert.equal(record.setup.first.cells.length, 30); assert(record.setup.first.cells.every(c => !c.chests.length));
@@ -56,14 +59,20 @@ try {
   assert.equal(retained.head.checkpoint.position.level, completion.position.level);
   assert.deepEqual(retained.head.checkpoint.position.cell, completion.position.cell);
   assert.deepEqual(forbidden, []);
-  const result = { source: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), variant,
+  const result = { runSource: runManifest.source,
+    auditor: { source: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+      trackedDelta: execFileSync('git', ['diff', '--stat', 'HEAD'], { encoding: 'utf8' }).trim(),
+      files: Object.fromEntries(['tests/live-corpus/audit.mjs', 'tests/live-corpus/setup.ts', 'tests/live-corpus/validate.mjs']
+        .map(file => [file, digest(file)])), recordSha256: digest(path.join(output, `${variant}.json`)),
+      manifestSha256: digest(path.join(output, 'manifest.json')) }, variant,
     completion, tools, acceptedExplorations: explored.map(a => ({ mode: a.arguments.mode ?? 'approach', selection: JSON.parse(a.arguments.frontier).selection })),
     localSteps: Object.fromEntries(localSteps), totalLocalSteps: [...localSteps.values()].reduce((a, b) => a + b, 0),
     actionCount: actions.length, refusedActions: replies.filter(r => r.disposition === 'refused').length,
     decisionWindows: record.decisions.length, retained: { revision: retained.head.revision, allocations: retained.head.allocations,
       position: retained.head.checkpoint.position, guard: retained.launch.guard.state }, forbidden };
-  fs.writeFileSync(path.join(output, `${variant}-audit.json`), JSON.stringify(result, null, 2));
-  console.log(JSON.stringify(result));
+  const evidence = path.join(output, `${variant}-audit-${Date.now()}.json`);
+  fs.writeFileSync(evidence, JSON.stringify(result, null, 2));
+  console.log(JSON.stringify({ evidence, ...result }));
 } finally {
   await context?.close();
   if (server && server.exitCode === null) { server.kill('SIGTERM'); await new Promise(resolve => server.once('exit', resolve)); }

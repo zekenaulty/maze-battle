@@ -115,7 +115,9 @@ try {
       record.snapshot = await page.evaluate(() => window.liveCorpus.snapshot());
       record.completion = validateCompletion(record);
       await page.screenshot({ path: path.join(output, `${variant}-satisfied.png`) });
-      console.log(variant, record.status, JSON.stringify(budget.snapshot()));
+      const totals = budget.snapshot();
+      console.log(variant, record.status, JSON.stringify({ calls: totals.calls, inputTokens: totals.inputTokens,
+        outputTokens: totals.outputTokens, estimatedUsd: totals.estimatedUsd, elapsedMs: totals.elapsedMs, unresolved: totals.unresolved }));
     } catch (error) {
       record.status = 'FAILED'; record.error = String(error);
       await page.screenshot({ path: path.join(output, `${variant}-failed.png`) }).catch(() => {});
