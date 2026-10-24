@@ -38,13 +38,13 @@ export async function pagedRecall(page: Page, info: TestInfo, label: string, sel
     (await import('../../tests/e2e/canonical-generated-endurance.paging.fixture')).roomPage());
   await attach(info, `${label}-rooms-1.json`, first);
   const a = checked(first, before.snapshot);
-  expect(a.value.items).toHaveLength(4);
+  expect(a.value.items).toHaveLength(2);
   if (!a.value.next) throw Error('Retained-depth earned scope cannot provide a second room page');
   const second = await page.evaluate(async cursor =>
     (await import('../../tests/e2e/canonical-generated-endurance.paging.fixture')).roomPage(cursor), a.value.next);
   await attach(info, `${label}-rooms-2.json`, second);
   const b = checked(second, before.snapshot), nodes = [...a.value.items, ...b.value.items];
-  expect(b.value.items.length).toBeGreaterThan(0); expect(b.value.items.length).toBeLessThanOrEqual(4);
+  expect(b.value.items).toHaveLength(2);
   expect(nodes.every(node => node.kind === 'room' && node.level === before.checkpoint.position.level)).toBe(true);
   expect(new Set(nodes.map(node => node.spaceId)).size).toBe(nodes.length);
   if (selected) expect(nodes.map(node => node.spaceId)).toContain(selected);
@@ -67,9 +67,10 @@ export async function pagedRecall(page: Page, info: TestInfo, label: string, sel
     expect(continued.value.items[0].room.spaceId).not.toBe(found.value.items[0].room.spaceId);
     expect(await state(page)).toEqual(before);
     expect(continued.head).toEqual(a.head); expect(found.head).toEqual(a.head); expect(b.head).toEqual(a.head);
-    return { selected: node.spaceId, rooms: [first, second], connections: [sample, next], attempts };
+    return { requestWidths: { rooms: 2, connections: 1 }, selected: node.spaceId,
+      rooms: [first, second], connections: [sample, next], attempts };
   }
-  throw Error('First two earned room pages cannot provide two connection pages within the eight-room selection bound');
+  throw Error('First two earned room pages cannot provide two connection pages within the four-room selection bound');
 }
 
 export function comparablePages(first: Awaited<ReturnType<typeof pagedRecall>>, later: typeof first) {

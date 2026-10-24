@@ -186,3 +186,58 @@ new scouting route, substituted seed, hidden setup or skip was introduced to
 force success. Both-seed closure requires an explicit cohort/setup or page-scope
 decision; the paging commit must not be counted as a green final gate. The
 App-recovery type commit is independently usable. Production remains unchanged.
+
+## S6 Declared Width-2 Query Cohort
+
+Explicitly authorized follow-up to `f37ad4da43e46956bd2eefc21df72938e006adc2`:
+both seeds now request `listKnownNodes(..., { kind: 'room', limit: 2 })` for the
+first two room pages at every retained depth 1/8/16. Connections still request
+one item per page. Selection is bounded to the four delivered rooms. The
+snapshot/witness binding, native meters, result/read limits, comparison bounds,
+depth setup, actual App movement and old-source/replay assertions are unchanged.
+Each sample records `requestWidths: { rooms: 2, connections: 1 }`.
+
+This is a declared query-cohort adjustment, not changed production policy or
+new disclosure. `readCanonicalRooms` and the separate UI/played-journey size-4
+proof remain unchanged. The original size-4 **FAIL** above and all failed logs
+remain intact. Seed 781 still supplies only four rooms at depth 1; this result
+does not claim another learned room or a second size-4 UI page there.
+
+Evidence: `test-results/generated-depth-paging-width2-f37ad4d-01/`, with exact
+tested hashes in `source.json`, fixture types in `fixture-types.log`, and raw
+native attachments/results in `native/results.json`.
+
+```powershell
+node node_modules/typescript/bin/tsc --noEmit -p tests/e2e/canonical-generated-endurance.tsconfig.json
+$env:MAZE_ENDURANCE_RUN = 'generated-depth-paging-width2-f37ad4d-01/native'
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-generated-endurance.config.ts canonical-generated-endurance.depth.spec.ts
+```
+
+Fixture types: **PASS**, zero diagnostics. Native: **2 PASS / 0 FAIL / 0 SKIP**,
+no retries, 84.384s runner; seed 42 42.009s and seed 781 39.355s. All 24 selected
+pages write zero records/bytes, with no enumeration or dungeon-record reads.
+Each seed selects `entry` from its first delivered page, never an oracle ID.
+
+Per-page native reads / logical read bytes / public payload bytes:
+
+| Seed / page | Depth 1 | Depth 8 | Depth 16 |
+| --- | --- | --- | --- |
+| 42 / rooms 1 | 72 / 110649 / 856 | 77 / 115883 / 858 | 79 / 118428 / 858 |
+| 42 / rooms 2 | 80 / 113646 / 873 | 85 / 118880 / 875 | 87 / 121425 / 875 |
+| 42 / connections 1 | 153 / 188009 / 1096 | 159 / 194407 / 1098 | 162 / 198096 / 1098 |
+| 42 / connections 2 | 153 / 188009 / 1094 | 161 / 195486 / 1096 | 162 / 198096 / 1096 |
+| 781 / rooms 1 | 74 / 108369 / 855 | 77 / 112528 / 857 | 79 / 115073 / 857 |
+| 781 / rooms 2 | 80 / 109934 / 613 | 86 / 115891 / 874 | 88 / 118436 / 874 |
+| 781 / connections 1 | 138 / 176450 / 1120 | 145 / 184020 / 1122 | 148 / 187709 / 1122 |
+| 781 / connections 2 | 138 / 176450 / 1120 | 145 / 184020 / 1122 | 148 / 187709 / 1122 |
+
+Largest same-page growth: 10 native reads / 11,259 logical bytes; maximum
+payload 1,122 bytes. Raw totals include overlapping ordinary App refresh reads.
+Measured windows span 51.0-185.1ms, not equal physical timing or disk-I/O proof.
+Seed 42's connection pages are `complete`; seed 781's remain `partial` with
+`unseen-passage`, not a complete exit inventory. Distinct sourced destinations,
+unchanged heads/App state, old complete observation/receipt retention and exact
+zero-write replay all pass at every depth. This closes the declared two-seed
+retained-depth paging gap only, not played descent, size-4 UI pagination for
+seed 781, the history cohort, full S5/S6, or service/provider qualification.
+No production/dependency/parent/control-fixture changes or other ports used.
