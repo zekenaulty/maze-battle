@@ -10,6 +10,8 @@ Long-horizon attachment context informs separation of scene data, geometry, clea
 
 - Isolated worktree: `C:\Users\Zythis\.codex\worktrees\canonical-3d-exploration\maze-battle`.
 - Initial canonical base: `46ff005cd0dd8c0871482b5e7eb6a803db82afc1`, containing the owner's `1d00fff` checkpoint.
+- Integrated canonical base: `eb9975395d0ffbf25ea6d08ed3855b3cb248c8a9`. Rebase completed cleanly; final fetch still points to this pushed base. Other worktrees and the in-flight local canonical branch were not changed.
+- Qualified source/test candidate: `98cb7cc7423698a72a272224c7ebbaad049aa5e9`; implementation commits `ae5c212` (asset components) and `73fa8b7` (canonical stage). The closeout commit adds documentation and fixes the reporter output path only.
 - Visual reference: asset-lab commit `69a63b4`; port graphics/import components selectively, never the retired App, hooks or save writers.
 - The canonical branch is in flight. Fetch and compare at meaningful integration boundaries, record the resulting frozen base, and rebase our isolated lane when necessary. Do not change another worktree or move its branch.
 - Keep the old showroom/server available as reference. Use separate development/test ports and disposable browser state for qualification. No paid image or model calls, push, merge or owner-data reset.
@@ -18,9 +20,9 @@ Long-horizon attachment context informs separation of scene data, geometry, clea
 
 | Slice | Completion condition | Status |
 | --- | --- | --- |
-| 1. Canonical 3D exploration | Existing App exposes a 3D view using disclosed observation data; smooth movement and mouse look; exact canonical position/map agreement; current ownership/recovery controls; return to 2D. | IMPLEMENTED; final integrated qualification pending |
-| 2. Walkable procedural rooms | Continuous planar movement with shared scene/collision descriptions, safe cell/opening crossings, deterministic room/passage detailing, existing chest and stairs bindings; replay and reload checks. | IMPLEMENTED; final integrated qualification pending |
-| 3. Populated visual environment | Reuse admitted player appearances and coherent room props within existing state contracts. No invented NPC authority or new mechanism gameplay. Bound resource use and qualify the connected stage. | IMPLEMENTED; final integrated qualification pending |
+| 1. Canonical 3D exploration | Existing App exposes a 3D view using disclosed observation data; smooth movement and mouse look; exact canonical position/map agreement; current ownership/recovery controls; return to 2D. | COMPLETE for the bounded slice |
+| 2. Walkable procedural rooms | Continuous planar movement with shared scene/collision descriptions, safe cell/opening crossings, deterministic room/passage detailing, existing chest and stairs bindings; replay and reload checks. | COMPLETE for the bounded slice |
+| 3. Populated visual environment | Reuse admitted player appearances and coherent room props within existing state contracts. No invented NPC authority or new mechanism gameplay. Bound resource use and qualify the connected stage. | COMPLETE for the bounded slice |
 
 Selected verification: pure compiler/RNG/collision tests; canonical UI/command integration and denied/stale movement checks; real browser traversal, collision, mouse/keyboard/touch input, map/2D parity, chest state, reload, context recovery and resource lifetime. Check the affected canonical tests, production/fixture types and build. Qualify one frozen integrated candidate; retain failed attempts and exact limits. Existing canonical closeout sprints remain separate from this 3D feature.
 
@@ -47,6 +49,9 @@ Selected verification: pure compiler/RNG/collision tests; canonical UI/command i
 - Focused set reached 93 PASS. Independent final review found a second-queue stale-cell gap, stale stairs recovery and retained camera settings not applied after recreation. Added a source-cell precondition at the serialized GameSession dispatch point; stale intents reject without poisoning custody. The precondition is local admission data, never a game/save schema field. Explicit stairs use the same guard, and graphics recreation restores camera/appearance settings.
 - Expanded regression set initially had 152 PASS / two new fixture FAIL: the test mutated the source captured by its own delayed commit. Captured the destination independently; the affected 48 tests now PASS. Production types/build PASS after these fixes; final integrated rerun remains pending.
 - Removed unused copies of the showroom UI from this lane. The existing showroom remains available in the preserved asset-lab checkout; only its reusable asset contracts, importers, chest and humanoid implementation are ported.
+- Final rebased qualification PASS: 154 tests across 12 focused files, four browser tests (1440×960 and 390×844 generated-world movement/map/reload/return-to-2D controls, authored connected chest/stairs journey, and wall/dialog/context recovery), production types/build, and dedicated browser-fixture types. Additional existing seeded-module checks PASS: 114 tests across four files, including deterministic incremental/eager agreement and retained baseline hashes.
+- Independent final source review found no remaining blockers in the source-cell guard, stale-stairs cancellation or graphics recreation fixes. This is source review alongside the parent-owned tests, not separate live-runtime proof.
+- Visually inspected live stage and the captured chest/mobile/next-floor images. The inspected live scene disclosed 89 cells, with 94 submitted draw calls, 94 uploaded geometries and seven GPU textures. These are one local scene's counters, not a cross-device FPS guarantee. Browser requests confirm no glowstone frames loaded.
 
 ### Edge cases and scope findings
 
@@ -57,6 +62,44 @@ Selected verification: pure compiler/RNG/collision tests; canonical UI/command i
 - Two serialized queues exist: manual UI intents and GameSession writers. A source-cell check before `controller.execute` is insufficient; check again after prior writers finish. An expected stale input must cancel without entering storage recovery.
 - Confirmed-wall decorations are generated independently of shared wall ownership, so revealing a neighbouring cell cannot remove an existing shelf. Openings and unknown edges receive no decorative blockers.
 
+## Components and replay contract
+
+- `src/components/maze3d/scene.ts`: versioned plain `StageScene`/`SceneBox` description compiled exclusively from current disclosed cells. Unknown boundaries are opaque/solid. Visuals and planar collision share these dimensions. The compiler sorts cell inputs and seeds its own RNG from stable disclosed identities; it never consumes gameplay `Math.random` or a hidden world map.
+- `movement.ts`: swept circle movement, wall sliding, bounded frame delta, one pending canonical crossing and final-state reconciliation. Sub-cell pose stays local; only accepted cell crossings write through the existing command path.
+- `StageRenderer.ts` and `CanonicalStage3D.tsx`: one lazy renderer with drag/pointer-lock look, keyboard and touch buttons, context restart, static TileLab materials, animated chest state, optional follow-player camera and five generated appearance choices. Geometry outside current disclosure is disposed; asset caches belong to the renderer and are disposed with it.
+- `ExploreScreen`, `App`, `useGameCommands` and `GameSession`: view toggle, earned-map continuity, explicit stairs, custody/dialog cancellation, and source-cell admission guards. No alternate game writer, navigation/collision rule change, save schema change or NPC actor authority was added.
+- Preserve the stored `modules-v3` recipe (seed, policy/version and world inputs) to replay topology. Preserve `canonical-stage-v1` and the pinned asset revisions to replay this visual compiler. Changing the visual algorithm should change its version. A seed picker/export UI and full event/loot replay are not implemented here.
+
+## Running and local artwork
+
+From this worktree, run `npm ci`, then `npm run dev -- --host 127.0.0.1 --port 5196 --strictPort` and open `http://127.0.0.1:5196/?view=stage3d`. The current server is left running. The normal canonical App also exposes the **3D view** toggle. WASD/arrows walk, dragging looks, optional mouse capture uses Escape to release, E opens the chest on the committed tile, M opens the earned map, and stair buttons deliberately transition floors.
+
+Native artwork is local and ignored by Git. Existing local copies are already installed. For a fresh worktree, create `public/assets/material-packs` and `public/assets/character-skins`, then use these pinned imports (omit `--write` for a dry run):
+
+```powershell
+npm run assets:import -- --source "D:\maze-quest\MazeQuestTileLab\output\run-20261023-132932-8b1964e4" --only stone_bricks,cobblestone,basalt,bookshelf --write
+npm run assets:import -- --source "D:\maze-quest\MazeQuestTileLab\output\run-20261023-145244-d29c8880" --selection scripts/asset-selections/dungeon-occult-01-chest.json --write
+npm run assets:import-skin -- --source "D:\maze-quest\MazeQuestTileLab\output" --selection scripts/asset-selections/humanoid-gallery.json --write
+```
+
+Imports pin reports/image hashes and reject changed source bytes; do not repin silently if a TileLab run changes. No entire catalog import or new artwork generation occurs. Additional assets from the old pack remain local, but this playable scene never requests the 32-frame glowstone experiment. Without local artwork the stage uses material fallbacks and the optional appearance controls may be absent. Required adapted-source MIT attribution is in `THIRD_PARTY_NOTICES/skinview3d-LICENSE.txt`.
+
+## Verification and retained evidence
+
+```powershell
+npm test -- src/components/maze3d src/assets3d src/components/ExploreScreen.test.tsx src/hooks/useGameCommands.test.tsx src/hooks/useCanonicalMovement.test.tsx src/services/game/GameSession.agentic.test.ts src/services/game/GameSession.recovery.test.ts --maxWorkers=2
+npm test -- src/domain/expedition/topology/modules --maxWorkers=2
+npx playwright test --config tests/e2e/canonical-3d.config.ts
+npx tsc --project tests/e2e/canonical-3d.tsconfig.json
+npm run build
+```
+
+The browser fixture binds port 5206 and creates authored topology only in a fresh disposable database before importing the actual App. The two production-route browser cases use the actual generator. The fixed corpus journey is explicitly authored evidence, not a claim that every random floor was exhaustively traversed.
+
+Evidence directory: `C:\Users\Zythis\.codex\visualizations\2026\10\23\01a16a2c-da7b-7042-9108-3dbbc26da0f6\canonical-3d`. `attempt-1` retains failing traces/screenshots; `attempt-2` retains the first all-pass cohort; `qualified` contains final screenshots and the JSON report. Logs include `final-unit.log`, `final-browser.log`, `final-build.log`, and `seeded-modules.log`; `live-stage.png` captures the user-facing preview. Browser screenshots include first-person, follow-player, earned map, closed/open chest, stairs, next floor, mobile layout and recovered stage. Subsequent Playwright runs overwrite `test-results`, so these copies are separate.
+
+Remaining limits: planar movement only; stairs are explicit transitions rather than physical vertical geometry; camera/appearance and sub-cell pose are presentation-local; a single follow-player appearance represents no new NPC identity/state. Touch buttons are implemented, but the mobile browser cohort qualifies responsive layout and keyboard/drag input, not physical phone hardware. Full cross-device FPS/memory profiling and the entire canonical regression suite were not run. The lazy Three.js chunk is about 574 kB minified; Vite retains its size warning. The context-loss test emits a benign disposal warning after intentionally losing WebGL; recovery and old-canvas removal pass.
+
 ## Next
 
-Checkpoint the implementation, rebase onto the latest pushed canonical base, and qualify that integrated candidate. Capture readable stage/chest/mobile evidence, retain failed attempts, verify bounded resources and document local asset setup and the recommended next slice.
+The approved goal is complete locally; nothing was pushed or merged. The next recommended slice is a small versioned prefab/schematic placement contract using the shared scene dimensions, explicit door clearance, collision bounds and canonical interaction references. Add one authored library room and seeded replay fixture before an editor. Keep NPC identity/authority and behavior separate. Re-fetch the in-flight canonical branch before the next implementation slice.
