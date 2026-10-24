@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type {} from './canonical-agentica-perception.fixture';
 import type { InspectArgs } from '../../src/services/agentica/game/types';
+import type { KnownNode } from '../../src/persistence/canonical/knowledge/graph';
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/*', route => new URL(route.request().url()).origin === 'http://127.0.0.1:5241' ? route.continue() : route.abort());
@@ -30,10 +31,19 @@ test('map contains only known room identities and room detail is opt-in and pagi
       const page = await c.project(f.ref, { scope: 'room', ...(cursor ? { cursor } : {}) }); pages.push(page.value.observation);
       cursor = page.value.observation.data.next as string | undefined; if (!cursor) break;
     }
-    return { map: map.value.observation, pages, cursor, known: await c.knowledge.current() };
+    return { map: map.value.observation, pages, cursor, known: await c.knowledge.current(), anchor: f.checkpoint.knowledge! };
   });
   expect(r.map.data).not.toHaveProperty('cells');
-  expect((r.map.data.rooms as object[]).every(room => Object.keys(room).sort().join() === 'level,source,spaceId')).toBe(true);
+  const observed = r.known.value;
+  const expected: KnownNode[] = observed.header.spaces!.filter(space => space.kind === 'room').slice(0, 2).map(space => {
+    const cell = observed.cells[space.index];
+    return { level: cell.at.level, spaceId: space.spaceId, kind: 'room', anchor: {
+      at: cell.at, world: cell.world, source: { sequence: observed.header.sequence, id: r.anchor.id, index: space.index },
+    } };
+  });
+  expect(expected.length).toBeGreaterThan(0);
+  expect(r.map.data.rooms).toEqual(expected);
+  expect((r.map.data.rooms as object[]).every(room => Object.keys(room).sort().join() === 'anchor,kind,level,spaceId')).toBe(true);
   expect(r.cursor).toBeUndefined();
   const cells = r.pages.flatMap(p => p.data.cells as { at: unknown }[]);
   expect(cells.length).toBeGreaterThan(0); expect(new Set(cells.map(c => JSON.stringify(c.at))).size).toBe(cells.length);
