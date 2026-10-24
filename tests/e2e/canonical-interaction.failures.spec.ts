@@ -1,4 +1,29 @@
 import { test, expect, evidence } from './canonical-interaction.test';
+import { storedBytes } from '../../src/persistence/canonical/accounting';
+import { HEAD_CAPACITY_BYTES, privateAdmissionBytes, validatePrivateCapacity } from '../../src/persistence/canonical/privateCapacity';
+import { CANONICAL_STORES, type CanonicalHead } from '../../src/persistence/canonical/types';
+
+function quotaAudit(head: CanonicalHead, dump: string) {
+  const stores: unknown = JSON.parse(dump);
+  if (!Array.isArray(stores)) throw Error('Expected native store dump');
+  let actualStoredBytes = 0;
+  expect(stores.map(row => row[0])).toEqual([...CANONICAL_STORES]);
+  for (const row of stores) {
+    if (!Array.isArray(row) || row.length !== 3 || typeof row[0] !== 'string'
+      || !Array.isArray(row[1]) || !Array.isArray(row[2]) || row[1].length !== row[2].length) throw Error('Invalid native store entries');
+    const [store, keys, values] = row;
+    if (store === 'heads') expect(values).toEqual([head]);
+    if (store !== 'meta') values.forEach((value, index) => { actualStoredBytes += storedBytes(store, keys[index], value); });
+  }
+  const q = head.quota, actualHeadBytes = storedBytes('heads', head.gameId, head);
+  expect(actualStoredBytes).toBe(q.usedBytes); validatePrivateCapacity(q.privateCapacity);
+  const privateSlack = q.privateCapacity.allocatedBytes - q.privateCapacity.consumedBytes;
+  const admissionBytes = privateAdmissionBytes(q.privateCapacity, actualStoredBytes, actualHeadBytes);
+  expect(admissionBytes).toBe(actualStoredBytes - actualHeadBytes + privateSlack + HEAD_CAPACITY_BYTES);
+  return { actualStoredBytes, actualHeadBytes, privateSlack, admissionBytes,
+    rawRemaining: q.limitBytes - q.reserveBytes - q.reservedBytes - actualStoredBytes,
+    ordinaryRemaining: q.limitBytes - q.reserveBytes - q.reservedBytes - admissionBytes };
+}
 
 test('host throw after staged effect and proof rolls back chest, loot, quest, sight, progress, receipts and head', async ({ page }, info) => {
   const r = await page.evaluate(async () => {
@@ -33,16 +58,20 @@ test('normal quota failure atomically retains the unapplied action and funded ca
     const refusal = await c.refusal(() => c.apply(admission.id)), after = await c.dump(), retained = await c.readInteraction(admission.id);
     const cancelled = await c.cancel(admission.id); await c.acknowledge(admission.id, cancelled.receipt.attemptId);
     return { seed, original, snapshot, before, refusal, after, retained, final: await c.readInteraction(admission.id),
-      finalSnapshot: await c.snapshot(), terminal: await c.readInteractionTerminal(admission.id) };
+      finalSnapshot: await c.snapshot(), terminal: await c.readInteractionTerminal(admission.id), finalDump: await c.dump() };
   });
   await evidence(info, 'normal-quota-rollback.json', r);
-  const quota = r.original.head.quota;
-  expect(quota.limitBytes - quota.reserveBytes - quota.usedBytes - quota.reservedBytes).toBeLessThan(8192);
+  const accounting = { original: quotaAudit(r.original.head, r.before), final: quotaAudit(r.final.head, r.finalDump) };
+  await evidence(info, 'normal-quota-accounting.json', accounting);
+  expect(accounting.original.ordinaryRemaining).toBeGreaterThanOrEqual(0);
+  expect(accounting.original.ordinaryRemaining).toBeLessThan(8192);
   expect(r.refusal.rejected).toBe(true); expect(r.refusal.message).toContain('quota exhausted');
   expect(r.after).toBe(r.before); expect(r.retained).toEqual(r.original); expect(r.finalSnapshot).toEqual(r.snapshot);
   expect(r.retained.value.progress).toMatchObject({ status: 'pending', sequence: 0, result: null });
   expect(r.terminal.value.disposition).toBe('cancelled'); expect(r.final.value.operation.state).toBe('acknowledged');
   expect(r.final.head.quota.reservations).toBe(0); expect(r.final.head.quota.reservedBytes).toBe(0);
+  expect(r.final.head.quota.privateCapacity).toEqual(r.original.head.quota.privateCapacity);
+  expect(r.final.head.quota.limitBytes).toBe(r.original.head.quota.limitBytes);
 });
 
 test('applied interaction settles a decision and acknowledges from funded allowance at ordinary quota', async ({ page }, info) => {
@@ -55,16 +84,20 @@ test('applied interaction settles a decision and acknowledges from funded allowa
       await tx.pages.set('execution', 'fixture/settle-probe', 'x'.repeat(8192)); return null;
     }));
     const afterProbe = await c.dump(), settled = await c.settle(admission.id), decision = await c.readInteraction(admission.id);
-    const afterSettle = await c.snapshot(), terminal = await c.readInteractionTerminal(admission.id);
+    const afterSettle = await c.snapshot(), terminal = await c.readInteractionTerminal(admission.id), decisionDump = await c.dump();
     const ack = await c.acknowledge(admission.id, settled.request.attemptId);
-    return { seed, applied, state, snapshot, quest, funded, beforeProbe, refusal, afterProbe, settled, decision, afterSettle, terminal, ack,
-      final: await c.readInteraction(admission.id), afterAck: await c.snapshot(), finalQuest: await c.quest(seed.target.room.contractId!) };
+    return { seed, applied, state, snapshot, quest, funded, beforeProbe, refusal, afterProbe, settled, decision, decisionDump, afterSettle, terminal, ack,
+      final: await c.readInteraction(admission.id), afterAck: await c.snapshot(), finalQuest: await c.quest(seed.target.room.contractId!), finalDump: await c.dump() };
   });
   await evidence(info, 'applied-decision-at-quota.json', r);
   expect(r.state.value.progress).toMatchObject({ status: 'applied', sequence: 1, result: { outcome: 'applied' } });
   expect(r.quest!.quest.status).toBe('complete'); expect(r.quest!.award!.chestId).toBe(r.seed.command.chestId);
   const quota = r.funded.head.quota, terminalBytes = r.funded.value.operation.terminalBytes;
-  expect(quota.limitBytes - quota.reserveBytes - quota.usedBytes - quota.reservedBytes).toBeLessThan(8192);
+  const accounting = { funded: quotaAudit(r.funded.head, r.beforeProbe), decision: quotaAudit(r.decision.head, r.decisionDump),
+    final: quotaAudit(r.final.head, r.finalDump) };
+  await evidence(info, 'applied-decision-quota-accounting.json', accounting);
+  expect(accounting.funded.ordinaryRemaining).toBeGreaterThanOrEqual(0);
+  expect(accounting.funded.ordinaryRemaining).toBeLessThan(8192);
   expect(r.refusal.rejected).toBe(true); expect(r.refusal.message).toContain('quota exhausted'); expect(r.afterProbe).toBe(r.beforeProbe);
   expect(r.settled.outcome.replayed).toBe(false); expect(r.decision.value.operation).toMatchObject({ state: 'settled', terminal: { disposition: 'decision' } });
   expect(quota.reservedBytes - r.decision.head.quota.reservedBytes).toBe(terminalBytes);
@@ -78,6 +111,8 @@ test('applied interaction settles a decision and acknowledges from funded allowa
   expect(r.final.head.quota.reservations).toBe(0); expect(r.final.head.quota.reservedBytes).toBe(0);
   for (const current of [r.funded, r.decision, r.final]) {
     expect(current.value.progress).toEqual(r.state.value.progress); expect(current.head.checkpoint).toEqual(r.state.head.checkpoint);
+    expect(current.head.quota.privateCapacity).toEqual(r.state.head.quota.privateCapacity);
+    expect(current.head.quota.limitBytes).toBe(r.state.head.quota.limitBytes);
   }
   expect(r.decision.head.roots).toEqual(r.funded.head.roots); expect(r.final.head.roots).toEqual(r.funded.head.roots);
   expect(r.afterSettle).toEqual(r.snapshot); expect(r.afterAck).toEqual(r.snapshot); expect(r.finalQuest).toEqual(r.quest);
