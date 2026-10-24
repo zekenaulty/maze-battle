@@ -180,11 +180,13 @@ test('wall bookcases show books on the room face and planks on the sides', async
     await lookYaw(page, Math.atan2(x - shelf.center[0], z - shelf.center[2]));
   };
   await aim();
+  const atShelf = await state(page);
+  // Leave enough framing to inspect every corner below the toolbar.
+  await page.keyboard.down('s'); await page.waitForTimeout(110); await page.keyboard.up('s'); await aim();
   const bounds = (await canvas(page).boundingBox())!;
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.25); await page.mouse.down();
-  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.25 + 240, { steps: 8 }); await page.mouse.up();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.25 + 200, { steps: 8 }); await page.mouse.up();
   await page.screenshot({ path: info.outputPath('bookshelf-front.png') });
-  const atShelf = await state(page);
   await page.keyboard.down('d'); await page.waitForTimeout(320); await page.keyboard.up('d'); await aim();
   expect((await state(page)).head.revision).toBe(atShelf.head.revision);
   await page.screenshot({ path: info.outputPath('bookshelf-plank-side.png') });

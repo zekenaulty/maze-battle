@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "pack": { "id": "dungeon-occult-01", "version": "1" },
+  "repair": {
+    "sourceImage": "bookshelf/atlas_raw.png",
+    "sourceSha256": "c95b814c39881293475b42baee28858518ed3381f44a515f61f315264871f026",
+    "rectangle": [0, 0, 354, 336],
+    "operation": "native-crop-no-resize",
+    "note": "Recover both complete frame posts and all four corner fittings from the atlas. The nominal 341px tile clipped the right post and included blank pixels below the shelf."
+  },
+  "blocks": [{
+    "source": "bookshelf",
+    "review": {
+      "status": "preview", "reviewer": "Codex",
+      "note": "Raw bookshelf and plank atlas inspected for local preview. Human acceptance and redistribution rights remain unresolved."
+    },
+    "images": {
+      "bookshelf": { "variant": "repaired_seam", "sha256": "1a601994913211fade10b3da755d9defcd4987b682a668fa90d2d8e8de21e999" },
+      "oak_planks": { "variant": "raw_edit", "sha256": "0addd2c8a0f0a24552459b4279e09d510c70ffbae6942350cf58f3dfb3784c0c" }
+    }
+  }]
+}

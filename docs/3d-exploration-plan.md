@@ -152,3 +152,19 @@ The owner requested planks on all bookcase faces except the front. The stage now
 Verification: 40 focused 3D tests PASS, including all four front normals, full unmirrored front UVs, world-space rendered/collision bounds and inward wall placement. Production build/types and browser-fixture types PASS. Three browser checks PASS: material/view switching/recovery, wall/dialog/context recovery, and a disclosed-route bookcase front/side inspection. Side inspection stayed inside the committed tile without a game write. Inspected the captured images; plank grain replaces the squeezed side books. Artifacts are under `canonical-3d/bookshelf-20261024`; live preview at 5196 was refreshed without moving its actor.
 
 The canonical branch advanced to `9bb5ec2` with documentation and provider-test/monitor fixtures only, without runtime/package changes. Rebased this isolated lane onto that base; the other development checkouts remain untouched. No live-provider test was run, and nothing was pushed or merged.
+
+## Complete bookshelf frame from the original atlas — 2026-10-24
+
+The owner identified that generation crossed the nominal atlas tile boundary. The original atlas contains the complete shelf at `[0, 0, 354, 336]`, while TileLab extracted a nominal 341px square and upscaled it. That clipped the right post/corner fittings and retained blank pixels below the bottom rail. Recovered the actual full frame directly at its native 354×336 resolution. All 118,944 output pixels were compared against the atlas and match exactly. No mirroring, repainting or resampling was necessary.
+
+The repair is pinned in `scripts/asset-selections/bookshelf-full-frame.json`. Windows preparation copies only the needed block into ignored `local-asset-repairs`, preserving the original `D:\maze-quest` run. The derived material receipt records the source atlas hash and exact crop. It uses the existing `repaired_seam.png` alternate-image slot for compatibility with the importer; the receipt explicitly records a native crop rather than a generated seam repair. The existing guarded importer replaced only the bookshelf front material; every other material definition, including oak planks, was compared before/after and remains identical. Repeating the import reports no changes. Local pack revision is `6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3`.
+
+After the ordinary pack import, reproduce the fix with:
+
+```powershell
+./scripts/asset-repairs/prepare-bookshelf-full-frame.ps1 -TileLabRun 'D:\maze-quest\MazeQuestTileLab\output\run-20261023-132932-8b1964e4'
+$packRevision = (Get-Content -Raw public/assets/material-packs/dungeon-occult-01/manifest.json | ConvertFrom-Json).revision
+npm run assets:import -- --source local-asset-repairs/bookshelf-full-frame/run-20261023-132932-8b1964e4 --selection scripts/asset-selections/bookshelf-full-frame.json --only bookshelf --replace-block bookshelf --expected-revision $packRevision --write
+```
+
+Two browser cases PASS: front/side inspection and material/view-switch/recovery. Improved the inspection camera framing so all four corners are visible below the toolbar. The final front/side rerun PASS and images were visually inspected. The live stage was refreshed; original artwork files were not overwritten. Evidence is under `canonical-3d/bookshelf-crop-20261024`, including the native repaired texture, source boundary preview, before-manifest, browser report and full-frame in-stage screenshots. Runtime code, bookcase geometry and gameplay are unchanged by this asset repair.
