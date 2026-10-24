@@ -174,7 +174,10 @@ describe('CharactersDialog', () => {
     fireEvent.click(screen.getByText('Inventory care'));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Sell junk in town' }));
     expect(onChange).toHaveBeenLastCalledWith({ autoSellJunk: true });
+    onChange.mockClear();
     fireEvent.change(screen.getByLabelText('Health reserve'), { target: { value: '3.7' } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Health reserve'), { target: { value: '3' } });
     expect(onChange).toHaveBeenLastCalledWith({ healthReserve: 3 });
     expect(policy.healthReserve).toBe(2);
     rerender(<CharactersDialog {...props} party={[{ ...props.party[0], attributes: { ...props.party[0].attributes, available: 0 } }]} />);
