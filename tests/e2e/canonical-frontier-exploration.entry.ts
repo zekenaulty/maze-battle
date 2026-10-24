@@ -13,7 +13,8 @@ import * as content from './canonical-content-fixture';
 import { worldRequest as command } from './canonical-world-fixture';
 import { dump, refusal } from './canonical-frontier.support';
 import { seedExplorationScene as seed } from './canonical-frontier-exploration.fixture';
-import { readExplorationFrame as frame, explorationComparison, selectUnopenedObjectFrontier } from './canonical-frontier-exploration.evidence';
+import { readExplorationFrame as frame, captureExplorationFrame, explorationComparison, selectUnopenedObjectFrontier,
+  type CapturedExplorationFrame, type ExplorationSource } from './canonical-frontier-exploration.evidence';
 
 async function admit(selection: FrontierSelection, limits?: DestinationLimits) {
   const id = crypto.randomUUID(), binding = navigation.createExplorationBinding(selection, limits);
@@ -28,10 +29,10 @@ async function advance(id: string) {
 }
 async function capture(id: string, maxPulses: number) {
   if (!Number.isInteger(maxPulses) || maxPulses < 1 || maxPulses > 64) throw Error('Invalid fixture pulse bound');
-  const rows = [{ state: await navigation.readDestination(id), frame: await frame(), step: null as Awaited<ReturnType<typeof advance>> | null }];
+  const rows = [{ state: await navigation.readDestination(id), ...await captureExplorationFrame(), step: null as Awaited<ReturnType<typeof advance>> | null }];
   for (let n = 0; n < maxPulses && rows.at(-1)!.state.value.status === 'running'; n++) {
     const step = await advance(id);
-    rows.push({ state: await navigation.readDestination(id), frame: await frame(), step });
+    rows.push({ state: await navigation.readDestination(id), ...await captureExplorationFrame(), step });
   }
   return rows;
 }
@@ -53,6 +54,11 @@ async function effects() {
 if (!import.meta.env.DEV || location.origin !== 'http://127.0.0.1:5291') throw Error('Isolated exploration fixture only');
 const api = { ...navigation, ...transaction, ...reader, seed, frame, admit, advance, capture, settle, acknowledge,
   effects, command, dump, refusal, selectUnopenedObjectFrontier, destinationKey, observationKey,
-  compare: (frames: Awaited<ReturnType<typeof frame>>[]) => frames.map(explorationComparison()) };
+  compare: async (frames: CapturedExplorationFrame[], sources?: ExplorationSource[]) => {
+    const compare = explorationComparison(), result = [];
+    if (sources && sources.length !== frames.length) throw Error('Incomplete captured sources');
+    for (const [index, frame] of frames.entries()) result.push(await compare(frame, sources?.[index]));
+    return result;
+  } };
 declare global { interface Window { canonicalFrontierExploration: typeof api } }
 window.canonicalFrontierExploration = api;

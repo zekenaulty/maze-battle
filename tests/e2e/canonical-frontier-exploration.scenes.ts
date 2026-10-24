@@ -6,7 +6,24 @@ function disclose(page: Page, variant: ExplorationVariant) {
   return page.evaluate(async variant => {
     const c = window.canonicalFrontierExploration, seeded = await c.seed(variant), effects = await c.effects();
     const selection = seeded.page.value[0], admission = await c.admit(selection), rows = await c.capture(admission.id, 3);
-    return { seeded, effects, selection, admission, rows, comparison: c.compare(rows.map(row => row.frame)), afterEffects: await c.effects() };
+    const captured = rows.map(({ frame, snapshot }) => ({ frame, snapshot }));
+    const comparison = await c.compare(captured), first = captured[0], before = await c.dump();
+    const wrong = structuredClone(first); wrong.frame.sight.header.chunksDigest = rows[1].frame.sight.header.chunksDigest;
+    const commitment = await c.refusal(() => c.compare([wrong]));
+    const tampered = structuredClone(comparison[0].evidence.source), body = tampered.chunks[0].value;
+    if (!body || typeof body !== 'object' || Array.isArray(body) || !Array.isArray(body.cells)) throw Error('Expected chunk cells');
+    const cell = body.cells[0];
+    if (!cell || typeof cell !== 'object' || Array.isArray(cell) || !cell.world || typeof cell.world !== 'object'
+      || Array.isArray(cell.world) || typeof cell.world.row !== 'number') throw Error('Expected observed world coordinate');
+    cell.world.row++;
+    const rawSource = await c.refusal(() => c.compare([first], [tampered]));
+    const changed = structuredClone(first);
+    changed.frame.frontiers[0].direction = changed.frame.frontiers[0].direction === 'north' ? 'east' : 'north';
+    const direction = (await c.compare([changed]))[0].value;
+    const unknown = structuredClone(first); Object.assign(unknown.frame.frontiers[0], { fixtureUnknown: 'must remain' });
+    const unknownField = (await c.compare([unknown]))[0].value;
+    const controls = { inputs: { wrong, tampered, changed, unknown }, commitment, rawSource, direction, unknownField, unchanged: before === await c.dump() };
+    return { seeded, effects, selection, admission, rows, comparison, controls, afterEffects: await c.effects() };
   }, variant);
 }
 
@@ -39,8 +56,26 @@ test('A/B earn the same prefix then opposite public choices; unopened chest stop
       expect(last.frame.sight.header.sequence).toBe(result.seeded.sight.header.sequence + 3);
       expect(last.state.head.roots.knowledge).not.toEqual(result.seeded.page.head.roots.knowledge);
     }
-    expect(a.comparison.slice(0, 3)).toEqual(b.comparison.slice(0, 3));
-    expect(a.comparison[3]).not.toEqual(b.comparison[3]);
+    expect(a.comparison.slice(0, 3).map(row => row.value)).toEqual(b.comparison.slice(0, 3).map(row => row.value));
+    expect(a.comparison[3].value.sight.cells).not.toEqual(b.comparison[3].value.sight.cells);
+    expect(a.comparison[3].value.sight.header.chunksDigest).not.toBe(b.comparison[3].value.sight.header.chunksDigest);
+    for (const result of [a, b]) for (const row of result.comparison) {
+      expect(row.evidence.stats.writes).toBe(0); expect(row.evidence.stats.writeBytes).toBe(0);
+      expect(row.evidence.stats.reads).toBeLessThanOrEqual(row.evidence.limits.reads);
+      expect(row.evidence.stats.readBytes).toBeLessThanOrEqual(row.evidence.limits.bytes);
+      expect(row.evidence.witness).toBe(row.evidence.anchor.witness);
+      const key = row.evidence.source.parent.key;
+      expect(row.evidence.accesses).toEqual(['perception/', key, `${key}/integrity`,
+        ...row.evidence.source.chunks.map((_, index) => `${key}/${index}`)]);
+    }
+    for (const { controls, comparison } of [a, b]) {
+      expect(controls.commitment).toEqual({ rejected: true, message: 'Error: Captured observation differs from retained source' });
+      expect(controls.rawSource).toEqual({ rejected: true, message: 'Error: Canonical storage: observation chunk integrity changed' });
+      expect(controls.direction.frontiers).not.toEqual(comparison[0].value.frontiers);
+      expect(controls.direction.sight).toEqual(comparison[0].value.sight); expect(controls.unchanged).toBe(true);
+      expect(controls.unknownField.frontiers[0]).toHaveProperty('fixtureUnknown', 'must remain');
+      expect(controls.unknownField).not.toEqual(comparison[0].value);
+    }
     const selected = [];
     for (const target of [page, other]) selected.push(await target.evaluate(async () => {
       const c = window.canonicalFrontierExploration; return c.selectUnopenedObjectFrontier(await c.frame());
