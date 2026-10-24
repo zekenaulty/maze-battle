@@ -83,7 +83,10 @@ it('admits room coverage only when explicitly selected, keeping the original fro
 it('refuses room coverage of another space without admitting movement', async () => {
   const f = fixture(); f.selection.at.cell.spaceId = 'other';
   await f.run({ frontier: JSON.stringify(f.token), mode: 'room' });
-  expect((await f.resolve()).disposition).toBe('refused'); expect(isCurrentFrontier).not.toHaveBeenCalled();
+  const result = await f.resolve();
+  expect(result).toMatchObject({ disposition: 'refused',
+    summary: "Room survey requires a frontier in the actor's current space. Omit mode to approach this frontier." });
+  expect(result.operation).toBeUndefined(); expect(isCurrentFrontier).not.toHaveBeenCalled();
 });
 it.each(['auto', 'floor', null, false])('refuses unsupported exploration mode %j', async mode => {
   const f = fixture(); await f.run({ frontier: JSON.stringify(f.token), mode });

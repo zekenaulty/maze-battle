@@ -41,6 +41,12 @@ const api = Object.freeze({
   },
   // Privileged test audit only. Neither the target nor these effects enter the profile or planner input.
   effects: chestEffects,
+  async retained() {
+    const existing = (await indexedDB.databases()).find(db => db.name === CANONICAL_DATABASE);
+    if (existing?.version !== 9) throw Error('Existing current-schema fixture required; no initialization or upgrade');
+    const { head } = await readCanonicalHead();
+    return { head: structuredClone(head), launch: (await readLaunch()).value };
+  },
   async snapshot() {
     const session = appSession(), view = session.view, { head } = await readCanonicalHead();
     return { owner: session.owner, controlled: view.controlled, busy: Boolean(view.busy), recoveryRequired: Boolean(view.recoveryRequired),

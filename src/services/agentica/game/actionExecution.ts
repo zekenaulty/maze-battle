@@ -78,10 +78,12 @@ export async function executeGameAction(port: CanonicalHostPort, binding: Action
     const current = await readCanonical(async pages => {
       const publication = await readPublication(pages, binding.publication);
       const checkpoint = gameCheckpoint(publication.snapshot.checkpoint);
-      return (!room || checkpoint.position.cell.spaceId === selection.at.cell.spaceId)
-        && isCurrentFrontier(pages, checkpoint, selection);
+      if (room && checkpoint.position.cell.spaceId !== selection.at.cell.spaceId) return 'outside-room';
+      return await isCurrentFrontier(pages, checkpoint, selection) ? 'current' : 'stale';
     });
-    if (!current.value) refusal = 'Frontier selection is not a current earned approach.';
+    if (current.value === 'outside-room')
+      refusal = "Room survey requires a frontier in the actor's current space. Omit mode to approach this frontier.";
+    else if (current.value !== 'current') refusal = 'Frontier selection is not a current earned approach.';
   }
   if ((command?.kind === 'navigate' || command?.kind === 'explore') && !refusal) {
     // The canonical executor rechecks frontier evidence inside the admission transaction.
