@@ -4,7 +4,7 @@
 
 Implement the owner's approved three bounded slices, with first-person traversal at least matching the core MazeQuest `basic_room` experiment: connected textured rooms/passages, mouse look, collision-aware movement, navigation/map continuity and game-owned interactions. Retain the canonical 2D generator and GameSession as authority. All procedural results must replay from a seeded RNG and stable versioned inputs; rendering must not consume gameplay randomness.
 
-Long-horizon attachment context informs separation of scene data, geometry, clearance and interaction references. It does not authorize an editor, voxel mutation system, settlement simulation, new NPC cognition, multiplayer, BookForge/Agentica changes, or a new world persistence format. Actual stacked floors, jumping, and new mechanism rules are later work; existing stairs remain canonical transitions.
+Long-horizon attachment context informs separation of scene data, geometry, clearance and interaction references. It does not authorize an editor, voxel mutation system, settlement simulation, new NPC cognition, multiplayer, BookForge/Agentica changes, or a new world persistence format. The completed initial slice is planar and uses canonical stair transitions. The owner has now requested planning for real stacked-floor stairs; the proposed follow-on below does not yet authorize its implementation. Jumping and new mechanism rules remain later work.
 
 ## Checkout and integration custody
 
@@ -14,7 +14,7 @@ Long-horizon attachment context informs separation of scene data, geometry, clea
 - Qualified source/test candidate: `98cb7cc7423698a72a272224c7ebbaad049aa5e9`; implementation commits `ae5c212` (asset components) and `73fa8b7` (canonical stage). The closeout commit adds documentation and fixes the reporter output path only.
 - Visual reference: asset-lab commit `69a63b4`; port graphics/import components selectively, never the retired App, hooks or save writers.
 - The canonical branch is in flight. Fetch and compare at meaningful integration boundaries, record the resulting frozen base, and rebase our isolated lane when necessary. Do not change another worktree or move its branch.
-- Keep the old showroom/server available as reference. Use separate development/test ports and disposable browser state for qualification. No paid image or model calls, push, merge or owner-data reset.
+- Keep the old showroom/server available as reference. Use separate development/test ports and disposable browser state for qualification. No paid image or model calls, merge or owner-data reset. The owner authorized branch publication on 2026-10-24; push reviewable follow-up commits to `codex/canonical-3d-exploration`.
 
 ## Acceptance and current work
 
@@ -287,3 +287,75 @@ Planned verification: transformed element bounds and pivots; all six face orient
 Decisions still open: adopt the bounded native-builder adapter (recommended) or first qualify a MineRender extraction path; approve an explicit geometry-only abstract-root profile versus supplying the missing base source; decide whether the first imported lever uses baked states or merits a curated moving handle immediately. Neither glTF intake nor weighted-character migration is required to settle those choices.
 
 Planning references read through Google Drive: [Logical Cell to 3D Block Mapping](https://docs.google.com/document/d/12uc8XclQTMrsuRUgCI-eP8N6ckPKfIGuzxI_0TKjHMs/edit) and [Deferred World Systems Roadmap](https://docs.google.com/document/d/1-SrvzJiuTs2j39RqGql1k4LcngI8dGGqrL7F_jP9X_8/edit). These provide design direction, not implementation proof or authority to add deferred gameplay. This slice excludes NPC behavior, inventory/equipment workflows, schema/navigation changes, full resource-pack import, Minecraft world simulation, paid generation, publication and merge.
+
+## Real stairs and stacked-floor traversal — planning follow-on, 2026-10-24
+
+**Owner-requested planning addition; not implemented.** The current three-strip marker is not an acceptable final staircase. The target is an actual stairwell connecting real upper/lower floor geometry, with continuous ascent/descent, usable landings, floor/ceiling openings and correct clearance. A detailed mesh followed by the existing teleport does not meet that target. Room/structure schematics are imminent context, but a schematic system/editor/importer is not part of this slice.
+
+### What the present code actually guarantees
+
+- `StageRenderer.syncScene` creates three boxes, each only 0.025 units tall, as a flat stair symbol. It creates no steps, shaft or opening.
+- `compileStageScene` filters observations to the actor's level, builds every floor at Y=0 and adds an unbroken ceiling to every disclosed cell. `StageWalker` stores only X/Z and projects all solid boxes into 2D collision bounds. Simply adding elevated meshes would leave invisible walls below upper floors and would not support climbing.
+- `WorldStairs` already stores reciprocal `upper`/`lower` canonical positions. `resolveFloorTravel` validates them and commits a discrete level change; the first floor's upward link returns to town, which is a separate presentation case.
+- `createWorldFloor` links the upper exit to the new entry room's center. Each floor has its own generated 2D coordinates. The link does **not** certify aligned X/Z positions, facing, vertical spacing, a reserved stairwell or a hole in either deck.
+- Current knowledge observation follows same-level links; it does not disclose a second floor through the stairs. `GameSession.execute` may prepare a new floor and then immediately execute descent, publishing its final view. That is not a published two-floor landing preview.
+- `WorldSpace.schematic = 'stone-room-v1'` selects the existing deterministic room materializer. It is not yet a general 3D structure/prefab contract.
+
+These are separate geometry, placement, movement and disclosure gaps. Solving them does not require replacing the seeded 2D topology, but it does require an explicit follow-on to the current planar projection.
+
+### Assembly data to allow now
+
+Keep the proposed model/material/instance interface. Permit **optional authored assembly metadata**, rather than requiring every prop to carry traversal behavior:
+
+| Data | Stair use | Near-term reuse |
+| --- | --- | --- |
+| Stable asset ID and geometry/layout revision | A reproducible stair variant, independent of surface textures | Model prefabs and room assemblies |
+| Local frame, dimensions, root placement transform | Fit the flight and its landings into a known volume | Rotation/placement of multi-part objects |
+| Named connection anchors with position and orientation | Physical `upperLanding` / `lowerLanding` ports and approach directions | Doors, room sockets and later structure joins |
+| Occupied and reserved clearance volumes | Flight, landings, headroom, shaft and protected approaches | Placement validation without guessing from a mesh bounding box |
+| Explicit floor/ceiling opening descriptors | Remove only the approved deck area through which the flight passes | Future atria, shafts and multi-level structures |
+| Optional walk surfaces and support-height profile | A walkable sloped proxy or height profile under the visible treads | Ramps and bridges when separately introduced |
+| Material slots and child model references | Treads, risers, sidewalls and rails share the ordinary material pipeline | Composition of existing model definitions |
+
+An asset declares geometric requirements; an **approved placement** binds it to a canonical stair connection and owns its reserved volume/openings. A downloaded model or a `walkable` label must not create a game passage. Keep visual extent, physical support/clearance and logical connectivity distinct, then validate that the approved assembly makes them agree.
+
+This is the small data boundary worth allowing during the lever/door work. It does not require choosing an external schematic file format or building general assembly expansion, placement tooling or an editor now.
+
+### Proposed geometry and placement policy
+
+Start with a procedural straight flight in a generous authored fixture; compare a dogleg/two-flight variant if the straight footprint is awkward. Use ordinary cuboids and existing materials. The difficult part is the connected volume, not the triangle count. A full floor rise plus useful landings will generally occupy more space than the current single 3.2-unit stair cell; do not compress it into that cell just to retain the marker's footprint.
+
+Parameterize deck-to-deck rise, width, tread count/run, landing dimensions and structural thickness. Validate the configured actor envelope/headroom and doorway approaches. The present 4.5-unit wall height is clear room height, not a complete deck-spacing contract. With +Y up, increasing dungeon level descends in Y. These are game-scale choices, not a claim of building-code dimensions.
+
+Choose a stable local frame for each level and a versioned level-to-world transform. For today's single stair link between adjacent floors, a target floor can be translated/quarter-turned so its landing anchor matches the approved stair assembly's endpoint, without changing its local 2D cells or seed. This is a proposed placement strategy, **not something `WorldStairs` currently provides**. Derive/retain those transforms through a bounded game-owned layout process; the renderer must not load hidden floor ancestry to invent them. Future multiple links between the same levels introduce alignment/loop constraints that require placement validation rather than averaging transforms or teleporting between mismatched ports.
+
+Use the same forward/inverse transform for rendered geometry, collider placement, landing positions and world-to-cell resolution. A rotated level must also transform movement directions back into its canonical grid and carry the camera's heading across the connector. Test every quarter-turn and negative coordinates; never change a logical cell address to make a visual alignment work.
+
+Generation must reserve the stairwell and its approaches before decorations or conflicting structure placement. Both deck openings and both landing spaces belong to that same placement. Existing saves without these reservations cannot be assumed physically compatible: retain their legacy transition presentation until an explicit compatible layout recipe or migration is chosen. Do not change old seeded topology silently.
+
+A multi-cell stair footprint must also agree with the 2D walkability/interaction projection. Do not place a physically impassable flight or shaft across cells the canonical map still treats as a flat open route. Reserving or subdividing that space is a generator/layout decision with parity tests, rather than a decorative model side effect.
+
+### Continuous traversal and visibility
+
+Use a constrained walking surface for the first implementation, with visible treads over a continuous collision/support profile. Track foot height and a separate actor collision height; smooth camera elevation with elapsed time so treads do not cause frame-by-frame head bumps. Add height intervals to colliders, or a swept 3D capsule equivalent, so an upper-floor wall does not block movement underneath it. Test ceilings, sides and railings as well as the walking surface. General gravity, jumping, falling and arbitrary rigid-body physics are not prerequisites.
+
+Walking onto an approved connector should initiate traversal through the existing serialized command authority, rather than a separate "next floor" button or a second world writer. Define one logical crossing boundary and validate its source/target connection. Retain the local continuous pose across acceptance; transform the camera and actor into the target level's frame without a visible snap. Until a required preparation/commit is accepted, movement remains inside a bounded safe part of the connector. Handle rejection, reversal, cancellation and stale relocation explicitly. Do not reuse the horizontal 0.8-unit prediction rule blindly for a vertical connector.
+
+The initial implementation may retain canonical `(level, cell)` endpoints and presentation-local progress along the stair link. It must define the committed endpoint used on reload/recovery and block chest/other interactions that would otherwise act from an endpoint while the visible actor is halfway along the stairs. If durable mid-flight position or authoritative encounters on the stairway become requirements, promote connector residency to an explicit game-state design; do not hide that expansion in a camera animation. The 2D view can continue to represent the same accepted reciprocal link and stair symbols.
+
+For genuinely continuous two-floor viewing, the game must publish a **bounded cross-floor observation** near the stair opening. Generating/residing a floor is not permission to render it. Define sight/occlusion through the stairwell and disclose the target landing/nearby cells under that policy, with existing provenance and limits. Preparation must be separable from automatic relocation if the destination needs to be ready before entry. New disclosures belong in the game/knowledge boundary; no direct renderer read of `loadWorldRoom` or the full floor plan.
+
+Keep the current landing, connector and the authorized destination fragment resident through the crossing; stream the rest as it becomes visible. Two real levels can coexist without rendering every retained floor. Existing fog may conceal the edge of the bounded observation, but must not conceal a positional discontinuity or substitute for the second floor.
+
+### Sequenced delivery and acceptance
+
+| Gate | Deliverable | Evidence required before proceeding |
+| --- | --- | --- |
+| S1 — assembly proof | One reusable stair assembly with ports, landings, openings, support surface and clearance metadata in the model inspection surface | Front/side/cutaway views; measured bounds and material replacement; distinguish this model proof from traversable gameplay |
+| S2 — two-level movement fixture | Authored upper/lower rooms in one scene, real deck openings and bidirectional walking between them | No teleport/fade, floor or ceiling clipping, camera stair jitter, tunnelling or cross-level collision; independent camera/actor pose checks |
+| S3 — canonical connector | Bind the assembly to one reciprocal `WorldStairs` link, including preparation and bounded multi-level disclosure | Exactly one accepted floor change per crossing; source guard, refusal, reversal, reload, control loss and 2D parity; no hidden-floor reads |
+| S4 — seeded generated placement | Versioned stairwell reservation and level transforms for a bounded generated-floor corpus | Same seed/recipe produces identical geometry, ports, openings and placements; incremental/eager agreement; no prop/doorway overlap or inaccessible landing |
+
+Success is a character walking from an actual lower room up the staircase into an actual upper room and back, while canonical position, visibility and 2D traversal remain coherent. Test all supported orientations, both directions, high/low frame rates, delayed preparation/commands, save/reload at the chosen recovery boundary and repeated level crossings/resource reuse. Include the town link as an explicit fallback case rather than inventing an unimplemented town floor.
+
+This adds **planning scope** for stairs and their future assembly boundary. It does not enlarge the currently proposed lever/door implementation into a multi-level engine. Decide the stair assembly/placement metadata before hardening that model contract; execute S1–S4 as a separately approved traversal slice. Unresolved choices are the initial straight/dogleg footprint, persisted versus version-derived placement metadata, cross-floor observation policy, crossing/recovery boundary and treatment of legacy worlds. No runtime changes or traversal tests were performed for this planning addition.
