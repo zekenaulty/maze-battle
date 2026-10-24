@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 });
 test('actual GameSession launch retains earned source identity and requires an explicit initial grant', async ({ page }) => {
   const result = await page.evaluate(() => window.hostLaunchFixture.announcementIsNotPermission());
-  expect(result.refused).toContain('missing referenced launch record'); expect(result.absent).toBe(true);
+  expect(result.refused).toBe('Error: Canonical storage: missing run grant'); expect(result.absent).toBe(true);
   expect(result.result).toEqual({ accepted: true }); expect(result.sourceId).toBe(result.originalId); expect(result.guard).toBe('admitted');
 });
 test('funded guard cancellation revokes the grant before a later queued host effect', async ({ page }) => {
