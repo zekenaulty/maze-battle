@@ -104,3 +104,52 @@ pre-HTTP provider-admission or billing fence** in the unchanged Lab service.
 M3's [provider-free acceptance](issue-11-provider-free-acceptance.md) remains valid
 at its recorded sources. M4 remains incomplete: no earned frontier movement,
 fork adaptation, collection or host-proven return occurred in this paid attempt.
+
+## Real-Transport Repair Qualification
+
+Candidate `e99f4266fce777d414ac95edd8eb88220a7841c4` adds three focused
+provider-free checks through the actual pinned Lab, `LlmWorkflowPlanner`, telemetry
+feed, WebSocket, browser SDK and the repaired live monitor. An injected
+`ILlmStreamingClient` supplies synthetic deltas/usage without credentials or an
+HTTP client. The minimal transport fixture owns no game state and is not another
+game or a substitute for the live corpus. Normal live endpoint selection is
+unchanged; only this test selects the isolated service origin.
+
+- Completed usage survives **1,986 actual dropped display records**; one call's
+  exact synthetic usage reconciles with the service and permits admission.
+- A completed stream without usage remains UNKNOWN and refuses admission.
+- Real SDK cancellation transports `cancelled` with null usage and refuses
+  admission. All three cases verify one original durable start, no wake, and an
+  identity-matched original Stop acknowledgement. Call-count settlement does
+  not establish token usage or billing.
+
+The exact-candidate cohort also reran both actual-App authored dungeon journeys
+using the existing offline planner. A and B explicitly collected the ordinary
+objective, returned, reached host-proven satisfaction and released allocations.
+**5/5 PASS in 192.591 seconds**, no retries, skips, flakes or runner errors;
+**13 Node monitor tests PASS** and both fixture typechecks PASS. There were zero
+paid provider calls by construction. Agentica remains clean at `27cb2ce`; SDK
+10.0.401 is still alternate-environment evidence, not a 10.0.302 pin proof.
+
+Reproduction:
+
+```powershell
+node --test tests/live-corpus/budget.node-spec.mjs tests/live-corpus/wire.node-spec.mjs
+node tests/agentica-start-service/run.mjs --agentica-root C:/Users/Zythis/.codex/worktrees/maze-action-recovery/Agentica --grep "live monitor transport|actual App cold-start survey adapts"
+```
+
+Retained evidence: `test-results/maze-start-service-ZshkOc/`, including 158 input
+hashes, matching browser SDK and assembly hashes, and per-case transport receipts.
+Independent review found no blocking evidence findings.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `results.json` | `37e096ffc58ed414706ef24ed671d7b6dffe976f1b7c4fad05b3370838ab166c` |
+| `provenance.json` | `923113bbf470b900f7e6d8bc0dd3b06cd7179a57fd8681a18810aa185895198e` |
+
+The first exploratory transport run is separately retained at
+`test-results/maze-start-service-W6BwZJ/` (3/3 PASS). The committed-candidate run
+above adds complete monitor-source hash coverage and explicit Stop identity
+assertions. Neither run resolves the original paid third call or changes M4's
+PARTIAL / INTERRUPTED status. Its paid-stop receipt remains intact. No paid
+restart was attempted.

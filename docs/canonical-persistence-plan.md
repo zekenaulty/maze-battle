@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 59,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 60,
 2026-10-24. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -11,7 +11,9 @@ Live-gate update, 2026-10-24: owner authorized OpenAI Luna/high and cumulative
 [first paid A trial](reviews/issue-11-live-luna-attempt.md) reached three provider
 attempts and two inspect choices before a test-monitor defect cancelled call
 three. Its usage remains unknown; original work is settled and no paid retry or
-B trial followed. The monitor repair passes provider-free checks. M3 remains
+B trial followed. The monitor repair now passes three real-Lab/browser transport
+cases plus both actual-App corpus regressions at `e99f426` (5/5 PASS), including
+actual dropped display updates and fail-closed missing/cancelled usage. M3 remains
 complete; **M4 is PARTIAL / INTERRUPTED, not accepted**.
 P3 Auto now uses that same playable App and canonical commands, with earned
 waypoints, explicit collection/guild/care policy, interruption and bounded floor

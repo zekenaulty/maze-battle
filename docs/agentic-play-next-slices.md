@@ -2,7 +2,7 @@
 
 ## Current Qualification
 
-Closing checkpoint, 2026-10-24: the [canonical plan, revision 59](canonical-persistence-plan.md)
+Closing checkpoint, 2026-10-24: the [canonical plan, revision 60](canonical-persistence-plan.md)
 and [provider-free acceptance map](reviews/issue-11-provider-free-acceptance.md)
 now close the bounded S1-S6 deliverable. The original exact manifest passes
 1,575/1,575 distinct native/service cases, with compatible source identities,
@@ -12,7 +12,8 @@ finite generated-world limits and the existing optional unit skip remain explici
 The subsequent [authorized Luna live attempt](reviews/issue-11-live-luna-attempt.md)
 is PARTIAL / INTERRUPTED: three provider attempts, two inspect choices, then a
 monitor-triggered cancellation with unknown third-call usage. B and a paid retry
-were not run; the monitor is repaired provider-free. The umbrella goal and issue
+were not run; the monitor repair is qualified through the actual Lab/SDK transport
+alongside A/B App regressions (5/5 PASS at `e99f426`, no paid calls). The umbrella goal and issue
 remain open. The dated checkpoints below are retained history, not current status.
 
 Historical checkpoint, 2026-10-20: the [canonical plan, revision 42](canonical-persistence-plan.md)
