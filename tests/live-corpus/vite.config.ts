@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // Proposed public run profile only. This neither loads credentials nor authorizes Start.
 const profile = {
   ENDPOINT: 'ws://127.0.0.1:5078/api/host', PROVIDER: 'openai', MODEL: 'gpt-6-luna', THINKING_EFFORT: 'high',
-  CONTEXT_WINDOW_TOKENS: '16384', MAX_OUTPUT_TOKENS: '4096', MAX_STEPS: '64', MAX_REFINEMENTS: '48',
+  CONTEXT_WINDOW_TOKENS: '65536', MAX_OUTPUT_TOKENS: '4096', MAX_STEPS: '64', MAX_REFINEMENTS: '48',
   MAX_PLAN_CONTINUATIONS: '16', TIMEOUT_SECONDS: '300', ACTION_TIMEOUT_SECONDS: '30',
 };
 export default defineConfig({
