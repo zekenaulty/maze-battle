@@ -35,3 +35,20 @@ test('two coordinators cannot spend the same retained grant concurrently', t => 
   const file = fixture(t), g = new RepairGrant(file); t.after(() => g.close());
   assert.throws(() => new RepairGrant(file), /Another live-test coordinator/);
 });
+
+test('corrupt rows, nonfinite charges and altered settled usage cannot bypass admission', t => {
+  for (const mutate of [state => state.windows.push({}), state => { state.windows[0].chargedUsd = -1; },
+    state => { state.windows[0].chargedUsd = 0; }]) {
+    const file = fixture(t), g = new RepairGrant(file);
+    g.reserve('one', 'one'); g.settle('one', [{ terminal: 'completed', usage: { promptTokens: 10, outputTokens: 10 } }], 1); g.close();
+    const state = JSON.parse(fs.readFileSync(file)); mutate(state); fs.writeFileSync(file, JSON.stringify(state));
+    assert.throws(() => new RepairGrant(file), /Invalid|differs/);
+  }
+});
+
+test('retained dead-owner locks are not deleted during concurrent admission', t => {
+  const file = fixture(t), lock = `${file}.lock`;
+  fs.writeFileSync(lock, JSON.stringify({ pid: 2147483647 }));
+  assert.throws(() => new RepairGrant(file), /retained lock/);
+  assert.equal(JSON.parse(fs.readFileSync(lock)).pid, 2147483647);
+});

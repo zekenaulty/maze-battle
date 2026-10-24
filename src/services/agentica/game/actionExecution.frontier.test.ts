@@ -70,6 +70,12 @@ it('owns the parsed selection before asynchronous preflight reads', async () => 
   expect(f.submitHostCommand.mock.calls[0][0].input.binding).toEqual(createFrontierBinding(f.selection));
 });
 
+it('approaches a valid frontier in another space when mode is omitted', async () => {
+  const f = fixture(); f.selection.at.cell.spaceId = 'other'; await f.run();
+  expect(f.submitHostCommand.mock.calls[0][0]).toMatchObject({ operation: 'operation.admit',
+    input: { binding: createFrontierBinding(f.selection) } });
+});
+
 it('admits room coverage only when explicitly selected, keeping the original frontier frozen', async () => {
   const f = fixture(); f.selection.at.cell.spaceId = 'room'; await f.run({ frontier: JSON.stringify(f.token), mode: 'room' });
   expect(f.submitHostCommand.mock.calls[0][0].input.binding).toEqual(createExplorationBinding(f.selection));

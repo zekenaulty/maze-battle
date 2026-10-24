@@ -11,17 +11,17 @@ export function mazeCapabilities(): AgenticaCapability[] {
   return [
     { id: 'maze.observe', name: 'Observe', description: 'Actor/source.', kind: 'query', effect: 'readOnly',
       inputSchema: { fields: [], allowAdditionalProperties: false } },
-    { id: 'maze.inspect', name: 'Inspect', description: 'Earned scopes; links=spaces, connections=rooms; quests by status/target; objective; prior decision.', kind: 'query', effect: 'readOnly',
+    { id: 'maze.inspect', name: 'Inspect', description: 'frontiers/objects: scope,cursor only. room/cell; map/links/connections; quests/objective.', kind: 'query', effect: 'readOnly',
       inputSchema: { fields: [{ name: 'scope', type: 'string', required: true, allowedValues: ['room', 'map', 'links', 'connections', 'cell', 'frontiers', 'objects', 'quests', 'quest', 'objective', 'decision'] },
         ...address.map(f => ({ ...f, required: false })), { name: 'cursor', type: 'string', required: false },
         { name: 'status', type: 'string', required: false, allowedValues: ['active', 'complete', 'claimed'] },
         { name: 'target', type: 'string', required: false }], allowAdditionalProperties: false } },
-    { id: 'maze.navigate', name: 'Navigate', description: 'Earned address only.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+    { id: 'maze.navigate', name: 'Navigate', description: 'Pathfind to earned destinations.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: address, allowAdditionalProperties: false } },
-    { id: 'maze.explore', name: 'Explore', description: 'Approach. Room: local survey, stop on discoveries/bounds. No loot.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+    { id: 'maze.explore', name: 'Explore', description: 'Omit mode: approach any frontier; room: actor-space survey. No loot.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: [{ name: 'frontier', type: 'string', required: true },
         { name: 'mode', type: 'string', required: false, allowedValues: ['room'] }], allowAdditionalProperties: false } },
-    { id: 'maze.interact', name: 'Interact', description: 'Open an inspected current-tile chest. No movement.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
+    { id: 'maze.interact', name: 'Interact', description: 'Open inspected current-tile chest; no movement.', kind: 'action', effect: 'writesLocalState', durableHandoff: true,
       inputSchema: { fields: [{ name: 'target', type: 'string', required: true }], allowAdditionalProperties: false } },
   ];
 }

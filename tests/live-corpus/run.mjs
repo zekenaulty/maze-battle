@@ -5,9 +5,12 @@ import { chromium } from '@playwright/test';
 import { LiveBudget, APPROVED_LIMITS, RATES } from './budget.mjs';
 import { observeWire, stopThroughUi } from './wire.mjs';
 import { RepairGrant } from './grant.mjs';
+import { validateCompletion } from './validate.mjs';
 
 const origin = 'http://127.0.0.1:5488', lab = 'http://127.0.0.1:5078';
 const paid = process.argv.includes('--paid-authorized'), prepareOnly = process.argv.includes('--prepare-only');
+const selectedVariant = process.argv.find(value => value.startsWith('--variant='))?.split('=')[1];
+if (selectedVariant && !['A', 'B'].includes(selectedVariant)) throw Error('Variant must be A or B');
 if (paid === prepareOnly) throw Error('Choose exactly --prepare-only or --paid-authorized; no paid start is implicit');
 const output = path.resolve('test-results', `live-corpus-${Date.now()}`);
 fs.mkdirSync(output, { recursive: true });
@@ -65,7 +68,7 @@ try {
     if (await fetch(origin + '/tests/live-corpus/setup.html').then(r => r.ok).catch(() => false)) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  for (const variant of ['A', 'B']) {
+  for (const variant of selectedVariant ? [selectedVariant] : ['A', 'B']) {
     budget.check({ admission: true });
     const context = await chromium.launchPersistentContext(path.join(output, `browser-${variant}`),
       { headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -110,12 +113,7 @@ try {
       }
       record.final = await page.evaluate(target => window.liveCorpus.effects(target), record.setup.target);
       record.snapshot = await page.evaluate(() => window.liveCorpus.snapshot());
-      const replies = wire.sent.filter(x => x.frame.type === 'action.result').map(x => x.frame.payload);
-      const completion = replies.findLast(x => x.completion);
-      if (record.final.questItems.length !== 1 || record.final.questItems[0].quantity !== 1
-        || JSON.stringify(record.final.checkpoint.position) !== JSON.stringify(record.setup.position)
-        || !record.final.chest.chest.opened || record.final.quest.quest.status !== 'complete'
-        || completion?.observation?.data?.status !== 'satisfied') throw Error('Host-proven objective completion is missing');
+      record.completion = validateCompletion(record);
       await page.screenshot({ path: path.join(output, `${variant}-satisfied.png`) });
       console.log(variant, record.status, JSON.stringify(budget.snapshot()));
     } catch (error) {
