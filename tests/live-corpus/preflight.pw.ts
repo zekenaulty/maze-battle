@@ -3,7 +3,7 @@ import type {} from './setup';
 
 const origin = 'http://127.0.0.1:5488';
 const proposed = { endpoint: 'ws://127.0.0.1:5078/api/host', provider: { provider: 'openai', model: 'gpt-6-luna',
-  thinkingEffort: 'high', contextWindowTokens: 16384, maxOutputTokens: 4096 },
+  thinkingEffort: 'high', contextWindowTokens: 65536, maxOutputTokens: 4096 },
   limits: { maxSteps: 64, maxRefinements: 48, maxPlanContinuations: 16, timeoutSeconds: 300, actionTimeoutSeconds: 30 } };
 
 for (const variant of ['A', 'B'] as const) test(`${variant}: actual App preflight without Start or provider traffic`, async ({ page, context }, info) => {
@@ -54,7 +54,7 @@ for (const variant of ['A', 'B'] as const) test(`${variant}: actual App prefligh
   await expect(dialog.getByText('gpt-6-luna', { exact: true })).toBeVisible();
   await expect(dialog.getByText('openai', { exact: true })).toBeVisible();
   await expect(dialog.getByText(proposed.endpoint, { exact: true })).toBeVisible();
-  await expect(dialog.getByText('16384 context / 4096 output', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('65536 context / 4096 output', { exact: true })).toBeVisible();
   await expect(dialog.getByText('64 steps / 48 refinements / 16 continuations', { exact: true })).toBeVisible();
   await expect(dialog.getByText('300 s run / 30 s action', { exact: true })).toBeVisible();
   await expect(dialog.getByRole('alert')).toHaveCount(0);
