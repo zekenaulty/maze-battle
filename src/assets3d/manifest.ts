@@ -17,7 +17,9 @@ export interface MaterialDefinition {
   texture: TextureAsset; fallbackColor: string; roughness: number;
   review: Review; provenance: Provenance;
   animation?: TextureAnimation;
+  render?: { alphaMode: 'opaque' | 'mask' | 'blend'; alphaCutoff?: number; side: 'front' | 'double' };
 }
+export type SurfaceMaterial = Pick<MaterialDefinition, 'id' | 'label' | 'surface' | 'texture' | 'fallbackColor' | 'roughness' | 'animation' | 'render'>;
 export interface TextureAnimation {
   loop: boolean; interpolate: false;
   frames: Array<{ sourceIndex: number; texture: TextureAsset; provenance: Provenance }>;
@@ -96,6 +98,9 @@ export function validateAssetPack(value: unknown): asserts value is AssetPack {
     check(color(m.fallbackColor) && finite(m.roughness) && m.roughness >= 0 && m.roughness <= 1, `properties ${id}`);
     review(m.review);
     provenance(m.provenance, t, id);
+    if (m.render !== undefined) check(record(m.render) && ['opaque', 'mask', 'blend'].includes(m.render.alphaMode) &&
+      ['front', 'double'].includes(m.render.side) && (m.render.alphaCutoff === undefined ||
+      finite(m.render.alphaCutoff) && m.render.alphaCutoff >= 0 && m.render.alphaCutoff <= 1), `render policy ${id}`);
     if (m.animation !== undefined) {
       const a = m.animation;
       check(record(a) && typeof a.loop === 'boolean' && a.interpolate === false && Array.isArray(a.frames) &&

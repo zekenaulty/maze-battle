@@ -1,8 +1,8 @@
 import { FACE_ORDER, validateAssetPack } from './manifest';
-import type { Appearance, AssetPack, BlockFace, Emission, MaterialDefinition, ModelDefinition } from './manifest';
+import type { Appearance, AssetPack, BlockFace, Emission, SurfaceMaterial, ModelDefinition } from './manifest';
 
 export interface ResolvedFace {
-  face: BlockFace; material?: MaterialDefinition; fallbackColor: string; emissive?: { color: string; intensity: number };
+  face: BlockFace; material?: SurfaceMaterial; fallbackColor: string; emissive?: { color: string; intensity: number };
 }
 export interface ResolvedBlock {
   id: string; model: ModelDefinition; faces: ResolvedFace[]; emission?: Emission; warnings: string[];

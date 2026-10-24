@@ -22,6 +22,7 @@ playwright-report
 # Curated generated artwork stays local; recipes and provenance contracts are tracked.
 public/assets/material-packs/*/
 public/assets/character-skins/*/
+public/assets/model-packs/*/
 local-asset-repairs/
 
 # Editor directories and files

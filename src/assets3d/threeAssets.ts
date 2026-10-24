@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { ResolvedBlock, ResolvedFace } from './registry';
 import { PACK_URL } from './registry';
-import type { MaterialDefinition, TextureAnimation } from './manifest';
+import type { SurfaceMaterial, TextureAnimation } from './manifest';
 import { animationSample } from './animation';
 
 /** One owner per renderer; texture/material lifetimes do not follow camera movement. */
@@ -14,21 +14,27 @@ export class ThreeAssetLibrary {
   private animations: Array<{ texture: THREE.Texture; animation: TextureAnimation; images: HTMLImageElement[]; frame: number }> = [];
   private disposed = false;
   private changed: () => void;
+  private baseUrl: string;
   readonly warnings = new Set<string>();
-  constructor(changed: () => void = () => {}) { this.changed = changed; }
+  constructor(changed: () => void = () => {}, baseUrl = PACK_URL) { this.changed = changed; this.baseUrl = baseUrl; }
 
   material(face: ResolvedFace, repeat: [number, number] = [1, 1], debug = false) {
     const definition = face.material;
     // Bounded functional faces and UV islands must never be repeated like masonry.
     const tiling = definition?.surface === 'tileable' ? repeat : [1, 1];
-    const key = JSON.stringify([definition?.id, definition?.texture.sha256, tiling, face.emissive, debug]);
+    const key = JSON.stringify([definition?.id, definition?.texture.sha256, definition?.texture.path, this.baseUrl,
+      definition?.roughness, face.fallbackColor, definition?.surface, definition?.render, tiling, face.emissive, debug]);
     const cached = this.materials.get(key); if (cached) return cached;
     const material = new THREE.MeshStandardMaterial({ color: face.fallbackColor, roughness: definition?.roughness ?? 1,
-      side: THREE.DoubleSide, emissive: face.emissive?.color ?? '#000000', emissiveIntensity: face.emissive?.intensity ?? 0 });
+      side: definition?.render?.side === 'front' ? THREE.FrontSide : THREE.DoubleSide,
+      transparent: definition?.render?.alphaMode === 'blend',
+      alphaTest: definition?.render?.alphaMode === 'mask' ? definition.render.alphaCutoff ?? 0.5 : 0,
+      depthWrite: definition?.render?.alphaMode !== 'blend',
+      emissive: face.emissive?.color ?? '#000000', emissiveIntensity: face.emissive?.intensity ?? 0 });
     this.materials.set(key, material);
     if (debug) { material.map = this.debugTexture(); material.color.set('#ffffff'); return material; }
     if (!definition) return material;
-    const url = new URL(definition.texture.path, new URL(PACK_URL, location.href)).href;
+    const url = new URL(definition.texture.path, new URL(this.baseUrl, location.href)).href;
     const textureKey = JSON.stringify([url, tiling]);
     const use = (texture: THREE.Texture) => {
       if (this.disposed) return;
@@ -56,10 +62,10 @@ export class ThreeAssetLibrary {
     }
     return material;
   }
-  private loadAnimation(definition: MaterialDefinition, tiling: [number, number], key: string) {
+  private loadAnimation(definition: SurfaceMaterial, tiling: [number, number], key: string) {
     const animation = definition.animation!;
     const loaded = animation.frames.map(frame => {
-      const url = new URL(frame.texture.path, new URL(PACK_URL, location.href)).href;
+      const url = new URL(frame.texture.path, new URL(this.baseUrl, location.href)).href;
       let image = this.images.get(url);
       if (!image) {
         image = new Promise<HTMLImageElement | undefined>(resolve => {

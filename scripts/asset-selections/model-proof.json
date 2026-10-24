@@ -1,0 +1,22 @@
+{
+  "schema": "maze-model-selection-v1",
+  "run": "run-20261024-171802-fca671cc",
+  "blocks": {
+    "iron_door": {
+      "evidenceSha256": "62d4da43ff11c633c651b788a22072f50c3b87ee863cc30d6899eaea2d884345",
+      "images": {
+        "minecraft:block/iron_door_bottom": "37d955f762ab918583058c18d09726c1fd9a4c8e266c6fa567e4b597db3aafa4",
+        "minecraft:block/iron_door_top": "abe83337103dbf218ff93f1a1d573587e68fa2a72174b9248b2e616219545953"
+      }
+    },
+    "lever": {
+      "evidenceSha256": "46ef3950c7ef8af5c51a87fddcbc46cc272760ba5b27325f1b13d034a9961c55",
+      "images": {
+        "minecraft:block/_bdc/switches": "48b7ba207f49505319232d90e29a33236a4cd1755bd18afba41e272a402a940c"
+      }
+    }
+  },
+  "abstractRoot": "minecraft:block/block:geometry-only-v1",
+  "variant": "source_native",
+  "review": "Original-material geometry preview authorized by owner; upgraded artwork pending. No generation requested."
+}
