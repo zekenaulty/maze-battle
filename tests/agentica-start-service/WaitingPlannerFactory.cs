@@ -24,6 +24,8 @@ internal sealed class WaitingPlannerFactory : ILabPlannerFactory
     public IReadOnlyList<ProviderMetadata> GetProviders() => [new("fixture", "wait-only", true, null, "cancellable-or-scripted-offline-fixture")];
     public IWorkflowPlanner Create(ProviderSettings settings, Action<LlmStreamEvent> onStreamEvent)
     {
+        if (settings.Provider == "fixture" && settings.Model is "monitor-completed" or "monitor-missing" or "monitor-cancelled")
+            return MonitorStreamingClient.Planner(settings.Model, onStreamEvent);
         if (settings.Provider != "fixture" || settings.Model is not ("wait-only" or "observation-sequence" or "decision-navigation" or "decision-terminal" or "decision-frontier" or "decision-room" or "decision-chest" or "decision-journal" or "decision-return" or "decision-corpus" or "decision-history" or "room-journey" or "corpus-planner-capture"))
             throw new InvalidOperationException("Only the explicit offline fixture planners are permitted.");
         Interlocked.Increment(ref _created);

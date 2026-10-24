@@ -42,6 +42,7 @@ const command = ['node_modules/@playwright/test/cli.js', 'test', '--config', 'te
 if (values.grep !== undefined) command.push('--grep', values.grep);
 const productionPath = 'src/services/agentica/game/actionContract.ts';
 const fixtureFiles = [
+  'tests/live-corpus/budget.mjs', 'tests/live-corpus/wire.mjs',
   ...readdirSync(folder).filter(name => /\.(cs|csproj|mjs|mts|Config)$/.test(name)).map(name => 'tests/agentica-start-service/' + name),
   ...readdirSync(path.join(maze, 'tests/e2e')).filter(name =>
     (name.startsWith('canonical-start-service.') || name.startsWith('canonical-corpus.')) && !name.endsWith('.md'))

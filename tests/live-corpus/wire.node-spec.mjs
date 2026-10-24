@@ -38,3 +38,15 @@ test('started sessions cannot report cleanup success with an absent or failed UI
     await stopThroughUi(page, false);
   }
 });
+
+test('isolated transport proof observes only its configured service, not the paid Lab', () => {
+  const page = new EventEmitter(), budget = new LiveBudget();
+  const wire = observeWire(page, budget, 'http://127.0.0.1:5259');
+  for (const port of [5078, 5259]) {
+    const socket = new EventEmitter(); socket.url = () => `ws://127.0.0.1:${port}/api/host`;
+    page.emit('websocket', socket);
+    socket.emit('framereceived', { payload: JSON.stringify({ type: 'progress', runId: String(port),
+      payload: { record: { callId: 'only', kind: 'started' } } }) });
+  }
+  assert.equal(wire.received.length, 1); assert.equal(budget.snapshot().attempts[0].runId, '5259');
+});

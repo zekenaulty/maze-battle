@@ -1,14 +1,14 @@
-export function observeWire(page, budget) {
+export function observeWire(page, budget, serviceOrigin = 'http://127.0.0.1:5078') {
   const wire = { sent: [], received: [], http: [], errors: [], console: [], stopReason: null };
   page.on('pageerror', error => wire.errors.push(error.message));
   page.on('console', message => { if (['error', 'warning'].includes(message.type())) wire.console.push(message.text()); });
   page.on('request', request => {
     const url = new URL(request.url());
-    if (url.origin === 'http://127.0.0.1:5078') wire.http.push({ method: request.method(),
+    if (url.origin === serviceOrigin) wire.http.push({ method: request.method(),
       url: request.url(), body: request.postData() ? request.postDataJSON() : null });
   });
   page.on('websocket', socket => {
-    if (socket.url() !== 'ws://127.0.0.1:5078/api/host') return;
+    if (socket.url() !== serviceOrigin.replace('http:', 'ws:') + '/api/host') return;
     socket.on('framesent', event => {
       try { wire.sent.push({ at: Date.now(), frame: JSON.parse(String(event.payload)) }); }
       catch (error) { wire.errors.push(String(error)); }
