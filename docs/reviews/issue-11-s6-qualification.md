@@ -1,12 +1,13 @@
 # Issue 11: Frozen Qualification Ledger
 
-2026-10-24. **IN PROGRESS**, not final acceptance. Issue 11 and the umbrella goal
-remain open. No paid providers, owner-data reset, preview replacement, merge or
-deployment is authorized by this ledger.
+2026-10-24. **PASS: bounded provider-free qualification**, including closing
+independent evidence review. Issue 11 and the umbrella goal remain open. No paid providers,
+owner-data reset, preview replacement, merge or deployment is authorized.
 
 ## Candidate And Boundaries
 
-- Current qualification candidate: `60c1346df4091418b30f83eb4f18d9ff8e35dc7b`.
+- Final integrated fixture candidate: `7e08f6d57cb717353236018dd3370812594a1653`.
+  Frozen full-service candidate: `60c1346df4091418b30f83eb4f18d9ff8e35dc7b`.
   Original freeze: `d57884de84e6e952dc5768a22cd3ed10b5c566fc`. The exact
   fixture-only repair and compatible-evidence boundary are recorded below.
 - Qualification checkout: `C:/Users/Zythis/.codex/worktrees/s6-qualification/maze-battle`,
@@ -29,10 +30,10 @@ deployment is authorized by this ledger.
 | Full units and Node comparison tests | PASS, 5,017 units / one existing optional skip (333.36s); 20 extra fixture units; 46 Node audit tests |
 | Production and affected fixture types/build | PASS, nine projects including broad canonical and explicit App recovery; production build 2,156 modules / 1.22s, existing bundle warning retained |
 | Seven-case generated endurance | PASS, combined parent 7/7 at `2c67b31`, 18.7m, no skips/retries; S5 bounded complete |
-| Affected native/known-destination/controller/capacity/UI suites | IN PROGRESS, serialized native run; discovered manifest has 1,521 unique native cases including seven generated endurance cases |
+| Affected native/known-destination/controller/capacity/UI suites | PASS, 1,521 unique native cases including seven generated endurance cases; exact IDs and all changed-helper dependents reconciled |
 | Full pinned actual-service cohort | PASS, fresh full 54/54 at `60c1346`, 44.4m, no skips/retries. Original 53 PASS / 1 FAIL and corrected-helper 15-case follow-up retained separately |
 | Desktop/portrait production smoke | PASS at `d57884d`, three production-build viewports (desktop, phone portrait/landscape); screenshots inspected |
-| Final source/environment/evidence reconciliation | NOT RUN; required before any acceptance claim |
+| Final source/environment/evidence reconciliation | PASS at `7e08f6d`: all 1,575 distinct IDs terminal passing; frozen 1,689 inputs unchanged; no production/package/SDK drift. Independent closing audit finds no blocking evidence or delta finding |
 
 ## Retained Environment Attempts
 
@@ -258,9 +259,53 @@ list; successful compatible runs retain their actual source identity.
 - Objective-check: original full **12 PASS / 1 FAIL** under `60c1346`, evidence
   `test-results/s6-60c1346/native-rest2/canonical-objective-check/`. The first
   collection/return case's strict history probe rejects an observation integrity
-  read. Investigation remains open; neither a fixture defect nor runtime defect
-  is assumed from the error alone. No allowance has been widened to mark it green.
-- Remaining independent frozen suites run serially in
+  read. The [source-bound probe repair](issue-11-objective-integrity-probe.md)
+  permits only the exact checkpoint observation's header, integrity manifest and
+  declared chunks. It retains the 18-get ceiling and world/scan restrictions;
+  six foreign-read refusals and exact ordered accesses are now explicit. Parent
+  full **13/13 PASS** (82.908s) at `7e08f6d`,
+  `test-results/s6-objective-integrity-final/`. Broad canonical fixture types pass
+  after integration. The original failure remains retained, not relabeled.
+- Remaining independent frozen suites ran serially in
   `test-results/s6-60c1346/native-rest3/`. Pregrant **29/29**, private capacity
-  **35/35** and publication selection **5/5** have passed. Later gates and final
-  cross-source reconciliation remain open.
+  **35/35**, publication selection **5/5**, quality **40/40**, discovery **43/43**,
+  return objective **17/17**, revisit **3/3**, roles **20/20**, connections **1/1**,
+  town/party **6/6**, verified ACK **36/36**, kernel **195/195**, custody **10/10**
+  and reset **36/36** all pass, no retries/skips.
+
+## Closing Reconciliation
+
+The parent exact-case audit now passes **1,575/1,575**, comprising **1,521 native
++ 54 actual-service**, across the original 47 configurations. Each selected
+result has precisely its frozen case IDs, one passing execution per case, no
+runner error, skipped/flaky result or retry. Successful unchanged gates retain
+their original source identity. The [published gate ledger](issue-11-s6-gates.json)
+retains per-configuration source SHAs, result hashes and local evidence paths.
+
+The changed-helper dependency check adds explicit parent reruns for transport
+review **11/11** (39.293s) and corpus navigation **2/2** (57.829s), even though
+the latter's imported dump function is unchanged. Evidence:
+`test-results/s6-0c681ab/helper-closure/`. No affected dependent is credited from
+stale bytes. Parent root, broad canonical, App recovery and custody fixture types
+pass, plus an isolated production build. The final objective integration passes
+the broad canonical types again. Root units/build/production smoke reuse exact
+unchanged production, dependency and configuration inputs at their recorded level.
+
+`test-results/s6-closeout-audit/coverage.json` and `source-after.json` retain the
+full machine-readable checks at `7e08f6d`. The source audit records 1,691 parent
+inputs and zero drift in the frozen checkout's 1,689 inputs. All production and
+package bytes remain exact from `5125cbe`; Agentica remains clean at `27cb2ce`,
+and both SDK sources match the actual-service provenance. Alternate .NET 10.0.401
+does not qualify repository pin 10.0.302.
+
+Independent final review at `7e08f6d` verifies all result hashes/IDs, objective
+attachments, exact 18-get scope, six foreign-read refusals, unchanged DB and
+execution-only replay. It finds no blocking delta or proof-integrity finding.
+The final broad-type rerun has a native receipt under
+`test-results/s6-closeout-audit/static-final/`; earlier static/build receipt
+retains its actual `0c681ab` identity. No historical D1 re-audit or paid provider
+claim is inferred from this evidence review.
+
+The [goal acceptance map](issue-11-provider-free-acceptance.md) distinguishes
+provider-free qualification from live-model evidence and owner acceptance.
+No provider calls, issue closure, merge, deployment or owner reset occurred.

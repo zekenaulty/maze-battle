@@ -1,8 +1,19 @@
 # Agentic Play: Dungeon Foundation and Next Slices
 
-## Active Priority: Persistence Replacement
+## Current Qualification
 
-Current checkpoint, 2026-10-20: the [canonical plan, revision 42](canonical-persistence-plan.md)
+Closing checkpoint, 2026-10-24: the [canonical plan, revision 59](canonical-persistence-plan.md)
+and [provider-free acceptance map](reviews/issue-11-provider-free-acceptance.md)
+now close the bounded S1-S6 deliverable. The original exact manifest passes
+1,575/1,575 distinct native/service cases, with compatible source identities,
+affected-helper reruns and independent evidence review. This is the actual App's
+shared canonical noncombat vertical, not a separate test game. Original failures,
+finite generated-world limits and the existing optional unit skip remain explicit.
+Paid live-model qualification is NOT RUN and requires separate bounded authority;
+the umbrella goal and issue remain open. The dated checkpoints below are retained
+history, not the current implementation status.
+
+Historical checkpoint, 2026-10-20: the [canonical plan, revision 42](canonical-persistence-plan.md)
 is the implementation ledger, including the finite six-sprint closeout and
 40-80 focused-hour estimate. Manual/Auto and bounded Agentic execution now share
 the actual App's canonical GameSession. Authored cold-start exploration, explicit

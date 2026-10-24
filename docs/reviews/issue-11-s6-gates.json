@@ -1,0 +1,711 @@
+{
+  "kind": "bounded provider-free compatible-source qualification; not live-model or owner acceptance",
+  "candidate": "7e08f6d57cb717353236018dd3370812594a1653",
+  "productionBaseline": "5125cbefaae9a0c0c2d72028500d021f9779c60e",
+  "manifest": {
+    "configurations": 47,
+    "uniqueCases": 1575,
+    "native": 1521,
+    "actualService": 54,
+    "sha256": "ce8cb04692352b5e2efe01d320eef41deb381f378c3de7d25835a695e7c34fd6"
+  },
+  "exactCoverageSha256": "7f4d7749a3183784de5e396ca4dc2cf86a14ab5e47c9c2bd73ae6c3aa297a8a5",
+  "sourceAuditSha256": "086678ac851555e19e3db5fd77475b3c84745aa374d396688798242a90a61723",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "22.13.0",
+    "npm": "11.6.2",
+    "typescript": "6.0.3",
+    "playwright": "1.61.0",
+    "chrome": "155.0.8059.85",
+    "agentica": "27cb2ce9717438edfe19487e3920faa183112c97",
+    "dotnet": "10.0.401",
+    "repositoryDotnetPin": "10.0.302",
+    "pinProof": false,
+    "browserSdkLfSha256": "46d88c25bda57ee1371fc05209445f321dd3183e52f71a12abce221094a5a9dd"
+  },
+  "evidenceRoots": {
+    "qualification": "C:/Users/Zythis/.codex/worktrees/s6-qualification/maze-battle",
+    "parent": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle"
+  },
+  "gates": [
+    {
+      "name": "app-recovery",
+      "cases": 9,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\app-recovery\\results.json",
+      "resultSha256": "0961073726cbbb8a6469688d5eef3c44f690e1751cf80442d6e91fef1d659c38",
+      "durationMs": 40450.155
+    },
+    {
+      "name": "canonical-agentica-action-guards",
+      "cases": 17,
+      "status": "PASS",
+      "candidate": "d57884de84e6e952dc5768a22cd3ed10b5c566fc",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\native\\canonical-agentica-action-guards\\results.json",
+      "resultSha256": "8b058888dc198b07c3e2b751596709fb74c1c3a31e81f483fe236b360af1590c",
+      "durationMs": 29085.031
+    },
+    {
+      "name": "canonical-agentica-actions",
+      "cases": 24,
+      "status": "PASS",
+      "candidate": "d57884de84e6e952dc5768a22cd3ed10b5c566fc",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\native\\canonical-agentica-actions\\results.json",
+      "resultSha256": "16dd6f012196e4f35ccb814bdee673d0d972d69792244de1c3e6cedf37b35ad5",
+      "durationMs": 42528.94
+    },
+    {
+      "name": "canonical-agentica-interaction",
+      "cases": 17,
+      "status": "PASS",
+      "candidate": "d57884de84e6e952dc5768a22cd3ed10b5c566fc",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\native\\canonical-agentica-interaction\\results.json",
+      "resultSha256": "f06a1d36826e48823b746f1a524a99a9115c9b1d726200f654fc82ce84753e44",
+      "durationMs": 42778.247
+    },
+    {
+      "name": "canonical-agentica-operations",
+      "cases": 120,
+      "status": "PASS",
+      "candidate": "d57884de84e6e952dc5768a22cd3ed10b5c566fc",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\native\\canonical-agentica-operations\\results.json",
+      "resultSha256": "bcd5ea74d8744ce993f79a53a52c1ae9f70f71fecd63e3fb24c24993af55d26a",
+      "durationMs": 249710.492
+    },
+    {
+      "name": "canonical-agentica-perception",
+      "cases": 8,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native\\canonical-agentica-perception\\results.json",
+      "resultSha256": "67ca22e4e3efbaad1a0a25869effccdf7bb0dfe234cb4c276da71bfa01db00b9",
+      "durationMs": 13390.658
+    },
+    {
+      "name": "canonical-agentica-quests",
+      "cases": 18,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native\\canonical-agentica-quests\\results.json",
+      "resultSha256": "fb8afd7d0aed9133d75c2d145a7f9e2a24c258f5fab7011a3a15be2c4e6017c3",
+      "durationMs": 62648.148
+    },
+    {
+      "name": "canonical-agentica-transport",
+      "cases": 56,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-agentica-transport\\results.json",
+      "resultSha256": "3587a013d8357d53670a87068599f34d296fcd672861c5e70ee2186b50a6dc50",
+      "durationMs": 102968.35
+    },
+    {
+      "name": "canonical-agentica-transport.review",
+      "cases": 11,
+      "status": "PASS",
+      "candidate": "0c681ab9bea0687bada84f670d8c15b615941ed8",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-0c681ab\\helper-closure\\canonical-agentica-transport.review\\results.json",
+      "resultSha256": "6fecd64538458e7a29447cb8041780bef9d7a5eb7578321c52cb0b7d350d9e88",
+      "durationMs": 39293.377
+    },
+    {
+      "name": "canonical-agentica",
+      "cases": 102,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest\\canonical-agentica\\results.json",
+      "resultSha256": "88beb096c867f7a7f57390596c4963215467503e32555b2312c6e3e163cfa778",
+      "durationMs": 106450.056
+    },
+    {
+      "name": "canonical-app",
+      "cases": 16,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest\\canonical-app\\results.json",
+      "resultSha256": "ad0e982bba7479dc8e4a25bad33662257d6eff5d5c079f8f3c117278159f57ce",
+      "durationMs": 131601.82400000002
+    },
+    {
+      "name": "canonical-auto",
+      "cases": 11,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest\\canonical-auto\\results.json",
+      "resultSha256": "c6a8efd36f6ce7ab9b853b70f4a65d6c28c6071a0afa01f07b21505951975f0f",
+      "durationMs": 427207.27499999997
+    },
+    {
+      "name": "canonical-controller-parity",
+      "cases": 14,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest\\canonical-controller-parity\\results.json",
+      "resultSha256": "dcf07474932ea5ba33806aa549856ea24ec5ae7f50b2d5ee87c4c40a3301cb8e",
+      "durationMs": 23769.305
+    },
+    {
+      "name": "canonical-corpus-ui",
+      "cases": 2,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest\\canonical-corpus-ui\\results.json",
+      "resultSha256": "34a43103c5496a9803f94a3608d7034f230ee64df132ced651a60d10c8351c29",
+      "durationMs": 41618.582
+    },
+    {
+      "name": "canonical-corpus",
+      "cases": 10,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest\\canonical-corpus\\results.json",
+      "resultSha256": "a3d7666815d09a2750fa08aba27d1ce7184343aea921a41fb798e58df7e79053",
+      "durationMs": 150642.02
+    },
+    {
+      "name": "canonical-corpus.navigation",
+      "cases": 2,
+      "status": "PASS",
+      "candidate": "0c681ab9bea0687bada84f670d8c15b615941ed8",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-0c681ab\\helper-closure\\canonical-corpus.navigation\\results.json",
+      "resultSha256": "1e7312c46490bd737477c619b46eaa5bb79f9e083f3eb7ed5e298cd72d96c7d3",
+      "durationMs": 57829.021
+    },
+    {
+      "name": "canonical-decision-ack",
+      "cases": 51,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-decision-ack\\results.json",
+      "resultSha256": "e4fa2230b65cabe9ff45580bf4e853384edb525e6ac91923a1a77c777a45ad18",
+      "durationMs": 202090.63400000002
+    },
+    {
+      "name": "canonical-decision-controller",
+      "cases": 85,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-decision-controller\\results.json",
+      "resultSha256": "940441ecd4a9ee30ddb234153a3bec015e1a8699bc3f14258270134d1aa1b676",
+      "durationMs": 361169.852
+    },
+    {
+      "name": "canonical-decision",
+      "cases": 80,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-decision\\results.json",
+      "resultSha256": "ce521cdf80b4898d85df461f2f150c52e254656678e7d19cd0a6967f7b0d0a1c",
+      "durationMs": 323366.203
+    },
+    {
+      "name": "canonical-exploration-prefix",
+      "cases": 3,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\native-rest3\\canonical-exploration-prefix\\results.json",
+      "resultSha256": "684d7c50ebf37cf17bae59bf95e870f28e4fe77d1a6173a089ce09a566c628bc",
+      "durationMs": 125418.93400000001
+    },
+    {
+      "name": "canonical-frontier-exploration",
+      "cases": 12,
+      "status": "PASS",
+      "candidate": "3d281a37049580a0c80ae20ec572a658208cbe85",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-frontier-commitment-final\\results.json",
+      "resultSha256": "577e2ff2e41325889b264ba2f791ff32b9427a48cac8d87d2b035c4090492944",
+      "durationMs": 58672.264
+    },
+    {
+      "name": "canonical-frontier",
+      "cases": 33,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-frontier\\results.json",
+      "resultSha256": "6bcfe77dac9a7c49441165c526b263e43a2d5c12b2df96c38a14d0930ceacb0a",
+      "durationMs": 61615.282
+    },
+    {
+      "name": "canonical-game-host",
+      "cases": 17,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-game-host\\results.json",
+      "resultSha256": "bd43fb4a661bf24573bc9a0192d59e855f52c4dbb711f8975b9df3302f18e50d",
+      "durationMs": 23480.054
+    },
+    {
+      "name": "canonical-game-map",
+      "cases": 6,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-game-map\\results.json",
+      "resultSha256": "36143a1c7a8bba8dd5ede2edf9b0f1898385ab021604aa576bc1c27f55c9724c",
+      "durationMs": 21196.689000000002
+    },
+    {
+      "name": "canonical-generated-endurance",
+      "cases": 7,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\generated-final\\results.json",
+      "resultSha256": "d157acf03840840198a99a0058501c2801faff028954c1d14de09d63ae139b0c",
+      "durationMs": 1119414.639
+    },
+    {
+      "name": "canonical-granted-recovery",
+      "cases": 38,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native\\canonical-granted-recovery\\results.json",
+      "resultSha256": "85af042d00fb43a79f791dff6a7f515a6d2a31aa26231733b608b7d874978545",
+      "durationMs": 69122.93000000001
+    },
+    {
+      "name": "canonical-interaction",
+      "cases": 16,
+      "status": "PASS",
+      "candidate": "f94f96d72ca35424ed772ffc33fb49cd962e3316",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-interaction-quota-final\\results.json",
+      "resultSha256": "e1c09c288ef8e9e9b18d9485a1d60f2d51d438c4d5fc7341b19e370e5db7ad85",
+      "durationMs": 37482.389
+    },
+    {
+      "name": "canonical-launch",
+      "cases": 102,
+      "status": "PASS",
+      "candidate": "d7e333a36cc661d821c53e6d6d138bda20c1f0c0",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-launch-refusal-final\\results.json",
+      "resultSha256": "7a410370d2609edc44030800f3fb33f5b5fc64733ea9063c4f2f738d6a19d314",
+      "durationMs": 81033.95099999999
+    },
+    {
+      "name": "canonical-manual-saves",
+      "cases": 65,
+      "status": "PASS",
+      "candidate": "f1432009961916f9726bd1cea423a309ef537364",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-f143200\\native-final\\canonical-manual-saves\\results.json",
+      "resultSha256": "5edde660f11b9f3927eceb6832e1fb7202bf2f00c10cb43738b95d5358129eb0",
+      "durationMs": 51437.967000000004
+    },
+    {
+      "name": "canonical-navigation",
+      "cases": 56,
+      "status": "PASS",
+      "candidate": "f1432009961916f9726bd1cea423a309ef537364",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-f143200\\native-final\\canonical-navigation\\results.json",
+      "resultSha256": "73336fd95c4e01bc6a3112e8aac48ec321e549915dd54f730a740d39b82b7f94",
+      "durationMs": 104890.398
+    },
+    {
+      "name": "canonical-objective-check",
+      "cases": 13,
+      "status": "PASS",
+      "candidate": "7e08f6d57cb717353236018dd3370812594a1653",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-objective-integrity-final\\results.json",
+      "resultSha256": "217c8b0f163d840ea7b4a27c283ff1dd832a2e55a75f93e613ad35c947eff0df",
+      "durationMs": 82908.187
+    },
+    {
+      "name": "canonical-operation-transfer",
+      "cases": 24,
+      "status": "PASS",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-2c67b31\\operation-transfer-before-service\\results.json",
+      "resultSha256": "c961082f22c151fd99baf5fe65c537c10faa268afd3d1abd00d39e08a8008d2e",
+      "durationMs": 81089.842
+    },
+    {
+      "name": "canonical-pregrant-proof",
+      "cases": 29,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-pregrant-proof\\results.json",
+      "resultSha256": "a72113656c0a7e8b6e0480383e3232e4e43cc9cc1c16f4e41af8d6b95fcd27d3",
+      "durationMs": 103852.68000000001
+    },
+    {
+      "name": "canonical-private-capacity",
+      "cases": 35,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-private-capacity\\results.json",
+      "resultSha256": "dcf97001e70a7c722ab8d076f9956c03feeb52a08e9a20a3e8d0cf881098464b",
+      "durationMs": 44867.454
+    },
+    {
+      "name": "canonical-publication-selection",
+      "cases": 5,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-publication-selection\\results.json",
+      "resultSha256": "32289d94de0cd4c8551e07683b9be2e8a46bc4b53610a13dd7c2a5d7c1f44cf7",
+      "durationMs": 14532.903999999999
+    },
+    {
+      "name": "canonical-quality",
+      "cases": 40,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-quality\\results.json",
+      "resultSha256": "bd862e09bc3b93d38860275e2241696acede6b2954c47846b20ba869d88ce9a3",
+      "durationMs": 41736.504
+    },
+    {
+      "name": "canonical-recovery-discovery",
+      "cases": 43,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-recovery-discovery\\results.json",
+      "resultSha256": "afbacc66e20d74e7511193dc93e8cbdcbade8ea0866c5511ce907a240bdd1679",
+      "durationMs": 161374.104
+    },
+    {
+      "name": "canonical-return-objective",
+      "cases": 17,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-return-objective\\results.json",
+      "resultSha256": "e8b9ad50b2db6b7343eda17e59874668225d44b47490b90a9f953219c8178db6",
+      "durationMs": 39905.343
+    },
+    {
+      "name": "canonical-revisit",
+      "cases": 3,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-revisit\\results.json",
+      "resultSha256": "efedeb99a567a5fe8099587fb1b9bb7e2494510d56f364402602123d3255c603",
+      "durationMs": 116778.89
+    },
+    {
+      "name": "canonical-roles",
+      "cases": 20,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-roles\\results.json",
+      "resultSha256": "dac535c2e95b4f020bf04a0db5107229c47d63bad5d996875ab7f409d4814363",
+      "durationMs": 18384.198999999997
+    },
+    {
+      "name": "canonical-room-connections",
+      "cases": 1,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-room-connections\\results.json",
+      "resultSha256": "92619a2730c44b3487ede45c418a29d1d96bf049807ca400f4f6b1c66497dd14",
+      "durationMs": 7554.01
+    },
+    {
+      "name": "canonical-start-service",
+      "cases": 54,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\maze-start-service-NUOwKR\\results.json",
+      "resultSha256": "7ed3f7464dc4013f21f7e45278f71fd6063feb8a63a009f55fdb37267678d1c9",
+      "durationMs": 2665825.953
+    },
+    {
+      "name": "canonical-town-party",
+      "cases": 6,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-town-party\\results.json",
+      "resultSha256": "21c2c22c0742f5455d1fa189573276c15dfa0406047eb83d3ad8c1771a650b33",
+      "durationMs": 10559.335
+    },
+    {
+      "name": "canonical-verified-ack",
+      "cases": 36,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical-verified-ack\\results.json",
+      "resultSha256": "d628ae0236aca36779469339ba0816c84e465bd488711e0f1e24d509dbe25e4d",
+      "durationMs": 13934.717999999999
+    },
+    {
+      "name": "canonical",
+      "cases": 195,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\canonical\\results.json",
+      "resultSha256": "17d604e5b01b55c956c8b66cc1e45d5f38084a1dfba84b97c0fa97c521abfe95",
+      "durationMs": 158069.439
+    },
+    {
+      "name": "custody-recovery",
+      "cases": 10,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\custody-recovery\\results.json",
+      "resultSha256": "cc2a665f6c084bc10d5f375464ca9c859eec2ebd60206489ae972e2ec1852a2a",
+      "durationMs": 11873.362000000001
+    },
+    {
+      "name": "game-reset",
+      "cases": 36,
+      "status": "PASS",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "result": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-60c1346\\native-rest3\\game-reset\\results.json",
+      "resultSha256": "36859cc6151795d8856032266c4b62c60950d7d6b48c5b211dd9277b965a948b",
+      "durationMs": 12310.182999999999
+    }
+  ],
+  "sourceClosure": [
+    {
+      "name": "canonical-agentica-perception",
+      "candidate": "2c67b31f8b6399fa47d77e3735407ba889f11f4b",
+      "inputs": [
+        "tests/e2e/canonical-agentica-perception.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-agentica-transport",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-agentica-transport.fixture.ts",
+        "tests/e2e/canonical-agentica-transport.quota.ts",
+        "tests/e2e/canonical-agentica-transport.settlement.spec.ts",
+        "tests/e2e/canonical-agentica-transport.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-agentica-transport.review",
+      "candidate": "0c681ab9bea0687bada84f670d8c15b615941ed8",
+      "inputs": [
+        "tests/e2e/canonical-agentica-transport.fixture.ts",
+        "tests/e2e/canonical-agentica-transport.quota.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-decision-ack",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-decision-ack.stop.cases.ts",
+        "tests/e2e/canonical-decision-ack.storage.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "app-recovery",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-decision-ack.storage.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-decision-controller",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-decision-ack.storage.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-pregrant-proof",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-decision-ack.storage.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-recovery-discovery",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-decision-ack.storage.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-corpus.navigation",
+      "candidate": "0c681ab9bea0687bada84f670d8c15b615941ed8",
+      "inputs": [
+        "tests/e2e/canonical-decision-ack.storage.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-decision",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-decision-adoption.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-frontier-exploration",
+      "candidate": "3d281a37049580a0c80ae20ec572a658208cbe85",
+      "inputs": [
+        "tests/e2e/canonical-frontier-exploration.entry.ts",
+        "tests/e2e/canonical-frontier-exploration.evidence.ts",
+        "tests/e2e/canonical-frontier-exploration.scenes.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-game-host",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-game-host-cleanup.fixture.ts",
+        "tests/e2e/canonical-game-host-cleanup.spec.ts",
+        "tests/e2e/canonical-game-host-launch.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-interaction",
+      "candidate": "f94f96d72ca35424ed772ffc33fb49cd962e3316",
+      "inputs": [
+        "tests/e2e/canonical-interaction.failures.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-launch",
+      "candidate": "d7e333a36cc661d821c53e6d6d138bda20c1f0c0",
+      "inputs": [
+        "tests/e2e/canonical-launch.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-navigation",
+      "candidate": "f1432009961916f9726bd1cea423a309ef537364",
+      "inputs": [
+        "tests/e2e/canonical-navigation-failures.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-objective-check",
+      "candidate": "7e08f6d57cb717353236018dd3370812594a1653",
+      "inputs": [
+        "tests/e2e/canonical-objective-check.fixture.ts",
+        "tests/e2e/canonical-objective-check.probes.ts",
+        "tests/e2e/canonical-objective-check.spec.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "canonical-start-service",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/canonical-start-service.corpus-recovery.spec.ts",
+        "tests/e2e/canonical-start-service.decision-stop.steps.ts",
+        "tests/e2e/canonical-start-service.fixture.ts",
+        "tests/e2e/canonical-start-service.quota.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    },
+    {
+      "name": "custody-recovery",
+      "candidate": "60c1346df4091418b30f83eb4f18d9ff8e35dc7b",
+      "inputs": [
+        "tests/e2e/custody-recovery.canonical.spec.ts",
+        "tests/e2e/custody-recovery.support.ts"
+      ],
+      "status": "PASS",
+      "changedAfterProof": []
+    }
+  ],
+  "limits": [
+    "Full suites on compatible recorded inputs, not one all-green command at one SHA",
+    "Original failed and interrupted attempts remain retained in the rolling report",
+    "One existing optional root-unit skip remains explicit",
+    "No providers, owner-data reset, merge or deployment",
+    "Finite generated depth/history samples; no unlimited-world claim"
+  ],
+  "nonBrowserEvidence": {
+    "rootUnits": {
+      "candidate": "d57884de84e6e952dc5768a22cd3ed10b5c566fc",
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\units.json",
+      "sha256": "f3d498131962259130c8509ffcdb3518dd5284cb7b6210e14edb89be89eadd38",
+      "passed": 5017,
+      "skipped": 1,
+      "failed": 0
+    },
+    "supplemental": [
+      {
+        "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\canonical-corpus-units.json",
+        "sha256": "2d1c00936c1007dad401e55b3e262458edc5d2b19c56b4f1be6db4feae9d1481",
+        "passed": 11,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\canonical-start-service.corpus-delivery-units.json",
+        "sha256": "ac6355a4acc07bd3118ca37abb7e861aa372c03c1e9654222887574ef2e22085",
+        "passed": 7,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\canonical-start-service.corpus-preacceptance-units.json",
+        "sha256": "6c21cf0caaf534b95c7ee2d4c973b73902143b28f79d77f38430b678bdec5fea",
+        "passed": 2,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "nodeAudits": {
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\node-audits.log",
+      "sha256": "f17496c999e304f143f0e34f4d60637066771a69fb251e73d6f9c3d5caaf1e3c",
+      "passed": 46
+    },
+    "cleanLockedInstall": {
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\npm-ci.log",
+      "sha256": "87726f2a4e4f22dd0a1ced3ed1fb75f8b96e7be89369741b395bdff692d90e9e"
+    },
+    "frozenBuild": {
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\build.log",
+      "sha256": "7dccafa6f240f47eb7edf980ae1d671aea7ee2f5e22bdb2396b2762d0f5b0bdf"
+    },
+    "productionSmoke": {
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\s6-d57884d\\production-smoke\\results.json",
+      "sha256": "7e7ca0d9a12e4889de39f2be2212179a943550ae538ffd8793be213776e26582"
+    },
+    "parentStatic": {
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-closeout-audit\\static\\execution.json",
+      "sha256": "a37f9fd2b413d084945855986ee57084af5941760d49ac1e2a2d962ab787e8f9"
+    },
+    "finalBroadTypes": {
+      "file": "C:\\Users\\Zythis\\.codex\\worktrees\\dungeon-d0\\maze-battle\\test-results\\s6-closeout-audit\\static-final\\canonical-types.json",
+      "sha256": "e3caa107660869ee9de4fc76356b83f05fb483ff9d887d34b70b73db972cdeec"
+    }
+  },
+  "serviceProvenance": {
+    "file": "C:\\Users\\Zythis\\.codex\\worktrees\\s6-qualification\\maze-battle\\test-results\\maze-start-service-NUOwKR\\provenance.json",
+    "sha256": "220926b86aa72d6c3f3ec7461e23e8cc3da6464972afeed931995c9a9aaa5f89",
+    "assemblies": {
+      "StartServiceFixture.dll": "503ceee1a92bee41a9a0618ec71876c87d15f95fd1d5a87d0e4f964b46b02754",
+      "Agentica.Lab.Web.dll": "d31cb19795ccb39c7eecd7ee0aaa835fcbec8da0f6b40cf489147e8f442b391c",
+      "Agentica.dll": "1a43b68b06fd72c67b99d4877b6d141190c3addea3b4b92890e95adb40c938cc",
+      "Agentica.Clients.dll": "5b1162991fb2ad92a0adf852ba6dd43a7bc16c762301d7d3cae09b804d51b443"
+    }
+  }
+}

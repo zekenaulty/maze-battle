@@ -1,6 +1,6 @@
 # Canonical Game Persistence
 
-Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 58,
+Issue: [#11](https://github.com/zekenaulty/maze-battle/issues/11). Revision 59,
 2026-10-24. Status: the actual App now uses canonical storage for the checked
 noncombat manual-play vertical, including earned map, movement, roster/town,
 explicit interactions, named checkpoints and load recovery. All former query
@@ -623,7 +623,8 @@ now pass 5,017 with the same existing optional skip, and both focused actual-App
 cold-start service journeys pass. The subsequent
 [command-work qualification](reviews/issue-11-command-work-qualification.md)
 closes the declared S4 read/write/byte thresholds, diagnostics and controller
-cohort. Generated endurance and frozen final qualification remain open.
+cohort. Generated endurance and final qualification were still open at that
+checkpoint; their closing evidence is recorded immediately below.
 The [S2 integration](reviews/issue-11-s2-integration.md) now closes the bounded
 wire/consumer gate, including independently bound original deadlines and explicit
 source-supported delivery correspondence. The
@@ -631,15 +632,20 @@ source-supported delivery correspondence. The
 depths 1/8/16, 1,024-command histories for two seeds, paged earned-room returns,
 and actual-App offline takeover/adoption. The parent combined seven-case cohort
 now passes on `2c67b31` (18.7m). S5 is complete at that bounded level. Final
-qualification continues on candidate `60c1346` in a fresh checkout. The first
+provider-free qualification is now complete on compatible inputs through
+`7e08f6d`, with the full service run frozen at `60c1346` in a fresh checkout. The first
 `d57884d` browser pass stopped on an obsolete perception-test room shape; its
 fixture-only correction now checks exact anchors against original observations.
 The failed attempt is retained; unchanged gates keep their exact earlier source
 identity and the affected eight-case suite is rerun, not silently relabeled.
-The remaining range is now **8-16 focused hours**, all S6 execution, integration,
-review and evidence reconciliation. This credits completed S5, not final
-acceptance or elapsed runner time. Shared-helper affected reruns and the fresh
-full-service run remain mandatory; no new feature matrix is being added.
+The prior **8-16 focused-hour S6 estimate is now historical**. All required
+provider-free gates pass: 1,575 distinct browser/service cases (1,521 native +
+54 actual-service), 5,017 root units with one existing optional skip, 20 fixture
+units, 46 Node audits, types/build and production/mobile checks. Shared-helper
+dependents, exact source closure and independent evidence review pass. See the
+[acceptance map](reviews/issue-11-provider-free-acceptance.md) and
+[47-gate source/result ledger](reviews/issue-11-s6-gates.json). This is M3, not
+live-model qualification or owner acceptance. No new feature matrix is added.
 There is no production change in these last S2/S5 increments; runtime remains
 the checked `5125cbe` lineage. Retained failed attempts and exact limits remain
 in the linked reports and the [S6 rolling ledger](reviews/issue-11-s6-qualification.md).
@@ -706,34 +712,33 @@ candidate at a time. Checked increments continue to be committed and pushed.
 
 | Sprint | Deliverable and exit gate | Remaining estimate |
 | --- | --- | ---: |
-| 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance remains Sprint 5. | Complete |
-| 2. Information boundaries: COMPLETE (bounded) | Scoped queries, history, UI and complete planner frames pass at their recorded levels. Wire comparison through the first lawful A/B difference retains strict ordered failures, checks exact original custody/deadlines, and permits only source-supported ACK/status/dispatch correspondence. Actual SDK consumers qualify those orders and terminal controls; independent review closes the deadline finding. Final combined rerun remains S6. | Complete |
-| 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. The final combined rerun belongs to Sprint 6. | Complete |
-| 4. Capacity, work and controller parity: COMPLETE (bounded) | Allocation binding, index guards, next-floor preparation, restored-world fresh funding, atomic rollback/replay, App/service composition, authored read/write/byte threshold neighbors, diagnostic checks and Manual/Auto/Agentica effect parity pass at their recorded levels. Final integrated rerun remains S6; generated-world bounds remain S5. | Complete |
+| 1. Sustained exploration: COMPLETE (bounded) | Earned room/connection scopes, separate paged desktop/mobile recall, and actual-App off-window selection followed by 22-step travel, explicit collection and earned return pass. Original 160-move setup/refill proof is repaired under unchanged limits. The finite 128-seed search documents >64 not found, not impossible; abstract >64 units are not native qualification. Multi-page generated connection endurance is qualified separately in Sprint 5. | Complete |
+| 2. Information boundaries: COMPLETE (bounded) | Scoped queries, history, UI and complete planner frames pass at their recorded levels. Wire comparison through the first lawful A/B difference retains strict ordered failures, checks exact original custody/deadlines, and permits only source-supported ACK/status/dispatch correspondence. Actual SDK consumers qualify those orders and terminal controls; independent review closes the deadline finding. Final required integration passes in S6. | Complete |
+| 3. Active-work recovery: COMPLETE (bounded) | The independent matrix reconciliation accounts for outbound/return, pre-ACK/transfer, accepted/unaccepted collection/completion, takeover, duplicates, capacity and funded cleanup. These are incremental retained proofs, not an arbitrary-crash claim. Final required integration passes in Sprint 6. | Complete |
+| 4. Capacity, work and controller parity: COMPLETE (bounded) | Allocation binding, index guards, next-floor preparation, restored-world fresh funding, atomic rollback/replay, App/service composition, authored read/write/byte threshold neighbors, diagnostic checks and Manual/Auto/Agentica effect parity pass at their recorded levels. Required final integration and finite generated-world samples pass separately in S6/S5. | Complete |
 | 5. Generated-world endurance: COMPLETE (bounded) | Parent combined seven-case run passes on `2c67b31` (18.7m): two generated seeds, retained depths 1/8/16 with metered graph pages, two separate 1,024-command histories, paged off-window recall/returns, and offline active two-tab recovery. Original observations/receipts and limits remain intact. Separate finite samples, not played deep descent, arbitrary histories or live-service custody. | Complete |
-| 6. Frozen-candidate qualification | Clean locked dependency installation, full units, production/fixture types and isolated build; complete real-service regression plus new cases; affected native suites and known-destination regression; desktop/mobile checks; source/runtime hashes and a gate-by-gate PASS/FAIL/NOT RUN report. Include review/fix/rerun allowance, not only runner duration. | 8-16h |
+| 6. Frozen-candidate qualification: COMPLETE (bounded provider-free) | Clean locked installation, full units, fixture types/build, 1,521 distinct native + 54 actual-service cases, desktop/mobile controls, exact compatible-source closure and independent evidence review pass. Original failures and SDK/finite-sample limits remain in the acceptance report. | Complete |
 
-Execution order: S2, S4 and S5's bounded gates are complete. Qualify
-candidate `60c1346` in an isolated checkout with its own locked dependencies.
-S6 records a deduplicated discovered manifest before execution. Parallel review/fixtures can shorten the
-critical path, but dependency-sensitive integration and shared-port suites remain
-serialized. Do not replace these gates with another unrestricted test matrix.
+Execution status: S1-S6's bounded provider-free gates are complete. The original
+deduplicated manifest remains 1,575 cases; fixture repairs do not add or silently
+drop tests. Full service is frozen at `60c1346`; final fixture integration is
+`7e08f6d`. Each unchanged result retains its original identity and changed-helper
+dependents rerun. No further provider-free matrix is required by this plan.
 
 ### Delivery Forecast And Sprint Handoffs
 
-The remaining 8-16 hours are focused engineering, integration and review effort,
-not a wall-clock countdown or a sum of runner durations. Plan on **1-2 eight-hour
-workdays**, with **4-6 workdays as a contingency envelope** if new defects are
-demonstrated. This is not an overnight completion promise. Parallel work reduces
-waiting where dependencies permit, but does not remove the serial S5 -> S6
-critical path. Re-estimate after the frozen-candidate gates or a newly demonstrated
-runtime defect, not after every green focused test.
+The earlier 8-16 focused-hour S6 forecast is complete, not a continuing countdown.
+No planned provider-free implementation remains. Owner review and separately
+authorized live-model qualification remain distinct. Retain the **2-4 focused
+hours** below for bounded live setup/execution/report after limits are confirmed;
+authorization waiting and any newly demonstrated repair are outside that range.
+Do not turn this completion into an expanded feature or fault matrix.
 
 | Milestone | Lane and concrete handoff | Completion decision |
 | --- | --- | --- |
-| M1: information and capacity qualified (bounded complete) | S2/S4 integration and independent deadline review pass at their recorded levels. Preserve raw strict failures, source correspondence, allocation/work-bound evidence and reports. | S6 still reruns required integration on the frozen candidate. |
-| M2: generated endurance qualified | Use the same App, canonical store and existing offline Agentica service. Freeze a small deterministic cohort before running; isolate topology growth from history growth. Publish raw I/O, graph paging, revisit and active-owner recovery results. | S5 passes its declared limits without hidden routing, fixture teleportation during measured journeys, whole-history scans or altered admission bounds. |
-| M3: provider-free candidate qualified | Freeze Maze and Agentica source, dependencies, SDK and the deduplicated test manifest. Run S6, review failures, and rerun affected gates after repairs. Push the exact candidate and acceptance report. | All mandatory provider-free gates pass on compatible recorded identities. Earlier partial runs do not substitute for the final combined result. |
+| M1: information and capacity qualified (bounded complete) | S2/S4 integration and independent deadline review pass at their recorded levels. Preserve raw strict failures, source correspondence, allocation/work-bound evidence and reports. | Required final S6 integration passes on compatible recorded inputs. |
+| M2: generated endurance qualified (bounded complete) | Same App/canonical store, declared generated cohort and retained raw I/O, graph paging, revisit and active-owner recovery evidence. | S5 seven-case parent cohort passes its finite separated scopes without hidden routing or altered limits. Depth setup is not played descent. |
+| M3: provider-free candidate qualified (bounded complete) | Exact Maze/Agentica/SDK inputs, 47-configuration manifest, retained failures, affected reruns and independent final audit published. | All mandatory provider-free gates pass on compatible recorded identities. This is not live-model evidence or owner acceptance. |
 | M4: separately authorized live qualification | After M3, obtain model, cumulative call/token/cost/time limits and stop rules; run the two-dungeon live gate and report choices, tools, usage, latency and completion separately. | Actual provider evidence, not the offline planner, decides this gate. No paid run is currently authorized. |
 
 Initial bounded S5 manifest: two deterministic generated seeds, retained-depth
@@ -756,9 +761,9 @@ deduplicating overlaps; full units; affected native persistence, capacity,
 frontier, corpus, known-destination and actual-App suites; production/fixture
 types; clean locked install/build; desktop/portrait resize and controls; and the
 eight-cut recovery matrix. Keep the existing optional unit skip explicit.
-The previous full service run took about 41 minutes; that is one runner's time,
-not the remaining engineering estimate. The current runtime has not yet passed
-that entire combined gate. Record the alternate .NET 10.0.401 environment
+The final full service run passes all 54 cases in 44.4 minutes; that is one
+runner's time, not a model/network benchmark. All 1,521 distinct native cases
+also pass at compatible recorded identities. Record the alternate .NET 10.0.401 environment
 separately from repository pin 10.0.302 unless the latter is actually tested.
 
 Reserve an additional **2-4 focused hours** for a bounded live-run setup,
