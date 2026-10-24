@@ -30,7 +30,7 @@ deployment is authorized by this ledger.
 | Production and affected fixture types/build | PASS, nine projects including broad canonical and explicit App recovery; production build 2,156 modules / 1.22s, existing bundle warning retained |
 | Seven-case generated endurance | Child cases pass incrementally; combined frozen run NOT RUN |
 | Affected native/known-destination/controller/capacity/UI suites | IN PROGRESS, serialized native run; discovered manifest has 1,521 unique native cases including seven generated endurance cases |
-| Full pinned actual-service cohort | Discovery PASS, 54 distinct cases; IN PROGRESS at `2c67b31`, separate ports 5486/5487 |
+| Full pinned actual-service cohort | Discovery PASS, 54 distinct cases; default-port execution IN PROGRESS at `2c67b31`; invalid override run interrupted and retained |
 | Desktop/portrait production smoke | PASS at `d57884d`, three production-build viewports (desktop, phone portrait/landscape); screenshots inspected |
 | Final source/environment/evidence reconciliation | NOT RUN; required before any acceptance claim |
 
@@ -137,3 +137,41 @@ Production smoke evidence is under `test-results/s6-d57884d/production-smoke/`:
 below the header/in bounds, controls fit without horizontal overflow, M/I/T and
 town return work, and a used portal remains zero. No page errors or external
 requests occur. The owned temporary preview on 5484 was stopped after the run.
+
+## Transport And Port-Fixture Follow-Up
+
+The next native gate stopped at **53 PASS / 3 FAIL** in the 56-case base transport
+suite. Two settlement cases used the old raw-occupancy quota setter, which
+ignored retained private capacity and fixed-head accounting. The third retained
+an obsolete 3,072-byte start assertion; production already enforces 3,584 bytes,
+including the existing 512-character-objective boundary tests. The observed
+3,077-byte request is inside that established contract, not a request to raise it.
+
+[Transport quota repair](issue-11-transport-quota-fixture.md) records the original
+two failures, zero-ordinary-headroom refusal, actual native rollback, funded
+Stop/ACK and exact reload. Independent review also accepts the existing shared
+start constant plus an explicit five-capability check; original request equality
+remains. Production, objectives, manifests and all limits are unchanged.
+Child repair `e0863e4` integrates as `cfd0e58`; parent payload correction is
+`6dcbccc`. Parent full base transport **56/56 PASS** (1.6m), fixture types PASS,
+with raw evidence at `test-results/s6-transport-repair/`. An initial implicit-any
+callback type error was corrected before the passing check. Final compatible
+source integration still must reconcile these fixture inputs explicitly.
+
+The first full service attempt, `maze-start-service-sGHAth`, used overrides
+5486/5487. Although the launcher supports those values, several older fixture
+helpers/barriers still name 5258/5259. Chest paused-probe matching therefore
+never fired; pending/recovery helpers opened the wrong socket. Error contexts
+confirm the mismatched endpoints. These are fixture/configuration failures,
+not qualification of those gameplay claims. After 17 finished cases (14 PASS /
+3 FAIL), the coordinator explicitly interrupted the invalid attempt, retaining
+its logs, traces, durable test storage and assembly/source provenance. It is not
+a completed 54-case result. Only the verified owned process tree was terminated;
+5486/5487 are released, and owner previews were untouched.
+
+The isolated 24-case native transfer gate then passed (1.4m), releasing 5258.
+Full service execution restarted with fresh storage/build on the supported
+default 5258/5259; remaining native gates exclude that already-qualified config
+to prevent a port collision. Its log is
+`test-results/s6-2c67b31/actual-service-default.log`. Alternate-port portability
+is a retained fixture limitation, not a new gameplay feature or acceptance claim.
