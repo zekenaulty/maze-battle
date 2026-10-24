@@ -6,7 +6,9 @@ deployment is authorized by this ledger.
 
 ## Candidate And Boundaries
 
-- Frozen Maze source: `d57884de84e6e952dc5768a22cd3ed10b5c566fc`.
+- Current qualification candidate: `2c67b31f8b6399fa47d77e3735407ba889f11f4b`.
+  Original freeze: `d57884de84e6e952dc5768a22cd3ed10b5c566fc`. The exact
+  fixture-only repair and compatible-evidence boundary are recorded below.
 - Qualification checkout: `C:/Users/Zythis/.codex/worktrees/s6-qualification/maze-battle`,
   isolated branch `codex/s6-qualification`, initially no dependencies installed.
 - Parent integration/report branch: `codex/agentic-game-a1`. Subsequent report-only
@@ -28,8 +30,8 @@ deployment is authorized by this ledger.
 | Production and affected fixture types/build | PASS, nine projects including broad canonical and explicit App recovery; production build 2,156 modules / 1.22s, existing bundle warning retained |
 | Seven-case generated endurance | Child cases pass incrementally; combined frozen run NOT RUN |
 | Affected native/known-destination/controller/capacity/UI suites | IN PROGRESS, serialized native run; discovered manifest has 1,521 unique native cases including seven generated endurance cases |
-| Full pinned actual-service cohort | Discovery PASS, 54 distinct cases; execution NOT RUN on frozen candidate |
-| Desktop/portrait production smoke | NOT RUN on frozen candidate |
+| Full pinned actual-service cohort | Discovery PASS, 54 distinct cases; IN PROGRESS at `2c67b31`, separate ports 5486/5487 |
+| Desktop/portrait production smoke | PASS at `d57884d`, three production-build viewports (desktop, phone portrait/landscape); screenshots inspected |
 | Final source/environment/evidence reconciliation | NOT RUN; required before any acceptance claim |
 
 ## Retained Environment Attempts
@@ -94,3 +96,44 @@ will retain its independently generated provenance, assembly hashes and results.
 The final report will distinguish test failures, fixture corrections and
 environment failures, retain original attempts, and name all unmet gates.
 Focused earlier passing results are not relabeled as this final combined run.
+
+## First Browser Failure And Candidate Repair
+
+The `d57884d` serialized run stopped after five complete passing configurations
+(187 cases) and a perception result of **7 PASS / 1 FAIL**. Raw failure/trace:
+`test-results/s6-d57884d/native/canonical-agentica-perception/`. The old assertion
+required room keys `level,source,spaceId`; the established earned graph contract
+returns `level,spaceId,kind,anchor`. This was a stale fixture expectation, not a
+runtime change or permission to remove disclosure checks.
+
+The correction independently constructs the exact first two room nodes from
+the original observation header's room classifications, observed cells, source
+ID/sequence/index and coordinates. Strict equality and exact key checks reject
+extra fields, changed anchors, ordering or provenance. Independent review found
+no weakened boundary. Parent focused perception **8/8 PASS** (15.5s), fixture
+types PASS, at the working bytes committed as `2c67b31`.
+
+The qualification checkout advanced explicitly to `2c67b31`. Its
+`test-results/s6-2c67b31/source-compatibility.json` checks all 1,687 prior inputs:
+only `canonical-agentica-perception.spec.ts` changed; all 1,686 other source,
+fixture, config and dependency inputs remain exact. The eight discovered
+perception IDs are unchanged. Broad canonical fixture types and all eight
+perception cases rerun in this checkout (13.39s). Prior complete native gates,
+unit/static/build and production-smoke evidence retain their original identity;
+the failed perception suite is superseded only by the new passing full suite.
+This is one compatible-candidate qualification ledger, not a claim that the
+original failed run became green or that every command ran on the same SHA.
+
+Remaining native gates run under `test-results/s6-2c67b31/native/`, with exact
+selectors from its retained `manifest.json` and no changed case count. The
+54-case pinned actual-service run uses a fresh build and evidence directory
+`test-results/maze-start-service-sGHAth/`, not historical constructor artifacts.
+Native gates and actual-service tests overlap on separate ports; raw elapsed
+times are observational, not isolated latency benchmarks. Generated metering
+will run as a separate cohort. No provider calls are involved.
+
+Production smoke evidence is under `test-results/s6-d57884d/production-smoke/`:
+1440x900, 390x844 touch and 844x390 touch. Native pixels are nonblank, canvas stays
+below the header/in bounds, controls fit without horizontal overflow, M/I/T and
+town return work, and a used portal remains zero. No page errors or external
+requests occur. The owned temporary preview on 5484 was stopped after the run.
