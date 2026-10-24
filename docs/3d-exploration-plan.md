@@ -168,3 +168,122 @@ npm run assets:import -- --source local-asset-repairs/bookshelf-full-frame/run-2
 ```
 
 Two browser cases PASS: front/side inspection and material/view-switch/recovery. Improved the inspection camera framing so all four corners are visible below the toolbar. The final front/side rerun PASS and images were visually inspected. The live stage was refreshed; original artwork files were not overwritten. Evidence is under `canonical-3d/bookshelf-crop-20261024`, including the native repaired texture, source boundary preview, before-manifest, browser report and full-frame in-stage screenshots. Runtime code, bookcase geometry and gameplay are unchanged by this asset repair.
+
+## Model geometry and TileLab discovery — 2026-10-24
+
+**PROPOSED. Discovery and planning only; implementation awaits the owner's choice.** The owner's immediate instruction takes precedence over the supplied handoff's broader implementation deliverables. The objective is working interchangeable models quickly, without making Minecraft JSON, glTF or a universal mesh schema the game's model architecture. No demonstration, importer change, generation request or new gameplay behavior was performed in this pass.
+
+### Repository alignment and existing capabilities
+
+Research used the clean isolated `codex/canonical-3d-exploration` lane at `0b27db1`, based on canonical `9bb5ec2`. The observed upstream `origin/codex/agentic-game-a1` subsequently reached `67e4b91` (bounded live qualification closeout documentation). Its intervening `src` changes affect Agentica capability descriptions/action refusals and tests, with no renderer or package changes. Re-fetch, inspect and align this lane before implementing the next slice; this planning pass does not rebase or qualify those upstream changes.
+
+| Existing component | Useful capability | Limitation relevant to the next models |
+| --- | --- | --- |
+| `src/assets3d/manifest.ts`, `registry.ts`, `threeAssets.ts` | Cube/UV-box definitions, per-face UVs, parent joints, pivots, omitted faces, explicit rotation poses, cached resources | Materials are bound to six global directions, not each part's surface slot. UV rectangles reject descending coordinates. No explicit bind rotation/rescale or opaque/mask/blend material policy. |
+| `src/assets3d/chestModel.ts` | Independently authored body, interior, rim, lid hinge and latch; UV layout separate from pose | A useful native adapter precedent, rather than a general source-model resolver. |
+| `src/assets3d/humanoid/` | Standard skin layout, classic/slim bodies, layered alpha, named joints, elapsed-time animation, shared resources, attachment points | Rigid-part articulation and atlas skinning; not weighted vertex deformation. Preserve it rather than replace it for this task. |
+| `scripts/import-tilelab-pack.ts` | Reviewed selections, source/report hashes, incremental block replacement, frame timing, chest atlas intake | Does not consume the new `model_textures` evidence or resolve a source model dependency graph. |
+| `src/components/maze3d/StageRenderer.ts`, `scene.ts` | Existing Three.js stage and observation-bounded projection | Visual meshes must not become independent navigation, visibility or interaction authority. |
+
+The full `MaterialShowroom.tsx`, `showroom.css` and `characterReferences.ts` remain in the older `feature/maze-3d-projection-asset-lab` worktree. They are not on this active canonical lane. Bring over/adapt only the inspection surface needed for the proof; do not switch the feature back to the old gameplay base. A route-scoped showroom may mount one canvas while active and dispose it on exit, using the same asset factories as the stage. No additional persistent rendering loop is needed.
+
+Current presentation dimensions are a 3.2-unit cell, 4.5-unit walls, 1.8 × 3.3 door opening and 2.7-unit humanoid. Local model front is +Z and up is +Y; the world uses +X east and +Z south. Convert source units/orientation once at the adapter boundary. A Minecraft block's 16 authoring units do not establish Maze Battle cell occupancy.
+
+Historical MazeQuest findings: `wwwroot/assets/blockBuilder.js` supplies texture/instancing experience but no complete model inheritance resolver. `experiments/basic_room` is a useful interaction/scale reference. `experiments/chest/script.js` manually offsets/rotates textures and advances its lid by frame count; the present chest and animation code are a better starting point. Do not port those historical mechanisms wholesale.
+
+### Actual local source requirements
+
+Inspected `D:\maze-quest\wwwroot\assets\minecraft` read-only. These are facts about this extracted pack, not generic assumptions about all Minecraft packs.
+
+| Target | Observed source | Consequence |
+| --- | --- | --- |
+| Wall lever | `models/block/_bdc/lever_wall.json` and `_on.json`: 14 elements each, including four rotated elements | Resolve the nested model path and element transforms. Separate state geometries are available; an animation rig is not supplied. |
+| Iron door | Four upper/lower, left/right models; lower halves have ten elements and upper halves eight; descending UVs and omitted faces occur | Support mirrored UVs and per-part materials. Compose upper/lower as one visual door, with an explicit hinge. |
+| Iron bars | Multipart blockstate with conditional post/cap/side models | Start with explicitly selected fixture compositions; do not implement a world neighbour/state engine. |
+| Stone button | Released/pressed models share `minecraft:block/_bdc/switches` with the lever | Identify materials by resolved texture resource, not block name. One upgraded canvas can serve several models. |
+
+All four inspected source texture resources are 64 × 64 with fully transparent texels and no partial alpha. They need cutout masking, not globally opaque materials or blanket alpha blending. `textures/64` and `textures` contain different door/bar images at identical dimensions; only the switches image matched in both locations. Pin the selected file/layer and hash. The currently inspected TileLab code selects `textures/block/...` first, falling back to `textures/64/block/...`; our intake must follow its recorded source, not independently choose another layer.
+
+The extracted pack lacks `models/block/block.json`, referenced by these models. Missing concrete parents or textures must produce an import diagnostic. For the known abstract `minecraft:block/block` root, either supply a pinned base file or approve an explicit geometry-only root profile. TileLab already emits a warning for this case and does not certify missing display metadata. Do not silently invent that metadata. Other missing parents are not covered by that exception.
+
+World and inventory appearances also differ: `models/item/iron_door.json` contains a complete door and inherits display metadata from `models/item/_bdc/door.json`; it is not the same as a world door half. Preserve the possibility of separate presentation contexts. Source comments identify BDcraft/Cubik and pack contributors; retain those credits/provenance. A loader's MIT license does not determine the source artwork's redistribution status.
+
+### Loader evaluation
+
+| Candidate | Evidence inspected | Recommendation for the first proof |
+| --- | --- | --- |
+| Existing cuboid builder plus a bounded import adapter | Current local code already handles most target geometry and shared resources | Preferred baseline: add only the missing face-slot, UV mirror and bind-transform features, and convert a curated source dependency closure during import. This is one adapter payload, not a universal representation all sources must adopt. |
+| MineRender V2 | [Official usage](https://v2.minerender.org/), pinned source `18f354530a029aac5718d90d6f54ba3ed7371589` | Strong comparison fixture. Its source package is `2.1.0-alpha.147` with Three.js peer `^0.186.1`, matching our installed Three.js version. It has a broad asset/world subsystem; qualify only a model-building path if local conversion becomes larger than the bounded targets. |
+| `@xmcl/resourcepack` / `@xmcl/model` | Resolver, geometry factory and manifests at upstream `154e2719b1ac962631d80ae4a280382f4f1ac09d` | Useful references, not a drop-in choice. Parsing/resolution and Three.js construction are separate packages. The model manifest declares Three.js 0.156.1; our app uses 0.186.1. Source review also found parent texture assignment can overwrite child overrides and no active-parent/texture cycle guard in the inspected resolver. |
+| Three.js `GLTFLoader` / `SkeletonUtils` | Official docs and installed addons | Future conventional-mesh/weighted-rig adapter. No mandatory GLB conversion step for these cuboid assets. |
+
+MineRender's inspected `ModelObject` constructs source elements, packs textures into its own atlas, and still marks texture replacement as TODO. Its asset loader defaults to a hosted Minecraft source registry. Adopting it would need explicit local-source isolation, material rebinding, rig preservation and disposal proof; a successful stock preview would not establish those properties. The site calls V2 beta while the inspected source package is alpha; pin an actual tested release before adopting it. No package was installed or benchmarked during discovery.
+
+Primary source links: [MineRender package](https://github.com/InventivetalentDev/MineRender/blob/18f354530a029aac5718d90d6f54ba3ed7371589/packages/minerender/package.json), [model construction](https://github.com/InventivetalentDev/MineRender/blob/18f354530a029aac5718d90d6f54ba3ed7371589/packages/minerender/src/model/scene/ModelObject.ts), [asset registry](https://github.com/InventivetalentDev/MineRender/blob/18f354530a029aac5718d90d6f54ba3ed7371589/packages/minerender/src/assets/AssetLoader.ts), [XMCL resolver](https://github.com/Voxelum/minecraft-launcher-core-node/blob/154e2719b1ac962631d80ae4a280382f4f1ac09d/packages/resourcepack/modelLoader.ts), [model package](https://github.com/Voxelum/minecraft-launcher-core-node/blob/154e2719b1ac962631d80ae4a280382f4f1ac09d/packages/model/package.json), [GLTFLoader](https://threejs.org/docs/pages/GLTFLoader.html), [SkeletonUtils](https://threejs.org/docs/pages/module-SkeletonUtils.html). Both investigated external projects use MIT licenses; preserve their notices if adapting source. No external source was copied into runtime code.
+
+### Proposed boundary: definitions, bindings and live instances
+
+Use a small source-independent **visual instance interface**, with adapter-specific definition payloads. Keep geometry revision separate from material revision and UV-layout compatibility. Do not put Three.js objects, Minecraft states or source filenames into canonical actor/item records.
+
+```text
+curated Minecraft elements ─┐
+native cuboids/procedural ──┼─ adapter/factory ─ visual instance ─ existing Three.js host
+future glTF scene/rig ──────┘                        ↑
+                               approved materials + visual state + presentation context
+```
+
+The minimum shared instance behavior is: expose a renderer-owned root, advertise supported visual controls, apply a visual state, bind compatible materials, advance elapsed time, expose named local anchors and release owned resources. Unsupported states or incompatible bindings produce useful errors. The factory owns async loading/cancellation; a disposed instance cannot receive a stale load. Shared immutable geometry/textures remain library-owned; instance pose, state and private materials remain instance-owned.
+
+For the proof, both lever assets advertise the same `off`/`on` control. The imported lever can select approved baked source states; the native lever can rotate a named handle pivot. Do not infer a rig from an element's array index or require smooth interpolation between unrelated geometry. An eventual smooth imported lever needs an explicitly curated handle grouping/pivot. Visual control values do not imply redstone, puzzle completion or a new game interaction.
+
+Bind transforms describe authored geometry; state transforms are applied relative to them. Face mapping must retain omitted faces, descending UV coordinates, quarter-turn face rotations and resolved per-face material slots. Keep source UV coordinates proportional to the full canvas when resolution changes. Do not use generic seam repair, atlas repacking or independent island resizing on these textures. Render policy includes alpha mode/cutoff, culling, color space, wrap/filter choice and emissive settings; caches must include every render-affecting policy and revision.
+
+Material alternatives for one model must match its declared layout. Alternative models need only satisfy the same presentation controls: an imported lever's `switch_atlas` slot need not match a native lever's `mount` and `handle` UV layouts. One source texture resource may bind many surfaces and instances. Many source variables may resolve to that single resource.
+
+The iron door is one visual assembly: upper/lower parts, one root, one explicit hinge and `closed`/`open` visual state. Fit it uniformly into the existing opening and inspect clearance. Source half/hinge/facing selectors are import recipes, not two-cell game occupancy rules. Preserve logical cell/world transforms from the current stage. Geometry bounds support framing and diagnostics; changes to navigation/collision require their own gameplay decision.
+
+Keep humanoid atlas mapping/articulation intact. Existing hand/head/back attachment points can be exposed by an adapter without implementing equipment. A future weighted rig will need independent bones and animation mixers per instance; `SkeletonUtils.clone` preserves bone associations while sharing geometry/material references. Define world/held/dropped/inventory display transforms when an actual asset needs them, rather than constructing an item system now.
+
+### Provisional TileLab handoff contract
+
+**Consumer binding remains Maze Battle-owned.** The in-flight local files `src/ModelTextureSources.cs.source`, `ModelTextureTools.cs.source` and `ModelTextureTests.cs.source` already implement model-driven material discovery, shared texture units and source snapshots. Their `model-source-references.json` uses `tilelab-model-source-evidence-v1` and explicitly says it is authoring evidence, not a runtime model contract. This was a source read, not an executed or delivered-export qualification; the README still describes the older review-only boundary.
+
+Retain that evidence format. Add/verify the following data through its existing reports or a small export descriptor; there is no need for TileLab to adopt Maze Battle's runtime geometry schema.
+
+| Field or evidence | Required meaning |
+| --- | --- |
+| Schema/export revision and completion status | Versioned export; incomplete or changed in-flight output is not silently imported. Import a pinned completed selection. |
+| Texture resource identity | Canonical namespace/path, e.g. `minecraft:block/_bdc/switches`, plus existing `materialId`/shared `unit`. Human label is separate from identity. |
+| Source JSON references | Pack/version or local source identity, relative snapshot paths and SHA-256 for the selected blockstate/models/parents, plus all unresolved/abstract-root warnings. No absolute path required at runtime. |
+| Original material | Source resource, selected source-file/layer, SHA-256, native dimensions and original relative path. Do not reselect a same-named image on the consumer side. |
+| Upgraded material | Relative path, SHA-256, actual dimensions, output variant, per-material report/receipt references and review status. Existing `upgraded` path alone is not a content pin. |
+| Layout compatibility | Full-canvas identity, UV coordinate domain and layout ID/revision or deterministic layout fingerprint supplied/verified by Maze Battle. Resolution can change proportionally; crop/repack/rotation requires a new explicit layout/remap, not a compatible replacement. |
+| Alpha/color/animation | Existing `exact_source_alpha_at_nearest_source_texel` and `full_canvas_no_packing_no_seam_repair` policies; preserve source mask topology. Declare color space. Static now; any later animation retains frame order/timing and each frame's layout/hash. |
+| Provenance and review | Source pack credits/rights status, authoring run, generation/edit receipt, selected variant and reviewer. Generation completion is not visual approval. |
+
+Maze Battle's curated selection then supplies stable `modelAssetId`, geometry revision, adapter/profile, source-state/composition recipe, local frame/scale, semantic visual controls, and a **slot → texture-resource → selected output** binding. For example:
+
+```text
+lever-wall-source / geometry revision <hash>
+  off -> approved lever_wall recipe; on -> approved lever_wall_on recipe
+  switch_atlas -> minecraft:block/_bdc/switches -> <pinned material output>
+
+lever-wall-native / geometry revision <hash>
+  off/on -> authored handle poses
+  mount/handle -> their own compatible material bindings
+```
+
+Both satisfy the same lever controls; neither requires TileLab to guess a pivot, authoritative state or game cell. Preserve the original source JSON and face-use evidence even when a bounded importer produces cached cuboid data. Source resolution happens at curated intake, not separately on every runtime instance. Do not auto-import the whole output tree or add network fallback for missing dependencies.
+
+### First implementation slice, after the owner's choice
+
+1. Align the isolated branch to the canonical owner's final head. Bring over only the existing showroom inspection UI needed for models. Keep the current live stage available for comparison.
+2. Add the narrow geometry/material capabilities demonstrated above, with diagnostics for unsupported source features. Resolve only an explicitly selected source closure; document the abstract-root policy. Implement an imported wall lever and a separately authored lever behind the same interface.
+3. Show both levers side by side, with orbit, `off`/`on`, original/upgraded material selection, wireframe/UV inspection and scale reference. Use original local materials until a completed TileLab result is available; do not trigger generation. Swap materials while retaining the same geometry revision and scene instance.
+4. Compose one iron door with upper/lower texture slots and a hinge if the lever proof passes without expanding the adapter. Bars/buttons follow through the proven intake, rather than broadening the first proof into a block-state engine.
+
+Planned verification: transformed element bounds and pivots; all six face orientations; descending UVs plus face rotations; per-part slot resolution; parent/alias cycles and missing dependencies; explicit source layer/hashes; alpha topology and cutout holes; no significant coplanar overlap; independent instances; material changes without geometry rebuild; stale async loads and stable resource counts after repeated swap/dispose. Browser inspection should capture front/back/sides, both lever states and open/closed composite door, and exercise view switching/context recovery. Re-run focused asset/render tests, types/build and the relevant 2D/3D regression cohort. These are acceptance requirements, **not tests performed during this planning pass**.
+
+Decisions still open: adopt the bounded native-builder adapter (recommended) or first qualify a MineRender extraction path; approve an explicit geometry-only abstract-root profile versus supplying the missing base source; decide whether the first imported lever uses baked states or merits a curated moving handle immediately. Neither glTF intake nor weighted-character migration is required to settle those choices.
+
+Planning references read through Google Drive: [Logical Cell to 3D Block Mapping](https://docs.google.com/document/d/12uc8XclQTMrsuRUgCI-eP8N6ckPKfIGuzxI_0TKjHMs/edit) and [Deferred World Systems Roadmap](https://docs.google.com/document/d/1-SrvzJiuTs2j39RqGql1k4LcngI8dGGqrL7F_jP9X_8/edit). These provide design direction, not implementation proof or authority to add deferred gameplay. This slice excludes NPC behavior, inventory/equipment workflows, schema/navigation changes, full resource-pack import, Minecraft world simulation, paid generation, publication and merge.
