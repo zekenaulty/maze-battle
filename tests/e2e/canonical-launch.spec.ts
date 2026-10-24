@@ -14,7 +14,7 @@ test('funded admission, dispatch and announcement need a separate explicit initi
   expect(first.state.run!.value.data.admission.attemptId).toBe(first.state.dispatch!.source.attemptId);
   expect(first.state.run!.value.data.admission).not.toHaveProperty('originalRequest');
   expect(first.state.run!.value.data.admission).not.toHaveProperty('acceptedRequest');
-  expect(String(first.denied)).toContain('missing referenced launch record'); expect(first.after).toEqual(first.before);
+  expect(String(first.denied)).toBe('Error: Canonical storage: missing run grant'); expect(first.after).toEqual(first.before);
   expect(first.allowed.receipt.result).toBe(true); expect(first.state.binding).toEqual(first.binding);
   expect(first.state.guard.terminalBytes).toBe(128 * 1024);
   await page.reload(); await page.waitForFunction(() => !!window.canonicalLaunch);
