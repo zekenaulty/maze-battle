@@ -193,4 +193,3 @@ describe('canonical 3D input and lifetime', () => {
     expect(onMove).toHaveBeenCalledExactlyOnceWith('east', expect.objectContaining({ level: 1, cell: expect.objectContaining({ spaceId: 'library', row: 0, column: 0 }) }));
   });
 });
-

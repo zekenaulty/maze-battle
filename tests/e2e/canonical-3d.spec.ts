@@ -5,7 +5,7 @@ async function state(page: Page) {
     const { readCanonicalHead } = await import('/src/persistence/canonical/read.ts');
     const { projectGame } = await import('/src/persistence/canonical/game/projection.ts');
     const { head } = await readCanonicalHead(), game = (await projectGame(head)).value;
-    return { head, observation: game.observation };
+    return { head: { ...head, checkpoint: game.checkpoint }, observation: game.observation };
   });
 }
 const canvas = (page: Page) => page.getByLabel('Explorable 3D dungeon', { exact: true });
