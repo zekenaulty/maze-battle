@@ -138,3 +138,9 @@ The owner reported a 2D flash on each step and a stop during continuous 3D movem
 This follow-up is complete locally. Code commits are `bb226ad` (main fix), `c99ea41` (relocation admission), and `7f18e21` (collision assertion); the final documentation commit records this qualification. Nothing is pushed or merged, and GitHub issue #10 remains open for integration into the owning branch.
 
 Scope expansion is limited to the owner-authorized 2D issue, draw continuity and same-query observation reuse needed to diagnose/fix stutter. No provider run, NPC behavior, save schema, topology, collision rules, production publication or merge is part of this follow-up. Interactions still target committed actor/object IDs. Prediction hides bounded commit latency; storage delays beyond that bound intentionally remain visible. Further work should consider renderer profiling on physical mobile hardware and a measured latency budget before enlarging prediction or adopting additional gameplay systems.
+
+## Closer dungeon fog — 2026-10-24
+
+The owner requested fog to soften the square disclosure edges. Existing Three.js fog began at 12 units and completed at 26, beyond much of the currently disclosed floor. Brought the fade to one tile (3.2 units) through 3.5 tiles (11.2 units), retaining the matching dark background color. Nearby details stay clear while distant floor and ceiling blend into the background. This is a renderer setting only.
+
+Production build/types and the browser material/view-switch/recovery check PASS. Inspected the refreshed live stage at 5196; screenshot and browser artifacts are retained under `canonical-3d/fog-20261024`. No new renderer or gameplay change.

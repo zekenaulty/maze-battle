@@ -8,7 +8,7 @@ import type { SkinCatalog } from '../../assets3d/humanoid/contract';
 import { compileStageScene } from './scene';
 import type { SceneBox, StageScene } from './scene';
 import { StageWalker } from './movement';
-import { EYE_HEIGHT } from './constants';
+import { CELL_SIZE, EYE_HEIGHT } from './constants';
 import { alignBoxUVs } from './boxUVs';
 
 export class StageRenderer {
@@ -43,7 +43,8 @@ export class StageRenderer {
     this.canvas = this.renderer.domElement; this.canvas.tabIndex = 0; this.canvas.className = 'canonical-3d-canvas';
     this.canvas.setAttribute('aria-label', 'Explorable 3D dungeon'); container.append(this.canvas);
     this.canvas.addEventListener('webglcontextlost', this.contextLost);
-    this.scene.background = new THREE.Color('#10151d'); this.scene.fog = new THREE.Fog('#10151d', 12, 26);
+    // Blend into the background before the bounded disclosed floor ends.
+    this.scene.background = new THREE.Color('#10151d'); this.scene.fog = new THREE.Fog('#10151d', CELL_SIZE, CELL_SIZE * 3.5);
     this.scene.add(new THREE.HemisphereLight('#c5d5f1', '#4c3e30', 1.55), this.light);
     this.observer = new ResizeObserver(() => {
       if (!this.alive) return;
