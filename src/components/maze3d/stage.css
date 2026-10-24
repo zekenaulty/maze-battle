@@ -1,0 +1,16 @@
+.canonical-3d, .canonical-3d-host { position: absolute; inset: 0; background: #10151d; overflow: hidden; }
+.canonical-3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.canonical-3d-host { touch-action: none; }
+.stage-3d-toolbar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; pointer-events: none; }
+.stage-3d-toolbar > * { pointer-events: auto; }
+.stage-3d-toolbar button, .stage-3d-touch button, .stage-3d-error button { background: #1c2631e8; border: 1px solid #637184; color: #e9dec8; border-radius: 5px; padding: 8px 12px; cursor: pointer; }
+.stage-3d-toolbar label { display: flex; align-items: center; gap: 6px; background: #111923dc; padding: 5px; border-radius: 5px; font-size: 12px; }
+.stage-3d-toolbar select { background: #24303e; color: #e9dec8; border: 1px solid #637184; border-radius: 4px; max-width: 190px; padding: 4px; }
+.stage-3d-reticle { position: absolute; left: 50%; top: 50%; color: #fff9d8; font-size: 28px; pointer-events: none; text-shadow: 0 0 3px black; }
+.stage-3d-help { position: absolute; bottom: 8px; left: 12px; right: 12px; color: #e8ddc8; background: #10151dc9; padding: 7px 9px; font-size: 12px; pointer-events: none; border-radius: 4px; }
+.stage-3d-touch { position: absolute; bottom: 65px; left: 12px; display: flex; flex-wrap: wrap; gap: 6px; max-width: 240px; }
+.stage-3d-touch button { touch-action: none; user-select: none; min-height: 40px; }
+.stage-3d-error { position: absolute; inset: auto 12px 120px; padding: 16px; background: #3d2328; color: #ffe0db; border: 1px solid #ae7175; }
+.stage-3d-error button { margin: 6px; }
+@media (pointer: fine) and (min-width: 761px) { .stage-3d-touch { opacity: .6; } .stage-3d-touch:hover { opacity: 1; } }
+@media (max-width: 760px) { .stage-3d-toolbar { gap: 5px; top: 5px; left: 5px; right: 5px; } .stage-3d-toolbar button { padding: 6px 8px; font-size: 11px; } .stage-3d-toolbar select { max-width: 125px; font-size: 11px; } .stage-3d-toolbar label { font-size: 10px; } .stage-3d-help { font-size: 10px; bottom: 2px; left: 5px; right: 5px; } .stage-3d-touch { bottom: 70px; gap: 4px; max-width: 200px; } .stage-3d-touch button { padding: 6px 9px; font-size: 11px; } }

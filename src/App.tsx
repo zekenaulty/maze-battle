@@ -57,6 +57,8 @@ export function App() {
       navigationMessage={navigation.message} onOpenChest={commands.openChest} controlsDisabled={blocked}
       onAgenticPlay={openAgentic} agenticActive={agentic.active}
       onStopAgenticPlay={agentic.active ? agentic.stop : undefined}
+      onStageMove={async (direction, expectedPosition) => { await commands.move(direction, { triggerStairs: false, expectedPosition }); return session.controller.view.game; }}
+      onStageStairs={(direction, expectedPosition) => { void commands.stairs(direction, expectedPosition).catch(() => {}); }}
     />}
     {dialog === 'agentic' && <AgenticPlayDialog profile={agentic.profile} configurationError={agentic.configurationError}
       phase={agentic.phase} active={agentic.active} activeObjective={agentic.objective} message={agentic.message} error={agentic.error}

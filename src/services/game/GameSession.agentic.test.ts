@@ -77,6 +77,32 @@ beforeEach(async () => {
 });
 afterEach(() => session.stop());
 
+describe('GameSession presentation source-cell fence', () => {
+  it.each(['move', 'stairs'])('cancels stale queued %s at the writer boundary without losing custody', async kind => {
+    const gate = deferred<void>(), entered = deferred<void>();
+    const source = structuredClone(session.view.game!.checkpoint.position), before = head.revision;
+    const destination = { ...source, cell: { ...source.cell, column: source.cell.column + 1 } };
+    mocks.exploration.mockImplementationOnce(async (request: CanonicalRequest) => {
+      entered.resolve(); await gate.promise;
+      const checkpoint = gameCheckpoint(head.checkpoint);
+      head = { ...head, checkpoint: checkpointJson({ ...checkpoint,
+        position: destination }) };
+      return commit(request);
+    });
+    const running = session.execute('exploration', { kind: 'move', direction: 'east' }); await entered.promise;
+    const stale = session.execute('exploration', { kind, direction: kind === 'move' ? 'east' : 'down' }, { expectedPosition: source });
+    const rejected = expect(stale).rejects.toThrow('actor has moved');
+    source.cell.column++; // Mutation after admission cannot retarget the queued intent.
+    gate.resolve(); await running; await rejected; await session.flush();
+    expect(mocks.exploration).toHaveBeenCalledOnce(); expect(head.revision).toBe(before + 1);
+    expect(session.view).toMatchObject({ controlled: true, recoveryRequired: false });
+    expect(mocks.locks[0].held).toBe(true);
+    await session.execute('exploration', { kind: 'look' }, { expectedPosition: source });
+    expect(mocks.exploration).toHaveBeenCalledTimes(2);
+    expect(mocks.exploration.mock.calls[1][0].input).toEqual({ kind: 'look' });
+  });
+});
+
 describe('GameSession Agentic manual-control lease', () => {
   it.each(['exploration', 'roster', 'content', 'settings', 'auto'] as CommandKind[])('rejects ordinary %s without poisoning the writer', async kind => {
     const before = structuredClone(head), signal = session.hostSignal, release = session.acquireAgenticControl();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { Activity, Bot as Robot, Crosshair, Map, Save, Settings, Square, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Direction, GridPosition } from '../domain/types';
 import type { GameView } from '../services/game/GameView';
@@ -16,6 +16,7 @@ import { useExploreKeys } from '../hooks/useExploreKeys';
 import { ignoresGameKey } from '../hooks/gameKeys';
 import { KnownRooms } from './maze/KnownRooms';
 import type { KnownAnchor } from '../persistence/canonical/knowledge/graph';
+const CanonicalStage3D = lazy(() => import('./maze3d/CanonicalStage3D'));
 
 interface ExploreScreenProps {
   game: GameView;
@@ -45,6 +46,8 @@ interface ExploreScreenProps {
   onOpenChest?: (id: string) => void;
   navigationMessage?: string;
   controlsDisabled?: boolean;
+  onStageMove?: (direction: Direction, expectedPosition: GameView['checkpoint']['position']) => Promise<GameView | undefined>;
+  onStageStairs?: (direction: 'up' | 'down', expectedPosition: GameView['checkpoint']['position']) => void;
 }
 
 export function ExploreScreen({
@@ -66,8 +69,9 @@ export function ExploreScreen({
   portalScrollCount,
   onDiagnostics,
   onAgenticPlay, onStopAgenticPlay, agenticActive = false,
-  onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false,
+  onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false, onStageMove, onStageStairs,
 }: ExploreScreenProps) {
+  const [view3D, setView3D] = useState(() => new URLSearchParams(location.search).get('view') === 'stage3d');
   const [mapOpen, setMapOpen] = useState(false);
   const [mapTab, setMapTab] = useState<'rooms' | 'nearby'>('rooms');
   const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor; centered: boolean } | null>(null);
@@ -151,6 +155,9 @@ export function ExploreScreen({
         <nav aria-label="Explore actions" onClickCapture={event => {
           if (!(event.target instanceof Element && event.target.closest('[data-agentic-control]'))) onStopWalking?.();
         }}>
+          {onStageMove && <button type="button" aria-pressed={view3D} disabled={blocked || !currentCell} onClick={() => {
+            onStopWalking?.(); setView3D(value => !value); setMapOpen(false); setRecall(null);
+          }}>{view3D ? '2D view' : '3D view'}</button>}
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}
             disabled={!autoAvailable} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
             {autoActive ? 'Stop Auto' : 'Auto'}
@@ -184,6 +191,11 @@ export function ExploreScreen({
       </div>
       {autoActive && <div className="screen-auto-status" role="status"><strong>Auto</strong><span>{status}</span></div>}
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''} ${mapVisible ? 'has-room-map' : ''}`}>
+        {view3D && onStageMove && <div style={{ position: 'absolute', inset: 0, display: mapVisible ? 'none' : undefined }} aria-hidden={mapVisible}>
+          <Suspense fallback={<p role="status">Loading 3D stage…</p>}><CanonicalStage3D game={game}
+            disabled={blocked || mapVisible || autoActive || agenticActive} onMove={onStageMove} onReturn={() => { onStopWalking?.(); setView3D(false); }} /></Suspense>
+        </div>}
+        {(!view3D || mapVisible) && <>
         {mapVisible && <div className="known-rooms-tabs" role="tablist" aria-label="Map views" onKeyDown={event => {
           if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
           event.preventDefault();
@@ -226,13 +238,16 @@ export function ExploreScreen({
         )}
         </>}
         </div>
+        </>}
       </section>
       <div className="explore-interaction">
         <button type="button" onClick={interact} disabled={blocked || readOnlyMap || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
+        {view3D && onStageStairs && currentCell?.stairs.map(stair => <button key={stair} type="button" disabled={blocked || readOnlyMap || autoActive || agenticActive}
+          onClick={() => { onStopWalking?.(); onStageStairs(stair === 'down' ? 'down' : 'up', currentCell.at); }}>{stair === 'town' ? 'Return to town' : `Use ${stair} stairs`}</button>)}
         <span aria-live="polite">{navigationMessage}</span>
         {perception.error && <span role="alert">{perception.error}</span>}
       </div>
-      <Controls onMove={onMove} disabled={blocked || readOnlyMap} />
+      {!view3D && <Controls onMove={onMove} disabled={blocked || readOnlyMap} />}
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
         <div className="screen-settings">
           <label className="compact-toggle">

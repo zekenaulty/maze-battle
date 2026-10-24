@@ -5,28 +5,39 @@ import { CAMP_SKILLS, type CampSkill } from '../domain/party/campSkills';
 import type { CanonicalReceipt, Json } from '../persistence/canonical/types';
 import { disableManualAuto, manualScope, sameManualScope, type CanonicalController } from './canonicalManual';
 import { autoEnabled } from '../persistence/canonical/auto/source';
+import type { WorldPosition } from '../persistence/canonical/world/types';
 
 export function useGameCommands(controller: CanonicalController, pauseManual: () => void) {
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   return useMemo(() => {
-    const run = async (kind: Parameters<CanonicalController['execute']>[0], input: Json | (() => Json), stopAuto = true): Promise<CanonicalReceipt> => {
+    const run = async (kind: Parameters<CanonicalController['execute']>[0], input: Json | (() => Json), stopAuto = true, expectedPosition?: WorldPosition): Promise<CanonicalReceipt> => {
       const captured = typeof input === 'function' ? input : structuredClone(input), scope = manualScope(controller);
+      const guard = expectedPosition && { expectedPosition: structuredClone(expectedPosition) };
       pauseManual();
       // Queue whole intents, including Auto shutdown, not just their individual writes.
       const action = queue.current.then(async () => {
         if (!sameManualScope(controller, scope)) throw new Error('Manual input cancelled.');
         if (stopAuto) await disableManualAuto(controller);
         if (!sameManualScope(controller, scope)) throw new Error('Manual input cancelled.');
-        return controller.execute(kind, typeof captured === 'function' ? captured() : captured);
+        const payload = typeof captured === 'function' ? captured() : captured;
+        return guard ? controller.execute(kind, payload, guard) : controller.execute(kind, payload);
       });
       queue.current = action.catch(() => {});
       return action;
     };
     const camp = (actorId: string, skillId: CampSkill) => run('roster', { kind: 'camp', actorId, skillId });
     return {
-      move: (direction: Direction, options: { triggerStairs?: boolean } = {}) =>
-        run('exploration', { kind: 'move', direction, triggerStairs: options.triggerStairs !== false }),
-      stairs: (direction: 'up' | 'down') => run('exploration', { kind: 'stairs', direction }),
+      move: (direction: Direction, options: { triggerStairs?: boolean; expectedPosition?: WorldPosition } = {}) => {
+        const expected = options.expectedPosition && structuredClone(options.expectedPosition), triggerStairs = options.triggerStairs !== false;
+        return run('exploration', () => {
+          const actual = controller.view.game?.checkpoint.position;
+          if (expected && (!actual || actual.level !== expected.level || actual.cell.spaceId !== expected.cell.spaceId
+            || actual.cell.row !== expected.cell.row || actual.cell.column !== expected.cell.column))
+            throw Error('Movement cancelled: the actor has moved since this input.');
+          return { kind: 'move', direction, triggerStairs };
+        }, true, expected);
+      },
+      stairs: (direction: 'up' | 'down', expectedPosition?: WorldPosition) => run('exploration', { kind: 'stairs', direction }, true, expectedPosition),
       look: () => run('exploration', { kind: 'look' }),
       openChest: (chestId: string) => run('content', { kind: 'open-chest', chestId }),
       acceptQuest: (contractId: string) => run('content', { kind: 'accept-quest', contractId }),

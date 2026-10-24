@@ -81,6 +81,25 @@ describe('explicit canonical commands', () => {
     expect(controller.execute).toHaveBeenLastCalledWith('roster', { kind: 'camp', actorId: 'healer', skillId: 'heal' });
   });
 
+  it('refuses a queued 3D crossing if another action moved the actor within the same floor', async () => {
+    const { controller, receipt } = await controllerFixture(), first = deferred<CanonicalReceipt>();
+    controller.execute.mockImplementationOnce(() => first.promise);
+    const { result } = renderHook(() => useGameCommands(controller, vi.fn()));
+    const moving = result.current.move('east');
+    const expectedPosition = structuredClone(controller.view.game.checkpoint.position);
+    const stale = result.current.move('east', { triggerStairs: false, expectedPosition });
+    const rejected = expect(stale).rejects.toThrow('actor has moved');
+    await Promise.resolve(); await Promise.resolve();
+    controller.view.game.checkpoint.position.cell.column++;
+    // Caller mutation must not change the queued source witness.
+    expectedPosition.cell.column++;
+    first.resolve(receipt()); await moving; await rejected;
+    expect(controller.execute).toHaveBeenCalledOnce();
+    await result.current.move('south', { triggerStairs: false, expectedPosition: controller.view.game.checkpoint.position });
+    expect(controller.execute).toHaveBeenLastCalledWith('exploration', { kind: 'move', direction: 'south', triggerStairs: false },
+      { expectedPosition: expectedPosition });
+  });
+
   it.each(['failed-stop', 'still-auto', 'custody', 'game', 'floor'])('does not submit a manual action after %s', async failure => {
     const { controller, publish, receipt } = await controllerFixture(); publish(0, 'auto-play');
     controller.execute.mockImplementationOnce(async () => {

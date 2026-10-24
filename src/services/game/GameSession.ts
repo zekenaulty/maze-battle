@@ -18,6 +18,7 @@ import type { GameDiagnostic, GameView } from './GameView';
 import { gameRequest } from './canonicalRequests';
 import { captureHostCommand, type CanonicalHostCommand } from './CanonicalHostCommand';
 import { captureHostCleanup, executeHostCleanup, type HostCleanup } from './CanonicalHostRecovery';
+import type { WorldPosition } from '../../persistence/canonical/world/types';
 
 export interface GameSessionView {
   game?: GameView; saves: SaveSummary[]; diagnostics: GameDiagnostic[];
@@ -28,6 +29,9 @@ const handlers = { exploration: executeExplorationCommand, roster: executeRoster
   content: executeContentCommand, settings: executeSettingsCommand, auto: executeAutoCommand };
 class AgenticControlError extends Error {
   constructor() { super('Manual control is unavailable during Agentic Play.'); }
+}
+class StalePositionInputError extends Error {
+  constructor() { super('Movement cancelled: the actor has moved since this input.'); }
 }
 
 /** One serialized writer. It publishes bounded projections, never accepts full-game reducers. */
@@ -80,7 +84,7 @@ export class GameSession {
     const signal = this.lifetime.signal;
     const pending = this.queue.catch(() => {}).then(async () => { this.assert(signal); return work(signal); });
     this.queue = pending.catch(error => {
-      if (signal.aborted || !this.active || error instanceof AgenticControlError) return;
+      if (signal.aborted || !this.active || error instanceof AgenticControlError || error instanceof StalePositionInputError) return;
       const status = this.view.recoveryRequired && !this.view.busy ? this.view.status
         : `Action failed: ${error instanceof Error ? error.message : String(error)}`;
       this.publish({ status,
@@ -188,9 +192,16 @@ export class GameSession {
       if (head.generation !== this.head?.generation || head.revision !== this.head.revision) await this.adopt(head, signal);
     }).finally(() => { this.refreshing = false; });
   };
-  execute = async (kind: CommandKind, input: Json): Promise<CanonicalReceipt> => {
-    const captured = structuredClone(input);
+  execute = async (kind: CommandKind, input: Json, guard?: { expectedPosition: WorldPosition }): Promise<CanonicalReceipt> => {
+    const captured = structuredClone(input), expected = guard && structuredClone(guard.expectedPosition);
     return this.manual(async signal => {
+      // Check after every other admitted writer, immediately before creating this command.
+      // A stale presentation intent is harmless cancellation, not a storage failure.
+      if (expected) {
+        const actual = gameCheckpoint(this.head!.checkpoint).position;
+        if (actual.level !== expected.level || actual.cell.spaceId !== expected.cell.spaceId
+          || actual.cell.row !== expected.cell.row || actual.cell.column !== expected.cell.column) throw new StalePositionInputError();
+      }
       const original = gameRequest(this.head!, `${kind}.command`, captured), started = performance.now();
       const result = await handlers[kind](original, { signal });
       this.assert(signal);

@@ -1,12 +1,13 @@
 import type { GameView } from '../services/game/GameView';
 import type { CanonicalReceipt, Json } from '../persistence/canonical/types';
 import { autoEnabled } from '../persistence/canonical/auto/source';
+import type { WorldPosition } from '../persistence/canonical/world/types';
 
 /** The canonical GameSession surface used by input; no legacy transition or storage fallback. */
 export interface CanonicalController {
   readonly owner: string;
   view: { game?: GameView; controlled: boolean; busy?: boolean; recoveryRequired?: boolean };
-  execute(kind: 'exploration' | 'roster' | 'content' | 'settings', input: Json): Promise<CanonicalReceipt>;
+  execute(kind: 'exploration' | 'roster' | 'content' | 'settings', input: Json, guard?: { expectedPosition: WorldPosition }): Promise<CanonicalReceipt>;
 }
 
 export function manualScope(controller: CanonicalController) {
