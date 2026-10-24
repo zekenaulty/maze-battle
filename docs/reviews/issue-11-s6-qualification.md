@@ -6,7 +6,7 @@ deployment is authorized by this ledger.
 
 ## Candidate And Boundaries
 
-- Current qualification candidate: `2c67b31f8b6399fa47d77e3735407ba889f11f4b`.
+- Current qualification candidate: `60c1346df4091418b30f83eb4f18d9ff8e35dc7b`.
   Original freeze: `d57884de84e6e952dc5768a22cd3ed10b5c566fc`. The exact
   fixture-only repair and compatible-evidence boundary are recorded below.
 - Qualification checkout: `C:/Users/Zythis/.codex/worktrees/s6-qualification/maze-battle`,
@@ -28,9 +28,9 @@ deployment is authorized by this ledger.
 | Clean locked install | PASS, 123 packages / 12s, physical checkout-local dependencies, unchanged manifest/lock |
 | Full units and Node comparison tests | PASS, 5,017 units / one existing optional skip (333.36s); 20 extra fixture units; 46 Node audit tests |
 | Production and affected fixture types/build | PASS, nine projects including broad canonical and explicit App recovery; production build 2,156 modules / 1.22s, existing bundle warning retained |
-| Seven-case generated endurance | Child cases pass incrementally; combined frozen run NOT RUN |
+| Seven-case generated endurance | PASS, combined parent 7/7 at `2c67b31`, 18.7m, no skips/retries; S5 bounded complete |
 | Affected native/known-destination/controller/capacity/UI suites | IN PROGRESS, serialized native run; discovered manifest has 1,521 unique native cases including seven generated endurance cases |
-| Full pinned actual-service cohort | Discovery PASS, 54 distinct cases; default-port execution IN PROGRESS at `2c67b31`; invalid override run interrupted and retained |
+| Full pinned actual-service cohort | Original default-port run 53 PASS / 1 FAIL; corrected helper follow-up 15 PASS. Fresh full 54-case run IN PROGRESS at `60c1346`; no relabeling |
 | Desktop/portrait production smoke | PASS at `d57884d`, three production-build viewports (desktop, phone portrait/landscape); screenshots inspected |
 | Final source/environment/evidence reconciliation | NOT RUN; required before any acceptance claim |
 
@@ -175,3 +175,54 @@ default 5258/5259; remaining native gates exclude that already-qualified config
 to prevent a port collision. Its log is
 `test-results/s6-2c67b31/actual-service-default.log`. Alternate-port portability
 is a retained fixture limitation, not a new gameplay feature or acceptance claim.
+
+## S5 Completion And Current Follow-Through
+
+The parent combined generated cohort at `2c67b31` passes **7/7**, 18.7m, zero
+retries/skips (`test-results/s6-2c67b31/generated-final/`). Both retained-depth
+cases pass at 1/8/16, with room/connection paging metered at each depth. Both
+separate 1,024-command histories pass, including original observation/receipt,
+reload and zero-write exact replay. The room-return, read-only second-tab and
+explicit takeover/adoption cases pass. History cases take 7.6m and 8.8m; these
+are concurrent-machine observations, not isolated latency benchmarks. S5 is
+complete only within its documented finite, separated proof scopes.
+
+The first full default-port service run `maze-start-service-YN3jKT` finishes
+**53 PASS / 1 FAIL**, 45.2m. The sole failure is the post-ACK pending/restart
+claim under the old raw-occupancy quota helper. The
+[service quota correction](issue-11-service-quota-fixture.md) passes all **15
+selected actual-service cases** (7.6m) at `6f7aa50`, evidence
+`test-results/maze-start-service-UNuhYX/` in the parent checkout. Its source,
+assembly and SDK provenance are retained. The original failure remains failed.
+A fresh full run on candidate `60c1346`, evidence
+`test-results/maze-start-service-NUOwKR/` in the qualification checkout, is in
+progress on default 5258/5259. All runs remain provider-free.
+
+Further bounded fixture integration:
+
+- [Funded cleanup](issue-11-funded-cleanup-quota-fixtures.md): original eleven
+  cases reproduce setup failures, repaired eleven pass. Parent full custody
+  **10/10 PASS** (17.8s). Parent full host initially has **16 PASS / 1 FAIL** due
+  to a stale missing-grant error string; its exact current refusal is now
+  asserted, with absent-effect and valid-grant controls intact. Full host rerun
+  **17/17 PASS** (25.9s), `test-results/s6-game-host-final/`.
+- [Decision ACK](issue-11-decision-ack-quota-fixture.md): original two post-ACK
+  reload failures retained, corrected full child **51/51 PASS**. Shared-helper
+  dependents are scheduled for final affected reruns, including controller,
+  App recovery, pregrant and recovery discovery. A child pass alone is not the
+  whole final integrated matrix.
+- [Adoption refusal](issue-11-decision-adoption-fixture.md): original full gate
+  **75 PASS / 5 FAIL**. Five mutations reach an earlier retained-operation guard
+  than the obsolete expected successor error. Exact updated refusal, whole-DB
+  equality, null claim and valid-adoption controls pass; full child **80/80 PASS**.
+- Frontier exploration has **11 PASS / 1 FAIL** in its A/B comparison fixture:
+  raw chunk commitments vary with original record identities, which its older
+  derived comparison did not account for. A strict source-bound comparison
+  correction is under review; the digest must not simply be omitted or ignored.
+
+`test-results/s6-60c1346/source-compatibility.json` lists every changed fixture
+input. All production source, manifest and lockfile bytes remain exact from
+`5125cbe`; no runtime or budget repair is claimed here. Its frozen source map
+has 1,689 tracked inputs. Unchanged evidence keeps its actual earlier identity;
+affected native configurations rerun under this explicit candidate. No new
+distinct cases or Cartesian matrix are added to the discovered 1,575.

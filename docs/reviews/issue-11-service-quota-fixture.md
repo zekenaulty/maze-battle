@@ -1,6 +1,6 @@
 # Issue 11: Service Quota Fixture Correction
 
-2026-10-24. **Execution qualification pending.** Production code, private-capacity
+2026-10-24. **Affected execution qualified; fresh full cohort pending.** Production code, private-capacity
 policy and all caps remain unchanged. This is a correction to deliberate test
 quota injection, not a claim that the full service gate passes.
 
@@ -39,12 +39,15 @@ concurrent policy-update atomicity.
 - Source review: PASS, independent reviewer found no weakened contract or cap.
 - Actual-service fixture TypeScript: PASS. Initial unused-import / optional
   private-policy typing failures were corrected before the passing check.
-- Actual service with corrected helper: **NOT RUN yet**; default ports remain
-  owned by the ongoing original full-cohort run. No alternate-port shortcut is
-  used after the earlier documented portability failure.
+- Actual service with corrected helper: **15/15 PASS**, 7.6m, zero retries/skips,
+  `test-results/maze-start-service-UNuhYX/` in the parent checkout. This includes
+  the original failed pending/restart case, all identified quota callers and
+  their complete selected recovery files. No alternate-port shortcut is used.
 
-Affected cases must rerun after that run settles: base normal-quota recovery;
+Affected cases reran after that run settled: base normal-quota recovery;
 actual-App pending/recovery; four corpus recovery variants; decision recovery;
-two decision Stop cases; and pending/interim/replay cases. Keep original failure
-identity and compatible-source lineage explicit. Do not relabel the earlier
-full run or unrelated focused passes as new-helper qualification.
+two decision Stop cases; and pending/interim/replay cases. Original failure
+identity and compatible-source lineage remain explicit. The original full run
+at `2c67b31` finished **53 PASS / 1 FAIL**, 45.2m. It is not relabeled green.
+A fresh full 54-case run at `60c1346` is underway separately; its result remains
+pending. Provider calls are zero in the completed fixture proof.
