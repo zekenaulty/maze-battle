@@ -73,6 +73,9 @@ it('rejects an original pre-connections grant before any query/result retention'
 
 it('changes only the current manifest; original pre-connections schema and digest remain exact', async () => {
   const old = mazeCapabilities(); old[1].inputSchema.fields[0].allowedValues = old[1].inputSchema.fields[0].allowedValues!.filter(s => s !== 'connections');
+  old[0].description = 'Actor/source.';
+  old[2].description = 'Earned address only.';
+  old[4].description = 'Open an inspected current-tile chest. No movement.';
   old[1].description = 'Earned rooms/map/links/cells/frontiers/objects; quests by status/target; objective; prior decision.';
   old[3].description = 'Default: approach. Room: local survey, stop on discoveries/bounds. No loot.';
   const before = structuredClone(old);

@@ -41,10 +41,10 @@ async function actualStart(objective: string, env: Record<string, string> = {}, 
 }
 
 it.each([
-  ['default fixture', 3554, {}],
-  ['decision-frontier', 3557, { VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4', VITE_AGENTICA_MAX_REFINEMENTS: '2',
+  ['default fixture', 3548, {}],
+  ['decision-frontier', 3551, { VITE_AGENTICA_MODEL: 'decision-frontier', VITE_AGENTICA_MAX_STEPS: '4', VITE_AGENTICA_MAX_REFINEMENTS: '2',
     VITE_AGENTICA_MAX_PLAN_CONTINUATIONS: '1', VITE_AGENTICA_TIMEOUT_SECONDS: '90', VITE_AGENTICA_ACTION_TIMEOUT_SECONDS: '20' }],
-  ['configured OpenAI', 3580, { VITE_AGENTICA_PROVIDER: 'openai', VITE_AGENTICA_MODEL: 'configured-model', VITE_AGENTICA_THINKING_EFFORT: 'high' }],
+  ['configured OpenAI', 3574, { VITE_AGENTICA_PROVIDER: 'openai', VITE_AGENTICA_MODEL: 'configured-model', VITE_AGENTICA_THINKING_EFFORT: 'high' }],
 ] as const)('fits actual %s start with a 512-character ASCII objective', async (name, expectedBytes, env) => {
   const f = await actualStart('x'.repeat(512), env);
   console.info(`${name}: ${f.bytes} bytes; objective 512; session ${f.start.sessionId.length}; observation ${JSON.stringify(f.start.observation).length}`);
@@ -64,7 +64,7 @@ it.each([['multibyte', '\u754c'], ['escaped', '"']] as const)('keeps the aggrega
 
 it('retains owner quest selection in the private publication request, not the initial wire context', async () => {
   const id = 'floor-1:private-room:fetch', f = await actualStart('x'.repeat(512), {}, id);
-  expect(f.error).toBeUndefined(); expect(f.bytes).toBe(3554);
+  expect(f.error).toBeUndefined(); expect(f.bytes).toBe(3548);
   expect(f.submitHostCommand.mock.calls[0][0].input).toEqual({
     returnQuest: { launchId: f.start.scopeId, objectiveId: f.start.objectiveId, questId: id },
   });
