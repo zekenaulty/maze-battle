@@ -12,6 +12,8 @@ import { currentBattle } from './coherence';
 import { battleMode, type BattleMode } from './input';
 import { saveBattle } from './records';
 import type { CanonicalBattle } from './types';
+import { recordGameplay } from '../telemetry/records';
+import { battleFact } from '../telemetry/facts';
 
 /** Host-only: explicit battle/waves intent or an actual committed movement encounter. */
 export async function beginBattle(tx: CanonicalWork, returnMode: BattleMode): Promise<CanonicalBattle> {
@@ -31,5 +33,6 @@ export async function beginBattle(tx: CanonicalWork, returnMode: BattleMode): Pr
       enemies: spawnEnemies(checkpoint.position.level, defaultRng), defeated: [], loot: [], rewardGold: 0 } };
   await saveBattle(tx.pages, null, next);
   tx.setCheckpoint(checkpointJson({ ...checkpoint, mode: 'battle', updatedAt: new Date().toISOString() }));
+  await recordGameplay(tx, battleFact('started', { kind: 'start' }, null, next));
   return next;
 }

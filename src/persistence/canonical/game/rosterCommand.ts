@@ -10,6 +10,8 @@ import { recordGameObservation } from '../knowledge/write';
 import { validateKnowledge } from '../knowledge/evidence';
 import { currentBattle } from '../combat/coherence';
 import { saveBattle } from '../combat/records';
+import { recordGameplay } from '../telemetry/records';
+import { battleFact } from '../telemetry/facts';
 
 /** Host-owned action facade. Provider exposure/authority remains with the game session. */
 export function executeRosterCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
@@ -26,7 +28,12 @@ export async function commitRosterCommand(tx: CanonicalWork, input: unknown) {
   const next = applyRosterCommand(before.state, command);
   const unpause = battle?.battle.status === 'active' && battle.paused && command.kind === 'actor-auto' && command.enabled
     && next.party.some(a => a.id === command.actorId && a.autoBattle);
-  if (unpause) await saveBattle(tx.pages, battle, { ...battle, paused: false, stalledTicks: 0 });
+  if (unpause && command.kind === 'actor-auto') {
+    const resumed = { ...battle, paused: false, stalledTicks: 0 };
+    await saveBattle(tx.pages, battle, resumed);
+    await recordGameplay(tx, battleFact('resumed', { kind: 'actor-auto', actorId: command.actorId }, battle, resumed,
+      { partyBefore: before.state.party, partyAfter: next.party }));
+  }
   if (next === before.state) return { kind: command.kind, outcome: unpause ? 'applied' : 'unchanged' };
   check((next.mode !== 'battle' || checkpoint.mode === 'battle') && next.dungeonLevel === checkpoint.position.level
     && next.battle === before.state.battle, 'roster command changed unrelated state');

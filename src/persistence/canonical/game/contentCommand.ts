@@ -11,6 +11,7 @@ import type { ContentCommand } from '../content/types';
 import { recordGameObservation } from '../knowledge/write';
 import { validateKnowledge } from '../knowledge/evidence';
 import { currentBattle } from '../combat/coherence';
+import { recordGameplay } from '../telemetry/records';
 
 export function contentCommand(value: unknown): ContentCommand {
   const row = fields(value, 'kind', 'chestId contractId questId');
@@ -28,10 +29,11 @@ export async function commitContentCommand(tx: CanonicalWork, input: unknown) {
   await validateKnowledge(tx.pages, checkpoint.knowledge);
   const battle = await currentBattle(tx.pages, checkpoint);
   const before = await loadRoster(tx.pages, { ...rosterContext(checkpoint), ...(battle ? { battle: battle.battle } : {}) });
-  let next = before.state;
+  let next = before.state, lootAwardCount = 0;
   const result: JsonObject = { kind: command.kind, outcome: 'unchanged' };
   if (command.kind === 'open-chest') {
     const opened = await openStoredChest(tx.pages, command.chestId, checkpoint.position, next, now);
+    lootAwardCount = opened.loot.length;
     next = opened.roster; result.chestId = command.chestId; result.lootIds = opened.loot.map(item => item.id);
   } else if (command.kind === 'accept-quest') {
     next = await acceptQuest(tx.pages, command.contractId, checkpoint.position, next, now); result.questId = command.contractId;
@@ -40,6 +42,9 @@ export async function commitContentCommand(tx: CanonicalWork, input: unknown) {
   }
   if (next === before.state) return result;
   await saveRoster(tx.pages, before, next);
+  if (command.kind !== 'accept-quest') await recordGameplay(tx, { kind: 'reward', command: command.kind,
+    targetId: command.kind === 'open-chest' ? command.chestId : command.questId,
+    walletGoldBefore: before.state.inventory.gold, walletGoldAfter: next.inventory.gold, lootAwardCount }, now);
   let updated = { ...checkpoint, updatedAt: next.updatedAt, activityLog: next.activityLog };
   if (command.kind === 'open-chest' && checkpoint.knowledge && checkpoint.mode !== 'town') updated = await recordGameObservation(tx, updated);
   tx.setCheckpoint(checkpointJson(updated));

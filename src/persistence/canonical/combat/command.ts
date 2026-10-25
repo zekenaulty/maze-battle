@@ -13,6 +13,8 @@ import { battleCommand } from './input';
 import { saveBattle } from './records';
 import { settleBattleTurn } from './settlement';
 import { beginBattle } from './start';
+import { recordGameplay } from '../telemetry/records';
+import { battleFact } from '../telemetry/facts';
 
 export function executeBattleCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request); check(request.operation === 'battle.command', 'invalid battle operation');
@@ -32,22 +34,30 @@ export async function commitBattleCommand(tx: CanonicalWork, input: unknown): Pr
   await validateKnowledge(tx.pages, checkpoint.knowledge);
   if (command.kind === 'end') {
     await saveBattle(tx.pages, before, null);
+    await recordGameplay(tx, battleFact(before.battle.status === 'lost' ? 'closed-lost' : 'abandoned', command, before, null));
     tx.setCheckpoint(checkpointJson({ ...checkpoint, updatedAt: new Date().toISOString(),
       mode: before.battle.status === 'lost' ? 'town' : 'manual',
       ...(before.battle.status === 'lost' ? { townReturnMode: 'manual' } : {}) }));
     return { kind: command.kind, outcome: 'applied' };
   }
   if (command.kind === 'automation' && !command.enabled) {
-    await saveBattle(tx.pages, before, { ...before, paused: true, battle: { ...before.battle, returnMode: 'manual' } });
+    const next = { ...before, paused: true, battle: { ...before.battle, returnMode: 'manual' as const } };
+    await saveBattle(tx.pages, before, next);
+    if (!before.paused || before.battle.returnMode !== 'manual')
+      await recordGameplay(tx, battleFact('paused', command, before, next));
     return { kind: command.kind, outcome: 'applied' };
   }
   if (before.battle.status !== 'active') return { kind: command.kind, outcome: 'unchanged' };
   const roster = await loadRoster(tx.pages, rosterContext(checkpoint));
   check(roster.state.party.some(a => a.hp > 0), 'active battle has no living party');
   if (command.kind === 'automation') {
-    if (!roster.state.party.some(a => a.autoBattle))
+    const allOff = !roster.state.party.some(a => a.autoBattle);
+    if (allOff)
       await saveRoster(tx.pages, roster, { ...roster.state, party: roster.state.party.map(a => ({ ...a, autoBattle: true })) });
-    await saveBattle(tx.pages, before, { ...before, paused: false, stalledTicks: 0, battle: { ...before.battle, returnMode: command.mode } });
+    const next = { ...before, paused: false, stalledTicks: 0, battle: { ...before.battle, returnMode: command.mode } };
+    await saveBattle(tx.pages, before, next);
+    if (before.paused || before.stalledTicks !== 0 || before.battle.returnMode !== command.mode || allOff)
+      await recordGameplay(tx, battleFact('resumed', command, before, next));
     return { kind: command.kind, outcome: 'applied' };
   }
   if (command.kind === 'tick' && (before.paused || !roster.state.party.some(a => a.autoBattle)))
@@ -57,6 +67,6 @@ export async function commitBattleCommand(tx: CanonicalWork, input: unknown): Pr
     equipmentBonuses: Object.fromEntries(roster.state.party.map(a => [a.id, getEquipmentStats(a, roster.state.inventory)])) },
   command.kind === 'skill' ? command : { kind: 'round' }, defaultRng, now);
   if (command.kind === 'skill' && !turn.acted) return { kind: command.kind, outcome: 'unchanged' };
-  const applied = await settleBattleTurn(tx, checkpoint, before, roster, turn, new Date(now).toISOString());
+  const applied = await settleBattleTurn(tx, checkpoint, before, roster, turn, new Date(now).toISOString(), command);
   return { kind: command.kind, outcome: applied ? 'applied' : 'unchanged' };
 }

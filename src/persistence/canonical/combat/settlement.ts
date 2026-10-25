@@ -11,9 +11,12 @@ import { recordBattleKills } from './killProgress';
 import { saveBattle } from './records';
 import type { CanonicalBattle } from './types';
 import { encodeBattle } from './validation';
+import { recordGameplay } from '../telemetry/records';
+import { battleFact } from '../telemetry/facts';
+import type { BattleTraceTrigger } from '../telemetry/types';
 
 export async function settleBattleTurn(tx: CanonicalWork, checkpoint: GameCheckpoint, before: CanonicalBattle,
-  roster: RosterSnapshot, turn: BattleTurnResult, now: string) {
+  roster: RosterSnapshot, turn: BattleTurnResult, now: string, trigger: BattleTraceTrigger = { kind: 'round' }) {
   const { context, status, acted } = turn;
   const committed = acted || status !== 'active';
   const previousHp = before.battle.enemies.reduce((sum, e) => sum + e.hp, 0);
@@ -22,7 +25,9 @@ export async function settleBattleTurn(tx: CanonicalWork, checkpoint: GameCheckp
   if (!committed) {
     if (stalledTicks === before.stalledTicks) return false;
     const blocked = stalledTicks >= MAX_STALLED_COMBAT_TICKS;
-    await saveBattle(tx.pages, before, { ...before, stalledTicks, ...(blocked ? { paused: true } : {}) });
+    const next = { ...before, stalledTicks, ...(blocked ? { paused: true } : {}) };
+    await saveBattle(tx.pages, before, next);
+    if (blocked && !before.paused) await recordGameplay(tx, battleFact('stalled', trigger, before, next), now);
     return true;
   }
   const nextBattle: CanonicalBattle = { ...before, stalledTicks, paused: Boolean(before.paused || status === 'lost' || stalledTicks >= MAX_STALLED_COMBAT_TICKS),
@@ -45,5 +50,8 @@ export async function settleBattleTurn(tx: CanonicalWork, checkpoint: GameCheckp
     await saveBattle(tx.pages, before, nextBattle);
     tx.setCheckpoint(checkpointJson({ ...checkpoint, mode: status === 'lost' ? 'manual' : 'battle', updatedAt: now }));
   }
+  await recordGameplay(tx, battleFact(status === 'active' ? 'turn' : status, trigger, before, status === 'won' ? null : nextBattle,
+    { partyBefore: roster.state.party, partyAfter: next.party, newlyDefeatedCount: turn.newlyDefeated.length,
+      walletGoldDelta: next.inventory.gold - roster.state.inventory.gold, lootAwardCount: status === 'won' ? context.loot.length : 0 }), now);
   return true;
 }
