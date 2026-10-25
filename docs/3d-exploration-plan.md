@@ -482,3 +482,36 @@ Corner repair applies throughout the dungeon. Horizontal wall runs cap the outer
 Qualification: **75 focused tests in nine files PASS; production types/build PASS; all 21 browser cases PASS (six canonical stairs, eleven existing 2D/3D, four workshop).** The new geometry checks cover all four exposed room corners, internal and duplicate face rejection, partial slab ownership independent of input order, the actual flight/deck union on shifted grids, ramp clearance, outward winding and shared world UVs. The measured movement route recorded 998 RAF samples, 16.9 ms p95, zero pending stopped frames and zero stopped duration. Inspected upper/lower/returned stair views and the same live corner shown by the owner. Evidence is retained outside Git under `stair-enclosure-20261025` in this task's visualization directory. These are local measurements and inspected views, not exhaustive qualification of every future procedural arrangement.
 
 Scope is the requested visual construction repair. Collision remains derived from the presentation solids at the actor's body-height interval; canonical movement/navigation rules and save schemas are unchanged. Remaining limits include simple lighting, one straight orientation, and committed-endpoint recovery. Future schematic work can reuse the enclosure recipe and exposed-surface construction; a general schematic importer remains deferred.
+
+### Restoration rebase and combined qualification (25 October)
+
+Rebased this isolated lane onto the completed RPG restoration at `a6880c7d61fc4a5a64a8fbb85680f40c074307ab`, verified on both `origin/codex/agentic-game-a1` and `origin/codex/rpg-restoration`. The pre-rebase tip is retained locally as `codex/canonical-3d-pre-restoration-20261025` at `e15324dd16882bb244c76386adbbafd13bf9f4a4`. Only `codex/canonical-3d-exploration` is republished; the original checkout, main/base branches and owner browser saves are untouched.
+
+Conflict reconciliation retains restored battle commands, battle-first rendering, pause/cancellation, Teleport eligibility and fresh roster projection, gameplay diagnostics and reload/takeover recovery alongside the spatial stair actions and snapshot/position guards. The selected 3D view survives a battle return; entering battle releases the old stage's held input. All files under `src/components/maze3d`, `src/assets3d` and `scripts` are byte-identical to the pre-rebase tip. Thus the final rail-free cobblestone stairs, continuous enclosure, lower portal header, exposed-face ownership and dungeon-wide corner repair are preserved. The live preview briefly displayed conflict markers and earlier stair geometry while commits replayed; those were intermediate rebase states. The completed source contains no conflict markers, and the existing 5208 preview renders again.
+
+Two integration gaps were found and fixed. Waves now follows the existing external-action fence during a stair flight. Floor preparation refuses both active and retained lost battles, before allocation or writes; the session rechecks this between yielded preparation batches. A battle can therefore interrupt queued preparation without allowing it to resume during combat. These are custody fixes, without changes to save schemas, generator recipes, stair dimensions or navigation rules.
+
+Added real canonical transaction tests for battle/preparation exclusion and rollback; queued session interleaving tests for active/lost combat; and bounded Teleport checks in both generated stair rooms, excluding endpoints and reserved shaft cells. A new production-App/native-IndexedDB browser cohort covers movement-triggered combat and return to 3D, pinned diagnostics export without canonical writes, stair-flight action fences and committed-landing cancellation, and Teleport's position/MP/cooldown/renderer/reload coherence. Its fixture only seeds the initial exit genesis; the encounter case explicitly controls encounter RNG.
+
+The initial full unit run exposed one outdated recovery projection fixture: it allowed combat/knowledge evidence but rejected the bounded current-floor read added by spatial projection. The fixture now supplies a validated legacy floor and asserts exactly the absent combat header plus current-floor read, while continuing to reject all other hidden-world reads. Runtime visibility rules were not relaxed. The initial failed report and final passing report are both retained.
+
+Final qualification on the rebased branch:
+
+- **5,569 unit tests PASS, one optional skip** (370 passing test files and one skipped file); no live-provider calls.
+- Production TypeScript/build PASS, with the existing large-chunk warning. Stair and restoration browser-fixture TypeScript projects PASS.
+- **30 browser cases PASS**: existing 2D/3D 11, canonical stairs 6, model workshop 4, new restoration/3D integration 3, restored battle recovery 3, restored town/inventory 3.
+- The unchanged 20-cell motion gate measured 995 RAF samples, 17 ms p95, 28.5 ms maximum frame, zero pending stopped frames and zero stopped duration. No prediction cap or test threshold was enlarged. These are local measurements.
+- Fresh stair screenshots show the cobblestone treads, removed rails, filled lower portal header and unified enclosure. Native battle gates cover defeat/town recovery, named battle-save reload/reward identity and second-tab takeover. Native town gates cover vendor/equipment/stash, stack sales and retained policy.
+
+Reproduction commands for the added integration gates:
+
+```powershell
+node node_modules/vitest/vitest.mjs run --maxWorkers=4
+npm run build
+node node_modules/typescript/bin/tsc -p tests/e2e/restoration-3d.tsconfig.json --noEmit
+node node_modules/@playwright/test/cli.js test --config tests/e2e/restoration-3d.config.ts
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-app-battle-recovery.config.ts
+node node_modules/@playwright/test/cli.js test --config tests/e2e/canonical-app-town-inventory.config.ts
+```
+
+Final reports, screenshots, movement samples and the fixture-failure report are retained outside Git in this task's visualization directory under `restoration-rebase-20261025`. Earlier new-cohort harness failures and their corrections remain in `restoration-3d-evidence`. The restored workstream's long Auto endurance result is historical evidence and was not repeated here. No owner-save reset, provider spending, new asset intake or merge into main/base was performed. Remaining model/lighting/orientation limits from the enclosure closeout still apply. Next slice: owner review of the combined playable stage, followed by separately selected material/model work; producer lantern candidates remain unreviewed and unimported.

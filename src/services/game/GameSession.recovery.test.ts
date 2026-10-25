@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameSession } from './GameSession';
 import type { GameSessionView } from './GameSession';
 import type { GameView } from './GameView';
-import type { CanonicalHead, CanonicalRequest, Json, JsonObject } from '../../persistence/canonical/types';
+import type { CanonicalHead, CanonicalRecord, CanonicalRequest, Json, JsonObject } from '../../persistence/canonical/types';
 import { checkpointJson, gameCheckpoint } from '../../persistence/canonical/game/checkpoint';
 import { earnedCell, knowledgeFixture } from '../../persistence/canonical/knowledge/region.test-support';
 import { exploreView } from '../../components/ExploreScreen.test-support';
 import { ManualSaveLimitError } from '../../persistence/canonical/game/saveLimits';
+import { bootstrapModule } from '../../domain/expedition/topology/modules/step';
+import { createModuleRecipe } from '../../domain/expedition/topology/modules/policy';
+import { json } from '../../persistence/canonical/world/records';
+import type { WorldFloor } from '../../persistence/canonical/world/types';
 
 const mocks = vi.hoisted(() => {
   const lockState = { supported: true, available: true, locks: [] as Lock[] };
@@ -319,13 +323,27 @@ describe('canonical head refresh', () => {
 describe('canonical projection evidence contract', () => {
   it('projects an earned observation from a valid checkpoint anchor and the exact supplied snapshot', async () => {
     const { projectGame } = await vi.importActual<typeof import('../../persistence/canonical/game/projection')>('../../persistence/canonical/game/projection');
-    const pages = { ...fixture.pages, get: (area: Parameters<typeof fixture.pages.get>[0], key: string) =>
-      area === 'world' && key === 'combat/current' ? Promise.resolve(undefined) : fixture.pages.get(area, key) };
+    const initial = bootstrapModule(createModuleRecipe('projection-world', 1, 42));
+    const floor: WorldFloor = { schema: 1, level: 1, generation: initial.state, nextPending: 0,
+      entry: { spaceId: 'entry', row: 4, column: 4 }, farthest: { spaceId: 'entry', distance: 0 }, exit: null };
+    const row: CanonicalRecord = { generation: head.generation, gameId: head.gameId, area: 'world', key: 'dungeon/1',
+      indexes: ['floors/1'], revision: head.revision, id: 'legacy-floor', value: json(floor) };
+    const worldReads: string[] = [];
+    const pages = { ...fixture.pages, get: (area: Parameters<typeof fixture.pages.get>[0], key: string) => {
+      if (area === 'world') {
+        worldReads.push(key);
+        if (key === 'combat/current') return Promise.resolve(undefined);
+        if (key === 'dungeon/1') return Promise.resolve(row);
+      }
+      return fixture.pages.get(area, key);
+    } };
     mocks.read.mockImplementationOnce(async (query, options) => ({ head: cloneHead(), value: await query(pages, options.snapshot), stats }));
     const projected = await projectGame(head);
     expect(projected.value.observation).toEqual(base.observation);
     expect(projected.value.checkpoint.knowledge).toEqual(base.checkpoint.knowledge);
     expect(projected.value.snapshot).toEqual(projection(head).value.snapshot);
     expect(projected.value).toMatchObject({ autoThrottleMs: 500, randomBattles: false });
+    expect(projected.value.spatial).toBeUndefined();
+    expect(worldReads).toEqual(['combat/current', 'dungeon/1']); // No legacy room geometry or hidden content read.
   });
 });

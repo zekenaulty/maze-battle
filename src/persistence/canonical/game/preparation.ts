@@ -12,6 +12,7 @@ import { beginWorldContent, advanceWorldContent, requireWorldContent } from '../
 import { gameCheckpoint } from './checkpoint';
 import { currentFloorPreparationSpec, preparationWorldWrite } from './floorCapacity';
 import { validateKnowledge } from '../knowledge/evidence';
+import { currentBattle } from '../combat/coherence';
 
 export type PreparationPhase = 'generation' | 'quality' | 'roles' | 'content' | 'ready';
 const key = (level: number) => `game/preparation/${level}`;
@@ -38,6 +39,7 @@ export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, 
   const args = fields(input, 'level', 'visibleStairs'), c = gameCheckpoint(tx.head.checkpoint), level = args.level as number;
   check(args.visibleStairs === undefined || args.visibleStairs === true, 'invalid stair preparation policy');
   check(level === c.position.level || level === c.position.level + 1, 'preparation outside the local floor boundary');
+  check(!await currentBattle(tx.pages, c), 'floor preparation is unavailable during battle');
   let batch: { close(): void } | undefined;
   if (level !== c.position.level) {
     const here = await loadFloor(tx.pages, c.position.level);

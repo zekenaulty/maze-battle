@@ -15,6 +15,7 @@ dist-ssr
 .vite-canonical-app/
 .vite-canonical-game-map/
 .vite-canonical-game-host/
+.vite-restoration-3d/
 *.tsbuildinfo
 test-results
 playwright-report

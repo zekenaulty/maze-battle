@@ -261,7 +261,7 @@ export class GameSession {
           if (this.head!.gameId !== job.gameId || this.head!.generation !== job.generation) throw new StalePositionInputError();
           if (first && (binding !== spatialBinding(snapshotOf(this.head!)) || JSON.stringify(checkpoint.position) !== JSON.stringify(expected))) throw new StalePositionInputError();
           first = false;
-          if (checkpoint.position.level !== level - 1 || checkpoint.mode !== 'manual' || !this.view.game?.spatial?.prepareDown) return true;
+          if (checkpoint.position.level !== level - 1 || checkpoint.mode !== 'manual' || this.view.game?.battle || !this.view.game?.spatial?.prepareDown) return true;
           const result = await prepareGameFloor(gameRequest(this.head!, 'game.prepare', { level, visibleStairs: true }), { signal });
           this.assert(signal); this.head = result.head ?? (await readCanonicalHead()).head;
           await this.adopt(this.head, signal, true);

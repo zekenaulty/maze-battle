@@ -14,7 +14,7 @@ import { SETTINGS_KEY } from '../../src/persistence/canonical/game/settings';
 import { seedRoster } from '../../src/persistence/canonical/roster/write';
 import { gameRequest } from '../../src/services/game/canonicalRequests';
 
-if (!['http://127.0.0.1:5208', 'http://127.0.0.1:5209'].includes(location.origin)
+if (!['http://127.0.0.1:5208', 'http://127.0.0.1:5209', 'http://127.0.0.1:5210'].includes(location.origin)
   || location.pathname !== '/tests/e2e/canonical-stairs.html') throw Error('Controlled stair qualification origin required');
 if (!sessionStorage.getItem('canonical-stair-fixture')) {
   if ((await indexedDB.databases()).some(db => db.name === 'maze-battle')) throw Error('Fresh qualification context required');

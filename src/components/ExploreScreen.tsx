@@ -179,7 +179,7 @@ export function ExploreScreen({
             disabled={!autoAvailable || onFlight} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
-          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled={!autoAvailable}>
+          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled={!autoAvailable || onFlight}>
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
           {onAgenticPlay && <button className="screen-icon" data-agentic-control type="button" disabled={onFlight} title="Agentic play" aria-label="Agentic play" onClick={onAgenticPlay}>

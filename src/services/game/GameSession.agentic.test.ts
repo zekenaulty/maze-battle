@@ -8,6 +8,7 @@ import { protocolHead } from '../../persistence/canonical/agentica/types.test-su
 import { exploreView } from '../../components/ExploreScreen.test-support';
 import { spatialBinding } from './SpatialView';
 import { snapshotOf } from '../../persistence/canonical/read';
+import type { GameView } from './GameView';
 
 const mocks = vi.hoisted(() => {
   const locks: Lock[] = [];
@@ -152,6 +153,36 @@ describe('GameSession presentation source-cell fence', () => {
     expect(mocks.exploration).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ input: { kind: 'move', direction: 'east', triggerStairs: false } }), expect.anything());
     expect(session.view).toMatchObject({ controlled: true, busy: false, recoveryRequired: false });
     expect(gameCheckpoint(head.checkpoint).position.cell.column).toBe(source.cell.column + 1);
+  });
+
+  it.each(['active', 'lost'] as const)('stops queued stair preparation when a %s battle is published between batches', async status => {
+    const gate = deferred<void>(), entered = deferred<void>(), source = structuredClone(session.view.game!.checkpoint.position);
+    const binding = spatialBinding(snapshotOf(head)), project = mocks.project.getMockImplementation()!;
+    let battle: GameView['battle'];
+    mocks.project.mockImplementation(async (snapshot: CanonicalHead) => {
+      const result = await project(snapshot);
+      result.value.spatial = { version: 'stair-room-sight-v2', binding: spatialBinding(snapshotOf(snapshot)), frame: [0, 0, 0], prepareDown: true };
+      if (battle) result.value.battle = battle;
+      return result;
+    });
+    session.view.game!.spatial = { version: 'stair-room-sight-v2', binding, frame: [0, 0, 0], prepareDown: true };
+    mocks.prepare.mockImplementationOnce(async (request: CanonicalRequest) => {
+      entered.resolve(); await gate.promise; const result = commit(request); result.receipt.result = { phase: 'generation' }; return result;
+    });
+    mocks.combat.mockImplementation(async (request: CanonicalRequest) => {
+      const round = (request.input as JsonObject).kind === 'round';
+      battle = { id: 'battle', wave: 1, status: round ? 'lost' : 'active', round: 1, enemies: [], log: [] };
+      head = { ...head, checkpoint: checkpointJson({ ...gameCheckpoint(head.checkpoint), mode: round ? 'manual' : 'battle' }) };
+      return commit(request);
+    });
+    const preparing = session.prepareStairs(source, binding); await entered.promise;
+    const starting = session.execute('combat', { kind: 'start', returnMode: 'manual' });
+    const losing = status === 'lost' ? session.execute('combat', { kind: 'round', battleId: 'battle' }) : undefined;
+    gate.resolve(); await starting; await losing; await preparing; await session.flush();
+    expect(mocks.prepare).toHaveBeenCalledOnce(); expect(mocks.exploration).not.toHaveBeenCalled();
+    expect(session.view.game!.battle!.status).toBe(status);
+    expect(gameCheckpoint(head.checkpoint).position).toEqual(source);
+    expect(session.view).toMatchObject({ controlled: true, busy: false, recoveryRequired: false });
   });
 
   it('refuses a preparation whose binding became stale while another writer was pending', async () => {
