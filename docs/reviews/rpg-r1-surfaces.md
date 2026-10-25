@@ -52,6 +52,20 @@ tests/e2e/canonical-app.config.ts` (full 17 cases before adding the two separate
 policy cases), then the same command filtered to `canonical-app.policy.spec.ts`.
 The fixture type project is `canonical-app-restoration.tsconfig.json`.
 
-Cross-floor guild/history, exploration Teleport, pack-overflow design and canonical
+## Accepted quest journal
+
+The guild now has an on-demand Journal backed by eight-row, snapshot-pinned
+pages of accepted quests across floors. It validates accepted contract/award
+references, uses existing claim actions and exposes no undiscovered geometry.
+The ordinary current-floor view remains bounded and unchanged. Opening or paging
+the journal does not write game state or mount an ambient history feed.
+
+Evidence: worker 214 focused tests PASS; parent 41 focused tests PASS. Native
+actual-App journal case PASS: accept an offered quest in town, open Journal,
+verify its title/floor, verify the head is unchanged by reading, reload and find
+the accepted quest again. Root and restoration-fixture types and production
+build PASS. The browser case does not claim a multi-floor natural-play journey.
+
+Exploration Teleport, pack-overflow design and canonical
 combat/Auto/Waves remain pending. Neither this batch nor retained combat unit
 tests claim those are playable. No providers or owner-data resets.
