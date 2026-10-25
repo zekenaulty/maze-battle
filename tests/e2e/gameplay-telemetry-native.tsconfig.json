@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["gameplay-telemetry-native*.ts", "storage-probe.ts"]
+}
