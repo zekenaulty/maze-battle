@@ -13,6 +13,8 @@ import { validateKnowledge } from '../knowledge/evidence';
 import { DIRECTIONS } from '../knowledge/types';
 import { checkpointJson, gameCheckpoint, type GameCheckpoint } from './checkpoint';
 import { findPreparation } from './preparation';
+import { currentBattle } from '../combat/coherence';
+import { movementEncounter } from '../combat/encounter';
 
 export type ExplorationCommand = { kind: 'look' } | { kind: 'move'; direction: Direction; triggerStairs: boolean }
   | { kind: 'stairs'; direction: 'up' | 'down' };
@@ -33,7 +35,8 @@ export function executeExplorationCommand(request: CanonicalRequest, options: { 
 export async function commitExplorationCommand(tx: CanonicalWork, input: unknown, review?: ObservationReview) {
   const command = explorationCommand(input), before = gameCheckpoint(tx.head.checkpoint);
   const prior = await validateKnowledge(tx.pages, before.knowledge);
-  if (before.mode === 'town' || !(await loadParty(tx.pages)).some(actor => actor.hp > 0)) return { kind: command.kind, outcome: 'unavailable' };
+  const battle = await currentBattle(tx.pages, before);
+  if (battle || before.mode === 'town' || !(await loadParty(tx.pages)).some(actor => actor.hp > 0)) return { kind: command.kind, outcome: 'unavailable' };
   await requireWorldContent(tx.pages, before.position.level);
   if (command.kind !== 'look') {
     check(before.knowledge, 'observe the starting position before movement');
@@ -68,6 +71,7 @@ export async function commitExplorationCommand(tx: CanonicalWork, input: unknown
     if (visit) next = { ...next, activityLog: [`Quest complete: ${visit.quest.title}.`, ...next.activityLog].slice(0, 12) };
   }
   if (next.mode !== 'town') next = await recordGameObservation(tx, next, review);
+  if (moved && command.kind === 'move' && !stair && next.mode !== 'town') next = await movementEncounter(tx, next);
   tx.setCheckpoint(checkpointJson(next));
   return json({ kind: command.kind, outcome: 'applied', moved, crossed, needsFloor, mode: next.mode,
     position: next.position, observation: next.knowledge ? { sequence: next.knowledge.sequence, id: next.knowledge.id } : null });

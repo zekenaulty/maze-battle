@@ -8,6 +8,8 @@ import { loadRoster } from '../roster/projection';
 import { saveRoster } from '../roster/write';
 import { recordGameObservation } from '../knowledge/write';
 import { validateKnowledge } from '../knowledge/evidence';
+import { currentBattle } from '../combat/coherence';
+import { saveBattle } from '../combat/records';
 
 /** Host-owned action facade. Provider exposure/authority remains with the game session. */
 export function executeRosterCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
@@ -18,10 +20,16 @@ export function executeRosterCommand(request: CanonicalRequest, options: { signa
 
 export async function commitRosterCommand(tx: CanonicalWork, input: unknown) {
   const command = rosterCommand(input), checkpoint = gameCheckpoint(tx.head.checkpoint);
+  const battle = await currentBattle(tx.pages, checkpoint);
   await validateKnowledge(tx.pages, checkpoint.knowledge);
-  const before = await loadRoster(tx.pages, rosterContext(checkpoint)), next = applyRosterCommand(before.state, command);
-  if (next === before.state) return { kind: command.kind, outcome: 'unchanged' };
-  check(next.mode !== 'battle' && next.dungeonLevel === checkpoint.position.level && !next.battle, 'roster command changed unrelated state');
+  const before = await loadRoster(tx.pages, { ...rosterContext(checkpoint), ...(battle ? { battle: battle.battle } : {}) });
+  const next = applyRosterCommand(before.state, command);
+  const unpause = battle?.battle.status === 'active' && battle.paused && command.kind === 'actor-auto' && command.enabled
+    && next.party.some(a => a.id === command.actorId && a.autoBattle);
+  if (unpause) await saveBattle(tx.pages, battle, { ...battle, paused: false, stalledTicks: 0 });
+  if (next === before.state) return { kind: command.kind, outcome: unpause ? 'applied' : 'unchanged' };
+  check((next.mode !== 'battle' || checkpoint.mode === 'battle') && next.dungeonLevel === checkpoint.position.level
+    && next.battle === before.state.battle, 'roster command changed unrelated state');
   if (checkpoint.mode !== next.mode) await requireWorldAnchor(tx.pages, checkpoint.position);
   await saveRoster(tx.pages, before, next);
   let updated: GameCheckpoint = { ...checkpoint, mode: next.mode, townReturnMode: next.townReturnMode, activityLog: next.activityLog, updatedAt: next.updatedAt };

@@ -6,6 +6,7 @@ export interface CanonicalBattle {
   battle: Omit<BattleState, 'origin'>;
   origin: WorldPosition;
   stalledTicks: number;
+  paused?: boolean;
 }
 
 export interface BattleHeader extends Omit<CanonicalBattle, 'battle'> {

@@ -14,7 +14,7 @@ export interface GameCheckpoint {
   kind: 'rpg';
   position: WorldPosition;
   knowledge: KnowledgeAnchor | null;
-  mode: Exclude<GameMode, 'battle'>;
+  mode: GameMode;
   facing: Direction;
   wave: number;
   createdAt: string;
@@ -27,7 +27,7 @@ export function gameCheckpoint(value: unknown): GameCheckpoint {
   jsonBytes(value, MAX_CHECKPOINT_BYTES);
   const row = fields(value, 'schema kind position knowledge mode facing wave createdAt updatedAt activityLog', 'townReturnMode');
   check(row.schema === 1 && row.kind === 'rpg', 'unsupported game checkpoint');
-  check(typeof row.mode === 'string' && ['manual', 'auto-play', 'waves', 'town'].includes(row.mode), 'unsupported noncombat mode');
+  check(typeof row.mode === 'string' && ['manual', 'auto-play', 'waves', 'town', 'battle'].includes(row.mode), 'unsupported game mode');
   check(typeof row.facing === 'string' && ['north', 'east', 'south', 'west'].includes(row.facing), 'invalid actor facing');
   const at = fields(row.position, 'level cell'); fields(at.cell, 'spaceId row column'); position(row.position as unknown as WorldPosition);
   knowledgeAnchor(row.knowledge);

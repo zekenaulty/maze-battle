@@ -1,7 +1,7 @@
 import { SKILLS } from '../../../domain/combat/skillCatalog';
 import type { EnemyState, ItemInstance, MonsterCategory } from '../../../domain/types';
 import { cellPosition } from '../knowledge/validation';
-import { encodeRoster, fields, id, natural, number, optionalNumber, text } from '../roster/codec';
+import { encodeRoster, fields, id, natural, number, optionalBoolean, optionalNumber, text } from '../roster/codec';
 import { encodeItem, validateItem } from '../roster/itemValidation';
 import { check, jsonBytes } from '../validation';
 import { MAX_BATTLE_ENEMIES, MAX_BATTLE_LOG, MAX_BATTLE_LOOT,
@@ -15,7 +15,7 @@ const enemyOptional = ['monsterId', 'gcdUntil', ...['cooldownUntil', 'rechargeUn
 export function battleHeader(value: unknown): BattleHeader {
   // Leave room for the canonical record envelope even at maximum scope/key lengths.
   jsonBytes(value, 63 * 1024);
-  const r = fields(value, 'schema battle origin stalledTicks');
+  const r = fields(value, 'schema battle origin stalledTicks', 'paused'); optionalBoolean(r.paused);
   check(r.schema === 1, 'invalid battle schema'); cellPosition(r.origin); natural(r.stalledTicks);
   const b = fields(r.battle, `${metadata} enemyIds`, `${optionalMetadata} defeatedIds lootIds`);
   id(b.id); natural(b.wave, 1); natural(b.round, 1);
@@ -97,7 +97,7 @@ function list(value: unknown, max: number): unknown[] {
 }
 
 export function encodeBattle(value: CanonicalBattle): BattleRows {
-  const r = shape(value, 'schema battle origin stalledTicks');
+  const r = shape(value, 'schema battle origin stalledTicks', 'paused');
   const b = shape(r.battle, `${metadata} enemies`, `${optionalMetadata} defeated loot`);
   const enemy = (value: unknown) => { const e = encodeRoster(value, enemyOptional); validateEnemy(e); return e; };
   const alive = list(b.enemies, MAX_BATTLE_ENEMIES).map(enemy);
@@ -106,7 +106,7 @@ export function encodeBattle(value: CanonicalBattle): BattleRows {
   const meta = Object.fromEntries(Object.entries(b).filter(([k]) => !['enemies', 'defeated', 'loot'].includes(k)));
   const header = battleHeader(encodeRoster({ ...r, battle: { ...meta, enemyIds: alive.map(e => e.id),
     defeatedIds: dead?.map(e => e.id), lootIds: loot?.map(i => i.id) } },
-  ['battle.returnMode', 'battle.rewardGold', 'battle.defeatedIds', 'battle.lootIds']));
+  ['paused', 'battle.returnMode', 'battle.rewardGold', 'battle.defeatedIds', 'battle.lootIds']));
   const enemies = new Map<string, BattleEnemy>(), items = new Map<string, BattleLoot>();
   for (const [values, defeated] of [[alive, false], [dead ?? [], true]] as const)
     for (const enemy of values) enemies.set(enemy.id, battleEnemy({ schema: 1, battleId: header.battle.id, enemy }, header.battle.id, enemy.id, defeated));
