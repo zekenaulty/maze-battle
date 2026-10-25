@@ -79,6 +79,27 @@ beforeEach(async () => {
 afterEach(() => session.stop());
 
 describe('GameSession presentation source-cell fence', () => {
+  it('cancels a duplicate queued battle start without treating it as a storage failure', async () => {
+    const project = mocks.project.getMockImplementation()!;
+    mocks.project.mockImplementation(async (snapshot: CanonicalHead) => {
+      const result = await project(snapshot);
+      if (gameCheckpoint(snapshot.checkpoint).mode === 'battle') result.value.battle = {
+        id: 'battle', wave: 1, status: 'active', round: 1, enemies: [], log: [],
+      };
+      return result;
+    });
+    mocks.combat.mockImplementationOnce(async (request: CanonicalRequest) => {
+      head = { ...head, checkpoint: checkpointJson({ ...gameCheckpoint(head.checkpoint), mode: 'battle' }) };
+      return commit(request);
+    });
+    const first = session.execute('combat', { kind: 'start', returnMode: 'waves' });
+    const second = session.execute('combat', { kind: 'start', returnMode: 'waves' });
+    const rejected = expect(second).rejects.toThrow('Battle input cancelled');
+    await first; await rejected; await session.flush();
+    expect(mocks.combat).toHaveBeenCalledOnce();
+    expect(session.view).toMatchObject({ controlled: true, recoveryRequired: false });
+    expect(mocks.locks[0].held).toBe(true);
+  });
   it.each(['end', 'automation', 'skill'])('cancels stale queued battle %s without dropping custody', async kind => {
     const gate = deferred<void>(), entered = deferred<void>();
     session.view.game!.battle = { id: 'battle', wave: 1, status: 'active', round: 1, enemies: [], log: [] };

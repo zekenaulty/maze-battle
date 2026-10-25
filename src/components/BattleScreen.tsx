@@ -27,6 +27,7 @@ interface BattleScreenProps {
   onStopAutomation?: () => void;
   onDiagnostics?: () => void;
   autopilot?: AutopilotState;
+  controlsDisabled?: boolean;
 }
 
 type BattleTab = 'skills' | 'log';
@@ -50,6 +51,7 @@ export function BattleScreen({
   onStopAutomation,
   onDiagnostics,
   autopilot,
+  controlsDisabled = false,
 }: BattleScreenProps) {
   const [activeTab, setActiveTab] = useState<BattleTab>('skills');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -65,14 +67,14 @@ export function BattleScreen({
           </span>
         </div>
         <nav aria-label="Battle actions">
-          <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={autoActive && onStopAutomation ? onStopAutomation : onAutoToggle}>
+          <button disabled={controlsDisabled} className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={autoActive && onStopAutomation ? onStopAutomation : onAutoToggle}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
-          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={wavesActive && onStopAutomation ? onStopAutomation : onWavesToggle}>
+          <button disabled={controlsDisabled} className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={wavesActive && onStopAutomation ? onStopAutomation : onWavesToggle}>
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
-          <button className="screen-icon" type="button" title="Battle settings" aria-label="Battle settings" onClick={() => setSettingsOpen(true)}><Settings size={18} aria-hidden="true" /></button>
-          <button type="button" onClick={onRound} disabled={battle.status !== 'active'}>
+          <button disabled={controlsDisabled} className="screen-icon" type="button" title="Battle settings" aria-label="Battle settings" onClick={() => setSettingsOpen(true)}><Settings size={18} aria-hidden="true" /></button>
+          <button type="button" onClick={onRound} disabled={controlsDisabled || battle.status !== 'active'}>
             Round
           </button>
           <button type="button" onClick={onCharacters}>
@@ -81,7 +83,7 @@ export function BattleScreen({
           <button type="button" onClick={onSaves}>
             Saves
           </button>
-          <button type="button" onClick={onEnd}>
+          <button disabled={controlsDisabled} type="button" onClick={onEnd}>
             End
           </button>
           {onDiagnostics && <button className="screen-icon" type="button" title="Diagnostics" aria-label="Diagnostics" onClick={onDiagnostics}><Activity size={18} aria-hidden="true" /></button>}
@@ -115,7 +117,7 @@ export function BattleScreen({
           </button>
         </div>
         <div className="battle-panel-content" role="tabpanel" id={panelId} aria-labelledby={`${panelId}-${activeTab}`}>
-          <BattleActions party={party} active={battle.status === 'active'} now={now} onSkill={onSkill} onAutoBattleChange={onAutoBattleChange} skillsVisible={activeTab === 'skills'} />
+          <BattleActions party={party} active={battle.status === 'active'} now={now} onSkill={onSkill} onAutoBattleChange={onAutoBattleChange} skillsVisible={activeTab === 'skills'} controlsDisabled={controlsDisabled} />
         {activeTab === 'log' && (
           <ol className="battle-log" aria-label="Battle log">
             {battle.log.map((entry, index) => (

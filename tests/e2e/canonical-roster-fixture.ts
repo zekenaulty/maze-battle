@@ -1,4 +1,5 @@
 import { createInitialParty } from '../../src/domain/party/factory';
+import { DEFAULT_SETTINGS, SETTINGS_KEY } from '../../src/persistence/canonical/game/settings';
 import { createInitialInventory, createInitialStash, packSlotUsage } from '../../src/domain/items/inventory';
 import { DEFAULT_INVENTORY_POLICY } from '../../src/domain/items/inventoryPolicy';
 import { createItemInstance } from '../../src/domain/items/loot';
@@ -31,6 +32,7 @@ export async function seed(mode: GameCheckpoint['mode'] = 'manual', extra: ItemI
   return initializeCanonical('owner', checkpointJson(checkpoint), async pages => {
     await createWorldFloor(pages, { ...createModuleRecipe('fixture-world', 1, 1), roomBudget: 8 });
     await seedRoster(pages, state);
+    await pages.set('world', SETTINGS_KEY, DEFAULT_SETTINGS);
   }, { quota });
 }
 export async function read() {

@@ -1,0 +1,6 @@
+.gameplay-trace { min-width: 0; }
+.gameplay-trace > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gameplay-trace ol { padding-left: 20px; }
+.gameplay-trace li { padding: 4px 0; }
+.gameplay-trace summary { cursor: pointer; overflow-wrap: anywhere; }
+.gameplay-trace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }

@@ -5,7 +5,7 @@ import { SavesDialog } from './components/SavesDialog';
 import { GameRecovery } from './components/GameRecovery';
 import { TownScreen } from './components/TownScreen';
 import { BattleView } from './components/BattleView';
-import { Dialog } from './components/Dialog';
+import { GameDiagnostics } from './components/diagnostics/GameDiagnostics';
 import { AgenticaRecovery } from './components/agentic/AgenticaRecovery';
 import { AgenticPlayDialog } from './components/agentic/AgenticPlayDialog';
 import { useGameAgenticPlay } from './hooks/useGameAgenticPlay';
@@ -50,6 +50,7 @@ export function App() {
       <span>{session.status}</span><button onClick={() => { navigation.cancel(); void session.takeControl().catch(() => {}); }}>Take control</button>
     </aside>}
     {game.battle ? <BattleView {...shared} battle={game.battle} party={game.party} inventory={game.inventory}
+      controlsDisabled={!session.controlled || agentic.active}
       onRound={commands.round} onSkill={commands.skill} onAutoBattleChange={commands.actorAuto} onEnd={commands.closeBattle}
       autoActive={automationActive(game)} wavesActive={wavesActive(game)} autoThrottleMs={game.autoThrottleMs}
       onWavesToggle={commands.toggleWaves} onAutoThrottleChange={commands.throttle} onStopAutomation={commands.stopAuto}
@@ -90,12 +91,6 @@ export function App() {
       onToggleItemLock={commands.lock} onSpendAttribute={commands.spend} onAutoSpendChange={commands.autoSpend}
       onCastSkill={commands.skill} allowOutOfCombatSkills={!game.battle}
       allowTeleport={game.mode !== 'town' && !game.battle && session.controlled && !agentic.active} onClose={() => setDialog(undefined)} />}
-    {dialog === 'diagnostics' && <Dialog title="Storage diagnostics" onClose={() => setDialog(undefined)}>
-      <p>Revision {game.snapshot.revision}</p>
-      <table><thead><tr><th>Action</th><th>Reads</th><th>Writes</th><th>Logical bytes written</th><th>ms</th></tr></thead>
-        <tbody>{session.diagnostics.slice().reverse().map(d => <tr key={d.revision}>
-          <td>{d.action}</td><td>{d.stats.reads}</td><td>{d.stats.writes}</td><td>{d.stats.writeBytes}</td><td>{Math.round(d.elapsedMs)}</td>
-        </tr>)}</tbody></table>
-    </Dialog>}
+    {dialog === 'diagnostics' && <GameDiagnostics snapshot={game.snapshot} diagnostics={session.diagnostics} onClose={() => setDialog(undefined)} />}
   </>;
 }

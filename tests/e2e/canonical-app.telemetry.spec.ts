@@ -1,0 +1,31 @@
+import { expect, test } from '@playwright/test';
+import { appGame } from './canonical-app-auto-kill.support';
+
+test('gameplay trace persists, reads without writes and exports a pinned diagnostic snapshot', async ({ page }, info) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Maze Battle', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Waves', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Battle / })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop Waves', exact: true }).click();
+  await page.getByRole('button', { name: 'End', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Maze Battle', exact: true })).toBeVisible();
+  const before = await appGame(page);
+  await page.getByRole('button', { name: 'Diagnostics', exact: true }).click();
+  await page.getByRole('tab', { name: 'Gameplay', exact: true }).click();
+  const trace = page.getByRole('region', { name: 'Gameplay trace', exact: true });
+  await expect(trace).not.toHaveAttribute('aria-busy', 'true');
+  await expect(trace.getByText(/Battle started/)).toBeVisible();
+  await expect(trace.getByText(/Battle abandoned/)).toBeVisible();
+  expect((await appGame(page)).snapshot).toEqual(before.snapshot);
+  const pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download gameplay trace', exact: true }).click();
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe(`maze-gameplay-r${before.snapshot.revision}.json`);
+  await download.saveAs(info.outputPath(download.suggestedFilename()));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Maze Battle', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Diagnostics', exact: true }).click();
+  await page.getByRole('tab', { name: 'Gameplay', exact: true }).click();
+  await expect(trace.getByText(/Battle started/)).toBeVisible();
+  await expect(trace.getByText(/Battle abandoned/)).toBeVisible();
+});

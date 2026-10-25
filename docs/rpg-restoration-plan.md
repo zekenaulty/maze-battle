@@ -49,11 +49,11 @@ do not import a generated output tree or run asset generation.
 | ID | Deliverable | Acceptance | Status |
 | --- | --- | --- | --- |
 | R0 | Integrate 3D on latest canonical lineage | Locked install, affected/full unit regression as recorded, types/build, real 2D/3D navigation/map/chest/stairs/reload/graphics recovery, canonical ownership/recovery and provider-free noncombat corpus. Exact candidate and local assets recorded. | Complete, bounded provider-free |
-| R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | Clock/policy/click and on-demand accepted journal checked; remaining surfaces pending |
-| R2 | Restore one durable battle vertical | Game-owned encounter and bounded battle records/commands; existing manual skill/target UI; enemy actions; win/loss/return; all old skill rules exercised. Reload, cancellation, duplicate and rollback checks. | Playable vertical checked; wider loss/save/custody browser composition pending |
-| R3 | Reconnect progression and rewards | Atomic/deduplicated kill credit, XP, level/attribute updates, gold, loot, equipment and quest progress; no duplicate payout after retry/reload/manual-save restore. | Shared settlement checked; wider composed recovery tests pending |
-| R4 | Restore the grinder | Individual Auto Battle; linked Stop/takeover; Waves; encounter interruption/resumption of travel; Auto quest/loot/town/supply loop. Distinguish posted offers from accepted mandatory work. | Shared commands and App regressions checked; native kill-quest journey in progress |
-| R5 | Qualify the real RPG | Canonical gameplay telemetry, played multi-floor journey, backtracking, loot pressure, town care, reload/takeover and failure recovery. Document finite storage behavior and next retention work honestly. | Durable trace implementation and sustained native journey in progress |
+| R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | Checked; Teleport restored with disclosed local-range limitation |
+| R2 | Restore one durable battle vertical | Game-owned encounter and bounded battle records/commands; existing manual skill/target UI; enemy actions; win/loss/return; all old skill rules exercised. Reload, cancellation, duplicate and rollback checks. | Checked bounded vertical, including native loss/save/custody composition |
+| R3 | Reconnect progression and rewards | Atomic/deduplicated kill credit, XP, level/attribute updates, gold, loot, equipment and quest progress; no duplicate payout after retry/reload/manual-save restore. | Checked shared settlement, native journey and named-save wallet restoration |
+| R4 | Restore the grinder | Individual Auto Battle; linked Stop/takeover; Waves; encounter interruption/resumption of travel; Auto quest/loot/town/supply loop. Distinguish posted offers from accepted mandatory work. | Checked native kill quest and continuation into floor three; town care separately tested |
+| R5 | Qualify the real RPG | Canonical gameplay telemetry, played multi-floor journey, backtracking, loot pressure, town care, reload/takeover and failure recovery. Document finite storage behavior and next retention work honestly. | Checked under finite gates; no arbitrary-depth, physical-disk or full-balance claim |
 
 R2 and R3 may be delivered as smaller checked increments; do not expose a battle
 button before its state/effects/recovery path is coherent. Publish checked
@@ -116,6 +116,15 @@ replay guarantees. Report measured sustained-play limits and the next bounded
 retention slice, not a promise of infinite storage.
 
 ## Rolling evidence
+
+- Closing [R0-R5 qualification](reviews/rpg-r5-restoration-qualification.md):
+  playable canonical RPG restored, 5,491 root tests PASS / one optional skip,
+  actual-App battle/inventory/town and noncombat Agentic regressions checked.
+  Fresh ordinary Auto reached floor three after 759 moves and 12 quest claims.
+  Logical usage reached 45.4 MB; retention is the next bounded scaling task.
+  Later spatial-stair 3D commits are a separate controlled merge, not silently
+  included in this tested restoration. Historical entries below retain the
+  proof state of each earlier slice.
 
 - R0 candidate assembled by fast-forward in the isolated checkout; runtime source
   remains the incoming pinned commit. Full units, types/build and 77 browser-run

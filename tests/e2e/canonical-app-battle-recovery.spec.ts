@@ -141,7 +141,9 @@ test('second tab explicitly takes active battle control paused; old tab cannot c
     expect(adopted.quests).toEqual(before.quests); expect(adopted.checkpoint.position).toEqual(before.checkpoint.position);
     await stable(peer);
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
-    if (await slash.isEnabled()) await slash.click();
+    await expect(slash).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Round', exact: true })).toBeDisabled();
+    await expect(page.getByRole('checkbox', { name: `${hero.displayName} auto battle` })).toBeDisabled();
     await stable(peer);
     expect(await head(peer)).toEqual(current);
     expect((await appGame(peer)).party).toEqual(adopted.party);

@@ -13,9 +13,10 @@ interface BattleActionsProps {
   onSkill: (actorId: string, skillId: SkillId) => void;
   onAutoBattleChange: (actorId: string, enabled: boolean) => void;
   skillsVisible?: boolean;
+  controlsDisabled?: boolean;
 }
 
-export function BattleActions({ party, active, now, onSkill, onAutoBattleChange, skillsVisible = true }: BattleActionsProps) {
+export function BattleActions({ party, active, now, onSkill, onAutoBattleChange, skillsVisible = true, controlsDisabled = false }: BattleActionsProps) {
   const [selectedId, setSelectedId] = useState(party[0]?.id);
   const selected = party.find((actor) => actor.id === selectedId) ?? party[0];
   return (
@@ -37,7 +38,7 @@ export function BattleActions({ party, active, now, onSkill, onAutoBattleChange,
               </span>
             </div>
             <label className="compact-toggle auto-toggle">
-              <input type="checkbox" aria-label={`${actor.displayName} auto battle`} checked={actor.autoBattle} onChange={(event) => onAutoBattleChange(actor.id, event.currentTarget.checked)} />
+              <input disabled={controlsDisabled} type="checkbox" aria-label={`${actor.displayName} auto battle`} checked={actor.autoBattle} onChange={(event) => onAutoBattleChange(actor.id, event.currentTarget.checked)} />
               <span>Auto</span>
             </label>
           </header>
@@ -66,7 +67,7 @@ export function BattleActions({ party, active, now, onSkill, onAutoBattleChange,
                   type="button"
                   aria-label={skillName}
                   title={skillMeta ? `${skillName} ${skillMeta}` : skillName}
-                  disabled={!active || !canUseSkill(actor, skill.id, now)}
+                  disabled={controlsDisabled || !active || !canUseSkill(actor, skill.id, now)}
                   onClick={() => onSkill(actor.id, skill.id)}
                 >
                   <span className="skill-button-name">{skillName}</span>

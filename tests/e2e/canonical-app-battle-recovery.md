@@ -6,6 +6,11 @@ No production edits, provider/service calls, parent checkout changes or owner da
 
 ## Finding first
 
+Parent repair: BattleView now receives custody availability and disables old-tab
+skills, actor AI, Round, End and automation controls. Corrected native composition
+is **3 PASS / 0 FAIL** in 42.7s (`test-results/r5-battle-recovery-fixed`). The
+original strict failure below remains historical evidence, not the current state.
+
 **P2: stale battle controls remain interactive after ownership transfer.**
 `src/App.tsx:52-56` does not pass control availability to BattleView;
 `src/components/BattleActions.tsx:69-70` disables Slash only for battle/skill state.

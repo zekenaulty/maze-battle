@@ -220,7 +220,8 @@ export class GameSession {
           || actual.cell.row !== expected.cell.row || actual.cell.column !== expected.cell.column) throw new StalePositionInputError();
       }
       if (kind === 'combat' && captured && typeof captured === 'object' && !Array.isArray(captured)
-        && typeof captured.battleId === 'string' && captured.battleId !== this.view.game?.battle?.id) throw new StaleBattleInputError();
+        && (captured.kind === 'start' && this.view.game?.battle
+          || typeof captured.battleId === 'string' && captured.battleId !== this.view.game?.battle?.id)) throw new StaleBattleInputError();
       const original = gameRequest(this.head!, kind === 'combat' ? 'battle.command' : `${kind}.command`, captured), started = performance.now();
       const result = await handlers[kind](original, { signal });
       this.assert(signal);
