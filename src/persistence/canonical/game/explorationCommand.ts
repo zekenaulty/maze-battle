@@ -1,5 +1,5 @@
 import type { Direction } from '../../../domain/types';
-import { fields } from '../roster/codec';
+import { fields, id } from '../roster/codec';
 import { loadParty } from '../roster/projection';
 import { check, request as validateRequest } from '../validation';
 import { executeCanonical, type CanonicalWork } from '../transaction';
@@ -15,14 +15,16 @@ import { checkpointJson, gameCheckpoint, type GameCheckpoint } from './checkpoin
 import { findPreparation } from './preparation';
 import { currentBattle } from '../combat/coherence';
 import { movementEncounter } from '../combat/encounter';
+import { commitTeleportCommand } from './teleportCommand';
 
 export type ExplorationCommand = { kind: 'look' } | { kind: 'move'; direction: Direction; triggerStairs: boolean }
-  | { kind: 'stairs'; direction: 'up' | 'down' };
+  | { kind: 'stairs'; direction: 'up' | 'down' } | { kind: 'teleport'; actorId: string };
 export function explorationCommand(input: unknown): ExplorationCommand {
-  const c = fields(input, 'kind', 'direction triggerStairs');
+  const c = fields(input, 'kind', 'direction triggerStairs actorId');
   if (c.kind === 'look') check(Object.keys(c).length === 1, 'invalid look command');
   else if (c.kind === 'move') check(Object.keys(c).length === 3 && DIRECTIONS.includes(c.direction as Direction)
     && typeof c.triggerStairs === 'boolean', 'invalid movement command');
+  else if (c.kind === 'teleport') { check(Object.keys(c).length === 2, 'invalid teleport command'); id(c.actorId); }
   else check(c.kind === 'stairs' && Object.keys(c).length === 2 && ['up', 'down'].includes(c.direction as string), 'invalid stair command');
   return input as ExplorationCommand;
 }
@@ -33,7 +35,9 @@ export function executeExplorationCommand(request: CanonicalRequest, options: { 
 
 /** Noncombat game commands. Controller choice cannot change movement's interaction policy. */
 export async function commitExplorationCommand(tx: CanonicalWork, input: unknown, review?: ObservationReview) {
-  const command = explorationCommand(input), before = gameCheckpoint(tx.head.checkpoint);
+  const command = explorationCommand(input);
+  if (command.kind === 'teleport') return commitTeleportCommand(tx, command.actorId, review);
+  const before = gameCheckpoint(tx.head.checkpoint);
   const prior = await validateKnowledge(tx.pages, before.knowledge);
   const battle = await currentBattle(tx.pages, before);
   if (battle || before.mode === 'town' || !(await loadParty(tx.pages)).some(actor => actor.hp > 0)) return { kind: command.kind, outcome: 'unavailable' };
