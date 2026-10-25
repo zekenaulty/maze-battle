@@ -7,6 +7,8 @@ import type { ModelSelection } from '../../../scripts/import-model-proof';
 import { sha256 } from '../../../scripts/import-tilelab-pack';
 import { validateModelPack } from './contract';
 import { importModelExport, type ModelExportSelection } from '../../../scripts/import-model-export';
+import { decodeModelPng } from '../../../scripts/model-png';
+import { pngImage, upgradedExportFixture } from './modelExport.test-support';
 
 async function fixture() {
   const parent = await mkdtemp(path.join(os.tmpdir(), 'maze-model-proof-')), root = path.join(parent, 'test-run');
@@ -64,7 +66,7 @@ describe('TileLab model evidence intake', () => {
       const b = await importModelExport(relocated, choice); expect(b.pack).toEqual(a.pack); expect(b.verifiedFiles).toBe(pins.length);
       expect(b.files.size).toBe(1); expect(b.pack.provenance.warnings).toContain('lever credit: Local synthetic credit');
       await expect(importModelExport(root, { ...choice, descriptorSha256: '0'.repeat(64) })).rejects.toThrow('descriptor changed');
-      await expect(importModelExport(root, { ...choice, variant: 'upgraded' } as unknown as ModelExportSelection)).rejects.toThrow('explicitly selects original');
+      await expect(importModelExport(root, { ...choice, variant: 'upgraded' })).rejects.toThrow('Selected material/alpha policy differs');
       await f.put('portable/textures/source_native.png', Buffer.from('changed')); await expect(importModelExport(root, choice)).rejects.toThrow('Export file changed');
       doc.files[0].path = '../outside.json'; const unsafe = JSON.stringify(doc); await f.put('portable/material-export.json', unsafe);
       await expect(importModelExport(root, { ...choice, descriptorSha256: sha256(unsafe) })).rejects.toThrow('Unsafe relative path');
@@ -92,5 +94,53 @@ describe('TileLab model evidence intake', () => {
       await other.put('lever/materials/atlas/source_native.png', Buffer.from('changed bytes'));
       await expect(importModelProof(other.root, other.selection)).rejects.toThrow('Selected image changed');
     } finally { await rm(other.parent, { recursive: true, force: true }); }
+  });
+
+  it('imports portable upgraded lever/button/door candidates with exact alpha/crops and unchanged original geometry/layout identities', async () => {
+    const f = await upgradedExportFixture(); try {
+      const upgraded = await importModelExport(f.root, f.selection), relocated = path.join(f.parent, 'moved-package');
+      await cp(f.root, relocated, { recursive: true });
+      expect((await importModelExport(relocated, f.selection)).pack).toEqual(upgraded.pack);
+      expect(upgraded.verifiedFiles).toBe(f.doc.files.length);
+      expect(Object.keys(upgraded.pack.assets)).toEqual(['lever-wall-source', 'iron-door-source', 'lever-wall-native', 'stone-button-wall-source']);
+      expect(upgraded.pack.bindings['lever-wall-source']).toEqual(upgraded.pack.bindings['stone-button-wall-source']);
+      const button = upgraded.pack.assets['stone-button-wall-source'];
+      expect(button.states).toEqual({ off: { geometry: 'off' }, on: { geometry: 'on' } });
+      expect(button.payload.geometries.off[1].size).toEqual([6 / 16, 2 / 16, 4 / 16]);
+      expect(button.payload.geometries.on[1].size).toEqual([6 / 16, 1 / 16, 4 / 16]);
+      expect(button.payload.geometries.off[0].rotation).toEqual([-Math.PI / 2, -Math.PI, 0]);
+      const evidence = JSON.parse(upgraded.files.get('evidence/intake.json')!.toString());
+      expect(evidence.materials).toHaveLength(3);
+      for (const material of evidence.materials) expect(material).toMatchObject({ exactSourceAlpha: true, verifiedPixels: 16 });
+      for (const material of evidence.materials.filter((m: any) => m.group)) {
+        expect(material.group).toMatchObject({ exactRawRgbCrop: true, exactVisibleRgbaCrop: true });
+        expect(material.group.transparentRgbDifferences).toBeGreaterThan(0);
+      }
+      const controls = Object.values(upgraded.pack.materials).find(m => m.label === 'minecraft:block/_bdc/switches')!;
+      expect(controls.render.alphaMode).toBe('blend');
+      await f.originals(); const original = await importModelExport(f.root, f.selection);
+      expect(original.pack.assets).toEqual(upgraded.pack.assets);
+      expect(Object.values(original.pack.materials).map(m => m.layoutId)).toEqual(Object.values(upgraded.pack.materials).map(m => m.layoutId));
+      expect(Object.values(original.pack.materials).filter(m => m.texture).every(m => m.texture!.width === 2)).toBe(true);
+      expect(Object.values(upgraded.pack.materials).filter(m => m.texture).every(m => m.texture!.width === 4)).toBe(true);
+    } finally { await rm(f.parent, { recursive: true, force: true }); }
+  });
+
+  it.each([
+    ['alpha', 'source alpha differs'], ['crop', 'raw RGB crop differs'], ['receipt', 'Output receipt differs'],
+    ['group', 'crop/resource association differs'], ['fallback', 'no raw/source fallback'], ['missing-receipt', 'Missing block output receipt'],
+  ] as const)('rejects a fully re-pinned upgraded export with invalid %s evidence', async (fault, diagnostic) => {
+    const f = await upgradedExportFixture(fault); try {
+      await expect(importModelExport(f.root, f.selection)).rejects.toThrow(diagnostic);
+    } finally { await rm(f.parent, { recursive: true, force: true }); }
+  });
+
+  it('decodes exact partial alpha and rejects corrupt or oversized PNG headers before use', () => {
+    const pixels = { width: 2, height: 1, rgba: Buffer.from([19, 30, 41, 0, 200, 150, 100, 128]) }, bytes = pngImage(pixels);
+    expect(decodeModelPng(bytes)).toEqual(pixels);
+    const corrupt = Buffer.from(bytes); corrupt[corrupt.length - 1] ^= 1;
+    expect(() => decodeModelPng(corrupt)).toThrow('CRC');
+    expect(() => decodeModelPng(bytes.subarray(0, bytes.length - 12))).toThrow('missing IEND');
+    expect(() => decodeModelPng(pngImage({ width: 4097, height: 1, rgba: Buffer.alloc(4097 * 4) }))).toThrow('canvas required');
   });
 });

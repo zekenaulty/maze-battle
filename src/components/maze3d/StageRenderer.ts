@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GameView } from '../../services/game/GameView';
-import { AssetRegistry } from '../../assets3d/registry';
+import { AssetRegistry, PACK_URL } from '../../assets3d/registry';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ThreeAssetLibrary, blockGeometry, applyBlockAppearance, disposeGeometry } from '../../assets3d/threeAssets';
 import { HumanoidResources } from '../../assets3d/humanoid/HumanoidResources';
 import { HumanoidModel } from '../../assets3d/humanoid/HumanoidModel';
@@ -14,6 +15,9 @@ import { bookshelfMesh } from './bookshelf';
 import { straightStair } from '../../assets3d/stairs/assembly';
 import { VisualInstance, VisualResources } from '../../assets3d/models/VisualInstance';
 import { nativeMaterials } from '../../assets3d/models/native';
+import type { VisualMaterial } from '../../assets3d/models/contract';
+import { stageBoxGeometry } from './surfaces';
+import { StageInteractables } from './StageInteractables';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -36,9 +40,12 @@ export class StageRenderer {
   private registry: AssetRegistry;
   private failure: (message: string) => void;
   private materialWarning: (message: string) => void;
-  private stairResources = new VisualResources('');
-  private stairModel?: VisualInstance;
-  private stairId?: string;
+  private stairResources = new VisualResources(PACK_URL);
+  private stairs = new Map<string, { model: VisualInstance; lights: THREE.PointLight[] }>();
+  private masonry = new THREE.Group();
+  private masonryKey = '';
+  private masonryMaterials = new Map<string, THREE.Material>();
+  private interactables: StageInteractables;
   yaw = 0; pitch = 0;
   constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void, materialWarning = (_message: string) => {}) {
     this.registry = registry; this.failure = failure; this.materialWarning = materialWarning;
@@ -53,6 +60,8 @@ export class StageRenderer {
     // Blend into the background before the bounded disclosed floor ends.
     this.scene.background = new THREE.Color('#10151d'); this.scene.fog = new THREE.Fog('#10151d', CELL_SIZE, CELL_SIZE * 3.5);
     this.scene.add(new THREE.HemisphereLight('#c5d5f1', '#4c3e30', 1.55), this.light);
+    this.scene.add(this.masonry);
+    this.interactables = new StageInteractables(this.scene, materialWarning);
     this.observer = new ResizeObserver(() => {
       if (!this.alive) return;
       const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight);
@@ -81,26 +90,43 @@ export class StageRenderer {
     });
   }
   private syncScene(snapshot: StageScene) {
-    const connector = snapshot.connector;
-    if (connector?.sight.id !== this.stairId) {
-      if (this.stairModel) { this.scene.remove(this.stairModel.root); this.stairModel.dispose(); this.stairModel = undefined; }
-      this.stairId = connector?.sight.id;
-      if (connector) {
+    const flights = snapshot.flights ?? (snapshot.connector ? [{ id: snapshot.connector.sight.id, ...snapshot.connector }] : []);
+    for (const [id, entry] of this.stairs) if (!flights.some(f => f.id === id)) {
+      entry.model.dispose(); for (const light of entry.lights) light.removeFromParent(); this.stairs.delete(id);
+    }
+    const surface = this.registry.resolve('stone_bricks').faces[4].material;
+    const stone: VisualMaterial = surface ? { ...surface, layoutId: 'solid-v1', render: { alphaMode: 'opaque', side: 'front' } } : nativeMaterials.native_stone;
+    for (const flight of flights) {
+      let entry = this.stairs.get(flight.id);
+      if (!entry) {
         const stair = straightStair(), asset = { ...stair.model, geometryRevision: `${stair.model.geometryRevision}/room-decks`,
           payload: { geometries: { flight: stair.model.payload.geometries.flight.filter(p => !p.id.endsWith('landing')) } } };
-        this.stairModel = new VisualInstance(asset, this.stairResources);
-        this.stairModel.bindMaterials({ structure: nativeMaterials.native_stone, treads: nativeMaterials.native_stone, rails: nativeMaterials.native_bronze });
-        this.stairModel.setVisualState('neutral');
-        this.scene.add(this.stairModel.root);
+        const model = new VisualInstance(asset, this.stairResources);
+        model.bindMaterials({ structure: stone, treads: stone, rails: nativeMaterials.native_bronze }); model.setVisualState('neutral');
+        model.root.traverse(node => {
+          if (node instanceof THREE.Mesh && !node.geometry.userData.masonryGrid) {
+            alignBoxUVs(node.geometry, node.userData.visualPart.position); node.geometry.userData.masonryGrid = true;
+          }
+        });
+        const lights = [new THREE.PointLight('#e7cfac', 16, 12, 1.7), new THREE.PointLight('#e7cfac', 16, 12, 1.7)];
+        entry = { model, lights }; this.stairs.set(flight.id, entry); this.scene.add(model.root, ...lights);
       }
+      entry.model.root.position.set(flight.lower.x, flight.lower.y, flight.lower.z + .9);
+      entry.lights[0].position.set(flight.upper.x, flight.upper.y + 2.8, flight.upper.z);
+      entry.lights[1].position.set(flight.lower.x, flight.lower.y + 2.8, flight.lower.z);
     }
-    if (connector && this.stairModel) this.stairModel.root.position.set(connector.lower.x, connector.lower.y, connector.lower.z + .9);
-    const markerCells = snapshot.cells.filter(cell => cell.source.stairs.length && (!connector || ![connector.sight.upper, connector.sight.lower].some(at => JSON.stringify(at) === JSON.stringify(cell.source.at))));
-    const retained = new Set([...snapshot.boxes.map(box => box.id), ...markerCells.map(cell => `${cell.key}/stairs`)]);
+    this.scene.fog = new THREE.Fog('#10151d', flights.length ? CELL_SIZE * 2 : CELL_SIZE, CELL_SIZE * (flights.length ? 8 : 3.5));
+    this.interactables.sync(snapshot.doors ?? []);
+    this.canvas.dataset.rooms = String(snapshot.roomCount ?? 0); this.canvas.dataset.flights = String(flights.length);
+    const markerCells = snapshot.cells.filter(cell => cell.source.stairs.length && !flights.some(f => [f.upper, f.lower].some(p =>
+      Math.abs(p.y - cell.floorY) < .01 && Math.hypot(p.x - cell.center.x, p.z - cell.center.z) < .01)));
+    const dynamic = snapshot.boxes.filter(box => ['bookshelf', 'chest'].includes(box.material));
+    this.syncMasonry(snapshot.boxes.filter(box => !['bookshelf', 'chest'].includes(box.material)));
+    const retained = new Set([...dynamic.map(box => box.id), ...markerCells.map(cell => `${cell.key}/stairs`)]);
     for (const [id, entry] of this.boxes) if (!retained.has(id)) {
       this.scene.remove(entry.object); disposeGeometry(entry.object); this.boxes.delete(id); this.chestStates.delete(id);
     }
-    for (const description of snapshot.boxes) {
+    for (const description of dynamic) {
       const signature = JSON.stringify(description), previous = this.boxes.get(description.id);
       if (previous?.description === signature) continue;
       if (previous) { this.scene.remove(previous.object); disposeGeometry(previous.object); }
@@ -111,8 +137,7 @@ export class StageRenderer {
       if (group) applyBlockAppearance(group, this.registry.resolve('chest', { state: chest.opened ? 'open' : 'closed' }), this.library);
     }
     // Stair symbols are flat; physical vertical traversal remains an explicit canonical transition.
-    for (const cell of snapshot.cells) {
-      if (!cell.source.stairs.length || snapshot.connector && [snapshot.connector.sight.upper, snapshot.connector.sight.lower].some(at => JSON.stringify(at) === JSON.stringify(cell.source.at))) continue;
+    for (const cell of markerCells) {
       const id = `${cell.key}/stairs`, description = JSON.stringify(cell.source.stairs);
       if (this.boxes.has(id)) continue;
       const group = new THREE.Group(); group.position.set(cell.center.x - 0.85, cell.floorY + 0.015, cell.center.z - 0.85);
@@ -122,6 +147,33 @@ export class StageRenderer {
       }
       this.scene.add(group); this.boxes.set(id, { description, object: group });
     }
+  }
+  private syncMasonry(boxes: SceneBox[]) {
+    const key = JSON.stringify(boxes); if (key === this.masonryKey) return; this.masonryKey = key;
+    disposeGeometry(this.masonry); this.masonry.clear();
+    const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    for (const box of boxes) {
+      const face = box.deck === 'floor' ? 2 : box.deck === 'ceiling' ? 3 : 4;
+      const surface = this.registry.resolve(box.material).faces[face];
+      const shared = box.material === 'unknown' ? this.unknown : this.library.material(surface);
+      let material = this.masonryMaterials.get(shared.uuid);
+      if (!material) { material = shared.clone(); material.side = THREE.FrontSide; this.masonryMaterials.set(shared.uuid, material); }
+      const geometry = stageBoxGeometry(box, surface.material?.surface === 'tileable'); geometry.translate(...box.center);
+      const batch = batches.get(material) ?? []; batch.push(geometry); batches.set(material, batch);
+    }
+    for (const [material, parts] of batches) {
+      const geometry = mergeGeometries(parts, false); for (const part of parts) part.dispose();
+      if (geometry) this.masonry.add(new THREE.Mesh(geometry, material));
+    }
+    // Texture loads update shared materials in place; clones need those same eventual maps.
+    void this.library.ready().then(() => {
+      if (!this.alive) return;
+      for (const box of boxes) {
+        const face = box.deck === 'floor' ? 2 : box.deck === 'ceiling' ? 3 : 4;
+        const shared = box.material === 'unknown' ? this.unknown : this.library.material(this.registry.resolve(box.material).faces[face]);
+        const clone = this.masonryMaterials.get(shared.uuid); if (clone) { clone.copy(shared); clone.side = THREE.FrontSide; clone.needsUpdate = true; }
+      }
+    });
   }
   private buildBox(box: SceneBox): THREE.Object3D {
     if (box.material === 'bookshelf') return bookshelfMesh(box, this.registry, this.library);
@@ -133,8 +185,7 @@ export class StageRenderer {
     const face = box.id.endsWith('/floor') ? 2 : box.id.endsWith('/ceiling') ? 3 : 4;
     const surface = this.registry.resolve(box.material).faces[face];
     const material = box.material === 'unknown' ? this.unknown : this.library.material(surface);
-    const geometry = new THREE.BoxGeometry(...box.size);
-    if (surface.material?.surface === 'tileable') alignBoxUVs(geometry, box.center);
+    const geometry = stageBoxGeometry(box, surface.material?.surface === 'tileable');
     const mesh = new THREE.Mesh(geometry, material); mesh.position.set(...box.center); return mesh;
   }
   async setPlayer(catalog: SkinCatalog, selectedId?: string) {
@@ -148,6 +199,7 @@ export class StageRenderer {
     if (skin && this.player) await this.player.applyAppearance({ id: 'local-player-appearance', model: skin.model, skinAssetId: id, scale: 1, outerLayerVisible: true });
   }
   setThirdPerson(value: boolean) { this.thirdPerson = value; }
+  interact() { if (!this.walker.stairs && !this.walker.pending) return this.interactables.interact(this.walker.position, this.walker.floorY); }
   look(dx: number, dy: number) { this.yaw -= dx * 0.0025; this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.0025, -1.1, 1.1); }
   render(seconds: number, moving: boolean) {
     if (!this.alive || this.graphicsLost) return;
@@ -161,11 +213,14 @@ export class StageRenderer {
     if (this.thirdPerson && this.player) {
       // Short camera boom contracts against the same solids as player collision.
       const direction = new THREE.Vector3(Math.sin(this.yaw), 0.32, Math.cos(this.yaw)).normalize();
-      const solids = [...this.boxes.values()].map(e => e.object);
+      const solids = [this.masonry, ...this.boxes.values()].map(e => 'object' in e ? e.object : e);
       const ray = new THREE.Raycaster(this.camera.position, direction, 0, 2.8), hit = ray.intersectObjects(solids, true)[0];
       this.camera.position.addScaledVector(direction, Math.max(0, Math.min(2.6, hit ? hit.distance - 0.18 : 2.6)));
       this.camera.lookAt(x, y + 1.65, z);
     }
+    this.interactables.update(seconds, this.walker.position, y);
+    this.canvas.dataset.doors = String(this.interactables.count); this.canvas.dataset.nearbyControl = this.interactables.nearby(this.walker.position, y);
+    this.canvas.dataset.doorStates = JSON.stringify(this.interactables.states);
     this.light.position.set(x, y + 3.3, z); this.renderer.render(this.scene, this.camera);
     this.canvas.dataset.pose = `${x.toFixed(4)},${z.toFixed(4)}`; this.canvas.dataset.yaw = this.yaw.toFixed(4);
     this.canvas.dataset.height = y.toFixed(4); this.canvas.dataset.stairProgress = this.walker.stairs?.progress.toFixed(4) ?? '';
@@ -176,7 +231,9 @@ export class StageRenderer {
   dispose() {
     if (!this.alive) return; this.alive = false; this.observer.disconnect();
     this.canvas.removeEventListener('webglcontextlost', this.contextLost);
-    this.stairModel?.dispose(); this.stairResources.dispose(); this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene); this.library.dispose(); this.unknown.dispose();
+    for (const entry of this.stairs.values()) entry.model.dispose(); this.stairs.clear(); this.interactables.dispose();
+    this.stairResources.dispose(); this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene);
+    for (const material of this.masonryMaterials.values()) material.dispose(); this.masonryMaterials.clear(); this.library.dispose(); this.unknown.dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.remove(); this.boxes.clear(); this.chestStates.clear();
   }
 }

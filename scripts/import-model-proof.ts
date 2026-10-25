@@ -95,7 +95,22 @@ export function buildModelProof(data: Record<string, ModelEvidenceBlock>, pack: 
       ...minecraftParts(resolveMinecraftModel('minecraft:block/iron_door_top_left', door.models, true), door.slots, { prefix: 'upper', parent: 'source-frame', origin: [0, 0, 0], offset: [0, 1, 0] }),
     ] } } };
   sourceDoor.geometryRevision = sha256(serialize({ payload: sourceDoor.payload, states: sourceDoor.states, source: sourceDoor.source }));
-  for (const asset of [sourceLever, sourceDoor, nativeLever()]) {
+  const assets = [sourceLever, sourceDoor, nativeLever()];
+  if (data.stone_button) {
+    const button = data.stone_button;
+    const asset: VisualAsset = { id: 'stone-button-wall-source', label: 'Stone button · imported', geometryRevision: '', source: sources(button),
+      slots: definitions(button), adapter: 'cuboids-v1', states: {}, anchors: { mount: { position: [0, 0, -0.5] } }, payload: { geometries: {} } };
+    for (const [state, powered] of [['off', 'false'], ['on', 'true']]) {
+      const variant = button.variants[`face=wall,facing=south,powered=${powered}`]; check(variant, `Missing approved button state: ${state}`);
+      check(!variant.uvlock, 'UV lock is outside the selected adapter profile');
+      const model = resolveMinecraftModel(canonicalResource(variant.model), button.models, true);
+      asset.payload.geometries[state] = [{ id: 'source-frame', position: [0, 0, 0], rotation: [-(variant.x ?? 0) * Math.PI / 180, -(variant.y ?? 0) * Math.PI / 180, 0] },
+        ...minecraftParts(model, button.slots, { prefix: 'element', parent: 'source-frame' })];
+      asset.states[state] = { geometry: state };
+    }
+    asset.geometryRevision = sha256(serialize({ payload: asset.payload, states: asset.states, source: asset.source })); assets.push(asset);
+  }
+  for (const asset of assets) {
     validateVisualAsset(asset); pack.assets[asset.id] = asset;
     pack.bindings[asset.id] = Object.fromEntries(Object.entries(asset.slots).map(([slot, layout]) => {
       const material = Object.values(pack.materials).find(m => m.layoutId === layout.layoutId);

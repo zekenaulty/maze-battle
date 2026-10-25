@@ -51,6 +51,7 @@ export class GameSession {
   private active = false;
   private refreshing = false;
   private manualVersion = 0;
+  private stairPreparation?: { gameId: string; generation: string; level: number; promise: Promise<GameView | undefined> };
   private agenticControl?: { gameId: string; generation: string; epoch: number; release: () => void };
   private readonly lock = new BrowserSaveLock(() => this.stop('Read only: control moved to another tab.'));
   private readonly changed: (view: GameSessionView) => void;
@@ -245,19 +246,34 @@ export class GameSession {
       return result.receipt;
     });
   };
-  /** Prepare at the descending landing without changing the actor or earning adjacent navigation knowledge. */
+  /** Prepare a visible connection in small serialized batches, yielding to movement between receipts. */
   prepareStairs = (expectedPosition: WorldPosition, binding: string) => {
-    const expected = structuredClone(expectedPosition);
-    return this.manual(async signal => {
-      const checkpoint = gameCheckpoint(this.head!.checkpoint);
-      if (binding !== spatialBinding(snapshotOf(this.head!)) || JSON.stringify(checkpoint.position) !== JSON.stringify(expected)) throw new StalePositionInputError();
-      if (checkpoint.mode !== 'manual' || !this.view.game?.spatial?.prepareDown) throw new StalePositionInputError();
-      this.publish({ busy: true, status: `Preparing dungeon ${expected.level + 1}` });
-      await this.prepare(expected.level + 1, signal);
-      await this.adopt(this.head!, signal, true);
-      this.publish({ busy: false, status: 'Adjacent landing ready. Walk onto the stairs to descend.' });
-      return this.view.game;
-    });
+    const expected = structuredClone(expectedPosition), head = this.head;
+    if (!head) return Promise.reject(new Error('Game control unavailable'));
+    const level = expected.level + 1, existing = this.stairPreparation;
+    if (existing?.gameId === head.gameId && existing.generation === head.generation && existing.level === level) return existing.promise;
+    const job = { gameId: head.gameId, generation: head.generation, level, promise: undefined as unknown as Promise<GameView | undefined> };
+    job.promise = (async () => {
+      let first = true;
+      for (;;) {
+        const ready = await this.manual(async signal => {
+          const checkpoint = gameCheckpoint(this.head!.checkpoint);
+          if (this.head!.gameId !== job.gameId || this.head!.generation !== job.generation) throw new StalePositionInputError();
+          if (first && (binding !== spatialBinding(snapshotOf(this.head!)) || JSON.stringify(checkpoint.position) !== JSON.stringify(expected))) throw new StalePositionInputError();
+          first = false;
+          if (checkpoint.position.level !== level - 1 || checkpoint.mode !== 'manual' || !this.view.game?.spatial?.prepareDown) return true;
+          const result = await prepareGameFloor(gameRequest(this.head!, 'game.prepare', { level, visibleStairs: true }), { signal });
+          this.assert(signal); this.head = result.head ?? (await readCanonicalHead()).head;
+          await this.adopt(this.head, signal, true);
+          const complete = (result.receipt.result as JsonObject).phase === 'ready';
+          this.publish({ status: complete ? 'Connected room ready' : `Preparing connected dungeon ${level}` });
+          return complete;
+        });
+        if (ready) return this.view.game;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    })().finally(() => { if (this.stairPreparation === job) this.stairPreparation = undefined; });
+    this.stairPreparation = job; return job.promise;
   };
   /** Local host integration shares manual/Auto/save serialization. Its domain executor owns grants and validation. */
   submitHostCommand = async (command: CanonicalHostCommand): Promise<CanonicalReceipt> => {

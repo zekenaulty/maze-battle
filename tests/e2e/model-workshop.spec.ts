@@ -6,7 +6,7 @@ test('imported/native controls, material substitution and all-sided inspection s
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/?view=models'); const canvas = page.getByLabel(canvasName, { exact: true });
   await expect(canvas).toHaveAttribute('data-ready', 'ready');
-  await expect(page.getByRole('status')).toContainText('Original source textures');
+  await expect(page.getByRole('status')).toContainText('Curated TileLab textures');
   await page.getByLabel('Lever on / door open').check(); await page.getByLabel('Lever on / door open').uncheck();
   const count = await canvas.getAttribute('data-geometry-count');
   for (let i = 0; i < 6; i++) {

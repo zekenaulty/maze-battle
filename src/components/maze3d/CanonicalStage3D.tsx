@@ -29,6 +29,17 @@ export default function CanonicalStage3D(props: Props) {
   const [assetWarning, setAssetWarning] = useState('');
   const [restart, setRestart] = useState(0), [skins, setSkins] = useState<SkinCatalog>(), [skinId, setSkinId] = useState('');
   const [thirdPerson, setThirdPerson] = useState(false), [locked, setLocked] = useState(false);
+  const preparation = useRef<Promise<unknown> | undefined>(undefined);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const [preparationRevision, setPreparationRevision] = useState(0);
+  useEffect(() => {
+    if (props.disabled || !props.game.spatial?.prepareDown || !props.onPrepareStairs || preparation.current) return;
+    const pending = props.onPrepareStairs(props.game.checkpoint.position, props.game.spatial.binding);
+    preparation.current = pending;
+    void pending.catch(error => { if (mounted.current && !String(error).includes('actor has moved')) setMessage(String(error)); })
+      .finally(() => { if (preparation.current === pending) { preparation.current = undefined; if (mounted.current) setPreparationRevision(n => n + 1); } });
+  }, [props.game, props.disabled, props.onPrepareStairs, preparationRevision]);
   const settings = useRef({ thirdPerson, skinId }); settings.current = { thirdPerson, skinId };
   useEffect(() => {
     let alive = true, graphicsFailed = false, frame = 0, previous = 0, elapsed = 0, inFlight = false;
@@ -43,7 +54,7 @@ export default function CanonicalStage3D(props: Props) {
           if (alive) setAssetWarning(warning);
         });
         renderer.setThirdPerson(settings.current.thirdPerson);
-        view.current = renderer; setMessage('WASD to walk · drag to look · E opens a chest on your tile · M opens the map');
+        view.current = renderer; setMessage('WASD to walk · drag to look · E uses nearby controls or a chest · M opens the map');
         void loadSkinCatalog(abort.signal).then(async catalog => {
           if (!alive) return;
           const selected = catalog.skins.find(skin => skin.id === settings.current.skinId) ?? catalog.skins[0];
@@ -97,6 +108,10 @@ export default function CanonicalStage3D(props: Props) {
     const keydown = (event: KeyboardEvent) => {
       const target = event.target, key = event.key.toLowerCase();
       if (key === 'escape') { clear(); cancelFlight(); return; }
+      if (key === 'e' && !event.repeat && !latest.current.disabled && !document.querySelector('dialog[open]') && !event.defaultPrevented
+        && !(target instanceof HTMLElement && (target.isContentEditable || target.closest('input,select,textarea')))) {
+        const result = view.current?.interact(); if (result) { event.preventDefault(); event.stopPropagation(); setMessage(result); return; }
+      }
       if (!movementKeys.includes(key) || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.isComposing
         || target instanceof HTMLElement && (target.isContentEditable || !!target.closest('input,select,textarea'))) return;
       event.preventDefault(); // Captured before the existing 2D movement listener; never dispatch both.
@@ -131,10 +146,9 @@ export default function CanonicalStage3D(props: Props) {
       onPointerUp={() => { dragging.current = null; }} onPointerCancel={() => { dragging.current = null; }} />
     <div className="stage-3d-toolbar">
       <button onClick={() => { clear(); props.onReturn(); }}>Return to 2D</button>
-      {props.game.spatial?.prepareDown && props.onPrepareStairs && <button disabled={props.disabled} onClick={() => {
-        clear(); void props.onPrepareStairs!(props.game.checkpoint.position, props.game.spatial!.binding).catch(error => setMessage(String(error)));
-      }}>Prepare adjacent landing</button>}
-      {props.game.spatial?.connector && <span>Walk {props.game.checkpoint.position.level === props.game.spatial.connector.upper.level ? 'north to descend' : 'south to ascend'} · Esc returns to your committed landing</span>}
+      <button disabled={props.disabled || !!failure} onClick={() => setMessage(view.current?.interact() ?? 'Move closer to a door control.')}>Use nearby control</button>
+      {props.game.spatial?.prepareDown && <span role="status">Preparing connected room…</span>}
+      {!!props.game.spatial?.ports?.length && <span>Walk onto the stairs · Esc returns to your committed landing</span>}
       {assetWarning && <><span className="stage-3d-asset-warning" role="status">{assetWarning}</span><button onClick={() => { clear(); setRestart(n => n + 1); }}>Retry materials</button></>}
       <button disabled={props.disabled || !!failure} onClick={() => { void view.current?.canvas.requestPointerLock()?.catch(() => setMessage('Mouse capture unavailable; drag the view to look around.')); }}>{locked ? 'Mouse captured · Esc releases' : 'Capture mouse'}</button>
       {skins?.skins.length ? <><label>Camera<select aria-label="3D camera" value={thirdPerson ? 'third' : 'first'} onChange={event => {

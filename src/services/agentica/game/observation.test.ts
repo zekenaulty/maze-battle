@@ -23,6 +23,33 @@ describe('canonical scoped Agentica perception', () => {
     expect(start.capabilities.map(c => c.id)).toEqual(['maze.observe', 'maze.inspect', 'maze.navigate', 'maze.explore', 'maze.interact']);
     start.capabilities[0].name = 'mutated'; expect(mazeCapabilities()[0].name).toBe('Observe');
   });
+  it('includes compact visible town/down stairways and exact sight sources in the initial observation', async () => {
+    const entry = earnedCell(-5, -2, 'entry', 2, 3), exit = earnedCell(-4, -2, 'exit', 1, 2);
+    entry.stairs = ['town']; exit.stairs = ['down']; exit.chests[0].id = 'visible-chest-not-in-initial-summary';
+    const f = await perceptionFixture([entry, exit]), view = await observeMaze(f.pages, f.snapshot, f.ref), { sequence, id } = f.knowledge.checkpoint().knowledge!;
+    expect(view.data.stairways).toEqual([
+      { direction: 'town', at: { level: 1, ...entry.at.cell }, targetLevel: 'town', destinationKind: 'town', source: { sequence, id, index: 0 } },
+      { direction: 'down', at: { level: 1, ...exit.at.cell }, targetLevel: 2, destinationKind: 'landing-room', source: { sequence, id, index: 1 } },
+    ]);
+    expect(view.data).not.toHaveProperty('moreStairways'); expect(view.data).not.toHaveProperty('cells');
+    expect(JSON.stringify(view)).not.toMatch(/visible-chest-not-in-initial-summary|destinationRoomId|"target":|contents/);
+    expect(jsonBytes(view)).toBeLessThanOrEqual(768);
+    expect(() => launchStart({ ...launchStartFixture(view.revision), observation: view, capabilities: mazeCapabilities() })).not.toThrow();
+    expect(f.knowledge.reads.every(key => key.startsWith('perception/'))).toBe(true);
+  });
+  it('caps synthetic extra visible stairs within initial context bounds and drops out-of-sight hints', async () => {
+    const cells = Array.from({ length: 8 }, (_, column) => {
+      const cell = earnedCell(0, column, 'room', 0, column); cell.chests = []; cell.stairs = ['down']; return cell;
+    });
+    const f = await perceptionFixture(cells), first = await observeMaze(f.pages, f.snapshot, f.ref);
+    expect(first.data.stairways).toHaveLength(2); expect(first.data.moreStairways).toBe(true); expect(jsonBytes(first)).toBeLessThanOrEqual(768);
+    const old = { ...f.ref }, fresh = earnedCell(20, 20, 'elsewhere'); fresh.chests = [];
+    await f.knowledge.observe([fresh]); f.republish();
+    await expect(observeMaze(f.pages, f.snapshot, old)).rejects.toThrow('reference');
+    const next = await observeMaze(f.pages, f.snapshot, f.ref);
+    expect(next.data).not.toHaveProperty('stairways'); expect(next.data).not.toHaveProperty('moreStairways');
+    expect((await inspectMaze(f.pages, f.snapshot, f.ref, { scope: 'objects' })).data.objects).toEqual([]);
+  });
   it('returns signed earned coordinates and preserves original cell and edge sources without refreshing sight', async () => {
     const f = await perceptionFixture(), original = f.knowledge.checkpoint().knowledge!;
     await f.knowledge.observe([earnedCell()]); f.republish();

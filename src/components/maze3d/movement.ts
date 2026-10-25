@@ -38,10 +38,11 @@ export class StageWalker {
     const old = this.scene, crossing = this.pending;
     this.scene = scene;
     if (this.stairs) {
-      const connector = scene.connector, pending = this.stairs.pending;
+      const connector = (scene.connectors ?? (scene.connector ? [scene.connector] : [])).find(c => c.sight.id === this.stairs!.connector.sight.id), pending = this.stairs.pending;
       if (scene.scope === old.scope && connector?.sight.id === this.stairs.connector.sight.id
+        && JSON.stringify(connector.sight.placement) === JSON.stringify(this.stairs.connector.sight.placement)
         && (pending ? [addressKey(pending.source), addressKey(pending.target)].includes(scene.actor.key)
-          : old.actor.key === scene.actor.key && old.connector?.binding === connector.binding)) return;
+          : old.actor.key === scene.actor.key)) { this.stairs.connector = connector; return; }
       this.cancelStairs();
     }
     if (scene.scope !== old.scope) { this.position = { ...scene.actor.center }; this.pending = undefined; return; }
@@ -62,7 +63,9 @@ export class StageWalker {
     const stairs = this.stairs;
     if (stairs?.pending !== crossing) return false;
     if (!stairs.accept(this.scene.actor.source.at)) { this.cancelStairs(); return false; }
-    stairs.connector = this.scene.connector!;
+    const connector = (this.scene.connectors ?? (this.scene.connector ? [this.scene.connector] : [])).find(c => c.sight.id === stairs.connector.sight.id);
+    if (!connector) { this.cancelStairs(); return false; }
+    stairs.connector = connector;
     return true;
   }
   /** The reserved strip is deliberately absent from ordinary planar move links. */
@@ -70,8 +73,9 @@ export class StageWalker {
     const length = Math.max(1, Math.hypot(forward, strafe));
     const delta = { x: (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) / length,
       z: (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) / length };
-    const connector = this.scene.connector;
-    if (!this.stairs && connector && connector.sight.cells.length && !this.pending
+    const connector = (this.scene.connectors ?? (this.scene.connector ? [this.scene.connector] : []))
+      .find(c => [addressKey(c.sight.upper), addressKey(c.sight.lower)].includes(this.scene.actor.key));
+    if (!this.stairs && connector && (connector.sight.geometryReady ?? !!connector.sight.cells.length) && !this.pending
       && [addressKey(connector.sight.upper), addressKey(connector.sight.lower)].includes(this.scene.actor.key)) {
       const upper = this.scene.actor.key === addressKey(connector.sight.upper), anchor = upper ? connector.upper : connector.lower;
       if (Math.abs(this.position.x - anchor.x) <= STAIR_RECIPE.width / 2 - PLAYER_RADIUS

@@ -14,7 +14,8 @@ import { SETTINGS_KEY } from '../../src/persistence/canonical/game/settings';
 import { seedRoster } from '../../src/persistence/canonical/roster/write';
 import { gameRequest } from '../../src/services/game/canonicalRequests';
 
-if (location.origin !== 'http://127.0.0.1:5208' || location.pathname !== '/tests/e2e/canonical-stairs.html') throw Error('Controlled stair qualification origin required');
+if (!['http://127.0.0.1:5208', 'http://127.0.0.1:5209'].includes(location.origin)
+  || location.pathname !== '/tests/e2e/canonical-stairs.html') throw Error('Controlled stair qualification origin required');
 if (!sessionStorage.getItem('canonical-stair-fixture')) {
   if ((await indexedDB.databases()).some(db => db.name === 'maze-battle')) throw Error('Fresh qualification context required');
   const legacy = new URLSearchParams(location.search).has('legacy');
@@ -42,5 +43,17 @@ if (!sessionStorage.getItem('canonical-stair-fixture')) {
     const { head } = await readCanonicalHead(); await prepareGameFloor(gameRequest(head, 'game.prepare', { level: 2 }));
   }
   sessionStorage.setItem('canonical-stair-fixture', 'ready');
+}
+// One controlled automatic-preparation failure. Startup/control/observation writes remain real.
+if (new URLSearchParams(location.search).has('failprepare') && !sessionStorage.getItem('canonical-stair-failure-injected')) {
+  sessionStorage.setItem('canonical-stair-failure-injected', 'once');
+  const original = IDBObjectStore.prototype.add;
+  IDBObjectStore.prototype.add = function(value, key) {
+    if (this.name === 'records' && value?.key === 'game/preparation/2') {
+      IDBObjectStore.prototype.add = original;
+      throw new DOMException('Injected automatic stair preparation failure', 'QuotaExceededError');
+    }
+    return original.call(this, value, key);
+  };
 }
 await import('../../src/main');

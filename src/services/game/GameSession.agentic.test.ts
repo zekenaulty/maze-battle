@@ -120,6 +120,66 @@ describe('GameSession presentation source-cell fence', () => {
     await session.execute('exploration', { kind: 'look' });
     expect(mocks.exploration).toHaveBeenCalledOnce();
   });
+  it('yields visible stair preparation batches to movement without busy state or implicit travel', async () => {
+    const gate = deferred<void>(), entered = deferred<void>(), events: string[] = [];
+    const source = structuredClone(session.view.game!.checkpoint.position), binding = spatialBinding(snapshotOf(head));
+    let batches = 0;
+    const project = mocks.project.getMockImplementation()!;
+    mocks.project.mockImplementation(async (snapshot: CanonicalHead) => {
+      const result = await project(snapshot);
+      result.value.spatial = { version: 'connector-sight-v1', binding: spatialBinding(snapshotOf(snapshot)), frame: [0, 0, 0], prepareDown: batches < 2 };
+      expect(session.view.busy).toBe(false); return result;
+    });
+    session.view.game!.spatial = { version: 'connector-sight-v1', binding, frame: [0, 0, 0], prepareDown: true };
+    mocks.prepare.mockImplementation(async (request: CanonicalRequest) => {
+      batches++; events.push(`prepare-${batches}`);
+      expect(request.input).toEqual({ level: source.level + 1, visibleStairs: true });
+      if (batches === 1) { entered.resolve(); await gate.promise; }
+      const result = commit(request); result.receipt.result = { phase: batches === 2 ? 'ready' : 'generation' }; return result;
+    });
+    mocks.exploration.mockImplementation(async (request: CanonicalRequest) => {
+      events.push('move');
+      head = { ...head, checkpoint: checkpointJson({ ...gameCheckpoint(head.checkpoint),
+        position: { ...source, cell: { ...source.cell, column: source.cell.column + 1 } } }) };
+      return commit(request);
+    });
+    const preparing = session.prepareStairs(source, binding); await entered.promise;
+    expect(session.view.busy).toBe(false); expect(session.view.controlled).toBe(true);
+    expect(session.prepareStairs(source, binding)).toBe(preparing);
+    const moving = session.execute('exploration', { kind: 'move', direction: 'east', triggerStairs: false });
+    gate.resolve(); await moving; await preparing;
+    expect(events).toEqual(['prepare-1', 'move', 'prepare-2']);
+    expect(mocks.exploration).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ input: { kind: 'move', direction: 'east', triggerStairs: false } }), expect.anything());
+    expect(session.view).toMatchObject({ controlled: true, busy: false, recoveryRequired: false });
+    expect(gameCheckpoint(head.checkpoint).position.cell.column).toBe(source.cell.column + 1);
+  });
+
+  it('refuses a preparation whose binding became stale while another writer was pending', async () => {
+    const gate = deferred<void>(), entered = deferred<void>(), source = structuredClone(session.view.game!.checkpoint.position);
+    const binding = spatialBinding(snapshotOf(head));
+    session.view.game!.spatial = { version: 'connector-sight-v1', binding, frame: [0, 0, 0], prepareDown: true };
+    mocks.settings.mockImplementationOnce(async (request: CanonicalRequest) => { entered.resolve(); await gate.promise; return commit(request); });
+    const writing = session.execute('settings', { kind: 'throttle', ms: 100 }); await entered.promise;
+    const preparing = session.prepareStairs(source, binding), rejected = expect(preparing).rejects.toThrow('actor has moved');
+    gate.resolve(); await writing; await rejected; await session.flush();
+    expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.exploration).not.toHaveBeenCalled();
+    expect(session.view).toMatchObject({ controlled: true, busy: false, recoveryRequired: false });
+  });
+
+  it('does not start another preparation batch after its visible descending connection disappears', async () => {
+    const gate = deferred<void>(), entered = deferred<void>(), binding = spatialBinding(snapshotOf(head));
+    const source = structuredClone(session.view.game!.checkpoint.position);
+    session.view.game!.spatial = { version: 'connector-sight-v1', binding, frame: [0, 0, 0], prepareDown: true };
+    // Projection no longer offers a visible descending connection after the first committed batch.
+    mocks.prepare.mockImplementationOnce(async (request: CanonicalRequest) => {
+      entered.resolve(); await gate.promise; const result = commit(request); result.receipt.result = { phase: 'generation' }; return result;
+    });
+    const preparing = session.prepareStairs(source, binding); await entered.promise; gate.resolve(); await preparing;
+    expect(mocks.prepare).toHaveBeenCalledOnce(); expect(mocks.exploration).not.toHaveBeenCalled();
+    expect(gameCheckpoint(head.checkpoint).position).toEqual(source);
+    expect(session.view).toMatchObject({ controlled: true, busy: false, recoveryRequired: false });
+  });
+
   it('prepares an adjacent floor without issuing stair travel or moving the checkpoint', async () => {
     const position = structuredClone(session.view.game!.checkpoint.position), binding = spatialBinding(snapshotOf(head));
     session.view.game!.spatial = { version: 'connector-sight-v1', binding, frame: [0, 0, 0], prepareDown: true };

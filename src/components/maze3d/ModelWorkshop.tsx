@@ -120,10 +120,12 @@ export default function ModelWorkshop() {
         const pack: ModelPack = await response.json(); if (!alive) return;
         validateModelPack(pack);
         const imported = addAsset(pack.assets['lever-wall-source'], pack.materials, pack.bindings['lever-wall-source'], [-3, 1.3, 0], 1.6); levers.push(imported);
+        if (pack.assets['stone-button-wall-source']) levers.push(addAsset(pack.assets['stone-button-wall-source'], pack.materials,
+          pack.bindings['stone-button-wall-source'], [-4.5, 1.3, 0], 1.6));
         door = addAsset(pack.assets['iron-door-source'], pack.materials, pack.bindings['iron-door-source'], [2.2, 0, 0], 1.65);
         update(optionsRef.current); await resources.surfaces.ready(); if (!alive) return;
         canvas.dataset.ready = resources.surfaces.warnings.size ? 'fallback' : 'ready';
-        setStatus(resources.surfaces.warnings.size ? [...resources.surfaces.warnings].join(' · ') : 'Original source textures · imported/native lever pair and composite door · upgraded artwork pending');
+        setStatus(resources.surfaces.warnings.size ? [...resources.surfaces.warnings].join(' · ') : 'Curated TileLab textures · lever, button and composite door · pinned source geometry');
       } catch (e) { if (alive && !controller.signal.aborted) { canvas.dataset.ready = 'native-only'; setStatus(e instanceof Error ? e.message : 'Model pack unavailable'); } }
     })();
     return () => {

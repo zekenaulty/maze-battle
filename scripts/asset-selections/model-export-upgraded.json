@@ -1,0 +1,9 @@
+{
+  "schema": "maze-model-export-selection-v1",
+  "descriptorSha256": "16163098542828c1b6dae1ae1d30c54e1cd7b0ad7b96c51803275ea73452116f",
+  "revision": "cbd81bf1b1220148e8bab117c13a18595f150ada6ada382897f25499c87f5817",
+  "blocks": ["lever", "iron_door", "stone_button"],
+  "variant": "upgraded",
+  "abstractRoot": "minecraft:block/block:geometry-only-v1",
+  "review": "Owner-authorized upgraded door and shared lever/button candidate for local visual review. Consumer verifies portable pins, source alpha and exact unified door crops. Semantic UV approval and redistribution rights remain unresolved."
+}

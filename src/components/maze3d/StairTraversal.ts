@@ -28,9 +28,10 @@ export class StairTraversal {
       Math.min(this.connector.upper.x + STAIR_RECIPE.width / 2 - PLAYER_RADIUS, this.x + delta.x * distance));
     // Outer half-landings preserve the approach pose, including approach from behind either anchor.
     let next = Math.max(-.1, Math.min(1.1, this.progress - delta.z * distance / STAIR_RECIPE.separation));
+    if (this.connector.sight.travelReady === false) next = this.committed === 'upper' ? Math.min(.45, next) : Math.max(.55, next);
     if (this.pending) next = this.pending.direction === 'down' ? Math.max(.5, Math.min(.57, next)) : Math.max(.43, Math.min(.5, next));
     this.progress = next;
-    if (!this.pending && (this.committed === 'upper' ? next >= .5 : next <= .5)) {
+    if (!this.pending && this.connector.sight.travelReady !== false && (this.committed === 'upper' ? next >= .5 : next <= .5)) {
       const down = this.committed === 'upper', sight = this.connector.sight;
       this.pending = { source: down ? sight.upper : sight.lower, target: down ? sight.lower : sight.upper,
         direction: down ? 'down' : 'up', binding: this.connector.binding };

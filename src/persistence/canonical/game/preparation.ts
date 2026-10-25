@@ -11,6 +11,7 @@ import { beginWorldRoomRoles, advanceWorldRoomRoles } from '../world/roles';
 import { beginWorldContent, advanceWorldContent, requireWorldContent } from '../content/preparation';
 import { gameCheckpoint } from './checkpoint';
 import { currentFloorPreparationSpec, preparationWorldWrite } from './floorCapacity';
+import { validateKnowledge } from '../knowledge/evidence';
 
 export type PreparationPhase = 'generation' | 'quality' | 'roles' | 'content' | 'ready';
 const key = (level: number) => `game/preparation/${level}`;
@@ -34,12 +35,20 @@ export function prepareGameFloor(request: CanonicalRequest, options: { signal?: 
 }
 
 export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, attemptId: string) {
-  const args = fields(input, 'level'), c = gameCheckpoint(tx.head.checkpoint), level = args.level as number;
+  const args = fields(input, 'level', 'visibleStairs'), c = gameCheckpoint(tx.head.checkpoint), level = args.level as number;
+  check(args.visibleStairs === undefined || args.visibleStairs === true, 'invalid stair preparation policy');
   check(level === c.position.level || level === c.position.level + 1, 'preparation outside the local floor boundary');
   let batch: { close(): void } | undefined;
   if (level !== c.position.level) {
     const here = await loadFloor(tx.pages, c.position.level);
-    check(here.exit && same(here.exit, c.position.cell), 'prepare the next floor only at descending stairs');
+    if (!(here.exit && same(here.exit, c.position.cell))) {
+      check(args.visibleStairs === true && here.spatial && here.exit && c.mode !== 'town' && c.knowledge,
+        'prepare the next floor only at descending stairs or their visible room');
+      const sight = await validateKnowledge(tx.pages, c.knowledge);
+      check(sight && same(sight.header.actor, c.position) && (here.exit.spaceId === c.position.cell.spaceId
+        || sight.cells.some(cell => cell.at.level === here.level && cell.at.cell.spaceId === here.exit!.spaceId)),
+      'descending stair room is outside current sight');
+    }
     const world = await loadWorld(tx.pages);
     if (world.deepestLevel < level) {
       const recipe = createModuleRecipe(world.worldId, level, (here.generation.recipe.seed + 1) >>> 0, { spatial: !!here.generation.recipe.spatial });

@@ -260,7 +260,8 @@ export function ExploreScreen({
       </section>
       <div className="explore-interaction">
         <button type="button" onClick={interact} disabled={blocked || readOnlyMap || !chest || !onOpenChest} title="Open chest (E)" aria-keyshortcuts="E">Open chest</button>
-        {view3D && onStageStairs && currentCell?.stairs.map(stair => <button key={stair} type="button" disabled={blocked || readOnlyMap || autoActive || agenticActive}
+        {view3D && onStageStairs && currentCell?.stairs.filter(stair => stair === 'town' || !game.spatial?.ports?.some(({ at }) => at.level === currentCell.at.level && at.cell.spaceId === currentCell.at.cell.spaceId
+          && at.cell.row === currentCell.at.cell.row && at.cell.column === currentCell.at.cell.column)).map(stair => <button key={stair} type="button" disabled={blocked || readOnlyMap || autoActive || agenticActive}
           onClick={() => { onStopWalking?.(); onStageStairs(stair === 'down' ? 'down' : 'up', currentCell.at); }}>{stair === 'town' ? 'Return to town' : `Use ${stair} stairs`}</button>)}
         <span aria-live="polite">{navigationMessage}</span>
         {perception.error && <span role="alert">{perception.error}</span>}

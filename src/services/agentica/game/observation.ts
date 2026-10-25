@@ -12,18 +12,26 @@ import { check, jsonBytes } from '../../../persistence/canonical/validation';
 import { observation, perceptionContext, type PerceptionContext } from './context';
 import { chestToken } from './chestSelection';
 import { frontierObservation } from './frontierObservation';
-import { objectObservation } from './objectObservation';
+import { objectObservation, visibleStairways } from './objectObservation';
 import { graphObservation } from './graphObservation';
 import { cursorAfter, flatAddress, inspectArgs, inspectionCursor, inspectQuery, localPosition } from './validation';
 import { MAX_CONTEXT_BYTES, MAX_OBSERVATION_BYTES, MAX_PERCEPTION_READ_BYTES, ROOM_PAGE_SLOTS, ROOM_WINDOW_SIDE,
   type CellAddress, type InspectArgs, type InspectQuery, type PerceptionPages } from './types';
 
-/** The initial view deliberately has no room cells or map. Observation identity is the retained publication ID. */
+/** The initial view has compact current stair hints, but no room cells or map. Identity is the retained publication ID. */
 export async function observeMaze(pages: PerceptionPages, snapshot: CanonicalSnapshot, publication: ProtocolRef, input: Record<string, never> = {}) {
   fields(snapshotJson(input, 64), '');
   const c = await perceptionContext(pages, snapshot, publication);
-  return observation(c, { scope: 'actor', actor: { ...flatAddress(c.checkpoint.position), facing: c.checkpoint.facing, mode: c.checkpoint.mode },
-    source: c.sight ? { sequence: c.checkpoint.knowledge!.sequence, id: c.checkpoint.knowledge!.id, revision: c.sight.header.revision } : null }, MAX_CONTEXT_BYTES);
+  const data = { scope: 'actor', actor: { ...flatAddress(c.checkpoint.position), facing: c.checkpoint.facing, mode: c.checkpoint.mode },
+    source: c.sight ? { sequence: c.checkpoint.knowledge!.sequence, id: c.checkpoint.knowledge!.id, revision: c.sight.header.revision } : null };
+  const visible = visibleStairways(c), stairways: ReturnType<typeof visibleStairways> = [];
+  const summary = () => ({ ...data, stairways, ...(stairways.length < visible.length ? { moreStairways: true } : {}) });
+  for (const stairway of visible.slice(0, 2)) {
+    stairways.push(stairway);
+    if (jsonBytes(observation(c, summary(), MAX_PERCEPTION_READ_BYTES)) > MAX_CONTEXT_BYTES) { stairways.pop(); break; }
+  }
+  // Synthetic surplus is available through the ordinary bounded objects pages.
+  return observation(c, visible.length && jsonBytes(observation(c, summary(), MAX_PERCEPTION_READ_BYTES)) <= MAX_CONTEXT_BYTES ? summary() : data, MAX_CONTEXT_BYTES);
 }
 
 function projectCell(c: PerceptionContext, cell: RememberedCell, state: 'visible' | 'remembered') {
