@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import type { GameView } from '../../services/game/GameView';
+import { QuestJournal } from './QuestJournal';
 
-export function TownGuild({ game, onAcceptQuest, onClaimQuest }: {
-  game: Pick<GameView, 'quests' | 'contracts'>;
+export function TownGuild({ game, onAcceptQuest, onClaimQuest, active = true }: {
+  game: Pick<GameView, 'quests' | 'contracts'> & Partial<Pick<GameView, 'snapshot'>>;
+  active?: boolean;
   onAcceptQuest: (contractId: string) => void;
   onClaimQuest: (questId: string) => void;
 }) {
-  const [history, setHistory] = useState(false);
+  const [view, setView] = useState<'current' | 'history' | 'journal'>('current');
+  const history = view === 'history';
   const posted = game.contracts.filter((contract) => !game.quests.some((quest) => quest.id === contract.id));
   const quests = game.quests.filter(quest => (quest.status === 'claimed') === history)
     .sort((a, b) => Number(b.status === 'complete') - Number(a.status === 'complete') || b.floor - a.floor);
@@ -14,10 +17,11 @@ export function TownGuild({ game, onAcceptQuest, onClaimQuest }: {
     <section className="town-card guild-card">
       <h2>{String.fromCodePoint(0x1f3f0)} Guild Hall</h2>
       <div className="guild-filters" role="group" aria-label="Guild contracts">
-        <button type="button" aria-pressed={!history} onClick={() => setHistory(false)}>Current ({game.quests.filter(q => q.status !== 'claimed').length + posted.length})</button>
-        <button type="button" aria-pressed={history} onClick={() => setHistory(true)}>History ({game.quests.filter(q => q.status === 'claimed').length})</button>
+        <button type="button" aria-pressed={view === 'current'} onClick={() => setView('current')}>Current ({game.quests.filter(q => q.status !== 'claimed').length + posted.length})</button>
+        <button type="button" aria-pressed={history} onClick={() => setView('history')}>History ({game.quests.filter(q => q.status === 'claimed').length})</button>
+        <button type="button" aria-pressed={view === 'journal'} onClick={() => setView('journal')}>Journal</button>
       </div>
-      <div className="guild-contract-list">
+      {view === 'journal' ? active && <QuestJournal snapshot={game.snapshot} onClaimQuest={onClaimQuest} /> : <div className="guild-contract-list">
         {quests.map((quest) => <article key={quest.id} className={`guild-contract is-${quest.status}`}>
           <div>
             <strong>{quest.title}</strong>
@@ -36,7 +40,7 @@ export function TownGuild({ game, onAcceptQuest, onClaimQuest }: {
           <button type="button" onClick={() => onAcceptQuest(contract.id)}>Accept</button>
         </article>)}
         {quests.length === 0 && (history || posted.length === 0) && <p className="empty-state">{history ? 'No completed contracts.' : 'No current contracts.'}</p>}
-      </div>
+      </div>}
     </section>
   );
 }

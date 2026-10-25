@@ -24,7 +24,7 @@ const TABS = [
 ] as const;
 type TownTab = typeof TABS[number]['id'];
 
-export type TownView = Pick<GameView, keyof RosterState | 'quests' | 'contracts'>;
+export type TownView = Pick<GameView, keyof RosterState | 'quests' | 'contracts'> & Partial<Pick<GameView, 'snapshot'>>;
 
 interface TownScreenProps {
   game: TownView;
@@ -53,7 +53,7 @@ export function TownScreen({ game, onLeave, onRest, onBuy, onAcceptQuest, onClai
   const tabs = TABS.filter(tab => tab.id !== 'care' || onInventoryPolicyChange);
   const active = tabs.some(tab => tab.id === selected) ? selected : 'guild';
   const panels: Record<TownTab, ReactNode> = {
-    guild: <TownGuild game={game} onAcceptQuest={onAcceptQuest} onClaimQuest={onClaimQuest} />,
+    guild: <TownGuild game={game} active={active === 'guild'} onAcceptQuest={onAcceptQuest} onClaimQuest={onClaimQuest} />,
     blacksmith: <TownVendor vendor="blacksmith" title={`${String.fromCodePoint(0x2692)} Blacksmith`} game={game} onBuy={onBuy} />,
     alchemist: <TownVendor vendor="alchemist" title={`${String.fromCodePoint(0x2697)} Alchemist`} game={game} onBuy={onBuy} />,
     storage: <TownStorage game={game} onSellJunk={onSellJunk} onWithdrawStash={onWithdrawStash} onStashItem={onStashItem} onToggleItemLock={onToggleItemLock} />,
