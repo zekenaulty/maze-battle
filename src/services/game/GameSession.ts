@@ -233,7 +233,7 @@ export class GameSession {
         const stairs = await executeExplorationCommand(gameRequest(this.head, 'exploration.command', { kind: 'stairs', direction: 'down' }), { signal });
         this.head = stairs.head ?? (await readCanonicalHead()).head;
       }
-      await this.adopt(this.head, signal, kind === 'exploration' || kind === 'settings'
+      await this.adopt(this.head, signal, kind === 'exploration' && (captured as JsonObject).kind !== 'teleport' || kind === 'settings'
         || kind === 'auto' && (result.receipt.result as JsonObject).rosterChanged === false);
       const reason = (result.receipt.result as JsonObject).reason;
       this.publish({ busy: false, status: kind === 'auto' && typeof reason === 'string' ? reason : 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {

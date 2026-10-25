@@ -250,7 +250,7 @@ describe('CharactersDialog', () => {
     }
     expect(screen.queryByRole('button', { name: 'Cast Smite' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Zyth/ }));
-    expect(screen.getByText(/random location in the maze, not to town/)).toBeVisible();
+    expect(screen.getByText(/random reachable tile in the current room or passage/)).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Cast Teleport' }));
     expect(onCastSkill.mock.calls).toEqual([['ayla', 'heal'], ['ayla', 'groupHeal'], ['ayla', 'resurrect'], ['zyth', 'teleport']]);
     expect(props.onUseItem).not.toHaveBeenCalled();

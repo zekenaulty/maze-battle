@@ -143,6 +143,7 @@ describe('explicit canonical commands', () => {
       [() => c.claimQuest('quest'), 'content', { kind: 'claim-quest', questId: 'quest' }],
       [() => c.camp('actor', 'heal'), 'roster', { kind: 'camp', actorId: 'actor', skillId: 'heal' }],
       [() => c.skill('actor', 'resurrect'), 'roster', { kind: 'camp', actorId: 'actor', skillId: 'resurrect' }],
+      [() => c.skill('actor', 'teleport'), 'exploration', { kind: 'teleport', actorId: 'actor' }],
       [() => c.actorAuto('actor', false), 'roster', { kind: 'actor-auto', actorId: 'actor', enabled: false }],
       [() => c.autoSpend('actor', true), 'roster', { kind: 'auto-spend', actorId: 'actor', enabled: true }],
       [() => c.spend('actor', 'vitality'), 'roster', { kind: 'spend-attribute', actorId: 'actor', attribute: 'vitality' }],
@@ -160,7 +161,6 @@ describe('explicit canonical commands', () => {
     for (const [run, kind, input] of cases) { await run(); expect(controller.execute).toHaveBeenLastCalledWith(kind, input); }
     expect(pause).toHaveBeenCalledTimes(cases.length);
     controller.execute.mockClear();
-    await expect(c.skill('actor', 'teleport')).rejects.toThrow('outside combat');
     await expect(c.skill('actor', 'slash')).rejects.toThrow('outside combat');
     expect(controller.execute).not.toHaveBeenCalled();
     await expect(c.round()).rejects.toThrow('No current battle');

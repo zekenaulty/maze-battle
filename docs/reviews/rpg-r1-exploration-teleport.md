@@ -99,3 +99,14 @@ No provider, browser, service listener, owner state, full suite or parent write.
 - `git diff --check`: **PASS**. New runtime is two small modules plus the
   exploration facade dispatch/validation extension. The original camp, movement,
   battle, SDK and service implementations are unchanged.
+
+## Parent App Integration
+
+The character sheet now dispatches Teleport through this shared exploration
+command and explains the current room/passage range. Town and active battles
+remain excluded. Session publication reloads the changed roster rather than
+reusing pre-cast MP. Native actual-App/IndexedDB case PASS: normal character
+selection and Cast, changed local position, exactly 20 MP spent, immediate UI
+resource update, unchanged inventory/quests/portal stock, legitimate destination
+sight, reload with the same position/resources. Parent focused set: 194 PASS;
+fixture types PASS. This does not claim legacy floor-wide range parity.

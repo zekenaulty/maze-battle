@@ -60,7 +60,7 @@ export function useGameCommands(controller: CanonicalController, pauseManual: ()
       actorAuto: (actorId: string, enabled: boolean) => run('roster', { kind: 'actor-auto', actorId, enabled }),
       camp,
       skill: (actorId: string, skillId: SkillId) => controller.view.game?.battle?.status === 'active'
-        ? battle('skill', { actorId, skillId }) : CAMP_SKILLS.some(skill => skill === skillId)
+        ? battle('skill', { actorId, skillId }) : skillId === 'teleport' ? run('exploration', { kind: 'teleport', actorId }) : CAMP_SKILLS.some(skill => skill === skillId)
         ? run('roster', { kind: 'camp', actorId, skillId }) : Promise.reject(new Error('Only Heal, Group Heal and Resurrect are available outside combat.')),
       encounters: (enabled: boolean) => run('settings', { kind: 'encounters', enabled }),
       portal: () => run('roster', { kind: 'portal' }),

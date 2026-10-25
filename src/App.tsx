@@ -88,7 +88,8 @@ export function App() {
       canSellItems={game.mode === 'town'} canStashItems={game.mode === 'town'} canUseTownPortal={canUseTownPortal(game)}
       inventoryPolicy={normalizeInventoryPolicy(game.inventoryPolicy)} onInventoryPolicyChange={commands.policy}
       onToggleItemLock={commands.lock} onSpendAttribute={commands.spend} onAutoSpendChange={commands.autoSpend}
-      onCastSkill={commands.skill} allowOutOfCombatSkills={!game.battle} allowTeleport={false} onClose={() => setDialog(undefined)} />}
+      onCastSkill={commands.skill} allowOutOfCombatSkills={!game.battle}
+      allowTeleport={game.mode !== 'town' && !game.battle && session.controlled && !agentic.active} onClose={() => setDialog(undefined)} />}
     {dialog === 'diagnostics' && <Dialog title="Storage diagnostics" onClose={() => setDialog(undefined)}>
       <p>Revision {game.snapshot.revision}</p>
       <table><thead><tr><th>Action</th><th>Reads</th><th>Writes</th><th>Logical bytes written</th><th>ms</th></tr></thead>

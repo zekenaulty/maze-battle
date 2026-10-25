@@ -17,7 +17,7 @@ export function skillEffect(actor: ActorState, id: SkillId) {
     case 'heal': return 'Restores 35% of effective max HP to the living ally with the lowest HP ratio (rounded up).';
     case 'groupHeal': return 'Restores 25% of effective max HP to each living ally (rounded up).';
     case 'resurrect': return 'Revives the first fallen ally with 50% of effective max HP (rounded up).';
-    case 'teleport': return 'Teleports the party to a random location in the maze, not to town. Uses mana, not a portal scroll.';
+    case 'teleport': return 'Teleports the party to a random reachable tile in the current room or passage, not to town. Uses mana, not a portal scroll.';
     default: return 'No effect defined.';
   }
 }

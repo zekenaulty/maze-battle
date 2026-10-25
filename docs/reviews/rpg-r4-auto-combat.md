@@ -25,7 +25,11 @@ Stop, stale revisions, loss and stalled combat remain explicit boundaries.
 - Two-dungeon provider-free corpus: 10 PASS, including identical earned prefix,
   explicit collection/reverse movement, query bounds and work/quota neighbors.
 
-The 24 App cases do not yet prove a fresh Auto kill-quest journey or natural
-multi-floor endurance. A separate native journey qualification is in progress.
+The 24 App cases do not alone prove a fresh Auto kill-quest journey. A separate
+native fresh-App journey now passes: seed 781, RNG 0.5, unchanged starting party,
+217 ordinary earned-route moves, Auto-selected battle, 3/3 kills, three loot
+items and XP, one 105g quest claim, then continued movement. Stop/reload preserves
+party, inventory and quests. Elapsed 180.919 seconds on the worker checkout.
+This is one deterministic first-floor journey, not multi-floor endurance.
 No paid model run was needed or performed. Gameplay telemetry and further
 loss/save/takeover composition remain R5 work.
