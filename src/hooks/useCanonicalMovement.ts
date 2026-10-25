@@ -21,7 +21,7 @@ export function useCanonicalMovement(game: GameView | undefined, blocked: boolea
     const { game, blocked, controller } = latest.current, view = controller.view;
     return !!game && !blocked && !dialogOpen() && view.controlled && !view.recoveryRequired && (allowBusy || !view.busy)
       && view.game?.id === game.id && view.game.snapshot.generation === game.snapshot.generation
-      && view.game.checkpoint.position.level === game.checkpoint.position.level && view.game.mode !== 'town';
+      && view.game.checkpoint.position.level === game.checkpoint.position.level && view.game.mode !== 'town' && !view.game.battle;
   }, []);
 
   const navigate = useCallback(async (target: GridPosition) => {
@@ -53,10 +53,10 @@ export function useCanonicalMovement(game: GameView | undefined, blocked: boolea
   }, [available, cancel, controller]);
 
   useEffect(() => {
-    if (!game || blocked || !controller.view.controlled || controller.view.recoveryRequired || game.mode === 'town') cancel();
+    if (!game || blocked || !controller.view.controlled || controller.view.recoveryRequired || game.mode === 'town' || game.battle) cancel();
     return () => cancel();
   }, [game?.id, game?.snapshot.generation, game?.checkpoint.position.level, blocked, controller, controller.owner,
-    controller.view.controlled, controller.view.recoveryRequired, game?.mode === 'town', cancel]);
+    controller.view.controlled, controller.view.recoveryRequired, game?.mode === 'town', game?.battle?.id, cancel]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => { if (dialogOpen()) cancel(); });

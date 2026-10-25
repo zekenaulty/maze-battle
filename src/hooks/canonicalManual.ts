@@ -7,7 +7,7 @@ import type { WorldPosition } from '../persistence/canonical/world/types';
 export interface CanonicalController {
   readonly owner: string;
   view: { game?: GameView; controlled: boolean; busy?: boolean; recoveryRequired?: boolean };
-  execute(kind: 'exploration' | 'roster' | 'content' | 'settings', input: Json, guard?: { expectedPosition: WorldPosition }): Promise<CanonicalReceipt>;
+  execute(kind: 'exploration' | 'roster' | 'content' | 'settings' | 'combat', input: Json, guard?: { expectedPosition: WorldPosition }): Promise<CanonicalReceipt>;
 }
 
 export function manualScope(controller: CanonicalController) {
@@ -25,7 +25,9 @@ export function sameManualScope(controller: CanonicalController, scope: ReturnTy
 export async function disableManualAuto(controller: CanonicalController, current: () => boolean = () => true) {
   const scope = manualScope(controller);
   if (!current()) throw new Error('Manual input cancelled.');
-  if (autoEnabled(controller.view.game!)) await controller.execute('settings', { kind: 'auto', enabled: false });
+  const automated = () => autoEnabled(controller.view.game!) || controller.view.game!.mode === 'waves'
+    || controller.view.game!.townReturnMode === 'waves';
+  if (automated()) await controller.execute('settings', { kind: 'auto', enabled: false });
   if (!current() || !sameManualScope(controller, scope)) throw new Error('Manual input cancelled.');
-  if (autoEnabled(controller.view.game!)) throw new Error('Auto is still running.');
+  if (automated()) throw new Error('Auto is still running.');
 }

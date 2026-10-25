@@ -319,7 +319,9 @@ describe('canonical head refresh', () => {
 describe('canonical projection evidence contract', () => {
   it('projects an earned observation from a valid checkpoint anchor and the exact supplied snapshot', async () => {
     const { projectGame } = await vi.importActual<typeof import('../../persistence/canonical/game/projection')>('../../persistence/canonical/game/projection');
-    mocks.read.mockImplementationOnce(async (query, options) => ({ head: cloneHead(), value: await query(fixture.pages, options.snapshot), stats }));
+    const pages = { ...fixture.pages, get: (area: Parameters<typeof fixture.pages.get>[0], key: string) =>
+      area === 'world' && key === 'combat/current' ? Promise.resolve(undefined) : fixture.pages.get(area, key) };
+    mocks.read.mockImplementationOnce(async (query, options) => ({ head: cloneHead(), value: await query(pages, options.snapshot), stats }));
     const projected = await projectGame(head);
     expect(projected.value.observation).toEqual(base.observation);
     expect(projected.value.checkpoint.knowledge).toEqual(base.checkpoint.knowledge);

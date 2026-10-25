@@ -13,6 +13,7 @@ vi.mock('../../hooks/useGameSession', () => ({ useGameSession: () => ({
 vi.mock('../../hooks/useGameAgenticPlay', () => ({ useGameAgenticPlay: () => ({ active: false }) }));
 vi.mock('../../hooks/useCanonicalMovement', () => ({ useCanonicalMovement: () => ({ cancel: callbacks.cancel }) }));
 vi.mock('../../hooks/useCanonicalAuto', () => ({ useCanonicalAuto: () => ({ cancel: callbacks.cancel }) }));
+vi.mock('../../hooks/useCanonicalBattle', () => ({ useCanonicalBattle: () => ({ cancel: callbacks.cancel }) }));
 vi.mock('../../hooks/useGameCommands', () => ({ useGameCommands: () => ({ skill: callbacks.skill }) }));
 vi.mock('../ExploreScreen', () => ({ ExploreScreen: ({ onCharacters }: { onCharacters: () => void }) =>
   <button onClick={onCharacters}>Party</button> }));

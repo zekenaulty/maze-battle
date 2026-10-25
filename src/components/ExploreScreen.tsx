@@ -48,6 +48,8 @@ interface ExploreScreenProps {
   controlsDisabled?: boolean;
   onStageMove?: (direction: Direction, expectedPosition: GameView['checkpoint']['position']) => Promise<GameView | undefined>;
   onStageStairs?: (direction: 'up' | 'down', expectedPosition: GameView['checkpoint']['position']) => void;
+  view3D?: boolean;
+  onView3DChange?: (enabled: boolean) => void;
 }
 
 export function ExploreScreen({
@@ -70,8 +72,11 @@ export function ExploreScreen({
   onDiagnostics,
   onAgenticPlay, onStopAgenticPlay, agenticActive = false,
   onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false, onStageMove, onStageStairs,
+  view3D: selectedView3D, onView3DChange,
 }: ExploreScreenProps) {
-  const [view3D, setView3D] = useState(() => new URLSearchParams(location.search).get('view') === 'stage3d');
+  const [localView3D, setLocalView3D] = useState(() => new URLSearchParams(location.search).get('view') === 'stage3d');
+  const view3D = selectedView3D ?? localView3D;
+  const setView3D = (enabled: boolean) => { setLocalView3D(enabled); onView3DChange?.(enabled); };
   const [mapOpen, setMapOpen] = useState(false);
   const [mapTab, setMapTab] = useState<'rooms' | 'nearby'>('rooms');
   const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor; centered: boolean } | null>(null);
@@ -164,13 +169,13 @@ export function ExploreScreen({
           if (!(event.target instanceof Element && event.target.closest('[data-agentic-control]'))) onStopWalking?.();
         }}>
           {onStageMove && <button type="button" aria-pressed={view3D} disabled={blocked || !currentCell} onClick={() => {
-            onStopWalking?.(); setView3D(value => !value); setMapOpen(false); setRecall(null);
+            onStopWalking?.(); setView3D(!view3D); setMapOpen(false); setRecall(null);
           }}>{view3D ? '2D view' : '3D view'}</button>}
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}
             disabled={!autoAvailable} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
-          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled title="Combat is disabled in this qualification build">
+          <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled={!autoAvailable}>
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
           {onAgenticPlay && <button className="screen-icon" data-agentic-control type="button" title="Agentic play" aria-label="Agentic play" onClick={onAgenticPlay}>
@@ -259,7 +264,7 @@ export function ExploreScreen({
       {settingsOpen && <Dialog title="Expedition settings" onClose={() => setSettingsOpen(false)}>
         <div className="screen-settings">
           <label className="compact-toggle">
-            <input type="checkbox" checked={false} disabled onChange={(event) => onRandomBattlesChange(event.currentTarget.checked)} />
+            <input type="checkbox" checked={game.randomBattles} disabled={controlsDisabled || agenticActive} onChange={(event) => onRandomBattlesChange(event.currentTarget.checked)} />
             <span>Encounters</span>
           </label>
           <AutoThrottleControl value={autoThrottleMs} onChange={onAutoThrottleChange} />

@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => {
     release = vi.fn(() => { this.held = false; });
   }
   return { Lock, locks, has: vi.fn(), create: vi.fn(), readHead: vi.fn(), project: vi.fn(), control: vi.fn(),
-    exploration: vi.fn(), roster: vi.fn(), content: vi.fn(), settings: vi.fn(), auto: vi.fn(), save: vi.fn(), list: vi.fn(), operate: vi.fn() };
+    exploration: vi.fn(), roster: vi.fn(), content: vi.fn(), settings: vi.fn(), auto: vi.fn(), combat: vi.fn(), save: vi.fn(), list: vi.fn(), operate: vi.fn() };
 });
 vi.mock('./BrowserSaveLock', () => ({ BrowserSaveLock: mocks.Lock }));
 vi.mock('../../persistence/canonical/read', () => ({ readCanonicalHead: mocks.readHead }));
@@ -31,6 +31,7 @@ vi.mock('../../persistence/canonical/game/rosterCommand', () => ({ executeRoster
 vi.mock('../../persistence/canonical/game/contentCommand', () => ({ executeContentCommand: mocks.content }));
 vi.mock('../../persistence/canonical/game/settings', () => ({ executeSettingsCommand: mocks.settings }));
 vi.mock('../../persistence/canonical/auto/command', () => ({ executeAutoCommand: mocks.auto }));
+vi.mock('../../persistence/canonical/combat/command', () => ({ executeBattleCommand: mocks.combat }));
 vi.mock('../../persistence/canonical/game/manualSaves', () => ({ executeSaveCommand: mocks.save, listManualSaves: mocks.list }));
 
 let head: CanonicalHead, session: GameSession;
@@ -64,7 +65,7 @@ beforeEach(async () => {
   mocks.control.mockImplementation(async (request: CanonicalRequest) => {
     head = { ...head, owner: session.owner, epoch: head.epoch + 1 }; return commit(request);
   });
-  for (const handler of [mocks.exploration, mocks.roster, mocks.content, mocks.auto, mocks.save, mocks.operate]) {
+  for (const handler of [mocks.exploration, mocks.roster, mocks.content, mocks.auto, mocks.combat, mocks.save, mocks.operate]) {
     handler.mockImplementation(async (request: CanonicalRequest) => commit(request));
   }
   mocks.settings.mockImplementation(async (request: CanonicalRequest) => {
@@ -78,6 +79,23 @@ beforeEach(async () => {
 afterEach(() => session.stop());
 
 describe('GameSession presentation source-cell fence', () => {
+  it.each(['end', 'automation', 'skill'])('cancels stale queued battle %s without dropping custody', async kind => {
+    const gate = deferred<void>(), entered = deferred<void>();
+    session.view.game!.battle = { id: 'battle', wave: 1, status: 'active', round: 1, enemies: [], log: [] };
+    mocks.combat.mockImplementationOnce(async (request: CanonicalRequest) => {
+      entered.resolve(); await gate.promise; return commit(request);
+    });
+    const first = session.execute('combat', { kind: 'end', battleId: 'battle' }); await entered.promise;
+    const stale = session.execute('combat', { kind, battleId: 'battle' });
+    const rejected = expect(stale).rejects.toThrow('Battle input cancelled');
+    gate.resolve(); await first; await rejected; await session.flush();
+    expect(mocks.combat).toHaveBeenCalledOnce();
+    expect(mocks.combat.mock.calls[0][0].operation).toBe('battle.command');
+    expect(session.view).toMatchObject({ controlled: true, recoveryRequired: false });
+    expect(mocks.locks[0].held).toBe(true);
+    await session.execute('exploration', { kind: 'look' });
+    expect(mocks.exploration).toHaveBeenCalledOnce();
+  });
   it.each(['move', 'stairs'])('cancels stale queued %s at the writer boundary without losing custody', async kind => {
     const gate = deferred<void>(), entered = deferred<void>();
     const source = structuredClone(session.view.game!.checkpoint.position), before = head.revision;
@@ -104,7 +122,7 @@ describe('GameSession presentation source-cell fence', () => {
 });
 
 describe('GameSession Agentic manual-control lease', () => {
-  it.each(['exploration', 'roster', 'content', 'settings', 'auto'] as CommandKind[])('rejects ordinary %s without poisoning the writer', async kind => {
+  it.each(['exploration', 'roster', 'content', 'settings', 'auto', 'combat'] as CommandKind[])('rejects ordinary %s without poisoning the writer', async kind => {
     const before = structuredClone(head), signal = session.hostSignal, release = session.acquireAgenticControl();
     await expect(session.execute(kind, { kind: 'test' })).rejects.toThrow('Agentic Play'); await session.flush();
     expect(mocks[kind]).not.toHaveBeenCalled(); expect(head).toEqual(before);

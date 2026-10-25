@@ -1,5 +1,5 @@
 import type { SaveSummary } from '../../domain/types';
-import { readCanonicalHead } from '../../persistence/canonical/read';
+import { readCanonical, readCanonicalHead, snapshotOf } from '../../persistence/canonical/read';
 import { controlCanonical } from '../../persistence/canonical/transaction';
 import { createCanonicalGame, hasCanonicalGame } from '../../persistence/canonical/game/initialize';
 import { prepareGameFloor } from '../../persistence/canonical/game/preparation';
@@ -19,19 +19,24 @@ import { gameRequest } from './canonicalRequests';
 import { captureHostCommand, type CanonicalHostCommand } from './CanonicalHostCommand';
 import { captureHostCleanup, executeHostCleanup, type HostCleanup } from './CanonicalHostRecovery';
 import type { WorldPosition } from '../../persistence/canonical/world/types';
+import { executeBattleCommand } from '../../persistence/canonical/combat/command';
+import { loadBattle } from '../../persistence/canonical/combat/records';
 
 export interface GameSessionView {
   game?: GameView; saves: SaveSummary[]; diagnostics: GameDiagnostic[];
   status: string; controlled: boolean; recoveryRequired?: boolean; busy?: boolean;
 }
-export type CommandKind = 'exploration' | 'roster' | 'content' | 'settings' | 'auto';
+export type CommandKind = 'exploration' | 'roster' | 'content' | 'settings' | 'auto' | 'combat';
 const handlers = { exploration: executeExplorationCommand, roster: executeRosterCommand,
-  content: executeContentCommand, settings: executeSettingsCommand, auto: executeAutoCommand };
+  content: executeContentCommand, settings: executeSettingsCommand, auto: executeAutoCommand, combat: executeBattleCommand };
 class AgenticControlError extends Error {
   constructor() { super('Manual control is unavailable during Agentic Play.'); }
 }
 class StalePositionInputError extends Error {
   constructor() { super('Movement cancelled: the actor has moved since this input.'); }
+}
+class StaleBattleInputError extends Error {
+  constructor() { super('Battle input cancelled: that battle has ended.'); }
 }
 
 /** One serialized writer. It publishes bounded projections, never accepts full-game reducers. */
@@ -63,6 +68,8 @@ export class GameSession {
       || this.lock.supported && !this.lock.held) throw new Error('Game control unavailable');
     const checkpoint = gameCheckpoint(this.head.checkpoint);
     if (checkpoint.mode === 'auto-play' || checkpoint.townReturnMode === 'auto-play') throw new Error('Disable Auto before Agentic Play.');
+    if (checkpoint.mode === 'battle' || checkpoint.mode === 'waves' || checkpoint.townReturnMode === 'waves' || this.view.game?.battle)
+      throw new Error('Stop battle automation before Agentic Play.');
     const release = () => {
       if (this.agenticControl?.release !== release) return;
       this.agenticControl = undefined; signal.removeEventListener('abort', release);
@@ -84,7 +91,8 @@ export class GameSession {
     const signal = this.lifetime.signal;
     const pending = this.queue.catch(() => {}).then(async () => { this.assert(signal); return work(signal); });
     this.queue = pending.catch(error => {
-      if (signal.aborted || !this.active || error instanceof AgenticControlError || error instanceof StalePositionInputError) return;
+      if (signal.aborted || !this.active || error instanceof AgenticControlError
+        || error instanceof StalePositionInputError || error instanceof StaleBattleInputError) return;
       const status = this.view.recoveryRequired && !this.view.busy ? this.view.status
         : `Action failed: ${error instanceof Error ? error.message : String(error)}`;
       this.publish({ status,
@@ -136,7 +144,16 @@ export class GameSession {
   private async stopSavedAuto(signal: AbortSignal) {
     this.assert(signal);
     const c = gameCheckpoint(this.head!.checkpoint);
-    if (c.mode !== 'auto-play' && c.townReturnMode !== 'auto-play') return;
+    if (c.mode === 'battle') {
+      const saved = (await readCanonical(loadBattle, { snapshot: snapshotOf(this.head!) })).value;
+      this.assert(signal);
+      if (!saved || saved.battle.status !== 'active') throw new Error('Active battle checkpoint has no valid battle.');
+      const result = await executeBattleCommand(gameRequest(this.head!, 'battle.command',
+        { kind: 'automation', battleId: saved.battle.id, mode: 'manual', enabled: false }), { signal });
+      this.assert(signal); this.head = result.head ?? (await readCanonicalHead()).head;
+      return;
+    }
+    if (c.mode !== 'auto-play' && c.mode !== 'waves' && c.townReturnMode !== 'auto-play' && c.townReturnMode !== 'waves') return;
     const result = await executeSettingsCommand(gameRequest(this.head!, 'settings.command', { kind: 'auto', enabled: false }), { signal });
     this.assert(signal);
     this.head = result.head ?? (await readCanonicalHead()).head;
@@ -202,7 +219,9 @@ export class GameSession {
         if (actual.level !== expected.level || actual.cell.spaceId !== expected.cell.spaceId
           || actual.cell.row !== expected.cell.row || actual.cell.column !== expected.cell.column) throw new StalePositionInputError();
       }
-      const original = gameRequest(this.head!, `${kind}.command`, captured), started = performance.now();
+      if (kind === 'combat' && captured && typeof captured === 'object' && !Array.isArray(captured)
+        && typeof captured.battleId === 'string' && captured.battleId !== this.view.game?.battle?.id) throw new StaleBattleInputError();
+      const original = gameRequest(this.head!, kind === 'combat' ? 'battle.command' : `${kind}.command`, captured), started = performance.now();
       const result = await handlers[kind](original, { signal });
       this.assert(signal);
       this.head = result.head ?? (await readCanonicalHead()).head;

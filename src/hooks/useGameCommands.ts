@@ -4,8 +4,8 @@ import type { SpendableAttribute } from '../domain/party/partyRules';
 import { CAMP_SKILLS, type CampSkill } from '../domain/party/campSkills';
 import type { CanonicalReceipt, Json } from '../persistence/canonical/types';
 import { disableManualAuto, manualScope, sameManualScope, type CanonicalController } from './canonicalManual';
-import { autoEnabled } from '../persistence/canonical/auto/source';
 import type { WorldPosition } from '../persistence/canonical/world/types';
+import { automationActive, wavesActive } from '../viewModels/gameAutomation';
 
 export function useGameCommands(controller: CanonicalController, pauseManual: () => void) {
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -26,6 +26,11 @@ export function useGameCommands(controller: CanonicalController, pauseManual: ()
       return action;
     };
     const camp = (actorId: string, skillId: CampSkill) => run('roster', { kind: 'camp', actorId, skillId });
+    const battle = (kind: string, fields: Record<string, Json> = {}) => {
+      const battleId = controller.view.game?.battle?.id;
+      return battleId ? run('combat', { kind, battleId, ...fields }, false) : Promise.reject(new Error('No current battle.'));
+    };
+    const automateBattle = (mode: 'manual' | 'auto-play' | 'waves', enabled: boolean) => battle('automation', { mode, enabled });
     return {
       move: (direction: Direction, options: { triggerStairs?: boolean; expectedPosition?: WorldPosition } = {}) => {
         const expected = options.expectedPosition && structuredClone(options.expectedPosition), triggerStairs = options.triggerStairs !== false;
@@ -42,13 +47,22 @@ export function useGameCommands(controller: CanonicalController, pauseManual: ()
       openChest: (chestId: string) => run('content', { kind: 'open-chest', chestId }),
       acceptQuest: (contractId: string) => run('content', { kind: 'accept-quest', contractId }),
       claimQuest: (questId: string) => run('content', { kind: 'claim-quest', questId }),
-      toggleAuto: () => run('settings', () => ({ kind: 'auto', enabled: !autoEnabled(controller.view.game!) }), false),
-      stopAuto: () => run('settings', { kind: 'auto', enabled: false }, false),
+      toggleAuto: () => controller.view.game?.battle ? automateBattle('auto-play', !automationActive(controller.view.game))
+        : run('settings', () => ({ kind: 'auto', enabled: !automationActive(controller.view.game!) }), false),
+      stopAuto: () => controller.view.game?.battle ? automateBattle('manual', false)
+        : run('settings', { kind: 'auto', enabled: false }, false),
+      toggleWaves: () => controller.view.game?.battle ? automateBattle('waves', !wavesActive(controller.view.game))
+        : wavesActive(controller.view.game!) ? run('settings', { kind: 'auto', enabled: false }, false)
+          : run('combat', { kind: 'start', returnMode: 'waves' }),
+      round: () => battle('round'),
+      closeBattle: () => battle('end'),
       throttle: (ms: number) => run('settings', { kind: 'throttle', ms }),
       actorAuto: (actorId: string, enabled: boolean) => run('roster', { kind: 'actor-auto', actorId, enabled }),
       camp,
-      skill: (actorId: string, skillId: SkillId) => CAMP_SKILLS.some(skill => skill === skillId)
+      skill: (actorId: string, skillId: SkillId) => controller.view.game?.battle?.status === 'active'
+        ? battle('skill', { actorId, skillId }) : CAMP_SKILLS.some(skill => skill === skillId)
         ? run('roster', { kind: 'camp', actorId, skillId }) : Promise.reject(new Error('Only Heal, Group Heal and Resurrect are available outside combat.')),
+      encounters: (enabled: boolean) => run('settings', { kind: 'encounters', enabled }),
       portal: () => run('roster', { kind: 'portal' }),
       leaveTown: () => run('roster', { kind: 'leave-town' }),
       rest: () => run('roster', { kind: 'rest' }),

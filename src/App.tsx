@@ -4,6 +4,7 @@ import { ExploreScreen } from './components/ExploreScreen';
 import { SavesDialog } from './components/SavesDialog';
 import { GameRecovery } from './components/GameRecovery';
 import { TownScreen } from './components/TownScreen';
+import { BattleView } from './components/BattleView';
 import { Dialog } from './components/Dialog';
 import { AgenticaRecovery } from './components/agentic/AgenticaRecovery';
 import { AgenticPlayDialog } from './components/agentic/AgenticPlayDialog';
@@ -14,6 +15,8 @@ import { useGameSession } from './hooks/useGameSession';
 import { useGameCommands } from './hooks/useGameCommands';
 import { useCanonicalMovement } from './hooks/useCanonicalMovement';
 import { useCanonicalAuto } from './hooks/useCanonicalAuto';
+import { useCanonicalBattle } from './hooks/useCanonicalBattle';
+import { automationActive, wavesActive } from './viewModels/gameAutomation';
 
 type DialogName = 'characters' | 'saves' | 'diagnostics' | 'agentic' | 'agentic-recovery' | undefined;
 
@@ -21,11 +24,13 @@ export function App() {
   const session = useGameSession(), { game } = session;
   const agentic = useGameAgenticPlay(session.controller);
   const [dialog, setDialog] = useState<DialogName>();
+  const [view3D, setView3D] = useState(() => new URLSearchParams(location.search).get('view') === 'stage3d');
   const recovering = Boolean(session.recoveryRequired || session.busy);
   const blocked = recovering || Boolean(dialog) || !session.controlled || agentic.active;
   const auto = useCanonicalAuto(game, blocked, session.controller);
+  const combat = useCanonicalBattle(session.controller, blocked);
   const navigation = useCanonicalMovement(game, blocked, session.controller, auto.cancel);
-  const pause = useCallback(() => { navigation.cancel(); auto.cancel(); }, [navigation.cancel, auto.cancel]);
+  const pause = useCallback(() => { navigation.cancel(); auto.cancel(); combat.cancel(); }, [navigation.cancel, auto.cancel, combat.cancel]);
   const commands = useGameCommands(session.controller, pause);
   const open = (name: DialogName) => { pause(); setDialog(name); };
   const openSaves = () => { open('saves'); void session.refreshSaves().catch(() => {}); };
@@ -44,25 +49,30 @@ export function App() {
     {!session.controlled && <aside className="session-custody" role="status">
       <span>{session.status}</span><button onClick={() => { navigation.cancel(); void session.takeControl().catch(() => {}); }}>Take control</button>
     </aside>}
-    {game.mode === 'town' ? <TownScreen {...shared} game={game}
+    {game.battle ? <BattleView {...shared} battle={game.battle} party={game.party} inventory={game.inventory}
+      onRound={commands.round} onSkill={commands.skill} onAutoBattleChange={commands.actorAuto} onEnd={commands.closeBattle}
+      autoActive={automationActive(game)} wavesActive={wavesActive(game)} autoThrottleMs={game.autoThrottleMs}
+      onWavesToggle={commands.toggleWaves} onAutoThrottleChange={commands.throttle} onStopAutomation={commands.stopAuto}
+    /> : game.mode === 'town' ? <TownScreen {...shared} game={game}
       onLeave={commands.leaveTown} onRest={commands.rest} onBuy={commands.buy}
       onAcceptQuest={commands.acceptQuest} onClaimQuest={commands.claimQuest}
       onSellJunk={commands.sellJunk} onWithdrawStash={commands.withdraw} onStashItem={commands.stash}
       onToggleItemLock={commands.lock} onInventoryPolicyChange={commands.policy}
     /> : <ExploreScreen {...shared} game={game} status={game.mode === 'auto-play' ? auto.message || session.status : session.status} onMove={commands.move}
-      autoActive={game.mode === 'auto-play'} autoAvailable={session.controlled && !agentic.active} wavesActive={false} autoThrottleMs={game.autoThrottleMs}
-      onWavesToggle={() => {}} onAutoThrottleChange={commands.throttle}
+      autoActive={automationActive(game)} autoAvailable={session.controlled && !agentic.active} wavesActive={wavesActive(game)} autoThrottleMs={game.autoThrottleMs}
+      onWavesToggle={commands.toggleWaves} onAutoThrottleChange={commands.throttle}
       onTown={commands.portal} portalScrollCount={portalScrollCount(game)} onNewGame={newGame}
-      onRandomBattlesChange={() => {}} onTileClick={navigation.navigate} onStopWalking={pause}
+      onRandomBattlesChange={commands.encounters} onTileClick={navigation.navigate} onStopWalking={pause}
       navigationMessage={navigation.message} onOpenChest={commands.openChest} controlsDisabled={blocked}
       onAgenticPlay={openAgentic} agenticActive={agentic.active}
       onStopAgenticPlay={agentic.active ? agentic.stop : undefined}
       onStageMove={async (direction, expectedPosition) => { await commands.move(direction, { triggerStairs: false, expectedPosition }); return session.controller.view.game; }}
       onStageStairs={(direction, expectedPosition) => { void commands.stairs(direction, expectedPosition).catch(() => {}); }}
+      view3D={view3D} onView3DChange={setView3D}
     />}
     {dialog === 'agentic' && <AgenticPlayDialog profile={agentic.profile} configurationError={agentic.configurationError}
       phase={agentic.phase} active={agentic.active} activeObjective={agentic.objective} message={agentic.message} error={agentic.error}
-      canStart={session.controlled && !recovering && game.mode !== 'auto-play' && game.mode !== 'town'}
+      canStart={session.controlled && !recovering && game.mode === 'manual' && !game.battle}
       returnQuests={agentic.returnQuests}
       canContinue={agentic.canContinue} onContinue={agentic.continueDecision}
       onStart={agentic.start} onStop={agentic.stop} onRecovery={openRecovery} onClose={() => setDialog(undefined)} />}
@@ -78,7 +88,7 @@ export function App() {
       canSellItems={game.mode === 'town'} canStashItems={game.mode === 'town'} canUseTownPortal={canUseTownPortal(game)}
       inventoryPolicy={normalizeInventoryPolicy(game.inventoryPolicy)} onInventoryPolicyChange={commands.policy}
       onToggleItemLock={commands.lock} onSpendAttribute={commands.spend} onAutoSpendChange={commands.autoSpend}
-      onCastSkill={commands.skill} allowOutOfCombatSkills allowTeleport={false} onClose={() => setDialog(undefined)} />}
+      onCastSkill={commands.skill} allowOutOfCombatSkills={!game.battle} allowTeleport={false} onClose={() => setDialog(undefined)} />}
     {dialog === 'diagnostics' && <Dialog title="Storage diagnostics" onClose={() => setDialog(undefined)}>
       <p>Revision {game.snapshot.revision}</p>
       <table><thead><tr><th>Action</th><th>Reads</th><th>Writes</th><th>Logical bytes written</th><th>ms</th></tr></thead>

@@ -134,7 +134,7 @@ describe('explicit canonical commands', () => {
     expect(controller.execute).toHaveBeenLastCalledWith('roster', { kind: 'use', itemId: 'herb', actorId: 'actor' });
   });
 
-  it('dispatches content, roster, camp and settings payloads without exposing combat controls', async () => {
+  it('dispatches shared content, roster, camp and settings payloads', async () => {
     const { controller } = await controllerFixture(), pause = vi.fn();
     const { result } = renderHook(() => useGameCommands(controller, pause)), c = result.current;
     const cases: [() => Promise<CanonicalReceipt>, string, object][] = [
@@ -163,6 +163,10 @@ describe('explicit canonical commands', () => {
     await expect(c.skill('actor', 'teleport')).rejects.toThrow('outside combat');
     await expect(c.skill('actor', 'slash')).rejects.toThrow('outside combat');
     expect(controller.execute).not.toHaveBeenCalled();
-    for (const key of ['round', 'closeBattle', 'encounters', 'toggleWaves']) expect(c).not.toHaveProperty(key);
+    await expect(c.round()).rejects.toThrow('No current battle');
+    await expect(c.closeBattle()).rejects.toThrow('No current battle');
+    expect(controller.execute).not.toHaveBeenCalled();
+    await c.encounters(true);
+    expect(controller.execute).toHaveBeenLastCalledWith('settings', { kind: 'encounters', enabled: true });
   });
 });
