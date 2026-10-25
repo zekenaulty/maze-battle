@@ -1,10 +1,10 @@
-import type { BattleState, GameState } from '../types';
+import type { ActorState, BattleState, InventoryState, ItemStats } from '../types';
 import { isAlive, refreshTimedSkills } from './combatant';
 import type { CombatContext } from './applySkill';
 import { grantRewards } from './rewards';
 import type { Rng } from './rng';
 import { rollLoot } from '../items/loot';
-import { getEquipmentStats } from '../items/inventory';
+import { getEquipmentStats } from '../items/equipment';
 
 // Kept local until the integration-owned BattleState exposes the optional save field.
 export interface RewardedBattleState extends BattleState {
@@ -15,15 +15,31 @@ export interface BattleCombatContext extends CombatContext {
   rewardGold: number;
 }
 
-export function battleRewardGold(battle: RewardedBattleState | undefined) {
+export interface BattleFrame {
+  party: readonly ActorState[];
+  battle: Pick<BattleState, 'status' | 'enemies' | 'defeated' | 'log' | 'loot' | 'rewardGold'>;
+  equipmentBonuses: Readonly<Record<string, ItemStats>>;
+}
+
+type LegacyCombatSource = { party: ActorState[]; battle?: BattleState; inventory: InventoryState };
+
+export function battleRewardGold(battle: Pick<BattleState, 'status' | 'rewardGold'> | undefined) {
   const gold = battle?.rewardGold;
   return typeof gold === 'number' && Number.isFinite(gold) ? Math.max(0, Math.floor(gold)) : 0;
 }
 
-export function createCombatContext(game: GameState, rng: Rng, now = Date.now()): BattleCombatContext {
-  const party = game.party.map(copyActor);
-  const enemies = game.battle?.enemies.map(copyEnemy) ?? [];
-  const equipmentBonuses = Object.fromEntries(party.map((actor) => [actor.id, getEquipmentStats(actor, game.inventory)]));
+export function createCombatContext(game: LegacyCombatSource, rng: Rng, now = Date.now()): BattleCombatContext {
+  const equipmentBonuses = Object.fromEntries(game.party.map(actor => [actor.id, getEquipmentStats(actor, game.inventory)]));
+  return createContext(game.party, game.battle, equipmentBonuses, rng, now);
+}
+
+export function createBattleContext(frame: BattleFrame, rng: Rng, now: number): BattleCombatContext {
+  return createContext(frame.party, frame.battle, frame.equipmentBonuses, rng, now);
+}
+
+function createContext(actors: readonly ActorState[], battle: BattleFrame['battle'] | undefined,
+  bonuses: BattleFrame['equipmentBonuses'], rng: Rng, now: number): BattleCombatContext {
+  const party = actors.map(copyActor), enemies = battle?.enemies.map(copyEnemy) ?? [];
 
   party.forEach((actor) => refreshTimedSkills(actor, now));
   enemies.forEach((enemy) => refreshTimedSkills(enemy, now));
@@ -31,11 +47,11 @@ export function createCombatContext(game: GameState, rng: Rng, now = Date.now())
   return {
     party,
     enemies,
-    defeated: game.battle?.defeated?.map(copyEnemy) ?? [],
-    log: [...(game.battle?.log ?? [])],
-    loot: [...(game.battle?.loot ?? [])],
-    rewardGold: battleRewardGold(game.battle),
-    equipmentBonuses,
+    defeated: battle?.defeated?.map(copyEnemy) ?? [],
+    log: [...(battle?.log ?? [])],
+    loot: structuredClone(battle?.loot ?? []),
+    rewardGold: battleRewardGold(battle),
+    equipmentBonuses: Object.fromEntries(Object.entries(bonuses).map(([id, stats]) => [id, { ...stats }])),
     rng,
     now,
   };
@@ -77,7 +93,7 @@ export function battleStatus(context: CombatContext) {
   return context.enemies.length === 0 ? 'won' : 'active';
 }
 
-function copyActor(actor: GameState['party'][number]) {
+function copyActor(actor: ActorState) {
   return {
     ...actor,
     equipment: { ...actor.equipment },

@@ -1,11 +1,10 @@
 import type { BattleState, GameState, SkillId } from '../types';
 import { setGameMode } from '../gameFactory';
-import { applySkill, type CombatContext } from './applySkill';
-import { chooseEnemySkill, chooseHeroSkill } from './ai';
-import { battleStatus, createCombatContext, removeDefeated, type BattleCombatContext, type RewardedBattleState } from './battleContext';
+import type { BattleFrame, RewardedBattleState } from './battleContext';
+import { executeBattleTurn, type BattleTurnResult } from './battleTurn';
 import { defaultRng, type Rng } from './rng';
 import { spawnEnemies } from './spawn';
-import { addItemsToInventory } from '../items/inventory';
+import { addItemsToInventory, getEquipmentStats } from '../items/inventory';
 import { recordKillQuestProgress } from '../quests/quests';
 import { roomAtPosition } from '../quests/questTargets';
 import { trackAutopilotCombat } from '../automation/autopilotCombat';
@@ -67,25 +66,12 @@ export function advanceBattleRound(game: GameState, rng: Rng = defaultRng, now =
     return startBattle(game, rng);
   }
 
-  const context = createCombatContext(game, rng, now);
-  let acted = false;
-
-  for (const actor of context.party) {
-    const skill = chooseHeroSkill(actor, context.party, context.enemies, rng, now);
-    if (skill) {
-      acted = applySkill(actor, skill, context) || acted;
-    }
-    acted = removeDefeated(context, rng) || acted;
-  }
-
-  acted = runEnemyTurn(context) || acted;
-
-  const status = battleStatus(context);
-  if (!acted && status === 'active') {
+  const turn = executeBattleTurn(battleFrame(game), { kind: 'round' }, rng, now);
+  if (!turn.acted && turn.status === 'active') {
     return trackAutopilotCombat(game, game);
   }
 
-  return trackAutopilotCombat(game, finishBattleTurn(game, context, status));
+  return trackAutopilotCombat(game, finishBattleTurn(game, turn));
 }
 
 export function useBattleSkill(game: GameState, actorId: string, skillId: SkillId, rng: Rng = defaultRng, now = Date.now()): GameState {
@@ -93,20 +79,8 @@ export function useBattleSkill(game: GameState, actorId: string, skillId: SkillI
     return game;
   }
 
-  const context = createCombatContext(game, rng, now);
-  const actor = context.party.find((item) => item.id === actorId);
-
-  if (!actor || !applySkill(actor, skillId, context)) {
-    return game;
-  }
-
-  removeDefeated(context, rng);
-  if (context.enemies.length > 0) {
-    runEnemyTurn(context);
-  }
-
-  const status = battleStatus(context);
-  return trackAutopilotCombat(game, finishBattleTurn(game, context, status));
+  const turn = executeBattleTurn(battleFrame(game), { kind: 'skill', actorId, skillId }, rng, now);
+  return turn.acted ? trackAutopilotCombat(game, finishBattleTurn(game, turn)) : game;
 }
 
 export function endBattle(game: GameState): GameState {
@@ -117,30 +91,17 @@ export function endBattle(game: GameState): GameState {
   };
 }
 
-function runEnemyTurn(context: CombatContext) {
-  if (context.enemies.length === 0) {
-    return false;
-  }
-
-  let acted = false;
-  for (const enemy of context.enemies) {
-    const skill = chooseEnemySkill(enemy, context.rng, context.now);
-    if (skill) {
-      acted = applySkill(enemy, skill, context) || acted;
-    }
-  }
-
-  return acted;
+function battleFrame(game: GameState): BattleFrame {
+  return { party: game.party, battle: game.battle!,
+    equipmentBonuses: Object.fromEntries(game.party.map(actor => [actor.id, getEquipmentStats(actor, game.inventory)])) };
 }
 
-function finishBattleTurn(game: GameState, context: BattleCombatContext, status: BattleState['status']): GameState {
+function finishBattleTurn(game: GameState, { context, status, newlyDefeated }: BattleTurnResult): GameState {
   if (!game.battle) {
     return game;
   }
 
-  // The saved cumulative list is the delta boundary, including after a save/resume.
-  const previousDefeated = new Set(game.battle.defeated?.map((enemy) => enemy.id) ?? []);
-  const credited = recordKillQuestProgress(game, context.defeated.filter((enemy) => !previousDefeated.has(enemy.id)), game.battle.origin ?? battleOrigin(game));
+  const credited = recordKillQuestProgress(game, newlyDefeated, game.battle.origin ?? battleOrigin(game));
 
   if (status === 'won') {
     const won = {
