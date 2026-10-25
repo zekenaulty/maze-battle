@@ -7,6 +7,10 @@ import { opposite } from '../../domain/maze/movement';
 import { CELL_SIZE, DOOR_HEIGHT, DOOR_WIDTH, WALL_HEIGHT } from './constants';
 import { spatialBinding, MAX_STAIR_ROOMS, MAX_STAIR_ROOM_CELLS, type ConnectorSight } from '../../services/game/SpatialView';
 import { floorPoint, STAIR_RECIPE, type FloorFrame } from '../../domain/expedition/vertical';
+import { straightStair } from '../../assets3d/stairs/assembly';
+
+export const WALL_THICKNESS = .16;
+export const SLAB_THICKNESS = .18;
 
 export type Point = { x: number; z: number };
 export interface Bounds2D { minX: number; maxX: number; minZ: number; maxZ: number }
@@ -45,12 +49,33 @@ export function cutStairDecks(input: SceneBox[], flights: StageFlight[]) {
   for (const flight of flights) boxes = boxes.flatMap(box => {
     if (!box.deck || Math.abs(box.center[1] + box.size[1] / 2 - flight.upper.y) > 1e-5) return [box];
     const b = boxBounds(box), x0 = Math.max(b.minX, flight.upper.x - .9), x1 = Math.min(b.maxX, flight.upper.x + .9);
-    const z0 = Math.max(b.minZ, flight.lower.z + .9), z1 = Math.min(b.maxZ, flight.upper.z - .9);
+    const z0 = Math.max(b.minZ, flight.lower.z + CELL_SIZE / 2 - WALL_THICKNESS / 2), z1 = Math.min(b.maxZ, flight.upper.z - .9);
     if (x0 >= x1 - 1e-6 || z0 >= z1 - 1e-6) return [box];
     return [[b.minX, x0, b.minZ, b.maxZ], [x1, b.maxX, b.minZ, b.maxZ], [x0, x1, b.minZ, z0], [x0, x1, z1, b.maxZ]]
       .filter(([a, b, c, d]) => b - a > 1e-6 && d - c > 1e-6).map(([a, b, c, d], i): SceneBox => ({ ...box,
         id: box.id + '/opening-' + flight.id + '/' + i, center: [(a + b) / 2, box.center[1], (c + d) / 2], size: [b - a, box.size[1], d - c] }));
   });
+  return boxes;
+}
+
+/** One continuous masonry envelope; its lower header meets the room ceiling and both jambs. */
+export function stairEnclosure(f: StageFlight): SceneBox[] {
+  const stair = straightStair(), half = stair.width / 2, outside = CELL_SIZE / 2 + WALL_THICKNESS / 2;
+  const start = f.lower.z + stair.landing / 2, end = f.upper.z - stair.landing / 2;
+  const roof = f.upper.y + WALL_HEIGHT, boxes: SceneBox[] = [];
+  for (const sign of [-1, 1]) boxes.push({ id: f.id + '/enclosure/side/' + sign, material: 'stone_bricks',
+    center: [f.lower.x + sign * (outside + half) / 2, (f.lower.y + roof) / 2, (start + end) / 2],
+    size: [outside - half, roof - f.lower.y, end - start], solid: true });
+  const headerBottom = f.upper.y - SLAB_THICKNESS;
+  boxes.push({ id: f.id + '/enclosure/lower-header', material: 'stone_bricks',
+    center: [f.lower.x, (headerBottom + roof) / 2, f.lower.z + CELL_SIZE / 2],
+    size: [stair.width, roof - headerBottom, WALL_THICKNESS], solid: true });
+  // Solid steps share the same support dimensions as the reusable assembly; no overlapping landing slab.
+  for (let i = 0; i < stair.steps; i++) {
+    const height = stair.rise * (i + 1) / stair.steps, tread = stair.run / stair.steps;
+    boxes.push({ id: f.id + '/step/' + i, material: 'cobblestone', center: [f.lower.x, f.lower.y + height / 2, start + (i + .5) * tread],
+      size: [stair.width, height, tread], solid: false });
+  }
   return boxes;
 }
 
@@ -109,15 +134,11 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
       ...(/\/floor(?:\/|$)/.test(id) ? { deck: 'floor' as const } : /\/ceiling(?:\/|$)/.test(id) ? { deck: 'ceiling' as const } : {}) });
   for (const cell of cells) {
     const { x, z } = cell.center, y = cell.floorY, half = CELL_SIZE / 2, end = ends.get(cell.key);
-    const deck = (name: string, height: number, cut: boolean, sign: number) => {
+    const deck = (name: string, height: number) => {
       const material = name === 'floor' ? 'cobblestone' : 'stone_bricks';
-      if (!cut) { box(cell.key + '/' + name, material, [x, height, z], [CELL_SIZE, .18, CELL_SIZE], false); return; }
-      const side = (CELL_SIZE - STAIR_RECIPE.width) / 2;
-      for (const s of [-1, 1]) box(cell.key + '/' + name + '/side-' + s, material,
-        [x + s * (STAIR_RECIPE.width + side) / 2, height, z], [side, .18, CELL_SIZE], false);
-      box(cell.key + '/' + name + '/landing', material, [x, height, z - sign * .35], [STAIR_RECIPE.width, .18, 2.5], false);
+      box(cell.key + '/' + name, material, [x, height, z], [CELL_SIZE, SLAB_THICKNESS, CELL_SIZE], false);
     };
-    deck('floor', y - .09, end === 'upper', -1); deck('ceiling', y + WALL_HEIGHT + .09, end === 'lower', 1);
+    deck('floor', y - SLAB_THICKNESS / 2); deck('ceiling', y + WALL_HEIGHT + SLAB_THICKNESS / 2);
     for (const direction of DIRECTIONS) {
       const { x: dx, z: dz } = directionVector[direction];
       const neighbour = byWorld.get(cell.source.at.level + '/' + worldKey({ row: cell.source.world.row + dz, column: cell.source.world.column + dx }));
@@ -128,8 +149,13 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
       const edge = cell.key + '/' + direction, cx = x + dx * half, cz = z + dz * half, horizontal = !!dz;
       const panel = (suffix: string, offset: number, width: number, height: number, bottom = 0, material = 'stone_bricks') => {
         if (width <= 0) return;
-        box(edge + '/' + suffix, material, [cx + (horizontal ? offset : 0), y + bottom + height / 2, cz + (horizontal ? 0 : offset)],
-          horizontal ? [width, height, .16] : [.16, height, width], bottom < 2.7 && cell.source.at.level === level);
+        // Horizontal runs cap the ends of perpendicular walls, including convex exterior corners.
+        // Door opening edges retain their exact width; the exposed-surface union removes overlap faces.
+        const left = horizontal && (suffix === 'wall' || suffix.endsWith('left')) ? WALL_THICKNESS / 2 : 0;
+        const right = horizontal && (suffix === 'wall' || suffix.endsWith('right')) ? WALL_THICKNESS / 2 : 0;
+        const center = offset + (right - left) / 2, span = width + left + right;
+        box(edge + '/' + suffix, material, [cx + (horizontal ? center : 0), y + bottom + height / 2, cz + (horizontal ? 0 : center)],
+          horizontal ? [span, height, WALL_THICKNESS] : [WALL_THICKNESS, height, span], bottom < 2.7 && cell.source.at.level === level);
       };
       if (end === 'upper' && direction === 'north' || end === 'lower' && direction === 'south') {
         const side = (CELL_SIZE - STAIR_RECIPE.width) / 2;
@@ -155,17 +181,10 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
     if (!hole.floorOpen) box(id + '/floor', 'cobblestone', [p.x, p.y - .09, p.z], [CELL_SIZE, .18, CELL_SIZE], false);
     if (!hole.ceilingOpen) box(id + '/ceiling', 'stone_bricks', [p.x, p.y + WALL_HEIGHT + .09, p.z], [CELL_SIZE, .18, CELL_SIZE], false);
   }
-  // Masonry cheeks close the gap between the 1.8-unit flight and the reserved cell shaft.
-  for (const f of flights) {
-    const shoulder = (CELL_SIZE - STAIR_RECIPE.width) / 2;
-    for (let i = 0; i < STAIR_RECIPE.steps; i++) for (const sign of [-1, 1]) {
-      const height = (i + 1) * STAIR_RECIPE.rise / STAIR_RECIPE.steps;
-      box(f.id + '/cheek/' + i + '/' + sign, 'stone_bricks', [f.lower.x + sign * (STAIR_RECIPE.width + shoulder) / 2,
-        f.lower.y + height / 2, f.lower.z + .9 + (i + .5) * STAIR_RECIPE.tread], [shoulder, height, STAIR_RECIPE.tread], false);
-    }
-  }
+  for (const f of flights) boxes.push(...stairEnclosure(f));
   const renderBoxes = cutStairDecks(boxes, flights);
-  const colliders = renderBoxes.filter(b => b.solid).map(boxBounds);
+  const colliders = renderBoxes.filter(b => b.solid && b.center[1] + b.size[1] / 2 > active.floorY + .01
+    && b.center[1] - b.size[1] / 2 < active.floorY + 2.7).map(boxBounds);
   for (const flight of flights) colliders.push({ minX: flight.upper.x - .9, maxX: flight.upper.x + .9,
     minZ: flight.lower.z + .9, maxZ: flight.upper.z - .9 });
   const connector = connectors.find(c => [addressKey(c.sight.upper), addressKey(c.sight.lower)].includes(active.key)) ?? connectors[0];

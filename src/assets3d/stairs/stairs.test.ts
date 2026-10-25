@@ -13,11 +13,47 @@ describe('S1 stair assembly', () => {
     const resources = new VisualResources('/test/manifest.json'), model = new VisualInstance(stair.model, resources);
     model.bindMaterials({ structure: nativeMaterials.native_stone, treads: nativeMaterials.native_wood, rails: nativeMaterials.native_bronze }); model.setVisualState('neutral');
     const before = resources.geometryCount, bounds = new THREE.Box3().setFromObject(model.root);
-    expect(bounds.max.y).toBeGreaterThan(stair.rise + 1); expect(bounds.max.y).toBeLessThan(stair.rise + 1.2);
+    for (const [actual, expected] of [[bounds.min.x, -0.9], [bounds.max.x, 0.9], [bounds.min.y, -0.18],
+      [bounds.max.y, 4.68], [bounds.min.z, -1.8], [bounds.max.z, 9.36]]) expect(actual).toBeCloseTo(expected, 6);
     expect(model.anchors.get('upperLanding')!.position.y).toBe(stair.rise);
     expect(stair.opening.min[1]).toBeLessThan(stair.rise); expect(stair.opening.max[1]).toBeGreaterThan(stair.rise);
     model.bindMaterials({ structure: nativeMaterials.native_wood, treads: nativeMaterials.native_stone, rails: nativeMaterials.native_bronze });
     expect(resources.geometryCount).toBe(before); model.dispose(); resources.dispose();
+  });
+  it('omits rails and posts by default and keeps an explicitly selectable railed variant', () => {
+    const plain = straightStair(), railed = straightStair({ rails: true });
+    const isRail = (part: { id: string }) => /^(rail|post)-/.test(part.id);
+    expect(plain).toEqual(straightStair({ rails: false })); expect(plain.rails).toBe(false);
+    expect(plain.model.payload.geometries.flight).toHaveLength(38);
+    expect(plain.model.payload.geometries.flight.filter(isRail)).toHaveLength(0);
+    expect(plain.model.slots).not.toHaveProperty('rails');
+    expect(railed.rails).toBe(true); expect(railed.model.slots).toHaveProperty('rails');
+    expect(railed.model.payload.geometries.flight.filter(p => p.id.startsWith('rail-'))).toHaveLength(2);
+    expect(railed.model.payload.geometries.flight.filter(p => p.id.startsWith('post-'))).toHaveLength(6);
+    expect(railed.model.payload.geometries.flight.filter(p => !isRail(p))).toEqual(plain.model.payload.geometries.flight);
+    expect(railed.model.geometryRevision).toBe(railed.revision);
+    expect(plain.model.geometryRevision).toBe(plain.revision);
+    expect(railed.revision).not.toBe(plain.revision);
+    expect(railed).toEqual(straightStair({ rails: true }));
+    for (const key of ['recipe', 'width', 'rise', 'run', 'landing', 'steps', 'anchors', 'opening', 'clearance'] as const)
+      expect(railed[key]).toEqual(plain[key]);
+    for (const z of [-2, 0, 0.21, 2, plain.run, plain.run + 2]) expect(stairSupport(railed, z)).toBe(stairSupport(plain, z));
+  });
+  it('keeps both rail variants distinct in shared geometry resources', () => {
+    const resources = new VisualResources('/test/manifest.json');
+    const plain = new VisualInstance(straightStair().model, resources);
+    const railed = new VisualInstance(straightStair({ rails: true }).model, resources);
+    for (const model of [plain, railed]) {
+      model.bindMaterials({ structure: nativeMaterials.native_stone, treads: nativeMaterials.native_stone, rails: nativeMaterials.native_bronze });
+      model.setVisualState('neutral');
+    }
+    const plainBounds = new THREE.Box3().setFromObject(plain.root), railBounds = new THREE.Box3().setFromObject(railed.root);
+    expect(plainBounds.max.x).toBeCloseTo(0.9, 6); expect(railBounds.max.x).toBeCloseTo(0.99, 6);
+    expect(plainBounds.max.y).toBeCloseTo(4.68, 6);
+    expect(railBounds.max.y).toBeCloseTo(4.68 + 1.05 + 0.05 * Math.cos(Math.atan2(4.68, 7.56)), 6);
+    expect(railBounds.min.y).toBeCloseTo(plainBounds.min.y, 6);
+    expect(railBounds.min.z).toBeCloseTo(plainBounds.min.z, 6); expect(railBounds.max.z).toBeCloseTo(plainBounds.max.z, 6);
+    plain.dispose(); railed.dispose(); resources.dispose();
   });
   it('rejects a compressed/invalid flight and produces continuous monotone support', () => {
     expect(() => straightStair({ width: 0.6 })).toThrow(); expect(() => straightStair({ steps: 0 })).toThrow();

@@ -4,11 +4,13 @@ import { stageBoxGeometry } from './surfaces';
 import { cutStairDecks, type SceneBox } from './scene';
 const deck = (kind: 'floor' | 'ceiling'): SceneBox => ({ id: kind, deck: kind, material: kind, solid: false,
   center: [0, -.09, 0], size: [3.2, .18, 3.2] });
-it('assigns shared slab top and sides to the floor and only underside to the ceiling', () => {
+it('keeps standalone fallback boxes closed on both sides', () => {
   const floor = stageBoxGeometry(deck('floor'), true), ceiling = stageBoxGeometry(deck('ceiling'), true);
   const normals = (g: typeof floor) => [...g.index!.array].map(i => g.getAttribute('normal').getY(i));
-  expect(normals(floor).filter(y => y === 1)).toHaveLength(6); expect(normals(floor)).not.toContain(-1);
-  expect(normals(ceiling)).toEqual(Array(6).fill(-1));
+  for (const geometry of [floor, ceiling]) {
+    expect(normals(geometry).filter(y => y === 1)).toHaveLength(6);
+    expect(normals(geometry).filter(y => y === -1)).toHaveLength(6);
+  }
   expect(floor.getAttribute('uv').array.every(Number.isFinite)).toBe(true); floor.dispose(); ceiling.dispose();
 });
 it('cuts the physical flight from both phase-shifted upper floor and lower ceiling without changing slab height', () => {
@@ -18,7 +20,7 @@ it('cuts the physical flight from both phase-shifted upper floor and lower ceili
   for (const box of output) {
     expect(box.center[1]).toBe(-.09); expect(box.size[1]).toBe(.18);
     const x = Math.max(0, Math.min(box.center[0] + box.size[0] / 2, .9) - Math.max(box.center[0] - box.size[0] / 2, -.9));
-    const z = Math.max(0, Math.min(box.center[2] + box.size[2] / 2, 1.6) - Math.max(box.center[2] - box.size[2] / 2, -5.96));
+    const z = Math.max(0, Math.min(box.center[2] + box.size[2] / 2, 1.6) - Math.max(box.center[2] - box.size[2] / 2, -5.34));
     expect(x * z).toBeCloseTo(0);
   }
   expect(output.some(b => b.deck === 'floor')).toBe(true); expect(output.some(b => b.deck === 'ceiling')).toBe(true);

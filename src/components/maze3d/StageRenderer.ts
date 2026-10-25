@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { GameView } from '../../services/game/GameView';
-import { AssetRegistry, PACK_URL } from '../../assets3d/registry';
+import { AssetRegistry } from '../../assets3d/registry';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ThreeAssetLibrary, blockGeometry, applyBlockAppearance, disposeGeometry } from '../../assets3d/threeAssets';
 import { HumanoidResources } from '../../assets3d/humanoid/HumanoidResources';
@@ -10,14 +10,10 @@ import { compileStageScene } from './scene';
 import type { SceneBox, StageScene } from './scene';
 import { StageWalker } from './movement';
 import { CELL_SIZE, EYE_HEIGHT } from './constants';
-import { alignBoxUVs } from './boxUVs';
 import { bookshelfMesh } from './bookshelf';
-import { straightStair } from '../../assets3d/stairs/assembly';
-import { VisualInstance, VisualResources } from '../../assets3d/models/VisualInstance';
-import { nativeMaterials } from '../../assets3d/models/native';
-import type { VisualMaterial } from '../../assets3d/models/contract';
 import { stageBoxGeometry } from './surfaces';
 import { StageInteractables } from './StageInteractables';
+import { masonrySurfaces } from './masonry';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -40,8 +36,7 @@ export class StageRenderer {
   private registry: AssetRegistry;
   private failure: (message: string) => void;
   private materialWarning: (message: string) => void;
-  private stairResources = new VisualResources(PACK_URL);
-  private stairs = new Map<string, { model: VisualInstance; lights: THREE.PointLight[] }>();
+  private stairs = new Map<string, THREE.PointLight[]>();
   private masonry = new THREE.Group();
   private masonryKey = '';
   private masonryMaterials = new Map<string, THREE.Material>();
@@ -91,29 +86,17 @@ export class StageRenderer {
   }
   private syncScene(snapshot: StageScene) {
     const flights = snapshot.flights ?? (snapshot.connector ? [{ id: snapshot.connector.sight.id, ...snapshot.connector }] : []);
-    for (const [id, entry] of this.stairs) if (!flights.some(f => f.id === id)) {
-      entry.model.dispose(); for (const light of entry.lights) light.removeFromParent(); this.stairs.delete(id);
+    for (const [id, lights] of this.stairs) if (!flights.some(f => f.id === id)) {
+      for (const light of lights) light.removeFromParent(); this.stairs.delete(id);
     }
-    const surface = this.registry.resolve('stone_bricks').faces[4].material;
-    const stone: VisualMaterial = surface ? { ...surface, layoutId: 'solid-v1', render: { alphaMode: 'opaque', side: 'front' } } : nativeMaterials.native_stone;
     for (const flight of flights) {
-      let entry = this.stairs.get(flight.id);
-      if (!entry) {
-        const stair = straightStair(), asset = { ...stair.model, geometryRevision: `${stair.model.geometryRevision}/room-decks`,
-          payload: { geometries: { flight: stair.model.payload.geometries.flight.filter(p => !p.id.endsWith('landing')) } } };
-        const model = new VisualInstance(asset, this.stairResources);
-        model.bindMaterials({ structure: stone, treads: stone, rails: nativeMaterials.native_bronze }); model.setVisualState('neutral');
-        model.root.traverse(node => {
-          if (node instanceof THREE.Mesh && !node.geometry.userData.masonryGrid) {
-            alignBoxUVs(node.geometry, node.userData.visualPart.position); node.geometry.userData.masonryGrid = true;
-          }
-        });
-        const lights = [new THREE.PointLight('#e7cfac', 16, 12, 1.7), new THREE.PointLight('#e7cfac', 16, 12, 1.7)];
-        entry = { model, lights }; this.stairs.set(flight.id, entry); this.scene.add(model.root, ...lights);
+      let lights = this.stairs.get(flight.id);
+      if (!lights) {
+        lights = [new THREE.PointLight('#e7cfac', 16, 12, 1.7), new THREE.PointLight('#e7cfac', 16, 12, 1.7)];
+        this.stairs.set(flight.id, lights); this.scene.add(...lights);
       }
-      entry.model.root.position.set(flight.lower.x, flight.lower.y, flight.lower.z + .9);
-      entry.lights[0].position.set(flight.upper.x, flight.upper.y + 2.8, flight.upper.z);
-      entry.lights[1].position.set(flight.lower.x, flight.lower.y + 2.8, flight.lower.z);
+      lights[0].position.set(flight.upper.x, flight.upper.y + 2.8, flight.upper.z);
+      lights[1].position.set(flight.lower.x, flight.lower.y + 2.8, flight.lower.z);
     }
     this.scene.fog = new THREE.Fog('#10151d', flights.length ? CELL_SIZE * 2 : CELL_SIZE, CELL_SIZE * (flights.length ? 8 : 3.5));
     this.interactables.sync(snapshot.doors ?? []);
@@ -152,13 +135,15 @@ export class StageRenderer {
     const key = JSON.stringify(boxes); if (key === this.masonryKey) return; this.masonryKey = key;
     disposeGeometry(this.masonry); this.masonry.clear();
     const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
-    for (const box of boxes) {
+    const surfaces = masonrySurfaces(boxes);
+    for (let i = 0; i < boxes.length; i++) {
+      const box = boxes[i], geometry = surfaces[i];
+      if (!geometry.index?.count) { geometry.dispose(); continue; }
       const face = box.deck === 'floor' ? 2 : box.deck === 'ceiling' ? 3 : 4;
       const surface = this.registry.resolve(box.material).faces[face];
       const shared = box.material === 'unknown' ? this.unknown : this.library.material(surface);
       let material = this.masonryMaterials.get(shared.uuid);
       if (!material) { material = shared.clone(); material.side = THREE.FrontSide; this.masonryMaterials.set(shared.uuid, material); }
-      const geometry = stageBoxGeometry(box, surface.material?.surface === 'tileable'); geometry.translate(...box.center);
       const batch = batches.get(material) ?? []; batch.push(geometry); batches.set(material, batch);
     }
     for (const [material, parts] of batches) {
@@ -236,8 +221,8 @@ export class StageRenderer {
   dispose() {
     if (!this.alive) return; this.alive = false; this.observer.disconnect();
     this.canvas.removeEventListener('webglcontextlost', this.contextLost);
-    for (const entry of this.stairs.values()) entry.model.dispose(); this.stairs.clear(); this.interactables.dispose();
-    this.stairResources.dispose(); this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene);
+    this.stairs.clear(); this.interactables.dispose();
+    this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene);
     for (const material of this.masonryMaterials.values()) material.dispose(); this.masonryMaterials.clear(); this.library.dispose(); this.unknown.dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.remove(); this.boxes.clear(); this.chestStates.clear();
   }
