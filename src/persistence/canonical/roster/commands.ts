@@ -3,6 +3,7 @@ import type { RosterState } from '../../../domain/party/roster';
 import { autoEquipBestGear, equipItem, unequipItem, useConsumable, sellItem, sellJunkItems, stashItem,
   withdrawStashItem, toggleItemLock, setInventoryPolicy } from '../../../domain/items/inventory';
 import { EQUIPMENT_SLOTS } from '../../../domain/items/equipment';
+import { INVENTORY_RESERVE_BOUNDS } from '../../../domain/items/inventoryPolicy';
 import { buyFromVendor, leaveTown, maintainTown, useInn, useTownPortal } from '../../../domain/town/town';
 import { setActorAutoBattle, setAutoSpendPoints, spendAttribute, type SpendableAttribute } from '../../../domain/party/partyRules';
 import { CAMP_SKILLS, castCampSkill, type CampSkill } from '../../../domain/party/campSkills';
@@ -45,7 +46,10 @@ export function rosterCommand(value: unknown): RosterCommand {
     const patch = fields(row.patch, '', 'autoEquip autoSellJunk autoStash autoRestock healthReserve manaReserve portalReserve');
     for (const [key, value] of Object.entries(patch)) {
       if (key.startsWith('auto')) check(typeof value === 'boolean', 'invalid policy flag');
-      else { natural(value, key === 'portalReserve' ? 1 : 0); check(value <= (key === 'portalReserve' ? 5 : 20), 'invalid policy reserve'); }
+      else if (key === 'healthReserve' || key === 'manaReserve' || key === 'portalReserve') {
+        const { min, max } = INVENTORY_RESERVE_BOUNDS[key];
+        natural(value, min); check(value <= max, 'invalid policy reserve');
+      }
     }
   }
   return structuredClone(value) as RosterCommand;

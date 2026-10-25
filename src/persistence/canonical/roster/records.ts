@@ -5,6 +5,7 @@ import { fields, id, natural } from './codec';
 import { validateItem } from './itemValidation';
 import { groupOf, MAX_CONTAINER_RECORDS, MAX_PARTY_MEMBERS, type ContainerHeader, type PartyHeader, type PolicyRecord, type RosterRead, type StoredItem } from './types';
 import { EQUIPMENT_SLOTS } from '../../../domain/items/equipment';
+import { INVENTORY_RESERVE_BOUNDS } from '../../../domain/items/inventoryPolicy';
 
 export const rosterKey = (kind: string, identity?: string) => {
   if (identity !== undefined) id(identity);
@@ -42,8 +43,8 @@ export function policyRecord(value: unknown): PolicyRecord {
 export function validatePolicy(value: unknown): asserts value is InventoryPolicy {
   const p = fields(value, 'autoEquip autoSellJunk autoStash autoRestock healthReserve manaReserve portalReserve');
   for (const key of ['autoEquip', 'autoSellJunk', 'autoStash', 'autoRestock']) check(typeof p[key] === 'boolean', 'invalid inventory policy flag');
-  check(integer(p.healthReserve) && p.healthReserve <= 20 && integer(p.manaReserve) && p.manaReserve <= 20
-    && integer(p.portalReserve, 1) && p.portalReserve <= 5, 'invalid inventory reserves');
+  check(Object.entries(INVENTORY_RESERVE_BOUNDS).every(([key, { min, max }]) =>
+    integer(p[key], min) && p[key] <= max), 'invalid inventory reserves');
 }
 export function storedItem(value: unknown): StoredItem {
   const row = fields(value, 'schema item owner order');

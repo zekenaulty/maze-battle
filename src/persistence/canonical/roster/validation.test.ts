@@ -55,6 +55,23 @@ describe('new roster encoding and strict stored values', () => {
 });
 
 describe('explicit command input', () => {
+  it.each([
+    ['healthReserve', 0, 20], ['manaReserve', 0, 20], ['portalReserve', 1, 5],
+  ] as const)('strictly validates %s boundaries without clamping or changing errors', (key, min, max) => {
+    for (const value of [min, max]) {
+      const input = { kind: 'policy', patch: { [key]: value } };
+      expect(rosterCommand(input)).toEqual(input);
+      expect(() => validatePolicy({ ...DEFAULT_INVENTORY_POLICY, [key]: value })).not.toThrow();
+    }
+    for (const value of [min - 1, max + 1, 1.5, Number.MAX_SAFE_INTEGER + 1, '2', null]) {
+      const input = { kind: 'policy', patch: { [key]: value } };
+      const error = value === max + 1 ? 'invalid policy reserve' : 'invalid roster integer';
+      expect(() => rosterCommand(input)).toThrow(new Error(`Canonical storage: ${error}`));
+      expect(() => validatePolicy({ ...DEFAULT_INVENTORY_POLICY, [key]: value }))
+        .toThrow(new Error('Canonical storage: invalid inventory reserves'));
+    }
+  });
+
   it.each([null, {}, { kind: 'portal', hiddenDestination: 'anywhere' }, { kind: 'sell', itemId: 'x', amount: 0 },
     { kind: 'policy', patch: { autoEquip: 'yes' } }, { kind: 'policy', patch: { portalReserve: 6 } },
     { kind: 'use', itemId: '' }, { kind: 'buy', baseId: 'town-portal', vendor: 'elsewhere' }])('rejects malformed input %j', input => {

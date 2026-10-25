@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { addItemsToInventory, manageAutoInventory, normalizeInventoryPolicy, setInventoryPolicy, toggleItemLock } from './inventory';
 import { consumableCount } from './autoInventory';
+import { INVENTORY_RESERVE_BOUNDS } from './inventoryPolicy';
 import { maintainTown } from '../town/town';
 import { assignWeapons, gear, inventoryGame, supply } from './__tests__/fixtures';
 
 describe('inventory policies and bounded town care', () => {
+  it('publishes immutable reserve bounds shared by policy consumers', () => {
+    expect(INVENTORY_RESERVE_BOUNDS).toEqual({
+      healthReserve: { min: 0, max: 20 }, manaReserve: { min: 0, max: 20 }, portalReserve: { min: 1, max: 5 },
+    });
+    expect(Object.isFrozen(INVENTORY_RESERVE_BOUNDS)).toBe(true);
+    for (const bounds of Object.values(INVENTORY_RESERVE_BOUNDS)) expect(Object.isFrozen(bounds)).toBe(true);
+  });
+
   it('defaults to useful automation and normalizes reserves to finite bounds', () => {
     expect(normalizeInventoryPolicy()).toEqual({ autoEquip: true, autoSellJunk: true, autoStash: true, autoRestock: true, healthReserve: 3, manaReserve: 2, portalReserve: 1 });
     expect(normalizeInventoryPolicy({ healthReserve: Infinity, manaReserve: -2, portalReserve: 0 })).toMatchObject({ healthReserve: 3, manaReserve: 0, portalReserve: 1 });

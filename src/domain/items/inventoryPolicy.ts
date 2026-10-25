@@ -2,6 +2,12 @@ import type { InventoryPolicy } from '../types';
 import type { RosterState } from '../party/roster';
 import { ambiguousItemIds } from './itemOwnership';
 
+export const INVENTORY_RESERVE_BOUNDS = Object.freeze({
+  healthReserve: Object.freeze({ min: 0, max: 20 }),
+  manaReserve: Object.freeze({ min: 0, max: 20 }),
+  portalReserve: Object.freeze({ min: 1, max: 5 }),
+});
+
 export const DEFAULT_INVENTORY_POLICY: Readonly<InventoryPolicy> = Object.freeze({
   autoEquip: true,
   autoSellJunk: true,
@@ -20,9 +26,9 @@ export function normalizeInventoryPolicy(policy?: Partial<InventoryPolicy>): Inv
     autoSellJunk: boolean('autoSellJunk'),
     autoStash: boolean('autoStash'),
     autoRestock: boolean('autoRestock'),
-    healthReserve: reserve(policy?.healthReserve, 3, 0, 20),
-    manaReserve: reserve(policy?.manaReserve, 2, 0, 20),
-    portalReserve: reserve(policy?.portalReserve, 1, 1, 5),
+    healthReserve: reserve(policy?.healthReserve, 'healthReserve'),
+    manaReserve: reserve(policy?.manaReserve, 'manaReserve'),
+    portalReserve: reserve(policy?.portalReserve, 'portalReserve'),
   };
 }
 
@@ -45,6 +51,7 @@ export function toggleItemLock<T extends Pick<RosterState, 'inventory' | 'stash'
   };
 }
 
-function reserve(value: number | undefined, fallback: number, min: number, max: number): number {
-  return value !== undefined && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.floor(value))) : fallback;
+function reserve(value: number | undefined, key: keyof typeof INVENTORY_RESERVE_BOUNDS): number {
+  const { min, max } = INVENTORY_RESERVE_BOUNDS[key];
+  return value !== undefined && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.floor(value))) : DEFAULT_INVENTORY_POLICY[key];
 }
