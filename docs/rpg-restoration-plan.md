@@ -50,7 +50,7 @@ do not import a generated output tree or run asset generation.
 | --- | --- | --- | --- |
 | R0 | Integrate 3D on latest canonical lineage | Locked install, affected/full unit regression as recorded, types/build, real 2D/3D navigation/map/chest/stairs/reload/graphics recovery, canonical ownership/recovery and provider-free noncombat corpus. Exact candidate and local assets recorded. | Complete, bounded provider-free |
 | R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | Initial clock/policy/click batch checked; guild/history and remaining surfaces pending |
-| R2 | Restore one durable battle vertical | Game-owned encounter and bounded battle records/commands; existing manual skill/target UI; enemy actions; win/loss/return; all old skill rules exercised. Reload, cancellation, duplicate and rollback checks. | Pending |
+| R2 | Restore one durable battle vertical | Game-owned encounter and bounded battle records/commands; existing manual skill/target UI; enemy actions; win/loss/return; all old skill rules exercised. Reload, cancellation, duplicate and rollback checks. | Shared turn core and bounded records checked; command/UI integration in progress |
 | R3 | Reconnect progression and rewards | Atomic/deduplicated kill credit, XP, level/attribute updates, gold, loot, equipment and quest progress; no duplicate payout after retry/reload/manual-save restore. | Pending |
 | R4 | Restore the grinder | Individual Auto Battle; linked Stop/takeover; Waves; encounter interruption/resumption of travel; Auto quest/loot/town/supply loop. Distinguish posted offers from accepted mandatory work. | Pending |
 | R5 | Qualify the real RPG | Canonical gameplay telemetry, played multi-floor journey, backtracking, loot pressure, town care, reload/takeover and failure recovery. Document finite storage behavior and next retention work honestly. | Pending |
@@ -127,9 +127,11 @@ retention slice, not a promise of infinite storage.
 - Locked dependency installation: PASS, 131 packages, unchanged lockfile. Thirteen
   pinned image hashes verified; only the five stage material families and the
   six-skin curated catalog copied locally, not glowstone or all generated output.
-- R2a shared combat core extraction is in progress in a separate branch. It will
-  preserve legacy adapters/tests while removing GameState/world/policy coupling
-  from the reusable turn boundary. Canonical battle execution remains pending.
+- R2a/R2b [checked foundations](reviews/rpg-r2-foundation.md): shared turn core
+  preserves the existing effects/catalog and legacy adapters; bounded split
+  battle records preserve old absent-header saves. Parent full root on R2a:
+  5,198 PASS / one existing optional skip. Command/UI integration is in progress;
+  canonical combat is not yet playable.
 - R1 initial repair batch: [evidence](reviews/rpg-r1-surfaces.md). Shared policy
   bounds now serve UI, normalization and canonical validation. Separate preview
   runs at `http://127.0.0.1:5510/` (3D: `?view=stage3d`); it is a separate origin,
