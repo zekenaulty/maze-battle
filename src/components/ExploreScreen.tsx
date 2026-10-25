@@ -79,6 +79,7 @@ export function ExploreScreen({
   const [localView3D, setLocalView3D] = useState(() => new URLSearchParams(location.search).get('view') === 'stage3d');
   const view3D = selectedView3D ?? localView3D;
   const setView3D = (enabled: boolean) => { setLocalView3D(enabled); onView3DChange?.(enabled); };
+  const changeView3D = (enabled: boolean) => { if (!autoActive && !agenticActive) onStopWalking?.(); setView3D(enabled); };
   const [onFlight, setOnFlight] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapTab, setMapTab] = useState<'rooms' | 'nearby'>('rooms');
@@ -170,10 +171,10 @@ export function ExploreScreen({
           </span>
         </div>
         <nav aria-label="Explore actions" onClickCapture={event => {
-          if (!(event.target instanceof Element && event.target.closest('[data-agentic-control]'))) onStopWalking?.();
+          if (!(event.target instanceof Element && event.target.closest('[data-agentic-control],[data-view-control]'))) onStopWalking?.();
         }}>
-          {onStageMove && <button type="button" aria-pressed={view3D} disabled={blocked || !currentCell} onClick={() => {
-            onStopWalking?.(); setView3D(!view3D); setMapOpen(false); setRecall(null);
+          {onStageMove && <button type="button" data-view-control aria-pressed={view3D} disabled={blocked || !currentCell} onClick={() => {
+            changeView3D(!view3D); setMapOpen(false); setRecall(null);
           }}>{view3D ? '2D view' : '3D view'}</button>}
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}
             disabled={!autoAvailable || onFlight} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
@@ -210,8 +211,9 @@ export function ExploreScreen({
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''} ${mapVisible ? 'has-room-map' : ''}`}>
         {view3D && onStageMove && <div style={{ position: 'absolute', inset: 0, display: mapVisible ? 'none' : undefined }} aria-hidden={mapVisible}>
           <Suspense fallback={<p role="status">Loading 3D stage…</p>}><CanonicalStage3D game={game}
+            automated={(autoActive || agenticActive) && !stageBlocked && !mapVisible}
             disabled={stageBlocked || mapVisible || autoActive || agenticActive} onMove={onStageMove} onPrepareStairs={onPrepareStairs} onWalkStairs={onWalkStairs} onFlightChange={setOnFlight}
-            onReturn={() => { onStopWalking?.(); setView3D(false); }} /></Suspense>
+            onReturn={() => changeView3D(false)} /></Suspense>
         </div>}
         {(!view3D || mapVisible) && <>
         {mapVisible && <div className="known-rooms-tabs" role="tablist" aria-label="Map views" onKeyDown={event => {

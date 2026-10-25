@@ -14,6 +14,7 @@ import { bookshelfMesh } from './bookshelf';
 import { stageBoxGeometry } from './surfaces';
 import { StageInteractables } from './StageInteractables';
 import { masonrySurfaces } from './masonry';
+import { AutoWalkPresentation, followAngle } from './AutoWalkPresentation';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -41,12 +42,15 @@ export class StageRenderer {
   private masonryKey = '';
   private masonryMaterials = new Map<string, THREE.Material>();
   private interactables: StageInteractables;
+  private autoWalk: AutoWalkPresentation;
+  private automated = false;
   yaw = 0; pitch = 0;
-  constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void, materialWarning = (_message: string) => {}) {
+  constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void, materialWarning = (_message: string) => {}, automated = false) {
     this.registry = registry; this.failure = failure; this.materialWarning = materialWarning;
     const initial = compileStageScene(game);
     if (!initial) throw new Error('Observe the current position before entering 3D.');
     this.walker = new StageWalker(initial);
+    this.autoWalk = new AutoWalkPresentation(initial);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.canvas = this.renderer.domElement; this.canvas.tabIndex = 0; this.canvas.className = 'canonical-3d-canvas';
@@ -63,15 +67,17 @@ export class StageRenderer {
       this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.render(0, false);
     }); this.observer.observe(container);
     this.yaw = ({ north: 0, east: -Math.PI / 2, south: Math.PI, west: Math.PI / 2 })[game.checkpoint.facing];
-    this.update(game);
+    this.update(game, automated);
   }
   private contextLost = (event: Event) => { event.preventDefault(); this.graphicsLost = true; this.failure('Graphics context lost. Restart 3D or return to 2D.'); };
-  update(game: GameView) {
+  update(game: GameView, automated = this.automated) {
     const key = JSON.stringify(game.snapshot);
-    if (!this.alive || key === this.snapshotKey) return;
+    if (!this.alive || key === this.snapshotKey && automated === this.automated) return;
     const next = compileStageScene(game, this.walker.scene.origin, this.walker.scene.originFrame);
     if (!next || !this.alive) return;
     this.snapshotKey = key;
+    this.autoWalk.update(this.walker.scene, next, automated, performance.now() / 1000, game.autoThrottleMs);
+    this.automated = automated;
     this.walker.update(next); this.syncScene(next);
     this.canvas.dataset.actor = next.actor.key; this.canvas.dataset.world = `${next.actor.source.world.row},${next.actor.source.world.column}`;
     this.canvas.dataset.center = `${next.actor.center.x},${next.actor.center.z}`;
@@ -191,14 +197,20 @@ export class StageRenderer {
   setThirdPerson(value: boolean) { this.thirdPerson = value; }
   interact() { if (!this.walker.stairs && !this.walker.pending) return this.interactables.interact(this.walker.position, this.walker.floorY); }
   look(dx: number, dy: number) { this.yaw -= dx * 0.0025; this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.0025, -1.1, 1.1); }
-  render(seconds: number, moving: boolean) {
+  render(seconds: number, moving: boolean, dt = 0) {
     if (!this.alive || this.graphicsLost) return;
-    const { x, z } = this.walker.position;
-    const y = this.walker.floorY;
+    this.autoWalk.advance(dt);
+    if (this.automated && this.autoWalk.heading !== undefined) {
+      this.yaw = followAngle(this.yaw, this.autoWalk.heading, dt);
+      this.pitch += (this.autoWalk.pitch - this.pitch) * (1 - Math.exp(-6 * dt));
+    }
+    const { x, z } = this.automated ? this.autoWalk.pose : this.walker.position;
+    const y = this.automated ? this.autoWalk.pose.y : this.walker.floorY;
+    const walking = this.automated ? this.autoWalk.moving : moving;
     this.camera.position.set(x, y + EYE_HEIGHT, z); this.camera.rotation.order = 'YXZ'; this.camera.rotation.set(this.pitch, this.yaw, 0);
     if (this.player) {
-      this.player.visible = this.thirdPerson; this.player.position.set(x, y, z); this.player.rotation.y = this.yaw + Math.PI;
-      this.player.setAnimation(moving ? 'walk' : 'idle'); this.player.update(seconds);
+      this.player.visible = this.thirdPerson; this.player.position.set(x, y, z); this.player.rotation.y = (this.automated ? this.autoWalk.heading ?? this.yaw : this.yaw) + Math.PI;
+      this.player.setAnimation(walking ? 'walk' : 'idle'); this.player.update(seconds);
     }
     if (this.thirdPerson && this.player) {
       // Short camera boom contracts against the same solids as player collision.
@@ -208,11 +220,13 @@ export class StageRenderer {
       this.camera.position.addScaledVector(direction, Math.max(0, Math.min(2.6, hit ? hit.distance - 0.18 : 2.6)));
       this.camera.lookAt(x, y + 1.65, z);
     }
-    this.interactables.update(seconds, this.walker.position, y);
-    this.canvas.dataset.doors = String(this.interactables.count); this.canvas.dataset.nearbyControl = this.interactables.nearby(this.walker.position, y);
+    this.interactables.update(seconds, { x, z }, y);
+    this.canvas.dataset.doors = String(this.interactables.count); this.canvas.dataset.nearbyControl = this.interactables.nearby({ x, z }, y);
     this.canvas.dataset.doorStates = JSON.stringify(this.interactables.states);
     this.light.position.set(x, y + 3.3, z); this.renderer.render(this.scene, this.camera);
     this.canvas.dataset.pose = `${x.toFixed(4)},${z.toFixed(4)}`; this.canvas.dataset.yaw = this.yaw.toFixed(4);
+    this.canvas.dataset.pitch = this.pitch.toFixed(4); this.canvas.dataset.autoFollow = String(this.automated);
+    this.canvas.dataset.autoQueue = String(this.autoWalk.queued); this.canvas.dataset.moving = String(walking);
     this.canvas.dataset.height = y.toFixed(4); this.canvas.dataset.stairProgress = this.walker.stairs?.progress.toFixed(4) ?? '';
     this.canvas.dataset.pending = String(!!this.walker.pending); this.canvas.dataset.drawCalls = String(this.renderer.info.render.calls);
     this.canvas.dataset.camera = this.thirdPerson ? 'third' : 'first';

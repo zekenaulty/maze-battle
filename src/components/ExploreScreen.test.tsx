@@ -13,11 +13,23 @@ const read = vi.hoisted(() => vi.fn((_snapshot: unknown, _scope: unknown) => ({ 
 const canvas = vi.hoisted(() => vi.fn((_props: ComponentProps<typeof MazeCanvas>) => undefined));
 vi.mock('../hooks/useMazePerception', () => ({ useMazePerception: read }));
 vi.mock('./MazeCanvas', () => ({ MazeCanvas: (props: ComponentProps<typeof MazeCanvas>) => { canvas(props); return <canvas />; } }));
+vi.mock('./maze3d/CanonicalStage3D', () => ({ default: ({ onReturn, automated }: { onReturn: () => void; automated: boolean }) =>
+  <div data-testid="stage-3d-double" data-automated={automated}><button onClick={onReturn}>Return to 2D</button></div> }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 const noop = () => {};
 const props = { status: 'Ready', autoActive: false, wavesActive: false, autoThrottleMs: 500, onMove: noop,
   onAutoToggle: noop, onWavesToggle: noop, onAutoThrottleChange: noop, onTown: noop, onCharacters: noop, onSaves: noop,
   onNewGame: noop, onRandomBattlesChange: noop };
+
+it.each([true, false])('changes 3D views without canceling Auto=%s while canceling manual walking', async autoActive => {
+  const game = await observedGame(), stop = vi.fn(), auto = vi.fn(), move = vi.fn(async () => undefined);
+  render(<ExploreScreen {...props} game={game} autoActive={autoActive} onStageMove={move} onStopWalking={stop} onAutoToggle={auto} />);
+  fireEvent.click(screen.getByRole('button', { name: '3D view' }));
+  expect(await screen.findByTestId('stage-3d-double')).toHaveAttribute('data-automated', String(autoActive));
+  fireEvent.click(screen.getByRole('button', { name: 'Return to 2D' }));
+  expect(screen.getByRole('button', { name: '3D view' })).toBeVisible();
+  expect(stop).toHaveBeenCalledTimes(autoActive ? 0 : 2); expect(auto).not.toHaveBeenCalled(); expect(move).not.toHaveBeenCalled();
+});
 it('passes the canonical snapshot and only exposes a chest from current visible observation', async () => {
   const game = exploreView(), f = knowledgeFixture(), cell = earnedCell();
   game.observation = await f.observe([cell]); game.checkpoint = f.checkpoint(); game.snapshot.checkpoint = checkpointJson(game.checkpoint);

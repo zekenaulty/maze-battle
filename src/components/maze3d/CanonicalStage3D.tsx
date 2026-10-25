@@ -9,7 +9,7 @@ import { StageRenderer } from './StageRenderer';
 import './stage.css';
 
 interface Props {
-  game: GameView; disabled: boolean;
+  game: GameView; disabled: boolean; automated?: boolean;
   onMove: (direction: Direction, expectedPosition: WorldPosition) => Promise<GameView | undefined>;
   onReturn: () => void;
   onPrepareStairs?: (expected: WorldPosition, binding: string) => Promise<GameView | undefined>;
@@ -52,7 +52,7 @@ export default function CanonicalStage3D(props: Props) {
       try {
         const renderer = new StageRenderer(host.current, registry, latest.current.game, error => { graphicsFailed = true; clear(); setFailure(error); }, warning => {
           if (alive) setAssetWarning(warning);
-        });
+        }, !!latest.current.automated);
         renderer.setThirdPerson(settings.current.thirdPerson);
         view.current = renderer; setMessage('WASD to walk · drag to look · E uses nearby controls or a chest · M opens the map');
         void loadSkinCatalog(abort.signal).then(async catalog => {
@@ -101,7 +101,7 @@ export default function CanonicalStage3D(props: Props) {
           if (!blocked && !onStairs && (!inFlight || renderer.walker.pending)) {
             const crossing = renderer.walker.advance(dt, forward, strafe, renderer.yaw); if (crossing) void move(crossing.direction);
           }
-          renderer.render(elapsed, !blocked && !!(forward || strafe)); frame = requestAnimationFrame(tick);
+          renderer.render(elapsed, !blocked && !!(forward || strafe), dt); frame = requestAnimationFrame(tick);
         }; frame = requestAnimationFrame(tick);
       } catch (error) { if (alive) { graphicsFailed = true; clear(); setFailure(error instanceof Error ? error.message : String(error)); } }
     })();
@@ -136,7 +136,7 @@ export default function CanonicalStage3D(props: Props) {
     // Ownership/commands are read through latest; recreate only for game/floor identity or explicit graphics recovery.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.game.id, props.game.snapshot.generation, props.game.spatial ? 0 : props.game.checkpoint.position.level, restart]);
-  useEffect(() => { view.current?.update(props.game); }, [props.game]);
+  useEffect(() => { view.current?.update(props.game, !!props.automated); }, [props.game, props.automated]);
   useEffect(() => { if (props.disabled) { clear(); cancelFlight(); if (document.pointerLockElement === view.current?.canvas) document.exitPointerLock(); } }, [props.disabled]);
   return <div className="canonical-3d" data-disabled={props.disabled}>
     <div className="canonical-3d-host" ref={host}
