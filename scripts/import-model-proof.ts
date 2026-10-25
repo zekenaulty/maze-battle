@@ -14,8 +14,9 @@ export interface ModelSelection {
   blocks: Record<string, { evidenceSha256: string; images: Record<string, string> }>;
   review: string;
 }
+export interface ModelEvidenceBlock { models: Record<string, any>; variants: Record<string, any>; slots: Record<string, string>; evidence: any }
 function check(ok: unknown, message: string): asserts ok { if (!ok) throw new Error(message); }
-function dimensions(bytes: Buffer): [number, number] {
+export function dimensions(bytes: Buffer): [number, number] {
   check(bytes.length > 32 && bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) &&
     bytes.toString('ascii', 12, 16) === 'IHDR' && bytes.toString('ascii', bytes.length - 8, bytes.length - 4) === 'IEND', 'Invalid/incomplete PNG');
   return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
@@ -26,7 +27,7 @@ export async function importModelProof(root: string, selection: ModelSelection) 
   const pack: ModelPack = { schema: 'maze-visual-model-pack-v1', revision: '', assets: {}, materials: { ...nativeMaterials }, bindings: {},
     provenance: { source: selection.run, review: selection.review, warnings: [] } };
   const files = new Map<string, Buffer>();
-  const data: Record<string, { models: Record<string, any>; variants: Record<string, any>; slots: Record<string, string>; evidence: any }> = {};
+  const data: Record<string, ModelEvidenceBlock> = {};
   for (const [block, choice] of Object.entries(selection.blocks)) {
     const bytes = await readFile(await safePath(root, `${block}/model-source-references.json`));
     check(sha256(bytes) === choice.evidenceSha256, `Source evidence changed: ${block}`);
@@ -64,6 +65,10 @@ export async function importModelProof(root: string, selection: ModelSelection) 
     pack.provenance.warnings.push(...evidence.source.Warnings.map((warning: string) => `${block}: ${warning}`));
     data[block] = { models, variants, slots, evidence };
   }
+  return buildModelProof(data, pack, files);
+}
+/** Consumer-owned selected model recipes, independent from the producer's export format. */
+export function buildModelProof(data: Record<string, ModelEvidenceBlock>, pack: ModelPack, files: Map<string, Buffer>) {
   const lever = data.lever, door = data.iron_door; check(lever && door, 'Lever and iron_door selections are required');
   const definitions = (block: typeof lever) => Object.fromEntries(Object.entries(block.slots).map(([resource, slot]) => {
     const material = pack.materials[`source-${sha256(resource).slice(0, 12)}`]; return [slot, { layoutId: material.layoutId }];

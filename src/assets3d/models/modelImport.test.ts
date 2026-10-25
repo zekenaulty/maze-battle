@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, cp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { importModelProof } from '../../../scripts/import-model-proof';
 import type { ModelSelection } from '../../../scripts/import-model-proof';
 import { sha256 } from '../../../scripts/import-tilelab-pack';
 import { validateModelPack } from './contract';
+import { importModelExport, type ModelExportSelection } from '../../../scripts/import-model-export';
 
 async function fixture() {
   const parent = await mkdtemp(path.join(os.tmpdir(), 'maze-model-proof-')), root = path.join(parent, 'test-run');
@@ -36,6 +37,39 @@ async function fixture() {
 }
 
 describe('TileLab model evidence intake', () => {
+  it('imports a relocated portable export, verifies every pin and refuses changed or implicit upgraded input', async () => {
+    const f = await fixture(); try {
+      const pins: { path: string; sha256: string }[] = [], blocks: any[] = [], root = path.join(f.root, 'portable');
+      const put = async (relative: string, bytes: Buffer) => { await f.put(`portable/${relative}`, bytes); const pin = { path: relative, sha256: sha256(bytes) }; pins.push(pin); return pin; };
+      for (const id of ['lever', 'iron_door']) {
+        const audit = JSON.parse(await readFile(path.join(f.root, id, 'model-source-references.json'), 'utf8'));
+        const sourceFiles = [];
+        for (const source of audit.source.Files) sourceFiles.push({ resource: source.Resource,
+          file: await put(`evidence/blocks/${id}/${source.Snapshot}`, await readFile(path.join(f.root, id, source.Snapshot))) });
+        audit.source.AbsoluteHistoricalPath = 'Z:/deliberately-unavailable/source';
+        blocks.push({ id, sourceBlock: id, sourceFiles, warnings: [], credits: ['Local synthetic credit'],
+          blockMap: await put(`evidence/blocks/${id}/block-map.json`, Buffer.from('{}')),
+          sourceReferences: await put(`evidence/blocks/${id}/model-source-references.json`, Buffer.from(JSON.stringify(audit))) });
+      }
+      const image = { ...await put('textures/source_native.png', await readFile(path.join(f.root, 'lever/materials/atlas/source_native.png'))), width: 1, height: 1 };
+      const doc = { schema: 'tilelab-material-export-v1', revision: 'portable-v1', selectionStatus: 'complete', upgradeStatus: 'pending_or_not_selected',
+        colorSpace: 'srgb', alphaPolicy: 'exact_source_alpha_at_nearest_source_texel', rightsStatus: 'fixture',
+        uvBasis: { units: 16, origin: 'top-left', mapping: 'full-canvas', policy: 'full_canvas_no_packing_no_seam_repair', layoutIdentityAuthority: 'consumer' },
+        blocks, files: pins, materials: [{ resource: 'minecraft:block/shared', blocks: ['lever', 'iron_door'], materialIds: ['atlas'], variant: 'source_native',
+          source: { image, alphaKind: 'binary_mask' }, selected: image }] };
+      const descriptor = JSON.stringify(doc); await f.put('portable/material-export.json', descriptor);
+      const choice: ModelExportSelection = { schema: 'maze-model-export-selection-v1', descriptorSha256: sha256(descriptor), revision: doc.revision,
+        blocks: ['lever', 'iron_door'], variant: 'source_native', abstractRoot: 'minecraft:block/block:geometry-only-v1', review: 'Offline proof' };
+      const a = await importModelExport(root, choice), relocated = path.join(f.parent, 'relocated'); await cp(root, relocated, { recursive: true });
+      const b = await importModelExport(relocated, choice); expect(b.pack).toEqual(a.pack); expect(b.verifiedFiles).toBe(pins.length);
+      expect(b.files.size).toBe(1); expect(b.pack.provenance.warnings).toContain('lever credit: Local synthetic credit');
+      await expect(importModelExport(root, { ...choice, descriptorSha256: '0'.repeat(64) })).rejects.toThrow('descriptor changed');
+      await expect(importModelExport(root, { ...choice, variant: 'upgraded' } as unknown as ModelExportSelection)).rejects.toThrow('explicitly selects original');
+      await f.put('portable/textures/source_native.png', Buffer.from('changed')); await expect(importModelExport(root, choice)).rejects.toThrow('Export file changed');
+      doc.files[0].path = '../outside.json'; const unsafe = JSON.stringify(doc); await f.put('portable/material-export.json', unsafe);
+      await expect(importModelExport(root, { ...choice, descriptorSha256: sha256(unsafe) })).rejects.toThrow('Unsafe relative path');
+    } finally { await rm(f.parent, { recursive: true, force: true }); }
+  });
   it('deduplicates shared texture bytes, pins a source basis and reproduces all model revisions', async () => {
     const f = await fixture(); try {
       const a = await importModelProof(f.root, f.selection), b = await importModelProof(f.root, f.selection);

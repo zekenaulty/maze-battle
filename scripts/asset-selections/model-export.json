@@ -1,0 +1,9 @@
+{
+  "schema": "maze-model-export-selection-v1",
+  "descriptorSha256": "d352c0a6fb395a6be01059273c241081d2ad5d84eb1f94462c9606516ccaa43f",
+  "revision": "e63c167284f0142f1fe74ca9415597c203cb6bff58940d164081eb7fc331b9df",
+  "blocks": ["lever", "iron_door"],
+  "variant": "source_native",
+  "abstractRoot": "minecraft:block/block:geometry-only-v1",
+  "review": "Owner-authorized original-material geometry preview. Portable files verified; upgrades, semantic UV approval and redistribution rights remain pending."
+}

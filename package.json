@@ -15,7 +15,8 @@
     "self-play": "node scripts/self-play.mjs",
     "assets:import": "node --experimental-strip-types scripts/import-tilelab-pack.ts",
     "assets:import-skin": "node --experimental-strip-types scripts/import-tilelab-skin.ts",
-    "assets:import-models": "node --experimental-strip-types scripts/import-model-proof.ts"
+    "assets:import-models": "node --experimental-strip-types scripts/import-model-proof.ts",
+    "assets:import-model-export": "node --experimental-strip-types scripts/import-model-export.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
