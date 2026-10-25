@@ -17,16 +17,22 @@ describe('bounded host Auto policy', () => {
     f.guild.active.push(quest('fetch')); retainObjective(f.state, f.guild); expect(f.state.objective?.id).toBe('scout');
     f.guild.active.shift(); retainObjective(f.state, f.guild); expect(f.state.objective?.id).toBe('fetch');
   });
-  it('compares nearby loot with a learned quest waypoint using real path distance', async () => {
+  it('selects kill work above scouting and retains it until it is no longer active', () => {
+    const f = autoFixture(); f.guild.active = [quest('scout', 'room', 'scout'), quest('kill', 'boss', 'kill')];
+    retainObjective(f.state, f.guild); expect(f.state.objective?.id).toBe('kill');
+    f.guild.active.push(quest('fetch')); retainObjective(f.state, f.guild); expect(f.state.objective?.id).toBe('kill');
+    f.guild.active = f.guild.active.filter(q => q.id !== 'kill'); retainObjective(f.state, f.guild); expect(f.state.objective?.id).toBe('fetch');
+  });
+  it.each(['fetch', 'kill'] as const)('compares nearby loot with a learned %s waypoint using real path distance', async kind => {
     const f = autoFixture(), a = cell(0), b = cell(1), c = cell(2, 'child');
     a.edges.east = b.at; b.edges.west = a.at; b.edges.east = c.at; c.edges.west = b.at;
     const sight = await view([a, { ...b, chests: [{ id: 'loot', opened: false }] }, c]);
-    f.guild.active = [quest('fetch', 'child')]; retainObjective(f.state, f.guild); f.state.lastPosition = a.at;
+    f.guild.active = [quest(kind, 'child', kind)]; retainObjective(f.state, f.guild); f.state.lastPosition = a.at;
     await saveAutoRoom(f.pages, f.room);
     await saveAutoRoom(f.pages, { ...f.room, spaceId: 'child', depth: 1, parent: { from: c.at, to: b.at, direction: 'west' } });
     await planAutoRoute(f.pages, sight.checkpoint, f.state, f.room, sight.view, f.guild);
     expect(f.state.route?.target).toEqual(c.at); expect(f.state.route?.steps).toHaveLength(2);
-    expect(f.state.objective?.id).toBe('fetch');
+    expect(f.state.objective?.id).toBe(kind);
   });
   it('persists only a 64-step local route window, not a complete room path', async () => {
     const f = autoFixture(), cells: ObservedCell[] = [];
@@ -46,15 +52,16 @@ describe('bounded host Auto policy', () => {
     expect(f.state.route?.steps).toHaveLength(64); expect(f.state.route?.target).toEqual(cells.at(-1)!.at);
     expect(f.state.route?.steps.at(-1)?.to).toEqual(cells[64].at);
   });
-  it('stops for unresolved sight instead of inventing a route toward a hidden guild target', async () => {
+  it.each(['fetch', 'kill'] as const)('does not invent a route toward a hidden %s target', async kind => {
     const f = autoFixture(), a = cell(0); delete a.edges.north; const sight = await view([a]);
-    f.guild.active = [quest('fetch', 'hidden')]; retainObjective(f.state, f.guild);
+    f.guild.active = [quest(kind, 'hidden', kind)]; retainObjective(f.state, f.guild);
     await expect(planAutoRoute(f.pages, sight.checkpoint, f.state, f.room, sight.view, f.guild)).rejects.toThrow('further observation');
     expect(f.state.route).toBeNull(); expect(f.room.closed).toBe(false);
   });
-  it('marks earned exploration complete but reports remaining combat rather than descending', async () => {
-    const f = autoFixture(), sight = await view([cell(0)]); f.guild.combatRequired = true; f.state.descent = at('room');
-    await expect(planAutoRoute(f.pages, sight.checkpoint, f.state, f.room, sight.view, f.guild)).rejects.toThrow('combat-required');
-    expect(f.state.completed).toBe(true); expect(f.state.objective).toBeNull();
+  it('does not descend when earned exploration cannot resolve an active kill target', async () => {
+    const f = autoFixture(), sight = await view([cell(0)]); f.guild.active = [quest('kill', 'unseen', 'kill')];
+    f.guild.combatRequired = true; f.state.descent = at('room'); retainObjective(f.state, f.guild);
+    await expect(planAutoRoute(f.pages, sight.checkpoint, f.state, f.room, sight.view, f.guild)).rejects.toThrow('Unresolved guild objective');
+    expect(f.state.completed).toBe(true); expect(f.state.objective?.id).toBe('kill');
   });
 });

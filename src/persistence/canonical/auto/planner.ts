@@ -17,7 +17,7 @@ import type { AutoGuild } from './source';
 interface Target { id: string; priority: number; at: WorldPosition; purpose: AutoRoute['purpose'] }
 
 export function retainObjective(state: AutoState, guild: AutoGuild) {
-  const active = guild.active.filter(q => q.task.objective !== 'kill');
+  const active = guild.active;
   if (state.objective?.kind === 'quest' && active.some(q => q.id === state.objective!.id)) return;
   if (state.objective?.kind === 'exit' && state.completed && active.length === 0 && !guild.combatRequired) return;
   const next = [...active].sort((a, b) => QUEST_PRIORITY[b.task.objective] - QUEST_PRIORITY[a.task.objective] || a.id.localeCompare(b.id))[0];
@@ -68,7 +68,7 @@ export async function planAutoRoute(pages: Pick<CanonicalPages, 'get' | 'set'>, 
   if (frontier) { route(frontier); return; }
   const children = view.exits.filter(e => e.to.cell.spaceId !== room.parent?.to.cell.spaceId && !room.completed.includes(e.to.cell.spaceId));
   const child = choose(children.map(e => ({ id: e.to.cell.spaceId, at: e.to, purpose: 'explore',
-    priority: Math.max(100, ...guild.active.filter(q => q.targetRoomId === e.to.cell.spaceId && q.task.objective !== 'kill').map(q => QUEST_PRIORITY[q.task.objective])) })));
+    priority: Math.max(100, ...guild.active.filter(q => q.targetRoomId === e.to.cell.spaceId).map(q => QUEST_PRIORITY[q.task.objective])) })));
   if (child) { route(child); return; }
   if (!room.closed) { room.closed = true; await saveAutoRoom(pages, room); }
   if (room.parent) {
@@ -77,8 +77,7 @@ export async function planAutoRoute(pages: Pick<CanonicalPages, 'get' | 'set'>, 
     route({ id: parent.to.cell.spaceId, at: parent.to, priority: 0, purpose: 'backtrack' }); return;
   }
   state.completed = true;
-  if (guild.active.some(q => q.task.objective !== 'kill')) throw new AutoBlocked('Unresolved guild objective after earned exploration; no floor completion claimed.');
-  if (guild.combatRequired) throw new AutoBlocked('combat-required: noncombat work is done; hostile contracts remain.');
+  if (guild.active.length) throw new AutoBlocked('Unresolved guild objective after earned exploration; no floor completion claimed.');
   if (!state.descent) throw new AutoBlocked('No earned descent waypoint after exploration.');
   state.objective = { kind: 'exit', id: `exit:${state.level}`, roomId: state.descent.cell.spaceId };
   state.reason = 'Known work complete; routing to deliberately selected stairs.';

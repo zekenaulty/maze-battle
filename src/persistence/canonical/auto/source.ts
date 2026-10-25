@@ -14,6 +14,6 @@ export async function readAutoGuild(pages: WorldRead, checkpoint: GameCheckpoint
   const completed = await listFloorQuests(pages, checkpoint.position.level, 'complete', undefined, AUTO_LIMITS.guild);
   if (offers.next || active.next || completed.next) throw new AutoBlocked('Guild page limit reached; no offers or objectives were silently omitted.');
   return { offers: offers.contracts, active: active.quests, completed: completed.quests,
-    combatRequired: offers.contracts.some(c => c.objective === 'kill') || active.quests.some(q => q.task.objective === 'kill') };
+    combatRequired: active.quests.some(q => q.task.objective === 'kill') };
 }
 export type AutoGuild = Awaited<ReturnType<typeof readAutoGuild>>;

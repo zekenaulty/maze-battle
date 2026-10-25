@@ -18,6 +18,7 @@ import { initialAutoState, loadAutoRoom, loadAutoState, saveAutoState } from './
 import { currentAutoRoom, recordAutoCrossing } from './waypoints';
 import { observedDescent, planAutoRoute, retainObjective } from './planner';
 import { AutoBlocked, type AutoState } from './types';
+import { advanceAutoBattle, beginObjectiveBattle } from './combat';
 
 export function executeAutoCommand(request: CanonicalRequest, options: { signal?: AbortSignal } = {}) {
   request = validateRequest(request); check(request.operation === 'auto.command', 'invalid Auto operation');
@@ -29,7 +30,7 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attem
   const command = fields(input, 'kind revision'); natural(command.revision);
   check(command.kind === 'tick', 'invalid Auto command');
   let checkpoint = gameCheckpoint(tx.head.checkpoint);
-  if (!autoEnabled(checkpoint)) return { kind: 'tick', outcome: 'paused', rosterChanged: false, needsFloor: null };
+  if (!autoEnabled(checkpoint) && checkpoint.mode !== 'battle') return { kind: 'tick', outcome: 'paused', rosterChanged: false, needsFloor: null };
   if (command.revision !== tx.head.revision) return { kind: 'tick', outcome: 'stale', rosterChanged: false, needsFloor: null };
   await validateKnowledge(tx.pages, checkpoint.knowledge);
   const saved = await loadAutoState(tx.pages);
@@ -39,12 +40,13 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attem
     if (state.rootId !== checkpoint.position.cell.spaceId && !await loadAutoRoom(tx.pages, state, checkpoint.position.cell.spaceId)) state = initialAutoState(checkpoint, tx.head.revision);
   }
   state.lastPosition = checkpoint.position;
-  const owned: CanonicalWork = { ...tx, setCheckpoint: value => { checkpoint = gameCheckpoint(value); tx.setCheckpoint(value); } };
+  const owned: CanonicalWork = { ...tx, get head() { return { ...tx.head, checkpoint: checkpointJson(checkpoint) }; },
+    setCheckpoint: value => { checkpoint = gameCheckpoint(value); tx.setCheckpoint(value); } };
   const finish = async (action: JsonObject | null, outcome = 'applied', reason = state.reason) => {
     if (checkpoint.position.level !== state.level) state = initialAutoState(checkpoint, tx.head.revision);
     state.lastRevision = tx.head.revision + 1; state.lastPosition = checkpoint.position; state.reason = reason;
     await saveAutoState(tx.pages, state);
-    return { kind: 'tick', outcome, reason, action, rosterChanged: action?.channel === 'roster' || action?.channel === 'content', needsFloor: action?.needsFloor ?? null };
+    return { kind: 'tick', outcome, reason, action, rosterChanged: ['roster', 'content', 'battle'].some(c => c === action?.channel), needsFloor: action?.needsFloor ?? null };
   };
   const act = async (channel: 'roster' | 'content' | 'exploration', payload: JsonObject): Promise<JsonObject> => {
     const result = channel === 'roster' ? await commitRosterCommand(owned, payload) : channel === 'content'
@@ -54,6 +56,12 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attem
   };
   try {
     state.status = checkpoint.mode === 'town' ? 'town' : 'running';
+    const combat = await advanceAutoBattle(owned);
+    if (combat) {
+      if (combat.outcome === 'paused') return { kind: 'tick', outcome: 'paused', rosterChanged: false, needsFloor: null };
+      state.route = null; state.search = null; state.status = combat.status;
+      return finish(combat.action, combat.outcome, combat.reason);
+    }
     const roster = (await loadRoster(tx.pages, rosterContext(checkpoint))).state;
     if (checkpoint.mode === 'town') {
       state.route = null;
@@ -69,8 +77,8 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attem
     }
     const guild = await readAutoGuild(tx.pages, checkpoint);
     if (guild.completed.length) return finish(await act('content', { kind: 'claim-quest', questId: guild.completed[0].id }), 'applied', 'Claimed completed guild work.');
-    const offer = guild.offers.filter(c => c.objective !== 'kill').sort((a, b) => a.id.localeCompare(b.id))[0];
-    if (offer) return finish(await act('content', { kind: 'accept-quest', contractId: offer.id }), 'applied', 'Accepted a noncombat guild contract.');
+    const offer = [...guild.offers].sort((a, b) => a.id.localeCompare(b.id))[0];
+    if (offer) return finish(await act('content', { kind: 'accept-quest', contractId: offer.id }), 'applied', 'Accepted a guild contract.');
     if (checkpoint.mode === 'town') return finish(await act('roster', { kind: 'leave-town' }), 'applied', 'Supplies ready; returning to expedition.');
     check(checkpoint.knowledge, 'Auto requires earned starting sight');
     const sight = await loadObservation(tx.pages, { sequence: checkpoint.knowledge.sequence, id: checkpoint.knowledge.id });
@@ -79,6 +87,8 @@ export async function commitAutoCommand(tx: CanonicalWork, input: unknown, attem
     const chest = here.chests.find(c => !c.opened);
     if (chest) return finish(await act('content', { kind: 'open-chest', chestId: chest.id }), 'applied', 'Explicitly collected a chest on route.');
     retainObjective(state, guild);
+    const encounter = await beginObjectiveBattle(owned, state, guild, roster);
+    if (encounter) return finish(encounter, 'applied', 'Starting shared combat for the selected accepted room objective.');
     if (state.objective?.kind === 'exit' && state.completed && same(state.descent, checkpoint.position)) {
       check(here.stairs.includes('down') && guild.active.length === 0 && !guild.combatRequired, 'Auto descent has unfinished work');
       const level = checkpoint.position.level + 1;
