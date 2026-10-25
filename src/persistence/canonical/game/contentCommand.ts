@@ -10,6 +10,7 @@ import { openStoredChest } from '../content/openChest';
 import type { ContentCommand } from '../content/types';
 import { recordGameObservation } from '../knowledge/write';
 import { validateKnowledge } from '../knowledge/evidence';
+import { currentBattle } from '../combat/coherence';
 
 export function contentCommand(value: unknown): ContentCommand {
   const row = fields(value, 'kind', 'chestId contractId questId');
@@ -25,7 +26,8 @@ export function executeContentCommand(request: CanonicalRequest, options: { sign
 export async function commitContentCommand(tx: CanonicalWork, input: unknown) {
   const command = contentCommand(input), checkpoint = gameCheckpoint(tx.head.checkpoint), now = new Date().toISOString();
   await validateKnowledge(tx.pages, checkpoint.knowledge);
-  const before = await loadRoster(tx.pages, rosterContext(checkpoint));
+  const battle = await currentBattle(tx.pages, checkpoint);
+  const before = await loadRoster(tx.pages, { ...rosterContext(checkpoint), ...(battle ? { battle: battle.battle } : {}) });
   let next = before.state;
   const result: JsonObject = { kind: command.kind, outcome: 'unchanged' };
   if (command.kind === 'open-chest') {
