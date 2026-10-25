@@ -48,8 +48,8 @@ do not import a generated output tree or run asset generation.
 
 | ID | Deliverable | Acceptance | Status |
 | --- | --- | --- | --- |
-| R0 | Integrate 3D on latest canonical lineage | Locked install, affected/full unit regression as recorded, types/build, real 2D/3D navigation/map/chest/stairs/reload/graphics recovery, canonical ownership/recovery and provider-free noncombat corpus. Exact candidate and local assets recorded. | In progress |
-| R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | Pending |
+| R0 | Integrate 3D on latest canonical lineage | Locked install, affected/full unit regression as recorded, types/build, real 2D/3D navigation/map/chest/stairs/reload/graphics recovery, canonical ownership/recovery and provider-free noncombat corpus. Exact candidate and local assets recorded. | Complete, bounded provider-free |
+| R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | In progress, isolated UI repair lane |
 | R2 | Restore one durable battle vertical | Game-owned encounter and bounded battle records/commands; existing manual skill/target UI; enemy actions; win/loss/return; all old skill rules exercised. Reload, cancellation, duplicate and rollback checks. | Pending |
 | R3 | Reconnect progression and rewards | Atomic/deduplicated kill credit, XP, level/attribute updates, gold, loot, equipment and quest progress; no duplicate payout after retry/reload/manual-save restore. | Pending |
 | R4 | Restore the grinder | Individual Auto Battle; linked Stop/takeover; Waves; encounter interruption/resumption of travel; Auto quest/loot/town/supply loop. Distinguish posted offers from accepted mandatory work. | Pending |
@@ -117,9 +117,16 @@ retention slice, not a promise of infinite storage.
 
 ## Rolling evidence
 
-- R0 candidate assembled by fast-forward in the isolated checkout; source remains
-  the incoming pinned commit. Qualification pending. Original canonical and 3D
-  branches have not been advanced or merged by this restoration task.
+- R0 candidate assembled by fast-forward in the isolated checkout; runtime source
+  remains the incoming pinned commit. Full units, types/build and 77 browser-run
+  cases pass. See [exact integration evidence](reviews/rpg-r0-integration.md).
+  The checked candidate is ready to advance the shared canonical line; the
+  original 3D branch/checkouts remain preserved.
 - The prior source audit found connected town/inventory/gear commands, not full
   canonical combat. Retained old reducer tests are not current-App combat proof.
-- Initial dependency installation: pending at plan creation.
+- Locked dependency installation: PASS, 131 packages, unchanged lockfile. Thirteen
+  pinned image hashes verified; only the five stage material families and the
+  six-skin curated catalog copied locally, not glowstone or all generated output.
+- R2a shared combat core extraction is in progress in a separate branch. It will
+  preserve legacy adapters/tests while removing GameState/world/policy coupling
+  from the reusable turn boundary. Canonical battle execution remains pending.
