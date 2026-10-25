@@ -49,7 +49,7 @@ do not import a generated output tree or run asset generation.
 | ID | Deliverable | Acceptance | Status |
 | --- | --- | --- | --- |
 | R0 | Integrate 3D on latest canonical lineage | Locked install, affected/full unit regression as recorded, types/build, real 2D/3D navigation/map/chest/stairs/reload/graphics recovery, canonical ownership/recovery and provider-free noncombat corpus. Exact candidate and local assets recorded. | Complete, bounded provider-free |
-| R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | In progress, isolated UI repair lane |
+| R1 | Repair existing surfaces | Live skill clock; policy bounds and ordinary input refusal without loss of custody; truthful unavailable controls; bounded cross-floor guild/history access; explicit click/stair behavior. | Initial clock/policy/click batch checked; guild/history and remaining surfaces pending |
 | R2 | Restore one durable battle vertical | Game-owned encounter and bounded battle records/commands; existing manual skill/target UI; enemy actions; win/loss/return; all old skill rules exercised. Reload, cancellation, duplicate and rollback checks. | Pending |
 | R3 | Reconnect progression and rewards | Atomic/deduplicated kill credit, XP, level/attribute updates, gold, loot, equipment and quest progress; no duplicate payout after retry/reload/manual-save restore. | Pending |
 | R4 | Restore the grinder | Individual Auto Battle; linked Stop/takeover; Waves; encounter interruption/resumption of travel; Auto quest/loot/town/supply loop. Distinguish posted offers from accepted mandatory work. | Pending |
@@ -130,3 +130,7 @@ retention slice, not a promise of infinite storage.
 - R2a shared combat core extraction is in progress in a separate branch. It will
   preserve legacy adapters/tests while removing GameState/world/policy coupling
   from the reusable turn boundary. Canonical battle execution remains pending.
+- R1 initial repair batch: [evidence](reviews/rpg-r1-surfaces.md). Shared policy
+  bounds now serve UI, normalization and canonical validation. Separate preview
+  runs at `http://127.0.0.1:5510/` (3D: `?view=stage3d`); it is a separate origin,
+  not an owner-save import or replacement for Agentica Lab.
