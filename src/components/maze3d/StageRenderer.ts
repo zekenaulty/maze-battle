@@ -168,10 +168,15 @@ export class StageRenderer {
     // Texture loads update shared materials in place; clones need those same eventual maps.
     void this.library.ready().then(() => {
       if (!this.alive) return;
+      const seen = new Set<string>();
       for (const box of boxes) {
         const face = box.deck === 'floor' ? 2 : box.deck === 'ceiling' ? 3 : 4;
         const shared = box.material === 'unknown' ? this.unknown : this.library.material(this.registry.resolve(box.material).faces[face]);
-        const clone = this.masonryMaterials.get(shared.uuid); if (clone) { clone.copy(shared); clone.side = THREE.FrontSide; clone.needsUpdate = true; }
+        if (seen.has(shared.uuid)) continue; seen.add(shared.uuid);
+        const clone = this.masonryMaterials.get(shared.uuid);
+        if (clone instanceof THREE.MeshStandardMaterial && shared instanceof THREE.MeshStandardMaterial && clone.map !== shared.map) {
+          clone.copy(shared); clone.side = THREE.FrontSide; clone.needsUpdate = true;
+        }
       }
     });
   }

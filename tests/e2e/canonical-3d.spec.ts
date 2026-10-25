@@ -105,6 +105,7 @@ test('continuous movement timing through twenty canonical cells', async ({ page 
     pendingStoppedFrames: frames.filter(f => f.pending && Math.abs(f.dx) < 0.0001).length, longestPendingStopMs: longest,
     distance: samples.at(-1)!.x - samples[0].x };
   await writeFile(info.outputPath('motion.json'), JSON.stringify(stats, null, 2));
+  await writeFile(info.outputPath('motion-samples.json'), JSON.stringify(samples));
   console.log('Motion profile', JSON.stringify(stats));
   expect(stats.distance).toBeGreaterThan(60);
   // Canonical commits must not repeatedly freeze the camera at cell boundaries.
