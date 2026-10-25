@@ -1,5 +1,6 @@
 import { canonicalJson } from '../../../services/agentica/sdk/agentica-host.mjs';
 import { materializeSpace } from '../../../domain/expedition/schematic';
+import { materializeStairRoom, STAIR_LAYOUT_VERSION, validFloorFrame } from '../../../domain/expedition/vertical';
 import { validateModuleRecipe } from '../../../domain/expedition/topology/modules/policy';
 import type { CellAddress } from '../../../domain/expedition/types';
 import type { CanonicalPages } from '../pages';
@@ -33,6 +34,8 @@ export async function loadFloor(pages: WorldRead, level: number) {
   const value = await required<WorldFloor>(pages, levelKey(level));
   check(value?.schema === 1 && value.level === level, 'invalid floor identity');
   const g = value.generation; validateModuleRecipe(g?.recipe);
+  check(g.recipe.spatial ? value.spatial?.version === STAIR_LAYOUT_VERSION && validFloorFrame(value.spatial.frame)
+    : value.spatial === undefined, 'floor spatial profile differs from pinned recipe');
   check(validId(g.recipe.worldId) && g.recipe.level === level && g.recipe.floorId === `floor-${level}`
     && g.scopeId === JSON.stringify(g.recipe), 'invalid pinned floor recipe');
   check(integer(g.revision) && integer(g.rooms, 1) && g.rooms <= g.recipe.roomBudget && g.revision === g.rooms - 1
@@ -48,10 +51,11 @@ export async function loadFloor(pages: WorldRead, level: number) {
 }
 export async function loadSpace(pages: WorldRead, level: number, id: string) {
   const value = await required<WorldSpace>(pages, entityKey(level, 'space', id));
-  check(value?.schema === 1 && value.level === level && value.schematic === 'stone-room-v1'
+  check(value?.schema === 1 && value.level === level && ['stone-room-v1', 'stair-room-v1'].includes(value.schematic)
     && value.spec?.id === id && integer(value.distance), 'invalid space identity');
   check(value.spec.openings.length === 0 && value.spec.chests.length === 0, 'geometry contains mutable entities or connections');
-  const geometry = materializeSpace(value.spec);
+  check(value.schematic === 'stair-room-v1' ? value.stairwell !== undefined : value.stairwell === undefined, 'invalid stair-room identity');
+  const geometry = value.stairwell ? materializeStairRoom(value.spec, value.stairwell) : materializeSpace(value.spec);
   return { value, geometry };
 }
 export async function loadPorts(pages: WorldRead, level: number, id: string) {

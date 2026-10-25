@@ -21,6 +21,7 @@ import { captureHostCleanup, executeHostCleanup, type HostCleanup } from './Cano
 import type { WorldPosition } from '../../persistence/canonical/world/types';
 import { executeBattleCommand } from '../../persistence/canonical/combat/command';
 import { loadBattle } from '../../persistence/canonical/combat/records';
+import { spatialBinding } from './SpatialView';
 
 export interface GameSessionView {
   game?: GameView; saves: SaveSummary[]; diagnostics: GameDiagnostic[];
@@ -209,12 +210,14 @@ export class GameSession {
       if (head.generation !== this.head?.generation || head.revision !== this.head.revision) await this.adopt(head, signal);
     }).finally(() => { this.refreshing = false; });
   };
-  execute = async (kind: CommandKind, input: Json, guard?: { expectedPosition: WorldPosition }): Promise<CanonicalReceipt> => {
+  execute = async (kind: CommandKind, input: Json, guard?: { expectedPosition: WorldPosition; spatialBinding?: string }): Promise<CanonicalReceipt> => {
     const captured = structuredClone(input), expected = guard && structuredClone(guard.expectedPosition);
+    const expectedBinding = guard?.spatialBinding;
     return this.manual(async signal => {
       // Check after every other admitted writer, immediately before creating this command.
       // A stale presentation intent is harmless cancellation, not a storage failure.
       if (expected) {
+        if (expectedBinding && expectedBinding !== spatialBinding(snapshotOf(this.head!))) throw new StalePositionInputError();
         const actual = gameCheckpoint(this.head!.checkpoint).position;
         if (actual.level !== expected.level || actual.cell.spaceId !== expected.cell.spaceId
           || actual.cell.row !== expected.cell.row || actual.cell.column !== expected.cell.column) throw new StalePositionInputError();
@@ -240,6 +243,20 @@ export class GameSession {
       this.publish({ busy: false, status: kind === 'auto' && typeof reason === 'string' ? reason : 'Saved', diagnostics: [...this.view.diagnostics.slice(-63), {
         revision: result.receipt.afterRevision, action: kind, replayed: result.replayed, elapsedMs: performance.now() - started, stats: result.stats }] });
       return result.receipt;
+    });
+  };
+  /** Prepare at the descending landing without changing the actor or earning adjacent navigation knowledge. */
+  prepareStairs = (expectedPosition: WorldPosition, binding: string) => {
+    const expected = structuredClone(expectedPosition);
+    return this.manual(async signal => {
+      const checkpoint = gameCheckpoint(this.head!.checkpoint);
+      if (binding !== spatialBinding(snapshotOf(this.head!)) || JSON.stringify(checkpoint.position) !== JSON.stringify(expected)) throw new StalePositionInputError();
+      if (checkpoint.mode !== 'manual' || !this.view.game?.spatial?.prepareDown) throw new StalePositionInputError();
+      this.publish({ busy: true, status: `Preparing dungeon ${expected.level + 1}` });
+      await this.prepare(expected.level + 1, signal);
+      await this.adopt(this.head!, signal, true);
+      this.publish({ busy: false, status: 'Adjacent landing ready. Walk onto the stairs to descend.' });
+      return this.view.game;
     });
   };
   /** Local host integration shares manual/Auto/save serialization. Its domain executor owns grants and validation. */

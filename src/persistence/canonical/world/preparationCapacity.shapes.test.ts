@@ -11,6 +11,7 @@ import { preparationRecordBytes, preparationNodeBytes, preparationAllocationByte
 const max = Number.MAX_SAFE_INTEGER, identity = 'x'.repeat(128);
 const uuid = '00000000-0000-4000-8000-000000000000', id = `socket-${max}:passage`;
 const recipe = { ...createModuleRecipe(identity, 16, 0xffffffff), roomBudget: max };
+const spatialRecipe = { ...createModuleRecipe(identity, 16, 0xffffffff, { spatial: true }), roomBudget: max };
 const spec = moduleSpace(id, 'passage', { row: -max, column: -max, rows: 15, columns: 15 }, 0xffffffff);
 const reservation = { id: `socket-${max}`, kind: 'reservation',
   bounds: { row: -max, column: -max, rows: 22, columns: 15 } };
@@ -23,11 +24,18 @@ it('covers numeric widths and exact producer shapes, not their generic 64KiB cei
     [4096, { schema: 1, level: max, generation: { recipe, scopeId: JSON.stringify(recipe), revision: max,
       rooms: max, nextSequence: max, pendingCount: max }, nextPending: max, entry: at, exit: at, farthest: { spaceId: id, distance: max } }],
     [1024, { schema: 1, level: max, schematic: 'stone-room-v1', spec, distance: max }],
+    [4096, { schema: 1, level: max, generation: { recipe: spatialRecipe, scopeId: JSON.stringify(spatialRecipe), revision: max,
+      rooms: max, nextSequence: max, pendingCount: max }, nextPending: max, entry: at, exit: at, farthest: { spaceId: id, distance: max },
+      spatial: { version: 'straight-stair-layout-v1', frame: [-999999999.999, -999999999.999, -999999999.999] } }],
+    [1024, { schema: 1, level: max, schematic: 'stair-room-v1', spec, distance: max,
+      stairwell: { version: 'straight-stair-layout-v1', end: 'upper' } }],
     [1024, { schema: 1, level: max, spaceId: id, connections: Array(4).fill(`${id}:entrance`), pending: [] }],
     [2048, { schema: 1, level: max, sequence: max, socket }],
     [1024, { schema: 1, level: max, connection: { id, from: at, to: at, direction: 'north' } }],
     [512, { schema: 1, level: max, join: { id, fromRoomId: id, toRoomId: id, passageId: id, direction: 'north' } }],
     [1024, { schema: 1, upper: { level: max, cell: at }, lower: { level: max, cell: at } }],
+    [1024, { schema: 1, upper: { level: max, cell: at }, lower: { level: max, cell: at }, placement: {
+      version: 'straight-stair-placement-v1', recipe: 'straight-stair-v1', upperFrame: [-1e9, -1e9, -1e9], lowerFrame: [1e9, 1e9, 1e9] } }],
     [128, { schema: 1, level: max, phase: 'generation' }],
     [512, { schema: 1, spaceId: id, chest: { id: `chest-${max}-${id}`, level: max, position: { row: 7, column: 7 }, opened: false } }],
     [512, { schema: 1, level: max, spaceId: id, chestId: `chest-${max}-${id}`, contractId: 'c'.repeat(128) }],

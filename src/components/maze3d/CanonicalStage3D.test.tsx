@@ -5,6 +5,7 @@ import type { StageWalker } from './movement';
 import { addressKey } from './scene';
 import { stageFixture } from './stage.test-support';
 import CanonicalStage3D from './CanonicalStage3D';
+import { spatialBinding } from '../../services/game/SpatialView';
 
 interface RendererDouble {
   canvas: HTMLCanvasElement;
@@ -35,7 +36,7 @@ vi.mock('./StageRenderer', async () => {
       doubles.renderers.push(this);
     }
     update(game: GameView) {
-      const next = compileStageScene(game, this.walker.scene.origin);
+      const next = compileStageScene(game, this.walker.scene.origin, this.walker.scene.originFrame);
       if (next) this.walker.update(next);
     }
     render() {
@@ -81,6 +82,26 @@ async function setup() {
 }
 
 describe('canonical 3D input and lifetime', () => {
+  it('retains pending command custody after Escape and refuses to strand a second crossing', async () => {
+    const f = await setup(), game = structuredClone(f.props.game), source = game.checkpoint.position;
+    const target = { level: 2, cell: { spaceId: 'entry', row: 4, column: 4 } };
+    game.spatial = { version: 'connector-sight-v1', binding: spatialBinding(game.snapshot), frame: [0, 0, 0], prepareDown: false,
+      connector: { id: 'fixture/stairs/1', upper: source, lower: target,
+        upperPoint: { row: 0, column: 0 }, lowerPoint: { row: 4, column: 4 }, targetFrame: [-12.8, -4.68, -22.16],
+        placement: { version: 'straight-stair-placement-v1', recipe: 'straight-stair-v1', upperFrame: [0, 0, 0], lowerFrame: [-12.8, -4.68, -22.16] },
+        cells: [{ at: target, world: { row: 4, column: 4 }, edges: {}, chests: [], stairs: [] }] } };
+    const pending = deferred<GameView | undefined>(), onWalkStairs = vi.fn(() => pending.promise), onFlightChange = vi.fn();
+    f.rerender(<CanonicalStage3D {...f.props} game={game} onWalkStairs={onWalkStairs} onFlightChange={onFlightChange} />);
+    await act(async () => {}); const renderer = doubles.renderers.at(-1)!;
+    fireEvent.keyDown(window, { key: 'w' }); await frames(40);
+    expect(onWalkStairs).toHaveBeenCalledOnce(); expect(renderer.walker.stairs?.pending).toBeDefined();
+    fireEvent.keyDown(window, { key: 'Escape' }); await frames(1);
+    expect(renderer.walker.stairs).toBeUndefined(); expect(onFlightChange).toHaveBeenLastCalledWith(true);
+    fireEvent.keyUp(window, { key: 'w' }); fireEvent.keyDown(window, { key: 'w' }); await frames(80);
+    expect(onWalkStairs).toHaveBeenCalledOnce(); expect(renderer.walker.stairs).toBeUndefined();
+    await act(async () => pending.resolve(game)); fireEvent.keyUp(window, { key: 'w' }); await frames(1);
+    expect(onFlightChange).toHaveBeenLastCalledWith(false); expect(renderer.walker.stairs).toBeUndefined();
+  });
   it('consumes WASD before legacy movement and ignores editable and modified shortcuts', async () => {
     const { onMove } = await setup();
     const legacyMove = vi.fn(), legacy = vi.fn((event: KeyboardEvent) => { if (!event.defaultPrevented) legacyMove(); });

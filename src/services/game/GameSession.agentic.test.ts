@@ -6,6 +6,8 @@ import { checkpointJson, gameCheckpoint } from '../../persistence/canonical/game
 import { earnedCell, knowledgeFixture } from '../../persistence/canonical/knowledge/region.test-support';
 import { protocolHead } from '../../persistence/canonical/agentica/types.test-support';
 import { exploreView } from '../../components/ExploreScreen.test-support';
+import { spatialBinding } from './SpatialView';
+import { snapshotOf } from '../../persistence/canonical/read';
 
 const mocks = vi.hoisted(() => {
   const locks: Lock[] = [];
@@ -17,10 +19,11 @@ const mocks = vi.hoisted(() => {
     release = vi.fn(() => { this.held = false; });
   }
   return { Lock, locks, has: vi.fn(), create: vi.fn(), readHead: vi.fn(), project: vi.fn(), control: vi.fn(),
-    exploration: vi.fn(), roster: vi.fn(), content: vi.fn(), settings: vi.fn(), auto: vi.fn(), combat: vi.fn(), save: vi.fn(), list: vi.fn(), operate: vi.fn() };
+    exploration: vi.fn(), roster: vi.fn(), content: vi.fn(), settings: vi.fn(), auto: vi.fn(), combat: vi.fn(), save: vi.fn(), list: vi.fn(), operate: vi.fn(), prepare: vi.fn() };
 });
 vi.mock('./BrowserSaveLock', () => ({ BrowserSaveLock: mocks.Lock }));
-vi.mock('../../persistence/canonical/read', () => ({ readCanonicalHead: mocks.readHead }));
+vi.mock('../../persistence/canonical/read', async original => ({ ...await original<typeof import('../../persistence/canonical/read')>(), readCanonicalHead: mocks.readHead }));
+vi.mock('../../persistence/canonical/game/preparation', () => ({ prepareGameFloor: mocks.prepare }));
 vi.mock('../../persistence/canonical/transaction', async original => ({
   ...await original<typeof import('../../persistence/canonical/transaction')>(), controlCanonical: mocks.control, operateCanonical: mocks.operate,
 }));
@@ -116,6 +119,23 @@ describe('GameSession presentation source-cell fence', () => {
     expect(mocks.locks[0].held).toBe(true);
     await session.execute('exploration', { kind: 'look' });
     expect(mocks.exploration).toHaveBeenCalledOnce();
+  });
+  it('prepares an adjacent floor without issuing stair travel or moving the checkpoint', async () => {
+    const position = structuredClone(session.view.game!.checkpoint.position), binding = spatialBinding(snapshotOf(head));
+    session.view.game!.spatial = { version: 'connector-sight-v1', binding, frame: [0, 0, 0], prepareDown: true };
+    mocks.prepare.mockImplementation(async (request: CanonicalRequest) => {
+      const result = commit(request); result.receipt.result = { phase: 'ready' }; return result;
+    });
+    await session.prepareStairs(position, binding);
+    expect(mocks.prepare).toHaveBeenCalledOnce(); expect(mocks.exploration).not.toHaveBeenCalled();
+    expect(gameCheckpoint(head.checkpoint).position).toEqual(position); expect(session.view.busy).toBe(false);
+    expect(session.view.controlled).toBe(true);
+  });
+  it('rejects a stale stair binding even when the actor remains at the same endpoint', async () => {
+    const expectedPosition = structuredClone(session.view.game!.checkpoint.position), binding = spatialBinding(snapshotOf(head));
+    await session.execute('settings', { kind: 'throttle', ms: 100 });
+    await expect(session.execute('exploration', { kind: 'stairs', direction: 'down' }, { expectedPosition, spatialBinding: binding })).rejects.toThrow('actor has moved');
+    await session.flush(); expect(mocks.exploration).not.toHaveBeenCalled(); expect(session.view.controlled).toBe(true);
   });
   it.each(['move', 'stairs'])('cancels stale queued %s at the writer boundary without losing custody', async kind => {
     const gate = deferred<void>(), entered = deferred<void>();

@@ -1,4 +1,5 @@
 import type { ModulePolicy } from '../../../domain/expedition/topology/modules/policy';
+import type { STAIR_LAYOUT_VERSION } from '../../../domain/expedition/vertical';
 import { validateModuleRecipe } from '../../../domain/expedition/topology/modules/policy';
 import { fields } from '../roster/codec';
 import { check, integer } from '../validation';
@@ -7,6 +8,7 @@ import { preparationRecordBytes as row, preparationTreeBytes as tree, preparatio
 
 export interface PreparationPublicBounds {
   version: 'modules-v3'; level: number; roomBudget: number; policy: ModulePolicy;
+  spatial?: typeof STAIR_LAYOUT_VERSION;
 }
 export type PreparationCapacityPhase = 'bootstrap' | 'generation' | 'quality' | 'roles' | 'content';
 export interface PreparationPhaseCapacity {
@@ -22,7 +24,7 @@ export interface PreparationCapacity {
  * one-anchor contract; it is NOT permission to charge arbitrary mixed-transaction work. */
 export function preparationCapacity(input: PreparationPublicBounds): PreparationCapacity {
   const b = structuredClone(input);
-  fields(b, 'version level roomBudget policy');
+  fields(b, 'version level roomBudget policy', 'spatial');
   fields(b.policy, 'version minSide maxSide maxPassage joins attempts');
   validateModuleRecipe({ ...b, worldId: 'x'.repeat(128), floorId: `floor-${b.level}`, seed: 0 });
   const n = b.roomBudget, coordinate = 22 * (n + 1);
@@ -46,8 +48,10 @@ export function preparationCapacity(input: PreparationPublicBounds): Preparation
     + preparation + (b.level > 1 ? row(key, 1024) : 0), [fixed, indexed(10)], 0, bucketNodes);
   const generation = phase(n - 1, floorRow + 2 * row(key, 1024, [12 + l + space])
     + 3 * row(key, 1024) + 3 * row(key, 2048) + 2 * row(key, 1024) + row(key, 512)
-    + bucketRows(6 * n - 2) + preparation,
-  [fixed, indexed(17)], 2 * row(key, 4096), (n - 1) * bucketNodes);
+    + bucketRows(6 * n - 2) + preparation
+    // Terminal spatial expansion may rewrite an older farthest room, in addition to its new room/passage.
+    + (b.spatial ? row(key, 1024, [12 + l + space]) : 0),
+  [fixed, indexed(b.spatial ? 19 : 17)], 2 * row(key, 4096), (n - 1) * bucketNodes);
   const quality = phase(Math.ceil(n / 4), 4 * row(key, 2048) + row(key, 4096) + preparation,
     [fixed, indexed(6)], row(key, 4096));
   const roles = phase(Math.ceil(n / 8), row(key, 4096) + preparation,

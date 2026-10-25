@@ -50,6 +50,8 @@ interface ExploreScreenProps {
   onStageStairs?: (direction: 'up' | 'down', expectedPosition: GameView['checkpoint']['position']) => void;
   view3D?: boolean;
   onView3DChange?: (enabled: boolean) => void;
+  onPrepareStairs?: (expected: GameView['checkpoint']['position'], binding: string) => Promise<GameView | undefined>;
+  onWalkStairs?: (direction: 'up' | 'down', expected: GameView['checkpoint']['position'], binding: string) => Promise<GameView | undefined>;
 }
 
 export function ExploreScreen({
@@ -71,12 +73,13 @@ export function ExploreScreen({
   portalScrollCount,
   onDiagnostics,
   onAgenticPlay, onStopAgenticPlay, agenticActive = false,
-  onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false, onStageMove, onStageStairs,
+  onTileClick, onStopWalking, onOpenChest, navigationMessage, controlsDisabled = false, onStageMove, onStageStairs, onPrepareStairs, onWalkStairs,
   view3D: selectedView3D, onView3DChange,
 }: ExploreScreenProps) {
   const [localView3D, setLocalView3D] = useState(() => new URLSearchParams(location.search).get('view') === 'stage3d');
   const view3D = selectedView3D ?? localView3D;
   const setView3D = (enabled: boolean) => { setLocalView3D(enabled); onView3DChange?.(enabled); };
+  const [onFlight, setOnFlight] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapTab, setMapTab] = useState<'rooms' | 'nearby'>('rooms');
   const [recall, setRecall] = useState<{ root: string; anchor: KnownAnchor; centered: boolean } | null>(null);
@@ -119,7 +122,8 @@ export function ExploreScreen({
     : emptyCanonicalMazeView(scope, facing), [perception.region, facing, scopeKey]);
   const zoomLabel = `${Math.round(camera.zoom * 100)}%`;
   const chest = currentCell?.chests.find(cell => !cell.opened);
-  const blocked = controlsDisabled || settingsOpen || confirmNew;
+  const stageBlocked = controlsDisabled || settingsOpen || confirmNew;
+  const blocked = stageBlocked || onFlight;
   const toggleMap = () => {
     if (blocked || !manualMap) return;
     onStopWalking?.(); setMapOpen(!mapVisible); setMapTab('rooms'); setRecall(null);
@@ -172,32 +176,32 @@ export function ExploreScreen({
             onStopWalking?.(); setView3D(!view3D); setMapOpen(false); setRecall(null);
           }}>{view3D ? '2D view' : '3D view'}</button>}
           <button className={autoActive ? 'is-active' : ''} type="button" aria-pressed={autoActive} onClick={onAutoToggle}
-            disabled={!autoAvailable} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
+            disabled={!autoAvailable || onFlight} title={autoAvailable ? undefined : 'Take control of this game to use Auto'}>
             {autoActive ? 'Stop Auto' : 'Auto'}
           </button>
           <button className={wavesActive ? 'is-active' : ''} type="button" aria-pressed={wavesActive} onClick={onWavesToggle} disabled={!autoAvailable}>
             {wavesActive ? 'Stop Waves' : 'Waves'}
           </button>
-          {onAgenticPlay && <button className="screen-icon" data-agentic-control type="button" title="Agentic play" aria-label="Agentic play" onClick={onAgenticPlay}>
+          {onAgenticPlay && <button className="screen-icon" data-agentic-control type="button" disabled={onFlight} title="Agentic play" aria-label="Agentic play" onClick={onAgenticPlay}>
             <Robot size={18} aria-hidden="true" />
           </button>}
           {onStopAgenticPlay && <button className="agentic-stop" data-agentic-control type="button" title="Stop Agentic play" aria-label="Stop Agentic play" onClick={onStopAgenticPlay}>
             <Square size={14} aria-hidden="true" />Stop
           </button>}
-          <button type="button" onClick={onTown} disabled={agenticActive || portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
+          <button type="button" onClick={onTown} disabled={agenticActive || onFlight || portalCount < 1} aria-keyshortcuts="T" title={portalCount > 0 ? 'Use one town portal scroll (T)' : 'No portal scrolls. Floor-one entrance stairs are free.'}>
             Portal ({portalCount})
           </button>
           <button className={`screen-icon ${mapVisible ? 'is-active' : ''}`} type="button" title="Map (M)" aria-label="Map" aria-keyshortcuts="M" aria-pressed={mapVisible} onClick={toggleMap} disabled={blocked || !manualMap}>
             <Map size={18} aria-hidden="true" />
           </button>
-          <button className="screen-icon" type="button" disabled={agenticActive} title="Party and inventory (I)" aria-label="Party" aria-keyshortcuts="I" onClick={onCharacters}>
+          <button className="screen-icon" type="button" disabled={agenticActive || onFlight} title="Party and inventory (I)" aria-label="Party" aria-keyshortcuts="I" onClick={onCharacters}>
             <Users size={18} aria-hidden="true" />
           </button>
-          <button className="screen-icon" type="button" disabled={agenticActive} title="Saves" aria-label="Saves" onClick={onSaves}>
+          <button className="screen-icon" type="button" disabled={agenticActive || onFlight} title="Saves" aria-label="Saves" onClick={onSaves}>
             <Save size={18} aria-hidden="true" />
           </button>
           {onDiagnostics && <button className="screen-icon" type="button" title="Diagnostics" aria-label="Diagnostics" onClick={onDiagnostics}><Activity size={18} aria-hidden="true" /></button>}
-          <button className="screen-icon" type="button" disabled={agenticActive} title="Expedition settings" aria-label="Expedition settings" onClick={() => setSettingsOpen(true)}>
+          <button className="screen-icon" type="button" disabled={agenticActive || onFlight} title="Expedition settings" aria-label="Expedition settings" onClick={() => setSettingsOpen(true)}>
             <Settings size={18} aria-hidden="true" />
           </button>
         </nav>
@@ -206,7 +210,8 @@ export function ExploreScreen({
       <section className={`maze-stage ${isOverview ? 'is-overview' : ''} ${mapVisible ? 'has-room-map' : ''}`}>
         {view3D && onStageMove && <div style={{ position: 'absolute', inset: 0, display: mapVisible ? 'none' : undefined }} aria-hidden={mapVisible}>
           <Suspense fallback={<p role="status">Loading 3D stage…</p>}><CanonicalStage3D game={game}
-            disabled={blocked || mapVisible || autoActive || agenticActive} onMove={onStageMove} onReturn={() => { onStopWalking?.(); setView3D(false); }} /></Suspense>
+            disabled={stageBlocked || mapVisible || autoActive || agenticActive} onMove={onStageMove} onPrepareStairs={onPrepareStairs} onWalkStairs={onWalkStairs} onFlightChange={setOnFlight}
+            onReturn={() => { onStopWalking?.(); setView3D(false); }} /></Suspense>
         </div>}
         {(!view3D || mapVisible) && <>
         {mapVisible && <div className="known-rooms-tabs" role="tablist" aria-label="Map views" onKeyDown={event => {

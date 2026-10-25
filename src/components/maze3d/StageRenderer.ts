@@ -11,6 +11,9 @@ import { StageWalker } from './movement';
 import { CELL_SIZE, EYE_HEIGHT } from './constants';
 import { alignBoxUVs } from './boxUVs';
 import { bookshelfMesh } from './bookshelf';
+import { straightStair } from '../../assets3d/stairs/assembly';
+import { VisualInstance, VisualResources } from '../../assets3d/models/VisualInstance';
+import { nativeMaterials } from '../../assets3d/models/native';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -33,6 +36,9 @@ export class StageRenderer {
   private registry: AssetRegistry;
   private failure: (message: string) => void;
   private materialWarning: (message: string) => void;
+  private stairResources = new VisualResources('');
+  private stairModel?: VisualInstance;
+  private stairId?: string;
   yaw = 0; pitch = 0;
   constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void, materialWarning = (_message: string) => {}) {
     this.registry = registry; this.failure = failure; this.materialWarning = materialWarning;
@@ -59,7 +65,7 @@ export class StageRenderer {
   update(game: GameView) {
     const key = JSON.stringify(game.snapshot);
     if (!this.alive || key === this.snapshotKey) return;
-    const next = compileStageScene(game, this.walker.scene.origin);
+    const next = compileStageScene(game, this.walker.scene.origin, this.walker.scene.originFrame);
     if (!next || !this.alive) return;
     this.snapshotKey = key;
     this.walker.update(next); this.syncScene(next);
@@ -75,7 +81,22 @@ export class StageRenderer {
     });
   }
   private syncScene(snapshot: StageScene) {
-    const retained = new Set([...snapshot.boxes.map(box => box.id), ...snapshot.cells.filter(cell => cell.source.stairs.length).map(cell => `${cell.key}/stairs`)]);
+    const connector = snapshot.connector;
+    if (connector?.sight.id !== this.stairId) {
+      if (this.stairModel) { this.scene.remove(this.stairModel.root); this.stairModel.dispose(); this.stairModel = undefined; }
+      this.stairId = connector?.sight.id;
+      if (connector) {
+        const stair = straightStair(), asset = { ...stair.model, geometryRevision: `${stair.model.geometryRevision}/room-decks`,
+          payload: { geometries: { flight: stair.model.payload.geometries.flight.filter(p => !p.id.endsWith('landing')) } } };
+        this.stairModel = new VisualInstance(asset, this.stairResources);
+        this.stairModel.bindMaterials({ structure: nativeMaterials.native_stone, treads: nativeMaterials.native_stone, rails: nativeMaterials.native_bronze });
+        this.stairModel.setVisualState('neutral');
+        this.scene.add(this.stairModel.root);
+      }
+    }
+    if (connector && this.stairModel) this.stairModel.root.position.set(connector.lower.x, connector.lower.y, connector.lower.z + .9);
+    const markerCells = snapshot.cells.filter(cell => cell.source.stairs.length && (!connector || ![connector.sight.upper, connector.sight.lower].some(at => JSON.stringify(at) === JSON.stringify(cell.source.at))));
+    const retained = new Set([...snapshot.boxes.map(box => box.id), ...markerCells.map(cell => `${cell.key}/stairs`)]);
     for (const [id, entry] of this.boxes) if (!retained.has(id)) {
       this.scene.remove(entry.object); disposeGeometry(entry.object); this.boxes.delete(id); this.chestStates.delete(id);
     }
@@ -91,10 +112,10 @@ export class StageRenderer {
     }
     // Stair symbols are flat; physical vertical traversal remains an explicit canonical transition.
     for (const cell of snapshot.cells) {
-      if (!cell.source.stairs.length) continue;
+      if (!cell.source.stairs.length || snapshot.connector && [snapshot.connector.sight.upper, snapshot.connector.sight.lower].some(at => JSON.stringify(at) === JSON.stringify(cell.source.at))) continue;
       const id = `${cell.key}/stairs`, description = JSON.stringify(cell.source.stairs);
       if (this.boxes.has(id)) continue;
-      const group = new THREE.Group(); group.position.set(cell.center.x - 0.85, 0.015, cell.center.z - 0.85);
+      const group = new THREE.Group(); group.position.set(cell.center.x - 0.85, cell.floorY + 0.015, cell.center.z - 0.85);
       const material = this.library.material(this.registry.resolve('basalt').faces[2]);
       for (let i = 0; i < 3; i++) {
         const marker = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.025, 0.08), material); marker.position.z = i * 0.22; group.add(marker);
@@ -106,7 +127,7 @@ export class StageRenderer {
     if (box.material === 'bookshelf') return bookshelfMesh(box, this.registry, this.library);
     if (box.material === 'chest' && this.registry.pack?.blocks.chest) {
       const group = blockGeometry(this.registry.resolve('chest', { state: 'closed' }), this.library);
-      group.position.set(box.center[0], 0, box.center[2]); group.scale.setScalar(1.2); group.rotation.y = Math.PI;
+      group.position.set(box.center[0], box.center[1] - .52, box.center[2]); group.scale.setScalar(1.2); group.rotation.y = Math.PI;
       this.chestStates.set(box.id, group); return group;
     }
     const face = box.id.endsWith('/floor') ? 2 : box.id.endsWith('/ceiling') ? 3 : 4;
@@ -131,9 +152,10 @@ export class StageRenderer {
   render(seconds: number, moving: boolean) {
     if (!this.alive || this.graphicsLost) return;
     const { x, z } = this.walker.position;
-    this.camera.position.set(x, EYE_HEIGHT, z); this.camera.rotation.order = 'YXZ'; this.camera.rotation.set(this.pitch, this.yaw, 0);
+    const y = this.walker.floorY;
+    this.camera.position.set(x, y + EYE_HEIGHT, z); this.camera.rotation.order = 'YXZ'; this.camera.rotation.set(this.pitch, this.yaw, 0);
     if (this.player) {
-      this.player.visible = this.thirdPerson; this.player.position.set(x, 0, z); this.player.rotation.y = this.yaw + Math.PI;
+      this.player.visible = this.thirdPerson; this.player.position.set(x, y, z); this.player.rotation.y = this.yaw + Math.PI;
       this.player.setAnimation(moving ? 'walk' : 'idle'); this.player.update(seconds);
     }
     if (this.thirdPerson && this.player) {
@@ -142,10 +164,11 @@ export class StageRenderer {
       const solids = [...this.boxes.values()].map(e => e.object);
       const ray = new THREE.Raycaster(this.camera.position, direction, 0, 2.8), hit = ray.intersectObjects(solids, true)[0];
       this.camera.position.addScaledVector(direction, Math.max(0, Math.min(2.6, hit ? hit.distance - 0.18 : 2.6)));
-      this.camera.lookAt(x, 1.65, z);
+      this.camera.lookAt(x, y + 1.65, z);
     }
-    this.light.position.set(x, 3.3, z); this.renderer.render(this.scene, this.camera);
+    this.light.position.set(x, y + 3.3, z); this.renderer.render(this.scene, this.camera);
     this.canvas.dataset.pose = `${x.toFixed(4)},${z.toFixed(4)}`; this.canvas.dataset.yaw = this.yaw.toFixed(4);
+    this.canvas.dataset.height = y.toFixed(4); this.canvas.dataset.stairProgress = this.walker.stairs?.progress.toFixed(4) ?? '';
     this.canvas.dataset.pending = String(!!this.walker.pending); this.canvas.dataset.drawCalls = String(this.renderer.info.render.calls);
     this.canvas.dataset.camera = this.thirdPerson ? 'third' : 'first';
     this.canvas.dataset.geometries = String(this.renderer.info.memory.geometries); this.canvas.dataset.texturesCount = String(this.renderer.info.memory.textures);
@@ -153,7 +176,7 @@ export class StageRenderer {
   dispose() {
     if (!this.alive) return; this.alive = false; this.observer.disconnect();
     this.canvas.removeEventListener('webglcontextlost', this.contextLost);
-    this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene); this.library.dispose(); this.unknown.dispose();
+    this.stairModel?.dispose(); this.stairResources.dispose(); this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene); this.library.dispose(); this.unknown.dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.remove(); this.boxes.clear(); this.chestStates.clear();
   }
 }

@@ -42,7 +42,7 @@ export async function commitFloorPreparation(tx: CanonicalWork, input: unknown, 
     check(here.exit && same(here.exit, c.position.cell), 'prepare the next floor only at descending stairs');
     const world = await loadWorld(tx.pages);
     if (world.deepestLevel < level) {
-      const recipe = createModuleRecipe(world.worldId, level, here.generation.recipe.seed + 1);
+      const recipe = createModuleRecipe(world.worldId, level, (here.generation.recipe.seed + 1) >>> 0, { spatial: !!here.generation.recipe.spatial });
       batch = await tx.privatePreparation(await currentFloorPreparationSpec(tx.pages, recipe), preparationWorldWrite(level));
       await createWorldFloor(tx.pages, recipe);
       await tx.pages.set('world', key(level), { schema: 1, level, phase: 'generation' });

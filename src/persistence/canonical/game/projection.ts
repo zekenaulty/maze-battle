@@ -9,6 +9,7 @@ import { same } from '../world/records';
 import { gameCheckpoint, rosterContext } from './checkpoint';
 import { loadGameSettings } from './settings';
 import { currentBattle } from '../combat/coherence';
+import { projectSpatialView } from './spatialProjection';
 
 /** UI publication only. Unchanged roster is reused on exploration, never scanned on each step. */
 export function projectGame(head: CanonicalHead, previous?: GameView) {
@@ -35,6 +36,6 @@ export async function projectGameSnapshot(pages: Pick<CanonicalQuery, 'get' | 's
   check(!offers?.next, 'guild board exceeds bounded page');
   return { party: roster.party, inventory: roster.inventory, stash: roster.stash, inventoryPolicy: roster.inventoryPolicy,
     ...rosterContext(checkpoint), mode: checkpoint.mode, id: snapshot.gameId, snapshot, checkpoint,
-    observation, quests, contracts: offers?.contracts ?? [], ...await loadGameSettings(pages),
+    observation, spatial: await projectSpatialView(pages, snapshot, checkpoint, observation?.cells), quests, contracts: offers?.contracts ?? [], ...await loadGameSettings(pages),
     ...(battle ? { battle: battle.battle, battleAutomationPaused: battle.paused ?? false } : {}) };
 }

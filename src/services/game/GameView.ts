@@ -4,6 +4,7 @@ import type { GuildContract } from '../../domain/guild/contractFactory';
 import type { GameCheckpoint } from '../../persistence/canonical/game/checkpoint';
 import type { ObservationHeader, ObservedCell } from '../../persistence/canonical/knowledge/types';
 import type { CanonicalSnapshot, CanonicalWorkStats } from '../../persistence/canonical/types';
+import type { SpatialView } from './SpatialView';
 
 /** Bounded UI projection, never serialized as game authority or used as a world map. */
 export interface GameView extends Omit<RosterState, 'mode'> {
@@ -12,6 +13,7 @@ export interface GameView extends Omit<RosterState, 'mode'> {
   checkpoint: GameCheckpoint;
   snapshot: CanonicalSnapshot;
   observation: { header: ObservationHeader; cells: ObservedCell[] } | null;
+  spatial?: SpatialView;
   quests: QuestState[];
   contracts: GuildContract[];
   autoThrottleMs: number;

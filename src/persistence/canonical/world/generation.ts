@@ -4,6 +4,8 @@ import { spaceOccupancy } from '../../../domain/expedition/topology/modules/plac
 import type { ModuleSocket } from '../../../domain/expedition/topology/modules/types';
 import { boundsBuckets, neighborhood } from '../../topology/buckets';
 import type { SpaceSpec } from '../../../domain/expedition/types';
+import { world as gridPoint } from '../../../domain/expedition/topology/geometry';
+import { alignedLowerFrame, STAIR_LAYOUT_VERSION, materializeStairRoom, type FloorFrame } from '../../../domain/expedition/vertical';
 import type { CanonicalPages } from '../pages';
 import { check, validId } from '../validation';
 import { entityKey, fresh, json, levelKey, loadFloor, loadPorts, loadSpace, loadWorld, required } from './records';
@@ -21,6 +23,7 @@ export async function createWorldFloor(pages: CanonicalPages, recipe: ModuleReci
   recipe = structuredClone(recipe);
   check(validId(recipe.worldId) && recipe.floorId === `floor-${recipe.level}`, 'invalid canonical recipe identity');
   let upperExit: WorldPosition | undefined;
+  let upperFrame: FloorFrame | undefined, upperPoint: { row: number; column: number } | undefined;
   if (recipe.level === 1) check(!await pages.get('world', 'dungeon'), 'world already exists');
   else {
     const world = await loadWorld(pages), upper = await loadFloor(pages, recipe.level - 1);
@@ -28,15 +31,23 @@ export async function createWorldFloor(pages: CanonicalPages, recipe: ModuleReci
       && world.deepestLevel + 1 === recipe.level && upper.exit, 'floor creation is not the next established frontier');
     await requireWorldAnchor(pages, { level: upper.level, cell: upper.exit });
     upperExit = { level: upper.level, cell: upper.exit };
+    check(recipe.spatial === upper.generation.recipe.spatial, 'floor spatial profile must inherit its established parent');
+    if (upper.spatial) {
+      upperFrame = upper.spatial.frame;
+      upperPoint = gridPoint((await loadSpace(pages, upper.level, upper.exit.spaceId)).value.spec, upper.exit);
+    }
   }
   const initial = bootstrapModule(recipe), level = recipe.level;
   const { occupancy, stage } = await loadOccupancy(pages, level, initial.occupancy.flatMap(entry => boundsBuckets(entry.bounds)));
   for (const entry of initial.occupancy) occupancy.add(entry);
   const floor: WorldFloor = { schema: 1, level, generation: initial.state, nextPending: 0,
     entry: center(initial.space), farthest: { spaceId: initial.space.id, distance: 0 }, exit: null };
-  if (upperExit) await fresh(pages, `${levelKey(level - 1)}/stairs`, { schema: 1, upper: upperExit, lower: { level, cell: floor.entry } });
+  if (recipe.spatial) floor.spatial = { version: STAIR_LAYOUT_VERSION, frame: upperFrame
+    ? alignedLowerFrame(upperFrame, upperPoint!, gridPoint(initial.space, floor.entry)) : [0, 0, 0] };
+  if (upperExit) await fresh(pages, `${levelKey(level - 1)}/stairs`, { schema: 1, upper: upperExit, lower: { level, cell: floor.entry },
+    ...(upperFrame && floor.spatial ? { placement: { version: 'straight-stair-placement-v1', recipe: 'straight-stair-v1', upperFrame, lowerFrame: floor.spatial.frame } } : {}) });
   await fresh(pages, levelKey(level), floor, [`floors/${level}`]);
-  await addSpace(pages, level, initial.space, 0);
+  await addSpace(pages, level, initial.space, 0, recipe.spatial && upperExit ? 'lower' : undefined);
   await pages.set('world', entityKey(level, 'ports', initial.space.id), json({ schema: 1, level,
     spaceId: initial.space.id, connections: [], pending: initial.pending.map(socket => socket.id) }));
   for (const [sequence, socket] of initial.pending.entries()) await fresh(pages, socketKey(level, sequence), { schema: 1, level, sequence, socket });
@@ -90,12 +101,20 @@ export async function expandWorldFloor(pages: CanonicalPages, level: number, req
   const generation = { ...g, revision: g.revision + 1, rooms: g.rooms + 1,
     nextSequence: g.nextSequence + delta.pending.length, pendingCount: g.pendingCount - 1 + delta.pending.length };
   const exit = generation.rooms === g.recipe.roomBudget ? center((await loadSpace(pages, level, farthest.spaceId)).value.spec) : null;
+  if (exit && g.recipe.spatial) {
+    const { value } = await loadSpace(pages, level, exit.spaceId);
+    const stairwell = { version: STAIR_LAYOUT_VERSION, end: 'upper' as const };
+    materializeStairRoom(value.spec, stairwell); // qualify the local bypass before the structural witness is built
+    await pages.set('world', entityKey(level, 'space', exit.spaceId), json({ ...value, schematic: 'stair-room-v1', stairwell }), [`spaces/${level}/${exit.spaceId}`]);
+  }
   const next: WorldFloor = { ...floor, generation, nextPending: floor.nextPending + 1, farthest, exit };
   await pages.set('world', levelKey(level), json(next), [`floors/${level}`]);
   return { floor: next, expanded: true, work: delta.work };
 }
 
-async function addSpace(pages: CanonicalPages, level: number, spec: SpaceSpec, distance: number) {
-  const space: WorldSpace = { schema: 1, level, schematic: 'stone-room-v1', spec, distance };
+async function addSpace(pages: CanonicalPages, level: number, spec: SpaceSpec, distance: number, end?: 'lower') {
+  const space: WorldSpace = { schema: 1, level, schematic: end ? 'stair-room-v1' : 'stone-room-v1', spec, distance,
+    ...(end ? { stairwell: { version: STAIR_LAYOUT_VERSION, end } } : {}) };
+  if (space.stairwell) materializeStairRoom(spec, space.stairwell);
   await fresh(pages, entityKey(level, 'space', spec.id), space, [`spaces/${level}/${spec.id}`]);
 }

@@ -12,7 +12,7 @@ import { check } from '../validation';
 export function floorPreparationSpec(input: ModuleRecipe, lineage?: string): PrivatePreparationSpec {
   const recipe = structuredClone(input); validateModuleRecipe(recipe);
   check(lineage === undefined || /^restore-[1-9][0-9]{0,15}$/.test(lineage), 'invalid floor preparation lineage');
-  const { version, level, roomBudget, policy } = recipe, floor = { version, level, roomBudget, policy };
+  const { version, level, roomBudget, policy, spatial } = recipe, floor = { version, level, roomBudget, policy, ...(spatial ? { spatial } : {}) };
   const birth = level === 1;
   const budgetBytes = birth ? initializationCapacity({ floor, bootPolicy: INITIALIZATION_BOOT_POLICY }).budgetBytes
     : preparationCapacity(floor).budgetBytes;

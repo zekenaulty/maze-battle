@@ -70,6 +70,11 @@ export function App() {
       onStageMove={async (direction, expectedPosition) => { await commands.move(direction, { triggerStairs: false, expectedPosition }); return session.controller.view.game; }}
       onStageStairs={(direction, expectedPosition) => { void commands.stairs(direction, expectedPosition).catch(() => {}); }}
       view3D={view3D} onView3DChange={setView3D}
+      onPrepareStairs={(expected, binding) => { pause(); return session.controller.prepareStairs(expected, binding); }}
+      onWalkStairs={async (direction, expected, binding) => {
+        pause(); await session.controller.execute('exploration', { kind: 'stairs', direction }, { expectedPosition: expected, spatialBinding: binding });
+        return session.controller.view.game;
+      }}
     />}
     {dialog === 'agentic' && <AgenticPlayDialog profile={agentic.profile} configurationError={agentic.configurationError}
       phase={agentic.phase} active={agentic.active} activeObjective={agentic.objective} message={agentic.message} error={agentic.error}

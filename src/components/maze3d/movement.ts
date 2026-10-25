@@ -2,6 +2,8 @@ import type { Direction } from '../../domain/types';
 import { CELL_SIZE, PLAYER_RADIUS, WALK_SPEED } from './constants';
 import { addressKey, directionVector } from './scene';
 import type { Bounds2D, Point, StageScene } from './scene';
+import { StairTraversal, type StairCrossing } from './StairTraversal';
+import { STAIR_RECIPE } from '../../domain/expedition/vertical';
 
 export function diskBlocked(point: Point, boxes: Bounds2D[], radius = PLAYER_RADIUS) {
   return boxes.some(b => {
@@ -29,10 +31,19 @@ export class StageWalker {
   position: Point;
   pending?: Crossing;
   scene: StageScene;
+  stairs?: StairTraversal;
+  get floorY() { return this.stairs?.pose.y ?? this.scene.actor.floorY; }
   constructor(scene: StageScene) { this.scene = scene; this.position = { ...scene.actor.center }; }
   update(scene: StageScene) {
     const old = this.scene, crossing = this.pending;
     this.scene = scene;
+    if (this.stairs) {
+      const connector = scene.connector, pending = this.stairs.pending;
+      if (scene.scope === old.scope && connector?.sight.id === this.stairs.connector.sight.id
+        && (pending ? [addressKey(pending.source), addressKey(pending.target)].includes(scene.actor.key)
+          : old.actor.key === scene.actor.key && old.connector?.binding === connector.binding)) return;
+      this.cancelStairs();
+    }
     if (scene.scope !== old.scope) { this.position = { ...scene.actor.center }; this.pending = undefined; return; }
     if (scene.actor.key !== old.actor.key) {
       if (crossing?.target !== scene.actor.key) this.position = { ...scene.actor.center };
@@ -46,6 +57,35 @@ export class StageWalker {
     this.pending = undefined; return applied;
   }
   reject(crossing: Crossing) { if (this.pending === crossing) this.settle(crossing); }
+  cancelStairs() { if (!this.stairs) return; this.stairs = undefined; this.position = { x: this.scene.actor.center.x, z: this.scene.actor.center.z }; }
+  settleStairs(crossing: StairCrossing) {
+    const stairs = this.stairs;
+    if (stairs?.pending !== crossing) return false;
+    if (!stairs.accept(this.scene.actor.source.at)) { this.cancelStairs(); return false; }
+    stairs.connector = this.scene.connector!;
+    return true;
+  }
+  /** The reserved strip is deliberately absent from ordinary planar move links. */
+  advanceStairs(seconds: number, forward: number, strafe: number, yaw: number): { handled: boolean; crossing?: StairCrossing } {
+    const length = Math.max(1, Math.hypot(forward, strafe));
+    const delta = { x: (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) / length,
+      z: (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) / length };
+    const connector = this.scene.connector;
+    if (!this.stairs && connector && connector.sight.cells.length && !this.pending
+      && [addressKey(connector.sight.upper), addressKey(connector.sight.lower)].includes(this.scene.actor.key)) {
+      const upper = this.scene.actor.key === addressKey(connector.sight.upper), anchor = upper ? connector.upper : connector.lower;
+      if (Math.abs(this.position.x - anchor.x) <= STAIR_RECIPE.width / 2 - PLAYER_RADIUS
+        && Math.abs(this.position.z - anchor.z) <= STAIR_RECIPE.landing / 2
+        && (upper ? delta.z < -.1 : delta.z > .1)) this.stairs = new StairTraversal(connector, upper ? 'upper' : 'lower', this.position);
+    }
+    if (!this.stairs) return { handled: false };
+    const crossing = this.stairs.advance(seconds, delta), pose = this.stairs.pose;
+    this.position = { x: pose.x, z: pose.z };
+    if (this.stairs.atLanding && (this.stairs.committed === 'upper' ? delta.z > 0 : delta.z < 0)) {
+      this.stairs = undefined; return { handled: true };
+    }
+    return { handled: true, crossing };
+  }
   private predictionTarget(point: Point, crossing: Crossing): Point {
     const center = crossing.sourceCenter, half = CELL_SIZE / 2, v = directionVector[crossing.direction];
     const clamp = (value: number, middle: number, direction: number) => direction

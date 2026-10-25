@@ -6,6 +6,7 @@ import type { CanonicalPages } from '../pages';
 import { check, isObject, validId } from '../validation';
 import { address, entityKey, json, levelKey, loadFloor, loadPorts, loadSpace, loadWorld, position, required, same } from './records';
 import type { WorldMutation, WorldPosition, WorldRead, WorldStairs } from './types';
+import { loadPlacedStairs } from './placedStairs';
 
 const directions = ['north', 'east', 'south', 'west'];
 const localCell = (point: { row: number; column: number }) => ({ row: point.row, column: point.column });
@@ -15,6 +16,9 @@ export async function loadWorldRoom(pages: WorldRead, level: number, id: string)
   const floor = await loadFloor(pages, level);
   check(floor.generation.recipe.worldId === (await loadWorld(pages)).worldId, 'foreign floor recipe');
   const { value, geometry } = await loadSpace(pages, level, id), ports = await loadPorts(pages, level, id);
+  const stairEnd = floor.exit?.spaceId === id ? 'upper' : level > 1 && floor.entry.spaceId === id ? 'lower' : undefined;
+  check(value.stairwell ? floor.spatial?.version === value.stairwell.version && stairEnd === value.stairwell.end
+    : !floor.spatial || !stairEnd, 'stair-room role differs from pinned floor anchors');
   const connections: TopologyConnection[] = [], usedDirections = new Set<string>();
   for (const connectionId of ports.connections) {
     const row = await required<{ schema: number; level: number; connection: TopologyConnection }>(pages, entityKey(level, 'connection', connectionId));
@@ -72,6 +76,7 @@ export async function resolveFloorTravel(pages: WorldRead, from: WorldPosition, 
     && same(stairs.upper.cell, upper.exit) && same(stairs.lower.cell, lower.entry)
     && same(direction === 'up' ? stairs.lower : stairs.upper, from), 'floor connection is not reciprocal');
   const target = direction === 'up' ? stairs.upper : stairs.lower;
+  if (upper.spatial || lower.spatial || stairs.placement) await loadPlacedStairs(pages, upperLevel, stairs);
   await requireWorldAnchor(pages, target);
   return { kind: 'dungeon' as const, position: structuredClone(target) };
 }
