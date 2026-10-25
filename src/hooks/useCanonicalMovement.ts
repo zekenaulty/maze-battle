@@ -70,7 +70,8 @@ export function useCanonicalMovement(game: GameView | undefined, blocked: boolea
         || cellKey(live.checkpoint.position) !== cellKey(step.from)) { cancel(); return; }
       pending.current = true;
       try {
-        const receipt = await controller.execute('exploration', { kind: 'move', direction: step.direction, triggerStairs: false });
+        const destinationReached = active.route.complete && active.index + 1 === active.route.steps.length;
+        const receipt = await controller.execute('exploration', { kind: 'move', direction: step.direction, triggerStairs: destinationReached });
         if (walk.current !== active || active.token !== token.current) return;
         const next = controller.view.game;
         if (!available() || !sameManualScope(controller, active.scope) || receipt.beforeRevision !== active.revision

@@ -25,16 +25,35 @@ async function setup() {
 }
 
 describe('canonical movement input', () => {
-  it('walks the earned route one awaited step per tick, without stairs, loot or extra dispatches', async () => {
+  it('walks one awaited step per tick, allowing stairs only at the selected destination and never looting', async () => {
     const { controller, cells, result } = await setup();
     await act(() => result.current.navigate(cells[3].world));
     expect(controller.execute).not.toHaveBeenCalled();
     await tick(); await tick(); await tick(); await tick();
     expect(controller.execute).toHaveBeenCalledTimes(3);
-    for (const call of controller.execute.mock.calls) expect(call).toEqual(['exploration', { kind: 'move', direction: 'east', triggerStairs: false }]);
+    for (const [index, call] of controller.execute.mock.calls.entries()) expect(call).toEqual(['exploration',
+      { kind: 'move', direction: 'east', triggerStairs: index === 2 }]);
     expect(controller.view.game.checkpoint.position).toEqual(cells[3].at);
     expect(result.current.message).toBe('Arrived');
     expect(readNavigationRoute).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['town', 'floor'] as const)('ends the click intention after its final stair step enters %s', async destination => {
+    const { controller, cells, publish, receipt, result, rerender } = await setup();
+    await act(() => result.current.navigate(cells[1].world));
+    controller.execute.mockImplementationOnce(async () => {
+      publish(1, destination === 'town' ? 'town' : 'manual');
+      if (destination === 'floor') controller.view.game.checkpoint.position.level++;
+      // A newly prepared floor can publish beyond the original movement receipt.
+      const original = receipt(); controller.view.game.snapshot.revision += 2;
+      return original;
+    });
+    await tick();
+    expect(controller.execute).toHaveBeenCalledExactlyOnceWith('exploration', { kind: 'move', direction: 'east', triggerStairs: true });
+    act(() => rerender({ blocked: false }));
+    await tick(); await tick();
+    expect(controller.execute).toHaveBeenCalledTimes(1);
+    expect(result.current.message).toBe('');
   });
 
   it('waits for Auto shutdown before reading a click route and survives that mode publication', async () => {
@@ -141,6 +160,7 @@ describe('canonical movement input', () => {
       steps: [{ from: cells[0].at, to: cells[1].at, direction: 'east' }] });
     await act(() => result.current.navigate(cells[4].world)); await tick(); await tick();
     expect(controller.execute).toHaveBeenCalledTimes(1);
+    expect(controller.execute).toHaveBeenLastCalledWith('exploration', { kind: 'move', direction: 'east', triggerStairs: false });
     expect(readNavigationRoute).toHaveBeenCalledTimes(1);
     expect(result.current.message).toContain('Route window complete');
   });
