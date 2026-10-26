@@ -1,0 +1,3 @@
+# Preserve exact producer artifact/contract bytes used by SHA-256 evidence.
+/tests/fixtures/architecture/independent-arch.geometry.json -text
+/docs/coordination/spatial-contract-v0.1.md -text

@@ -13,6 +13,11 @@ Maze Battle save formats are intentionally discarded, not migrated.
 
 ## Run and Verify
 
+Agent setup lives in [AGENTS.md](AGENTS.md), with the repository-owned
+[geometry/admission skill](.agents/skills/maze-world-geometry/SKILL.md) and
+[cross-repo coordination protocol](docs/coordination/README.md). The shared spatial
+contract is a proposal until both repository owners record agreement.
+
 - `npm install` installs dependencies.
 - `npm run dev` starts Vite; use the URL printed by the server.
 - `npm run build` type-checks and builds production assets.
