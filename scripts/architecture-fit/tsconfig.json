@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["../check-architectural-fit.ts", "../workshop-geometry.ts", "../../src/components/maze3d/constants.ts"]
+}

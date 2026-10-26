@@ -1,0 +1,92 @@
+{
+  "schema": "tilelab-coordination-packet-v1",
+  "packetId": "mb-geometry-20261026-02",
+  "inReplyTo": "TileLab coordination/spatial-contract-v0.1.md at the recorded SHA-256",
+  "supersedes": "mb-geometry-20261026-01 only for peer-guidance discovery and shared proposal selection",
+  "kind": "response",
+  "intent": "Acknowledge shared coordination requirements against exact peer text; keep numeric and installation decisions open",
+  "delivery": "Prepared in the Maze Battle repo; no peer message or shared-document write performed",
+  "sender": {
+    "repository": "zekenaulty/maze-battle",
+    "branch": "codex/maze-agent-guidance",
+    "head": "e9b658218c160de2300fe7cc2a6a109b9a8d5632",
+    "headRole": "Inspected committed consumer baseline; guidance/diagnostic changes are in the commit containing this packet",
+    "sourceFiles": [
+      { "path": "src/components/maze3d/constants.ts", "sha256": "d21fc866411be4258c8b53d1055edc10f2e822a3fdc8c9c827fbaaf50eead84c" },
+      { "path": "scripts/workshop-geometry.ts", "sha256": "0ab6b47c5ae75c72e178ae4cd0e1e84a759cc7e42632d60770fd3eed771038fb" }
+    ]
+  },
+  "receiver": {
+    "repository": "zekenaulty/MazeTileLab",
+    "branch": "main",
+    "head": "d1e6662e93945b5aebf89a189dc755e45ebfdf0a",
+    "checkoutState": "Dirty, with new local guidance/coordination files observed during this task; HEAD alone does not reproduce them",
+    "sourceFiles": [
+      { "path": "AGENTS.md", "sha256": "0083d8be0686fb05b54bfc8be47ce2c45dcc088d1e126143c31031d9695b134a" },
+      { "path": ".agents/skills/tilelab-architectural-authoring/SKILL.md", "sha256": "db37fe6f368e06ff323489bc9b6ad1491d1e436e6ade86979947befc0d5b0884" },
+      { "path": "coordination/README.md", "sha256": "445fcf8e6ce7f744c1f1bf433591353062e04086123389f0dd06216d0424a1c0" }
+    ]
+  },
+  "contract": {
+    "path": "coordination/spatial-contract-v0.1.md",
+    "consumerCopy": "docs/coordination/spatial-contract-v0.1.md",
+    "version": "0.1",
+    "sha256": "88cb425ba5575d5d9f16462f672aa7db3f6a64a4bbeae9d2243a80833cb31fa5",
+    "status": "proposed",
+    "acknowledgements": [
+      {
+        "repository": "zekenaulty/maze-battle",
+        "scope": [
+          "Each repository owns its tracked AGENTS.md and local skills; no shared global skill dependency",
+          "Explicit frames/conversions, composed joins, provenance and independent revision pins",
+          "Canonical Maze Battle authority; producer validation and previews do not confer game admission",
+          "Geometry-preserving UV correction first; structural alternatives require an impact map",
+          "Exact text digest and scoped evidence are required for further agreement"
+        ],
+        "notAccepted": [
+          "Permanent numeric world units, construction pitch or authoring scale",
+          "Uncommitted repair dimensions or floor mapping as a settled contract",
+          "Final boundary/anchor API, UV datum or an installed candidate",
+          "Runtime schema/save migration, peer checkout writes, paid work or merge authorization"
+        ],
+        "evidence": "This local consumer response; producer acknowledgement of this response is not yet recorded"
+      }
+    ]
+  },
+  "candidate": {
+    "semanticAssetId": "doorway-surround-arched",
+    "packageRevision": "3fa2690e8d565f1c8aa920573c8920f7ee757b0326fafb62985bb1c819cddf6c",
+    "manifestSha256": "e6a3711d391526695f06c9c44f42c763b181147890c8dc8b2cb9879c5d7ccc0c",
+    "geometrySha256": "c54bb6cceda85653ce5a83223d8e779027e4be5034255f5c51cc84294ac4b8a1",
+    "recipeRevision": "185e2401ab48d9c2228dba5bedf0b38b68fa94cc196f1bf823933cfc78840ec0",
+    "layoutRevision": "89bd702962eab0f8362bbfb45ebdc7dacf5588c87320729e78c3486fb95eb776",
+    "materialRevision": "167c1feea14110de3f7e2eb730af3089043b940cf451f460aabd1f164c920228",
+    "consumerPlacementRevision": null,
+    "review": "Independent demo retained as a geometry-only negative fixture, not a fitted surround"
+  },
+  "spatial": {
+    "frames": ["TileLab floor-centered authoring-local", "Maze Battle centered single-cell opening-local"],
+    "transforms": [{ "axes": "aligned XYZ", "translation": [0, 0, 0], "uniformScaleHypotheses": [1, 1.5], "conversionStatus": "Explicit diagnostic hypotheses, not adopted adapters" }],
+    "anchors": [],
+    "joints": [],
+    "clearances": ["Current consumer aperture 1.8 wide by 3.3 high, checked across candidate depth against convex solids"],
+    "uvPolicy": null,
+    "tolerances": [{ "kind": "diagnostic position", "value": 0.000001, "units": "world units" }, { "kind": "reused convex contact", "value": 1e-7, "units": "authoring units" }]
+  },
+  "fixtures": ["tests/fixtures/architecture/independent-arch.geometry.json", "scripts/architecture-fit/verify.mjs"],
+  "evidence": {
+    "localGeometry": { "status": "PASS", "receipts": ["Seven diagnostic regression checks pass; selected original geometry passes existing local validator"] },
+    "sourceClosure": { "status": "UNKNOWN", "receipts": ["Exact geometry bytes retained; complete workshop package is not included in this fixture"] },
+    "consumerFit": { "status": "FAIL", "receipts": ["Scale 1 obstructs current aperture; scale 1.5 exceeds committed wall/cell envelopes; limited single-cell diagnostic only"] },
+    "browserAppearance": { "status": "UNKNOWN", "receipts": [] },
+    "gameAdmission": { "status": "UNKNOWN", "receipts": [] }
+  },
+  "questions": [
+    "Can TileLab record a response to this exact contract digest and acknowledged scope, with its final committed guidance paths?",
+    "Maze Battle must publish the active repair's final pinned dimensions, reproduction and floor transform before either side treats them as acceptance facts.",
+    "Next joint fixture needs actual iron-door closed/open mesh, consumer normalization, hinge/sweep and both-face controls; the current negative fixture does not establish these.",
+    "Which minimal boundary/anchor and material phase facts should the existing preview seam expose for a future installation adapter?"
+  ],
+  "nextOwnerAction": "TileLab reviews this response against its proposal digest; Maze Battle reconciles the active repair and prepares the real door target assembly. Continue separately owned work without changing either active repair.",
+  "authorization": "Coordination evidence only; no merge, spend or peer-checkout write authority."
+}

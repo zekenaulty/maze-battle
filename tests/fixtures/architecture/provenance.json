@@ -1,0 +1,19 @@
+{
+  "purpose": "Geometry-only negative integration preflight fixture; independent arch demo, not an admitted iron-door surround",
+  "assetId": "doorway-surround-arched",
+  "sourceRepository": "https://github.com/zekenaulty/MazeTileLab",
+  "observedProducerCommit": "d1e6662e93945b5aebf89a189dc755e45ebfdf0a",
+  "producerCheckoutState": "dirty when inspected; commit alone is not a reproduction pin for the exported package",
+  "sourceArtifact": "workshop-authoring-20261025-v1/doorway-export/geometry.json",
+  "geometrySha256": "c54bb6cceda85653ce5a83223d8e779027e4be5034255f5c51cc84294ac4b8a1",
+  "selectedWorkshopManifestSha256": "e6a3711d391526695f06c9c44f42c763b181147890c8dc8b2cb9879c5d7ccc0c",
+  "selectedWorkshopRevision": "3fa2690e8d565f1c8aa920573c8920f7ee757b0326fafb62985bb1c819cddf6c",
+  "consumerBaseline": "e9b658218c160de2300fe7cc2a6a109b9a8d5632",
+  "retainedContent": "Exact original authored geometry JSON, including local metadata; no textures or source/reference models",
+  "limits": [
+    "This fixture does not retain or validate the complete portable package closure",
+    "The artifact hash pins actual geometry bytes; observed current source commit is context only",
+    "No distribution rights or gameplay admission are inferred",
+    "Real door model, swing, composed joints, UVs, browser and save compatibility remain unverified"
+  ]
+}
