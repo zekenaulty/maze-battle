@@ -144,3 +144,14 @@ exact indices versus continuous offsets; shared boundary/anchor naming; final
 floor/portal presentation conversion; masonry phase datum; smallest installation
 sidecar and compatibility/version policy. The outgoing handoff identifies concrete
 next actions without changing either active geometry implementation.
+
+## Committed follow-on checkpoint
+
+The observations above remain the original `e9b6582` baseline. The active consumer
+subsequently committed the owner-requested construction repair and selected oak
+timber integration. See the append-only
+[26 October consumer packet](handoffs/2026-10-26-timber-consumer.md) for exact
+revisions, 4.8/4.98/9.6 presentation dimensions, unchanged canonical frame pins,
+impact map, package/placement digests and browser evidence. The independent arch
+at scale 1.5 now fits wall height but still fails its single-cell width envelope.
+These consumer results do not turn the frozen spatial proposal into an agreement.
