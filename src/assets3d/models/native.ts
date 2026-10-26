@@ -6,7 +6,7 @@ export const solidFaces = (slot: string): CuboidPart['faces'] => Object.fromEntr
 export function nativeBox(id: string, size: Vec3, position: Vec3, slot: string, parent?: string): CuboidPart {
   return { id, size, position, faces: solidFaces(slot), ...(parent ? { parent } : {}) };
 }
-export const nativeMaterials: Record<string, VisualMaterial> = {
+export const nativeMaterials: Record<string, VisualMaterial & { animation?: never }> = {
   native_stone: { id: 'native_stone', label: 'Stone', layoutId: 'solid-v1', surface: 'bounded-face', fallbackColor: '#70787f', roughness: 0.95, render: { alphaMode: 'opaque', side: 'front' } },
   native_bronze: { id: 'native_bronze', label: 'Bronze', layoutId: 'solid-v1', surface: 'bounded-face', fallbackColor: '#ba8450', roughness: 0.45, render: { alphaMode: 'opaque', side: 'front' } },
   native_wood: { id: 'native_wood', label: 'Wood', layoutId: 'solid-v1', surface: 'bounded-face', fallbackColor: '#675044', roughness: 0.8, render: { alphaMode: 'opaque', side: 'front' } },

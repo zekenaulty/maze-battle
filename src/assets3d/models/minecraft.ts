@@ -40,17 +40,20 @@ function defaultUV(face: string, from: Vec3, to: Vec3): number[] {
     north: [16 - x1, 16 - y1, 16 - x0, 16 - y0], south: [x0, 16 - y1, x1, 16 - y0],
     west: [z0, 16 - y1, z1, 16 - y0], east: [16 - z1, 16 - y1, 16 - z0, 16 - y0] } as Record<string, number[]>)[face];
 }
-export function minecraftParts(model: ResolvedMinecraftModel, slots: Record<string, string>, options: { prefix: string; parent?: string; origin?: Vec3; offset?: Vec3 }): CuboidPart[] {
+export function minecraftParts(model: ResolvedMinecraftModel, slots: Record<string, string>, options: { prefix: string; parent?: string; origin?: Vec3; offset?: Vec3; allowPlanes?: boolean }): CuboidPart[] {
   const origin = options.origin ?? [8, 8, 8], offset = options.offset ?? [0, 0, 0];
   const point = (v: Vec3): Vec3 => v.map((n, i) => (n - origin[i]) / 16 + offset[i]) as Vec3;
   return model.elements.map((element, i) => {
     if (!vec(element.from) || !vec(element.to) || !element.faces) throw new Error(`Invalid cuboid element ${i}`);
     const size = element.to.map((v: number, axis: number) => (v - element.from[axis]) / 16) as Vec3;
-    if (size.some(v => v <= 0 || v > 8)) throw new Error(`Unsupported zero/negative/oversized element ${i}`);
+    const zeros = size.map((v, axis) => v === 0 ? axis : -1).filter(axis => axis >= 0);
+    if (size.some(v => v < 0 || v > 8) || zeros.length && (!options.allowPlanes || zeros.length !== 1)) throw new Error(`Unsupported zero/negative/oversized element ${i}`);
     const part: CuboidPart = { id: `${options.prefix}-${i}`, parent: options.parent,
       size, position: point(element.from.map((v: number, axis: number) => (v + element.to[axis]) / 2) as Vec3), faces: {} };
+    if (zeros.length) part.planeAxis = (['x', 'y', 'z'] as const)[zeros[0]];
     for (const [direction, mapping] of Object.entries(element.faces) as Array<[string, any]>) {
       const face = faces[direction]; if (!face) throw new Error(`Unsupported face ${direction}`);
+      if (zeros.length && ![['right', 'left'], ['top', 'bottom'], ['front', 'back']][zeros[0]].includes(face)) throw new Error(`Unsupported edge face on plane ${i}`);
       const texture = resolveTexture(mapping.texture, model.textures), slot = slots[texture];
       if (!slot) throw new Error(`Unbound texture ${texture}`);
       const uv = mapping.uv ?? defaultUV(direction, element.from, element.to), rotation = mapping.rotation ?? 0;

@@ -1,0 +1,18 @@
+{
+  "schema": "maze-workshop-selection-v1",
+  "review": "Doorway and mounted original-lantern workshop proof. Preview only; original reference art, authored placeholder colors, no dungeon admission.",
+  "packages": [
+    {
+      "directory": "doorway-export",
+      "manifestSha256": "e6a3711d391526695f06c9c44f42c763b181147890c8dc8b2cb9879c5d7ccc0c",
+      "revision": "3fa2690e8d565f1c8aa920573c8920f7ee757b0326fafb62985bb1c819cddf6c",
+      "assetId": "doorway-surround-arched"
+    },
+    {
+      "directory": "hanging-lantern-export",
+      "manifestSha256": "e50c6d1177e290c08dc72ad2e01be7ed65f94d146d400a678eb0ed86b5be2614",
+      "revision": "a05bb6cfcac819f7242e594f23b4788ef76422ffcf89e74b90689e8345300897",
+      "assetId": "hanging-lantern-fixture"
+    }
+  ]
+}
