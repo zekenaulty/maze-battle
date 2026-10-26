@@ -2,6 +2,7 @@
 import { BoxGeometry, Triangle, Vector2, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { alignBoxUVs } from './boxUVs';
+import { DOOR_HEIGHT, WALL_HEIGHT } from './constants';
 
 type Triple = [number, number, number];
 function sample(geometry: BoxGeometry, center: Triple, normal: Triple, world: Triple) {
@@ -20,12 +21,12 @@ function sample(geometry: BoxGeometry, center: Triple, normal: Triple, world: Tr
 describe('continuous masonry across separately sized boxes', () => {
   it.each([['z', 1], ['z', -1], ['x', 1], ['x', -1]] as const)('aligns a doorway lintel with its full-height jamb on the %s/%s face', (axis, sign) => {
     const alongZ = axis === 'x';
-    const lintelSize: Triple = alongZ ? [0.16, 1.2, 1.8] : [1.8, 1.2, 0.16];
-    const jambSize: Triple = alongZ ? [0.16, 4.5, 0.7] : [0.7, 4.5, 0.16];
-    const lintelCenter: Triple = [0, 3.9, 0], jambCenter: Triple = alongZ ? [0, 2.25, -1.25] : [-1.25, 2.25, 0];
+    const lintelSize: Triple = alongZ ? [0.16, WALL_HEIGHT - DOOR_HEIGHT, 1.8] : [1.8, WALL_HEIGHT - DOOR_HEIGHT, 0.16];
+    const jambSize: Triple = alongZ ? [0.16, WALL_HEIGHT, 0.7] : [0.7, WALL_HEIGHT, 0.16];
+    const lintelCenter: Triple = [0, (WALL_HEIGHT + DOOR_HEIGHT) / 2, 0], jambCenter: Triple = alongZ ? [0, WALL_HEIGHT / 2, -1.25] : [-1.25, WALL_HEIGHT / 2, 0];
     const normal: Triple = alongZ ? [sign, 0, 0] : [0, 0, sign];
     const lintel = alignBoxUVs(new BoxGeometry(...lintelSize), lintelCenter), jamb = alignBoxUVs(new BoxGeometry(...jambSize), jambCenter);
-    for (const height of [3.3, 3.9, 4.5]) {
+    for (const height of [DOOR_HEIGHT, (DOOR_HEIGHT + WALL_HEIGHT) / 2, WALL_HEIGHT]) {
       const point: Triple = alongZ ? [sign * 0.08, height, -0.9] : [-0.9, height, sign * 0.08];
       const a = sample(lintel, lintelCenter, normal, point), b = sample(jamb, jambCenter, normal, point);
       expect(a.x).toBeCloseTo(b.x, 5); expect(a.y).toBeCloseTo(b.y, 5);

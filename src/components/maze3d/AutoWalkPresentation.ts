@@ -68,9 +68,9 @@ export class AutoWalkPresentation {
       this.heading = Math.atan2(-(leg.to.x - leg.from.x), -(leg.to.z - leg.from.z));
       if (leg.stair) {
         const upperToLower = leg.from.y > leg.to.y, progress = upperToLower ? t : 1 - t;
-        const run = progress * STAIR_RECIPE.separation;
-        const slope = Math.max(0, Math.min(1, (run - STAIR_RECIPE.landing / 2) / (STAIR_RECIPE.tread * STAIR_RECIPE.steps)));
-        this.pose = { x: leg.stair.upper.x, y: leg.stair.upper.y - slope * STAIR_RECIPE.rise, z: leg.stair.upper.z - run };
+        const separation = leg.stair.upper.z - leg.stair.lower.z, run = progress * separation;
+        const slope = Math.max(0, Math.min(1, (run - STAIR_RECIPE.landing / 2) / (separation - STAIR_RECIPE.landing)));
+        this.pose = { x: leg.stair.upper.x, y: leg.stair.upper.y - slope * (leg.stair.upper.y - leg.stair.lower.y), z: leg.stair.upper.z - run };
         this.pitch = slope > 0 && slope < 1 ? (upperToLower ? -1 : 1) * .28 : 0;
       } else {
         this.pose = { x: leg.from.x + (leg.to.x - leg.from.x) * t, y: leg.from.y, z: leg.from.z + (leg.to.z - leg.from.z) * t };

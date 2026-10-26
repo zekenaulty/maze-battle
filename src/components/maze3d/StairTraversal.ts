@@ -14,12 +14,13 @@ export class StairTraversal {
   constructor(connector: StageConnector, committed: 'upper' | 'lower', start?: Point) {
     this.connector = connector; this.committed = committed;
     this.progress = committed === 'upper' ? 0 : 1; this.x = connector.upper.x;
-    if (start) { this.progress = (connector.upper.z - start.z) / STAIR_RECIPE.separation; this.x = start.x; }
+    if (start) { this.progress = (connector.upper.z - start.z) / this.separation; this.x = start.x; }
   }
+  private get separation() { return this.connector.upper.z - this.connector.lower.z; }
   get pose() {
-    const { upper } = this.connector, distance = this.progress * STAIR_RECIPE.separation;
-    const slope = Math.max(0, Math.min(1, (distance - STAIR_RECIPE.landing / 2) / (STAIR_RECIPE.tread * STAIR_RECIPE.steps)));
-    return { x: this.x, y: upper.y - slope * STAIR_RECIPE.rise, z: upper.z - distance };
+    const { upper, lower } = this.connector, distance = this.progress * this.separation;
+    const slope = Math.max(0, Math.min(1, (distance - STAIR_RECIPE.landing / 2) / (this.separation - STAIR_RECIPE.landing)));
+    return { x: this.x, y: upper.y - slope * (upper.y - lower.y), z: upper.z - distance };
   }
   advance(seconds: number, delta: Point): StairCrossing | undefined {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
@@ -27,7 +28,7 @@ export class StairTraversal {
     this.x = Math.max(this.connector.upper.x - STAIR_RECIPE.width / 2 + PLAYER_RADIUS,
       Math.min(this.connector.upper.x + STAIR_RECIPE.width / 2 - PLAYER_RADIUS, this.x + delta.x * distance));
     // Outer half-landings preserve the approach pose, including approach from behind either anchor.
-    let next = Math.max(-.1, Math.min(1.1, this.progress - delta.z * distance / STAIR_RECIPE.separation));
+    let next = Math.max(-.1, Math.min(1.1, this.progress - delta.z * distance / this.separation));
     if (this.connector.sight.travelReady === false) next = this.committed === 'upper' ? Math.min(.45, next) : Math.max(.55, next);
     if (this.pending) next = this.pending.direction === 'down' ? Math.max(.5, Math.min(.57, next)) : Math.max(.43, Math.min(.5, next));
     this.progress = next;

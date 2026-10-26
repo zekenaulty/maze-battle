@@ -57,9 +57,11 @@ test('seeded real stairs prepare separately, cross continuously, reverse, reload
   });
   await page.keyboard.down('w');
   await expect.poll(async () => (await state(page)).game.checkpoint.position.level, { timeout: 20_000 }).toBe(2);
-  await expect.poll(async () => Number(await canvas(page).getAttribute('data-height')), { timeout: 10_000 }).toBeLessThan(-4.65);
+  await expect.poll(async () => Number(await canvas(page).getAttribute('data-height')), { timeout: 10_000 }).toBeCloseTo(-4.98, 6);
   await page.keyboard.up('w');
+  await expect.poll(async () => Number(await canvas(page).getAttribute('data-height'))).toBeCloseTo(-4.98, 2);
   expect(await node!.evaluate(n => n.isConnected)).toBe(true);
+  await page.screenshot({ path: info.outputPath('lower-room-courses.png') });
   await look(page, Math.PI, .4); await page.screenshot({ path: info.outputPath('lower-landing.png') });
   await look(page, 0, -.4);
   const down = await state(page);

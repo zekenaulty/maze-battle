@@ -37,7 +37,7 @@ node --experimental-strip-types scripts/import-workshop-preview.ts --source D:\m
 
 The command validates without writing unless `--write` is supplied. Direct Node invocation above also avoids the local PowerShell npm wrapper consuming named options. The ignored local output is `public/assets/model-packs/lighting`, including the selected package evidence and `evidence/intake.json`. Generated pack revision: `e1c3b3617ce8f4757f8aa13f0561c6553997598166eeffd9def88e5af754d36b`. There are two assets and 45 payload/evidence files. Retained source packages and their selection are required to reproduce the local artwork; Git alone does not contain those assets.
 
-The workshop uses a uniform preview scale of 1.5. At that scale the arch is about 4.75 world units high, above the ordinary 4.5-unit room wall. Its clear opening is 2.1 wide by 3.3 high. The lantern's authored fixture bounds are about 0.56 wide by 1.80 high at preview scale, with the supplied headroom box shown separately. These are candidates for a dimensions/fit pass, not permission to stretch art or cut current dungeon walls automatically.
+The workshop uses a uniform preview scale of 1.5. At that scale the arch is about 4.75 world units high, above the 4.5-unit room wall at this slice's original baseline. The 26 October construction repair raises walls to 4.8, resolving that height deficit only; the surround still exceeds the single-cell width envelope. Its clear opening is 2.1 wide by 3.3 high. The lantern's authored fixture bounds are about 0.56 wide by 1.80 high at preview scale, with the supplied headroom box shown separately. These are candidates for a dimensions/fit pass, not permission to stretch art or cut current dungeon walls automatically.
 
 ## Qualification
 

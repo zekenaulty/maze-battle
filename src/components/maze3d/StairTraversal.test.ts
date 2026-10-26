@@ -26,6 +26,15 @@ it('does not snap on either approach, and bounds the input step independently of
     expect(before.z).toBeCloseTo(start.z); expect(before.x).toBe(start.x);
   }
 });
+it('uses displayed endpoint heights for taller rooms without changing the canonical stair placement', async () => {
+  const { connector } = await fixture(), before = structuredClone(connector.sight.placement);
+  connector.lower.y = -4.98; connector.lower.z = -9.6;
+  const travel = new StairTraversal(connector, 'upper');
+  for (const [progress, expected] of [[0, 0], [.5, -2.49], [1, -4.98]]) {
+    travel.progress = progress; expect(travel.pose.y).toBeCloseTo(expected); expect(travel.pose.z).toBeCloseTo(-9.6 * progress);
+  }
+  expect(connector.sight.placement).toEqual(before);
+});
 it('accepts lateral approaches across the full supported landing at either end', async () => {
   const { scene, connector, lower } = await fixture();
   for (const end of ['upper', 'lower'] as const) {

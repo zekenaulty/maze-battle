@@ -1,14 +1,48 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { stageFixture } from './stage.test-support';
-import { compileStageScene, directionVector, seededRandom } from './scene';
+import { compileStageScene, directionVector, seededRandom, SLAB_THICKNESS, stairEnclosure } from './scene';
 import { diskBlocked, PREDICTION_LIMIT, slideDisk, StageWalker } from './movement';
 import { CELL_SIZE, PLAYER_RADIUS, WALK_SPEED } from './constants';
 import { earnedCell, knowledgeFixture } from '../../persistence/canonical/knowledge/region.test-support';
 import { exploreView } from '../ExploreScreen.test-support';
 import { checkpointJson } from '../../persistence/canonical/game/checkpoint';
+import { spatialBinding } from '../../services/game/SpatialView';
+import { masonrySurfaces } from './masonry';
 
 describe('canonical stage disclosure and seeded scene compilation', () => {
+  it('renders three full square texture repeats and keeps connected decks and steps flush without editing saved frames', async () => {
+    const { game, cells } = await stageFixture(), lower = { level: 2, cell: { spaceId: 'entry', row: 4, column: 4 } };
+    const source = cells[0].at;
+    game.spatial = { version: 'connector-sight-v1', binding: spatialBinding(game.snapshot), frame: [0, 0, 0], prepareDown: false,
+      connector: { id: 'fixture/stair', upper: source, lower, upperPoint: cells[0].world, lowerPoint: { row: 4, column: 4 },
+        placement: { version: 'straight-stair-placement-v1', recipe: 'straight-stair-v1', upperFrame: [0, 0, 0], lowerFrame: [-12.8, -4.68, -22.16] },
+        targetFrame: [-12.8, -4.68, -22.16], cells: [{ at: lower, world: { row: 4, column: 4 }, edges: {}, chests: [], stairs: [] }] } };
+    const before = structuredClone(game), scene = compileStageScene(game)!, flight = scene.flights![0];
+    expect(flight.upper.y - flight.lower.y).toBeCloseTo(4.98);
+    expect(flight.upper.z - flight.lower.z).toBeCloseTo(9.6);
+    for (const cell of [scene.actor, scene.cells.find(c => c.source.at.level === 2)!]) {
+      const wall = scene.boxes.find(b => b.id.startsWith(cell.key) && b.id.endsWith('/wall'))!;
+      expect(wall.size[1]).toBe(4.8);
+      const [geometry] = masonrySurfaces([wall]), uv = geometry.getAttribute('uv'), normal = geometry.getAttribute('normal');
+      const vertical = Array.from({ length: uv.count }, (_, i) => i).filter(i => normal.getY(i) === 0);
+      expect(Math.max(...vertical.map(i => uv.getY(i))) - Math.min(...vertical.map(i => uv.getY(i)))).toBeCloseTo(3, 5);
+      expect(Math.min(...vertical.map(i => uv.getY(i)))).toBeCloseTo(0, 5);
+      geometry.dispose();
+      const ceiling = scene.boxes.find(b => b.id.startsWith(cell.key + '/ceiling'))!;
+      expect(ceiling.center[1] - SLAB_THICKNESS / 2 - cell.floorY).toBeCloseTo(4.8);
+      if (cell.source.at.level === 2) expect(ceiling.center[1] + SLAB_THICKNESS / 2).toBeCloseTo(flight.upper.y);
+    }
+    const steps = stairEnclosure(flight).filter(b => b.id.includes('/step/'));
+    expect(steps.at(-1)!.center[1] + steps.at(-1)!.size[1] / 2).toBeCloseTo(flight.upper.y);
+    expect(steps[0].center[1] + steps[0].size[1] / 2).toBeCloseTo(flight.lower.y + 4.98 / 18);
+    const portOnly = compileStageScene({ ...game, spatial: { ...game.spatial, connector: undefined,
+      ports: [{ id: 'fixture/stair', at: source, world: cells[0].world, frame: [0, 0, 0], end: 'upper' }] } })!;
+    expect(portOnly.flights![0].lower.y).toBeCloseTo(flight.lower.y);
+    expect(game).toEqual(before);
+    const remounted = compileStageScene(game, undefined, [-12.8, -4.68, -22.16])!;
+    expect(remounted.flights![0].upper.y - remounted.flights![0].lower.y).toBeCloseTo(4.98);
+  });
   it('replays scene data independently of observation order/revision and never consumes Math.random', async () => {
     const { game } = await stageFixture(), before = structuredClone(game), a = compileStageScene(game)!;
     const random = vi.spyOn(Math, 'random').mockImplementation(() => { throw Error('Unseeded visual generation'); });

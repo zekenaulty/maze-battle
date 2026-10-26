@@ -1,5 +1,6 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three';
 import type { SceneBox } from './scene';
+import { masonryUV } from './construction';
 
 type Rect = [number, number, number, number];
 const snap = (n: number) => Math.round(n * 1e6) / 1e6;
@@ -48,8 +49,7 @@ export function masonrySurfaces(boxes: SceneBox[]) {
         for (const [av, cv] of [[loA, loC], [hiA, loC], [hiA, hiC], [loA, hiC]]) {
           const p = [0, 0, 0], n = [0, 0, 0]; p[axis] = plane; p[a] = av; p[c] = cv; n[axis] = sign;
           vertices.push(...p); normals.push(...n);
-          uvs.push((axis === 0 ? -sign * p[2] : axis === 2 ? sign * p[0] : p[0]) / 1.6,
-            (axis === 1 ? -sign * p[2] : p[1]) / 1.6);
+          uvs.push(...masonryUV(p, n, box.textureOrigin));
         }
         indices.push(...(sign > 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]).map(n => n + start));
       }

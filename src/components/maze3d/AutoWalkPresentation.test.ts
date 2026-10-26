@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { STAIR_RECIPE } from '../../domain/expedition/vertical';
 import { AutoWalkPresentation, followAngle, MAX_AUTO_LEGS } from './AutoWalkPresentation';
 import { addressKey, compileStageScene, type StageConnector, type StageScene } from './scene';
 import { stageFixture } from './stage.test-support';
@@ -83,11 +82,11 @@ describe('accepted Auto movement presentation', () => {
 });
 
 describe('Auto stair and camera presentation', () => {
-  it.each(['down', 'up'])('uses the real flat landings and ramp when replaying an accepted %s transition', async direction => {
+  it.each([['down', 4.68, 9.36], ['up', 4.68, 9.36], ['down', 4.98, 9.6], ['up', 4.98, 9.6]] as const)('uses the real flat landings and ramp when replaying an accepted %s transition over %s units and %s run', async (direction, rise, separation) => {
     const { scenes: [upper] } = await routeFixture();
     const at = { level: 2, cell: { spaceId: 'lower', row: 4, column: 4 } };
     const lower: StageScene = { ...upper, level: 2, actor: { ...upper.actor, key: addressKey(at),
-      source: { ...upper.actor.source, at }, center: { x: 0, z: -STAIR_RECIPE.separation }, floorY: -STAIR_RECIPE.rise } };
+      source: { ...upper.actor.source, at }, center: { x: 0, z: -separation }, floorY: -rise } };
     const connector: StageConnector = { binding: 'fixture', upper: { x: 0, y: 0, z: 0 }, lower: { ...lower.actor.center, y: lower.actor.floorY },
       sight: { id: 'placed-stair', upper: upper.actor.source.at, lower: at, upperPoint: { row: 0, column: 0 }, lowerPoint: { row: 4, column: 4 },
         targetFrame: [0, -4.68, 0], placement: { version: 'straight-stair-placement-v1', recipe: 'straight-stair-v1', upperFrame: [0, 0, 0], lowerFrame: [0, -4.68, 0] }, cells: [] } };
@@ -98,8 +97,8 @@ describe('Auto stair and camera presentation', () => {
     let ramp = 0, landing = 0;
     for (let i = 0; i < 600 && walk.queued; i++) {
       const before = walk.pose.y; walk.advance(1 / 120);
-      const run = -walk.pose.z, slope = Math.max(0, Math.min(1, (run - .9) / (STAIR_RECIPE.steps * STAIR_RECIPE.tread)));
-      expect(walk.pose.y).toBeCloseTo(-slope * STAIR_RECIPE.rise, 7);
+      const run = -walk.pose.z, slope = Math.max(0, Math.min(1, (run - .9) / (separation - 1.8)));
+      expect(walk.pose.y).toBeCloseTo(-slope * rise, 7);
       expect(Math.abs(walk.pose.y - before)).toBeLessThan(.12);
       if (slope > 0 && slope < 1) ramp++; else landing++;
     }
