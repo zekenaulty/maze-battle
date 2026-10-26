@@ -9,7 +9,10 @@ the [shared geometry brief](https://docs.google.com/document/d/1J2fJ7NUnpP3aBx35
 and the user's direction that future races, cultures and factions need semantic and
 visual styles while retaining the game's core visual language. The first brief
 adds construction and regional-style context; group composition extends that
-direction to the future game. Neither document confers implementation authority.
+direction to the future game. Updated §6.6 distinguishes physically continuous
+construction from magical dungeon realms; see
+[spatial domains and portals](spatial-domains-and-portals.md). Neither document
+confers implementation authority.
 
 ## One game, distinguishable groups
 
@@ -22,7 +25,7 @@ silently adopting a historical country, century or current texture pack.
 
 | Layer or concern | What it contributes | What remains shared or separately owned |
 | --- | --- | --- |
-| Core game language | Readability, silhouette/detail hierarchy, stylization, material response, lighting and interaction-cue rules | Approved game identity; world scale, geometric compatibility and canonical authority |
+| Core game language | Readability, silhouette/detail hierarchy, stylization, material response, lighting and interaction-cue rules | Approved game identity; declared scale/frame conventions, realm-local geometric compatibility and canonical authority |
 | Region/site | Climate, local resources, terrain, plots, neighboring construction and chronology | Global style limits and physical placement contract |
 | Culture | Learned craft, construction traditions, finishes, motifs, spatial customs and symbolic meanings | Does not uniquely determine species, faction or every individual's appearance |
 | Race/species | Authored bodily/ergonomic affordances and associated design vocabulary where relevant | Canonical dimensions and accessibility changes require explicit game-owned design; no automatic cultural/faction assignment |
@@ -34,7 +37,9 @@ This is a composition model, not a fixed precedence list. One race can participa
 in several cultures and factions; a faction can include many races and cultures;
 a region can contain mixed traditions. Record explicit associations and per-trait
 ownership rather than assuming a one-to-one mapping. Canonical group facts remain
-separate from aesthetic selection and actor knowledge.
+separate from aesthetic selection and actor knowledge. A shared style or group
+association can span several realms without making them physical neighbors or
+giving them the same generation policy.
 
 The same group vocabulary can inform architecture, clothing, equipment, props,
 signage and heraldry without requiring identical materials or repeated emblems
@@ -85,8 +90,8 @@ Regional/chronological cards should identify materials, construction, function,
 source quality and later alterations. Keep detailed research conditional on the
 task; do not require a history survey for an unrelated code change.
 
-A building instance must reconcile its parcel, outer envelope, wall thickness,
-actual support system, interior reservations, storeys, stairs, openings, roof and
+A building instance must reconcile its same-realm parcel, outer envelope, wall
+thickness, actual support system, interior reservations, storeys, stairs, openings, roof and
 neighboring plots. Reserve access, stair voids, chimney paths and structural volumes
 before adding furniture. Derive facade and interior from that common structure:
 
@@ -99,10 +104,15 @@ before adding furniture. Derive facade and interior from that common structure:
 - Major spans, openings and projections have plausible support relationships.
   Start with construction rules and dimensional/occupancy checks, not a required
   full structural-engineering or water simulation.
-- Exterior/interior volumes and adjacent buildings cannot silently overlap. Model
-  inaccessible buildings with bounded reserved interior space; immediate gameplay
-  accessibility is a separate decision. Deliberate magical/non-Euclidean departures
-  must be explicit authored exceptions, not hidden geometry errors.
+- Same-realm exterior/interior volumes and adjacent buildings cannot silently
+  overlap. Model inaccessible buildings with bounded reserved interior space; immediate gameplay
+  accessibility is a separate decision. Ordinary cellars, wells, mines and crypts
+  belong to that physical occupancy when designated as part of the local realm.
+- A magical dungeon portal joins independent spatial domains. Its local threshold
+  fits the host; the destination dungeon need not occupy volume beneath that host
+  or subtract from town foundations. Each realm remains internally coherent, and
+  any further discontinuity must be explicit. A dungeon label alone does not choose
+  a separate realm, and a portal does not imply endless dungeon generation.
 - Weathering and finish respond to use/exposure rather than arbitrary noise.
   Detailed material effects, including optional offline cellular masonry bakes,
   cannot repair actual cracks, misplaced decks, collision or boundary ownership.
@@ -110,7 +120,8 @@ before adding furniture. Derive facade and interior from that common structure:
 The current game-owned observation/travel/save contracts remain authoritative.
 Building candidates do not create canonical door/stair links or disclose hidden
 interiors. Renderer LODs and distant facades may simplify detail while preserving
-the same instance's physical meaning and bounds.
+the same instance's physical meaning and realm-local bounds. Realm transitions,
+return positions and destination observation remain game-owned canonical actions.
 
 ## Review comparisons and a bounded future prototype
 
@@ -125,7 +136,8 @@ stone store/cottage, a merchant house with a real jetty and upper room, and a sm
 or compact inn. Keep the selected region/style provisional. After the active seam/
 stacking repair is reconciled, compare eye-level/street, overhead and horizontal/
 vertical sections with support, aperture and occupancy overlays. Reject unsupported
-projections, interior/neighbor overlaps, blocked openings and contradictory roofs.
+projections, same-realm interior/neighbor overlaps, blocked openings and
+contradictory roofs.
 This is a prototype plan, not a current implementation or an entire city-generator
 assignment. It does not require every interior to be playable.
 

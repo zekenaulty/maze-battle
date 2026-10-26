@@ -7,6 +7,12 @@ a competing contract version, implemented runtime schema or save migration. This
 refines the [joint brief](https://docs.google.com/document/d/1J2fJ7NUnpP3aBx35Ppif8bvNSEIZWoIRIlLDkwLfxFY/edit)
 against inspected source. Changes to the shared proposal require a new digest and response.
 
+The updated architecture brief's §6.6 adds a material scope clarification:
+[realm-scoped geometry and magical portals](../design/spatial-domains-and-portals.md).
+The physical transform/stacking notes below apply within a declared realm; they do
+not require town and remote dungeon volumes to share one Euclidean embedding.
+Current floor/stair types are baseline facts, not proof of a realm/portal runtime.
+
 ## Frames and current measurements
 
 | Frame | Inspected convention | Required treatment |
@@ -15,7 +21,7 @@ against inspected source. Changes to the shared proposal require a new digest an
 | TileLab authoring | Right-handed, X right, Y up, Z front, floor-center origin, `blocks` | Declare world-units-per-authoring-unit explicitly; no cross-repo default |
 | Part/instance | Parent-local positions, pivots, Euler radians in visual model parts | Compose parent transforms in order, convert normals/bases correctly |
 | Logical cell/room | Integer row/column, canonical space identity and earned adjacency | Cell identity does not prescribe visible cube count or detail pitch |
-| Floor/portal | Versioned `FloorFrame`/stair placements in `domain/expedition/vertical.ts` | Preserve existing serialized frame and recipe semantics |
+| Floor/stair (current runtime) | Versioned `FloorFrame`/stair placements in `domain/expedition/vertical.ts` | Preserve existing serialized frame and recipe semantics; not proof of magical portal support |
 | Game world | X follows columns/east, Z follows rows/south, Y up | Apply source-to-world conversion exactly once and retain placement pins |
 | Render-local | Scene subtracts the selected origin cell/floor frame | Rebase presentation without changing canonical IDs or saved positions |
 
@@ -45,6 +51,9 @@ The source-to-authoring normalization and authoring-to-instance scale must each
 appear exactly once in the chain. This notation describes the exchange; existing
 runtime helpers remain authoritative until deliberately adapted. A mirrored or
 nonuniform transform needs explicit normal/winding/UV treatment, not silent support.
+The chain is intra-realm. A cross-realm portal instead names explicit canonical
+endpoints and transition/return semantics; it does not assert shared physical
+coordinates, occupancy or a dungeon volume beneath the entrance.
 
 Resolve repeated placement as `origin + basis * (pitch * integer_index + offset)`.
 Do not accumulate floating increments. The long-term project-owned construction

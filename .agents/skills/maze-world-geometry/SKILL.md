@@ -1,6 +1,6 @@
 ---
 name: maze-world-geometry
-description: Inspect and qualify composed Maze Battle geometry and MazeTileLab asset candidates, including frames, scale, seams, doors, stairs, materials and consumer admission. Use for architectural integration and related cross-repo handoffs; skip unrelated UI or combat edits.
+description: Inspect and qualify composed Maze Battle geometry and MazeTileLab asset candidates, including realm-scoped frames, portals, scale, seams, doors, stairs and admission. Use for spatial integration and related cross-repo handoffs; skip unrelated UI or combat edits.
 ---
 
 # Composed world geometry and asset admission
@@ -32,10 +32,19 @@ hinge/sweep, visible bounds, consumer scale, threshold, adjacent wall and materi
 roles. If source artwork/model payloads are unavailable, report that evidence gap;
 a synthetic model is a regression fixture, not proof about the real object.
 
+Establish the spatial domain before testing adjacency or fit. Read
+[spatial domains and portals](../../../docs/design/spatial-domains-and-portals.md)
+for towns, underground construction, dungeon entrances or cross-domain placement.
+Realm/instance identity, space/frame identity and local coordinates belong together;
+bare XYZ, matching floor numbers or proximity in a combined preview do not establish
+physical neighbors. Do not infer a new realm from the gameplay label "dungeon."
+
 For buildings or group-specific art direction, also read the local
 [maze-visual-language skill](../maze-visual-language/SKILL.md). A building's facade,
 interior, storeys, roof, openings and permitted projections must derive from one
-instance envelope. Test neighboring occupancy, actual supports, cutaways and street
+instance envelope within its realm. A magical portal's remote destination has its
+own envelope; only the local entrance/threshold must fit the host. Test same-realm
+neighboring occupancy, actual supports, cutaways and street
 clearance when affected. Style variation cannot bypass dimensional or canonical
 admission; a reserved inaccessible interior need not become immediately playable.
 
@@ -48,6 +57,16 @@ units, origin, pivot and matrix convention. Show the ordered transform chain wit
 the conversion applied once. Derive lattice placement from indices and a shared
 origin; retain continuous offsets separately. Do not assume Minecraft dimensions
 or freeze an uncommitted repair's numbers as the cross-repo standard.
+
+Compose physical transform chains within the declared realm. A magical portal is
+an explicit topological relation between approved endpoints, not evidence of a
+shared Euclidean volume or an ordinary stair transform. Declare destination/spawn,
+orientation/scale treatment and reverse or separately authored return semantics.
+Town wells/foundations must not collide with remote dungeon geometry; conventional
+same-realm mines, crypts and cellars still participate in town occupancy checks.
+Each dungeon remains locally coherent unless another discontinuity is explicit.
+Keep finite/bounded/extensible/pseudo-infinite generation policy and its version
+separate from realm identity, portal links and existing saved layout pins.
 
 Identify joint ownership and intended joint type: abutment, watertight union,
 designed overlap, visible joint or opening. Measure transformed edges/planes,
@@ -83,6 +102,7 @@ detected. The CLI never writes assets or admits anything. Its PASS means only th
 limited numeric preflight passed. Rotated/mirrored/nonuniform installations, door
 swing, wall joints, UVs, source package closure and browser acceptance require their
 own checks. Do not silently extend its supported transform family.
+This opening-local diagnostic has no realm-isolation or cross-realm travel proof.
 
 Use focused existing tests for the touched seams, for example:
 

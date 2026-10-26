@@ -25,9 +25,10 @@ membership, canonical ownership, allegiance or gameplay behavior.
 
 ## Compose a bounded profile
 
-Keep core readability, shape/detail hierarchy, material/render response, world
-scale, shared joins and established interaction cues consistent. Record which core
-traits are approved and which remain open; do not invent numeric art rules.
+Keep core readability, shape/detail hierarchy, material/render response, declared
+scale/frame conventions, shared joins and established interaction cues consistent.
+Record which core traits are approved and which remain open; do not invent numeric
+art rules.
 
 Describe a versioned profile as structured design data with stable identity,
 parent/reference pins, applicable asset roles, allowed variations and explicit
@@ -42,8 +43,13 @@ replacing its host culture's roof grammar. Conflicts remain recorded design choi
 never silently use an unrestricted last-wins stack or random mixture.
 
 For buildings, express function through actual plan and construction. Tie exterior,
-interior, walls, openings, storeys, stairs, roof, chimneys and neighbor occupancy to
-one envelope. Jetties carry real upper-floor volume and plausible supports; eaves
+ordinary interior, walls, openings, storeys, stairs, roof, chimneys and same-realm
+neighbor occupancy to one envelope. Read
+[spatial domains and portals](../../../docs/design/spatial-domains-and-portals.md)
+when a magical threshold leads to a dungeon realm: fit the entrance to its local
+host while qualifying the remote realm independently. Conventional cellars, mines
+and crypts remain ordinary physical volumes when designated in that realm.
+Jetties carry real upper-floor volume and plausible supports; eaves
 belong to actual roof geometry. Use the existing
 [geometry/admission skill](../maze-world-geometry/SKILL.md) for composed fit checks.
 
@@ -58,7 +64,10 @@ overlapping groups. A texture swap alone does not prove architectural variety.
 
 For architectural acceptance, inspect street/eye-level, overhead and horizontal/
 vertical cutaways. Check support relationships, interior bounds, roof headroom,
-openings, street projections and neighboring plots. Detailed engineering simulation
+openings, street projections and same-realm neighboring plots. Cross-realm previews
+do not create physical overlaps or disclose an unobserved destination. Shared visual
+language and group styles can span realms without merging their occupancy, topology
+or generation policy. Detailed engineering simulation
 and making every interior playable are not prerequisites for a coherent candidate.
 
 Record PASS/FAIL/UNKNOWN separately for core-language consistency, group identity,

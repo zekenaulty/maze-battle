@@ -26,6 +26,12 @@ TileLab produces candidates. This repo owns installation and game admission.
 - Declare source/local/instance/room/floor/world/render frames and every conversion.
   A TileLab block, logical cell and world unit are not interchangeable. Validate
   joins after composing transforms, including openings, floors, stairs and clearance.
+- Address geometry by realm/space identity plus local coordinates. Occupancy,
+  collision and excavation are realm-scoped. Magical dungeon portals connect
+  independent domains; their destinations need not fit beneath town. Ordinary
+  cellars/mines remain physically continuous when designated in the same realm.
+  Cross-realm travel is canonical; generation policy is separate from realm identity
+  and may be finite, bounded, extensible or pseudo-infinite.
 - Fix UV/material repetition without changing structural dimensions by default.
   A geometry-changing alternative needs an impact map covering adjacent rooms,
   doors, floor spacing, stairs, collision and saved placements.
@@ -34,7 +40,8 @@ TileLab produces candidates. This repo owns installation and game admission.
   An independently designed alternative must be labeled as such.
 - Design architecture from construction logic and its intended world context.
   Exterior envelope, interior volumes, support, roof, openings and neighbors must
-  agree; an attractive facade or local preview does not establish that agreement.
+  agree within each realm; an attractive facade or local preview does not establish
+  that agreement. A magical entrance must fit its local host up to the threshold.
 - Preserve the game's core visual language across regional, race/species, cultural
   and faction styles. Compose explicit, versioned profiles within shared constraints;
   group identity, visual treatment and gameplay rules are separate concerns.

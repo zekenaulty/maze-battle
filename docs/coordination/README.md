@@ -38,6 +38,14 @@ For construction grammar and future regional/race/culture/faction styles, use th
 brief, group-composition requirements and open decisions. This supplements the
 exchange without changing the frozen spatial proposal or claiming peer agreement.
 
+Updated architecture §6.6 requires the
+[spatial-domains clarification](../design/spatial-domains-and-portals.md) and
+[realm/portal handoff](handoffs/2026-10-26-realm-portals.md). Physical occupancy,
+collision, digging and joins are scoped to their realm; a magical portal is a
+canonical topological connection to an independent domain. The old proposal does
+not establish that distinction or implemented support. Carry this supplement into
+the next explicitly acknowledged shared contract revision.
+
 ## Handshake
 
 1. Inspect both source baselines read-only. Record repository, branch, full commit,
@@ -71,6 +79,9 @@ Consumer repo / branch / full SHA / dirty scope / owned checkout:
 Scope and exact interface or invariant:
 Candidate semantic ID / descriptor SHA-256 / geometry-layout / material pins:
 Placement revision / frame chain / axes / units / scale / pivots:
+Realm/instance and space/frame identities / physical continuity or portal relation:
+For portals: source/destination, eligibility, spawn/orientation and return semantics:
+Generation policy/version and resource bounds, independent of realm/topology:
 Joint ownership / opening and clearance / UV policy and phase:
 Fixtures / commands / numeric tolerances and results / screenshots:
 PASS, FAIL and UNKNOWN per evidence level:
@@ -83,6 +94,12 @@ and fallbacks; source versus invented traits; material/projection constraints; a
 neutral/group comparison views. Pin proposed conceptual fields as design evidence,
 not as an implemented runtime schema. Core style compliance and group recognition
 are separate from physical fit, canonical identity and installation admission.
+
+For domain-bearing work, classify a same-realm physical join versus a magical
+portal before comparing bounds. Town digging must not hit remote dungeon geometry;
+ordinary same-realm cellars/mines still need occupancy checks. Neither a dungeon
+label nor an endless-generation assumption establishes a realm boundary. Record
+realm-isolation and portal round-trip evidence separately from local seam tests.
 
 Keep handoffs append-only by adding a new packet and linking what it supersedes.
 Record a peer's response verbatim or with a source link and explicit attribution;
