@@ -33,6 +33,55 @@ async function prepared(page: Page) {
   expect(after.game.spatial!.rooms!.flatMap((r: any) => r.cells).every((c: any) => c.chests.length === 0 && c.stairs.length === 0)).toBe(true);
   return after;
 }
+test('selected oak rafters and trim fit the real stair room, share batches and survive view changes', async ({ page }, info) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await prepared(page);
+  await expect(canvas(page)).toHaveAttribute('data-timber-status', 'ready');
+  expect(Number(await canvas(page).getAttribute('data-timbers'))).toBeGreaterThan(10);
+  await look(page, Math.PI / 2, .75); await page.screenshot({ path: info.outputPath('oak-rafters-trim.png') });
+  await look(page, Math.PI, -.25); await page.screenshot({ path: info.outputPath('oak-room-corner.png') });
+  const resources = await page.evaluate(async () => {
+    const { StageTimbers } = await import('/src/components/maze3d/StageTimbers.ts');
+    const { compileStageScene } = await import('/src/components/maze3d/scene.ts');
+    const { readCanonicalHead } = await import('/src/persistence/canonical/read.ts');
+    const { projectGame } = await import('/src/persistence/canonical/game/projection.ts');
+    const { head } = await readCanonicalHead(), scene = compileStageScene((await projectGame(head)).value)!;
+    const warnings: string[] = [], timber = new StageTimbers(m => warnings.push(m)); timber.sync(scene.boxes); await timber.ready;
+    const children = [...timber.root.children] as any[], ids = children.map(m => m.geometry.uuid);
+    for (let i = 0; i < 25; i++) timber.sync(scene.boxes.map(b => ({ ...b })));
+    const stable = JSON.stringify(ids) === JSON.stringify((timber.root.children as any[]).map(m => m.geometry.uuid));
+    let geometriesDisposed = 0, materialsDisposed = 0, texturesDisposed = 0;
+    for (const mesh of children) {
+      mesh.geometry.addEventListener('dispose', () => geometriesDisposed++);
+      mesh.material.addEventListener('dispose', () => materialsDisposed++);
+      mesh.material.map.addEventListener('dispose', () => texturesDisposed++);
+    }
+    const count = timber.count; timber.dispose();
+    return { warnings, count, batches: children.length, stable, geometriesDisposed, materialsDisposed, texturesDisposed, remaining: timber.root.children.length };
+  });
+  expect(resources).toMatchObject({ warnings: [], batches: 3, stable: true, geometriesDisposed: 3, materialsDisposed: 3, texturesDisposed: 3, remaining: 0 });
+  const counts: string[][] = [];
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole('button', { name: 'Return to 2D', exact: true }).click();
+    await page.getByRole('button', { name: '3D view', exact: true }).click();
+    await expect(canvas(page)).toHaveAttribute('data-timber-status', 'ready');
+    await expect(canvas(page)).toHaveAttribute('data-textures', 'ready');
+    await expect.poll(async () => Number(await canvas(page).getAttribute('data-textures-count'))).toBeGreaterThan(8);
+    counts.push(await canvas(page).evaluate(c => ['geometries', 'texturesCount', 'timbers'].map(k => (c as HTMLCanvasElement).dataset[k]!)));
+  }
+  expect(counts[1]).toEqual(counts[0]); expect(counts[2]).toEqual(counts[0]); expect(errors).toEqual([]);
+  await writeFile(info.outputPath('timber-resources.json'), JSON.stringify({ resources, viewChanges: counts }, null, 2));
+});
+test('an unavailable optional timber package leaves the existing dungeon and view switching usable', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.route('**/assets/model-packs/timber/manifest.json', route => route.fulfill({ status: 404, body: 'missing optional pack' }));
+  await prepared(page); await expect(canvas(page)).toHaveAttribute('data-timber-status', 'unavailable');
+  await expect(canvas(page)).toHaveAttribute('data-timbers', '0'); await expect(canvas(page)).toHaveAttribute('data-textures', 'ready');
+  await page.getByRole('button', { name: 'Return to 2D', exact: true }).click();
+  await expect(page.getByLabel('Dungeon map', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '3D view', exact: true }).click();
+  await expect(canvas(page)).toHaveAttribute('data-timber-status', 'unavailable'); expect(errors).toEqual([]);
+});
 test('seeded real stairs prepare separately, cross continuously, reverse, reload and preserve 2D knowledge', async ({ page }, info) => {
   await prepared(page); const node = await canvas(page).elementHandle(), source = (await state(page)).game.checkpoint.position;
   // Structural sight stays while moving within the stair room, away from its exact endpoint.

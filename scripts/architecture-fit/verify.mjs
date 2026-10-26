@@ -28,11 +28,11 @@ test('local-valid original arch obstructs the actual consumer aperture at unit s
   assert.equal(JSON.stringify(geometry), before);
 });
 
-test('existing 1.5 preview scale clears the aperture but exceeds current wall/cell envelopes', () => {
+test('existing 1.5 preview scale clears the aperture and taller wall but exceeds the cell envelope', () => {
   const result = architecturalFit(geometry, 1.5);
   assert.equal(result.numericStatus, 'FAIL');
   assert.equal(result.obstructingSolids.length, 0);
-  assert.ok(result.measuredErrorsWorldUnits.aboveWall > .25);
+  assert.equal(result.measuredErrorsWorldUnits.aboveWall, 0);
   assert.ok(result.measuredErrorsWorldUnits.outsideCell > .4);
   assert.equal(result.gameAdmission, 'UNVERIFIED');
 });

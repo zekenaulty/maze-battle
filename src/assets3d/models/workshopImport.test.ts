@@ -95,6 +95,39 @@ async function animatedFixture(change?: (source: any, role: any, files: Map<stri
     credits: ['Offline fixture credit'], warnings: ['Original reference art only'] });
 }
 
+async function savedTileFixture(change?: (role: any) => void) {
+  const geometry = doorway(), image = pngImage({ width: 2, height: 2, rgba: Buffer.from([110, 70, 20, 128, 100, 60, 10, 255, 120, 80, 30, 255, 90, 50, 5, 0]) });
+  const role: any = { role: 'bark', color: '#49331e', uvPolicy: 'repeat-per-block', frames: ['textures/wood.png'], alphaMode: 'opaque',
+    interpolate: false, loop: true, timeline: [{ durationMs: 1000, frame: 0 }],
+    provenance: { sha256: sha256(image), dimensions: [2, 2], sourceRun: 'retained-offline-run', selectedFile: 'oak_log/repaired_seam.png' } };
+  change?.(role); geometry.materials.stone = role;
+  return fixture(geometry, new Map([['textures/wood.png', image]]), { kind: 'saved-tilelab-run-textures', revision: 'offline-saved-tiles' });
+}
+
+describe('saved static workshop tiles', () => {
+  it('retains exact texture bytes and provenance with explicit opaque rendering and physical repeats', async () => {
+    const f = await savedTileFixture(), result = await importWorkshopPreview(f.root, f.selection), material = Object.values(result.pack.materials)[0];
+    expect(material.surface).toBe('tileable'); expect(material.animation).toBeUndefined();
+    expect(material.render).toEqual({ alphaMode: 'opaque', side: 'front' });
+    expect(result.files.get(material.texture!.path)).toEqual(await readFile(path.join(f.directory, 'textures/wood.png')));
+    expect(result.files.has('evidence/fixture-doorway/geometry.json')).toBe(true);
+  });
+  it('keeps end-grain caps bounded instead of repeating them', async () => {
+    const f = await savedTileFixture(role => { role.uvPolicy = 'normalized-source-atlas'; });
+    expect(Object.values((await importWorkshopPreview(f.root, f.selection)).pack.materials)[0].surface).toBe('bounded-face');
+  });
+  it.each(['digest', 'dimensions', 'frames', 'timing', 'alpha'])('refuses inconsistent saved tile %s even inside a repinned package', async fault => {
+    const f = await savedTileFixture(role => {
+      if (fault === 'digest') role.provenance.sha256 = '0'.repeat(64);
+      if (fault === 'dimensions') role.provenance.dimensions = [4, 4];
+      if (fault === 'frames') role.frames.push('textures/wood.png');
+      if (fault === 'timing') role.timeline[0].durationMs = 50;
+      if (fault === 'alpha') role.alphaMode = 'blend';
+    });
+    await expect(importWorkshopPreview(f.root, f.selection)).rejects.toThrow(/saved tile/);
+  });
+});
+
 describe('portable pinned workshop intake', () => {
   it('imports only finite authored candidate meshes, preserving proof, anchors, material and UV conversion', async () => {
     const f = await fixture(), before = await readFile(path.join(f.directory, 'geometry.json'));

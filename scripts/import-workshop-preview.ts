@@ -14,7 +14,7 @@ export async function importWorkshopPreview(root: string, selection: WorkshopSel
   check(selection.schema === 'maze-workshop-selection-v1' && typeof selection.review === 'string' && selection.review.length > 0
     && Array.isArray(selection.packages) && selection.packages.length > 0 && selection.packages.length <= 4, 'explicit selection required');
   const pack: ModelPack = { schema: 'maze-visual-model-pack-v1', revision: '', assets: {}, materials: {}, bindings: {},
-    provenance: { source: 'tilelab-workshop-preview-v1', review: selection.review, warnings: ['Workshop preview only; no dungeon admission or collision authority.', 'Authored stone/iron colors are placeholders. Reference lantern art remains reference-derived.'] } };
+    provenance: { source: 'tilelab-workshop-preview-v1', review: selection.review, warnings: ['Workshop preview only; no dungeon admission or collision authority.', 'Artwork review and source credits remain separate from geometry validation.'] } };
   const files = new Map<string, Buffer>(), evidence: unknown[] = [];
   for (const choice of selection.packages) {
     check(!pack.assets[choice.assetId], 'duplicate selected asset');
@@ -34,7 +34,8 @@ export async function importWorkshopPreview(root: string, selection: WorkshopSel
     const g = json(pinned('geometry.json')), proof = validateWorkshopGeometry(g); check(g.assetId === choice.assetId, 'asset identity differs');
     const bindings: Record<string, string> = {}, slots: VisualAsset['slots'] = {};
     let sourceDoc: any;
-    if (doc.reference) {
+    const savedTiles = doc.reference?.kind === 'saved-tilelab-run-textures';
+    if (doc.reference && !savedTiles) {
       const original = pinned(doc.reference.manifest); check(sha256(original) === doc.reference.manifestSha256, 'reference manifest differs');
       sourceDoc = json(original); check(sourceDoc.schema === 'tilelab-material-export-v2' && sourceDoc.revision === doc.reference.revision
         && sourceDoc.selectionStatus === 'complete' && sourceDoc.colorSpace === 'srgb' && sourceDoc.uvBasis?.mapping === 'full-canvas'
@@ -46,7 +47,17 @@ export async function importWorkshopPreview(root: string, selection: WorkshopSel
       const id = `workshop-${sha256(`${choice.assetId}/${role}`).slice(0, 16)}`, slot = `role-${sha256(role).slice(0, 12)}`;
       const material: VisualMaterial = { id, label: value.role, layoutId: `${g.layoutRevision}:${role}`, surface: 'bounded-face',
         fallbackColor: value.color, roughness: .85, render: { alphaMode: 'opaque', side: 'front' } };
-      if (value.frames) {
+      if (savedTiles) {
+        check(value.frames?.length === 1 && value.alphaMode === 'opaque' && value.interpolate === false
+          && serialize(value.timeline) === serialize([{ durationMs: 1000, frame: 0 }])
+          && ['repeat-per-block', 'normalized-source-atlas'].includes(value.uvPolicy), 'unsupported saved tile');
+        const bytes = pinned(value.frames[0]), decoded = decodeModelPng(bytes), hash = sha256(bytes);
+        check(hash === value.provenance?.sha256 && serialize(value.provenance.dimensions) === serialize([decoded.width, decoded.height])
+          && typeof value.provenance.sourceRun === 'string' && typeof value.provenance.selectedFile === 'string', 'saved tile provenance differs');
+        material.texture = { path: `textures/${hash}.png`, sha256: hash, width: decoded.width, height: decoded.height };
+        material.surface = value.uvPolicy === 'repeat-per-block' ? 'tileable' : 'bounded-face';
+        files.set(material.texture.path, bytes);
+      } else if (value.frames) {
         const source = sourceDoc?.materials.find((m: any) => m.resource === value.sourceResource);
         check(value.uvPolicy === 'normalized-source-atlas' && source?.variant === 'source_native' && source.animation?.mode === 'frames'
           && source.animation.frames.length === value.frames.length && value.frames.length <= 32, 'only selected original reference animation is admitted');
@@ -97,7 +108,7 @@ async function main() {
   check(args.includes('--source') && args.includes('--selection'), 'use --source ROOT --selection JSON [--write]');
   const result = await importWorkshopPreview(path.resolve(option('--source')), json(await readFile(option('--selection'))));
   if (args.includes('--write')) {
-    const destination = path.resolve('public/assets/model-packs/lighting'); await mkdir(destination, { recursive: true });
+    const destination = path.resolve(args.includes('--out') ? option('--out') : 'public/assets/model-packs/lighting'); await mkdir(destination, { recursive: true });
     for (const [relative, bytes] of result.files) { const file = await safePath(destination, relative); await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, bytes); }
     const temporary = await safePath(destination, `manifest-${process.pid}.tmp`); await writeFile(temporary, serialize(result.pack)); await rename(temporary, await safePath(destination, 'manifest.json'));
   }
