@@ -9,11 +9,12 @@ import { spatialBinding, MAX_STAIR_ROOMS, MAX_STAIR_ROOM_CELLS, type ConnectorSi
 import { STAIR_RECIPE, type FloorFrame } from '../../domain/expedition/vertical';
 import { straightStair } from '../../assets3d/stairs/assembly';
 import { constructionOffset, WALL_THICKNESS, SLAB_THICKNESS, STAGE_FLOOR_RISE, STAGE_STAIR_SEPARATION, type TextureOrigin } from './construction';
+import { fitShelving, SHELVING_KINDS, type ShelvingKind } from './shelving';
 export { WALL_THICKNESS, SLAB_THICKNESS, STAGE_FLOOR_RISE } from './construction';
 
 export type Point = { x: number; z: number };
 export interface Bounds2D { minX: number; maxX: number; minZ: number; maxZ: number }
-export interface SceneBox { id: string; material: string; center: [number, number, number]; size: [number, number, number]; solid: boolean; facing?: Direction; deck?: 'floor' | 'ceiling'; textureOrigin?: TextureOrigin }
+export interface SceneBox { id: string; material: string; center: [number, number, number]; size: [number, number, number]; solid: boolean; facing?: Direction; deck?: 'floor' | 'ceiling'; textureOrigin?: TextureOrigin; furnishing?: ShelvingKind }
 export interface StageCell { key: string; source: ObservedCell; center: Point; floorY: number; seed: number; kind: 'room' | 'passage'; geometryEdges?: ObservedCell['edges']; textureOrigin?: TextureOrigin }
 export interface StageConnector { sight: ConnectorSight; binding: string; upper: Point & { y: number }; lower: Point & { y: number } }
 export interface StageFlight { id: string; upper: Point & { y: number }; lower: Point & { y: number }; textureOrigins?: { upper: TextureOrigin; lower: TextureOrigin } }
@@ -186,8 +187,11 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
       } else if (!doorway) {
         if (ownsBoundary) panel('wall', 0, CELL_SIZE, WALL_HEIGHT, 0, target === null ? 'stone_bricks' : 'unknown');
         const random = seededRandom(visualSeed(cell.seed + '/' + direction));
-        if (!end && target === null && cell.kind === 'room' && random() < .25) box(edge + '/shelf', 'bookshelf',
-          [cx - dx * .25, y + 1.1, cz - dz * .25], horizontal ? [1.5, 2.2, .34] : [.34, 2.2, 1.5], cell.source.at.level === level, opposite(direction));
+        if (!end && target === null && cell.kind === 'room' && random() < .25) {
+          box(edge + '/shelf', 'bookshelf', [cx - dx * .25, y + 1.1, cz - dz * .25],
+            horizontal ? [1.5, 2.2, .34] : [.34, 2.2, 1.5], cell.source.at.level === level, opposite(direction));
+          boxes.at(-1)!.furnishing = SHELVING_KINDS[visualSeed(cell.seed + '/' + direction + '/shelving-v1') % SHELVING_KINDS.length];
+        }
       }
     }
     for (const chest of cell.source.chests) box(cell.key + '/chest/' + chest.id, 'chest', [x + .95, y + .52, z + .95], [1.05, 1.04, 1.05]);
@@ -199,7 +203,7 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
     if (!hole.ceilingOpen) box(id + '/ceiling', 'stone_bricks', [p.x, p.y + WALL_HEIGHT + .09, p.z], [CELL_SIZE, .18, CELL_SIZE], false, undefined, textureOrigin(room.frame));
   }
   for (const f of flights) boxes.push(...stairEnclosure(f));
-  const renderBoxes = cutStairDecks(boxes, flights);
+  const renderBoxes = fitShelving(cutStairDecks(boxes, flights));
   const colliders = renderBoxes.filter(b => b.solid && b.center[1] + b.size[1] / 2 > active.floorY + .01
     && b.center[1] - b.size[1] / 2 < active.floorY + 2.7).map(boxBounds);
   for (const flight of flights) colliders.push({ minX: flight.upper.x - .9, maxX: flight.upper.x + .9,

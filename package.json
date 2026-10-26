@@ -17,7 +17,8 @@
     "assets:import-skin": "node --experimental-strip-types scripts/import-tilelab-skin.ts",
     "assets:import-models": "node --experimental-strip-types scripts/import-model-proof.ts",
     "assets:import-model-export": "node --experimental-strip-types scripts/import-model-export.ts",
-    "assets:import-workshop": "node --experimental-strip-types scripts/import-workshop-preview.ts"
+    "assets:import-workshop": "node --experimental-strip-types scripts/import-workshop-preview.ts",
+    "assets:import-shelving": "node --experimental-strip-types scripts/import-shelving.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",

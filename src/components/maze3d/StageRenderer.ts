@@ -10,12 +10,12 @@ import { compileStageScene } from './scene';
 import type { SceneBox, StageScene } from './scene';
 import { StageWalker } from './movement';
 import { CELL_SIZE, EYE_HEIGHT } from './constants';
-import { bookshelfMesh } from './bookshelf';
 import { stageBoxGeometry } from './surfaces';
 import { StageInteractables } from './StageInteractables';
 import { masonrySurfaces } from './masonry';
 import { AutoWalkPresentation, followAngle } from './AutoWalkPresentation';
 import { StageTimbers } from './StageTimbers';
+import { StageShelving } from './StageShelving';
 
 export class StageRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -45,6 +45,7 @@ export class StageRenderer {
   private interactables: StageInteractables;
   private autoWalk: AutoWalkPresentation;
   private timbers: StageTimbers;
+  private shelving: StageShelving;
   private automated = false;
   yaw = 0; pitch = 0;
   constructor(container: HTMLElement, registry: AssetRegistry, game: GameView, failure: (message: string) => void, materialWarning = (_message: string) => {}, automated = false) {
@@ -63,6 +64,7 @@ export class StageRenderer {
     this.scene.add(new THREE.HemisphereLight('#c5d5f1', '#4c3e30', 1.55), this.light);
     this.scene.add(this.masonry);
     this.timbers = new StageTimbers(materialWarning); this.scene.add(this.timbers.root);
+    this.shelving = new StageShelving(registry, this.library, materialWarning); this.scene.add(this.shelving.root);
     this.interactables = new StageInteractables(this.scene, materialWarning);
     this.observer = new ResizeObserver(() => {
       if (!this.alive) return;
@@ -86,7 +88,7 @@ export class StageRenderer {
     this.canvas.dataset.center = `${next.actor.center.x},${next.actor.center.z}`;
     this.canvas.dataset.revision = String(game.snapshot.revision); this.canvas.dataset.cells = String(next.cells.length);
     this.canvas.dataset.textures = 'loading';
-    void this.library.ready().then(() => {
+    void Promise.all([this.library.ready(), this.shelving.ready, this.timbers.ready]).then(() => {
       if (!this.alive) return;
       const loaded = !!this.registry.pack && !this.library.warnings.size;
       this.canvas.dataset.textures = loaded ? 'ready' : 'fallback';
@@ -112,9 +114,10 @@ export class StageRenderer {
     this.canvas.dataset.rooms = String(snapshot.roomCount ?? 0); this.canvas.dataset.flights = String(flights.length);
     const markerCells = snapshot.cells.filter(cell => cell.source.stairs.length && !flights.some(f => [f.upper, f.lower].some(p =>
       Math.abs(p.y - cell.floorY) < .01 && Math.hypot(p.x - cell.center.x, p.z - cell.center.z) < .01)));
-    const dynamic = snapshot.boxes.filter(box => ['bookshelf', 'chest'].includes(box.material));
+    const dynamic = snapshot.boxes.filter(box => box.material === 'chest');
     this.syncMasonry(snapshot.boxes.filter(box => !['bookshelf', 'chest'].includes(box.material)));
     this.timbers.sync(snapshot.boxes);
+    this.shelving.sync(snapshot.boxes);
     const retained = new Set([...dynamic.map(box => box.id), ...markerCells.map(cell => `${cell.key}/stairs`)]);
     for (const [id, entry] of this.boxes) if (!retained.has(id)) {
       this.scene.remove(entry.object); disposeGeometry(entry.object); this.boxes.delete(id); this.chestStates.delete(id);
@@ -176,7 +179,6 @@ export class StageRenderer {
     });
   }
   private buildBox(box: SceneBox): THREE.Object3D {
-    if (box.material === 'bookshelf') return bookshelfMesh(box, this.registry, this.library);
     if (box.material === 'chest' && this.registry.pack?.blocks.chest) {
       const group = blockGeometry(this.registry.resolve('chest', { state: 'closed' }), this.library);
       group.position.set(box.center[0], box.center[1] - .52, box.center[2]); group.scale.setScalar(1.2); group.rotation.y = Math.PI;
@@ -219,7 +221,7 @@ export class StageRenderer {
     if (this.thirdPerson && this.player) {
       // Short camera boom contracts against the same solids as player collision.
       const direction = new THREE.Vector3(Math.sin(this.yaw), 0.32, Math.cos(this.yaw)).normalize();
-      const solids = [this.masonry, this.timbers.root, ...this.boxes.values()].map(e => 'object' in e ? e.object : e);
+      const solids = [this.masonry, this.timbers.root, this.shelving.root, ...this.boxes.values()].map(e => 'object' in e ? e.object : e);
       const ray = new THREE.Raycaster(this.camera.position, direction, 0, 2.8), hit = ray.intersectObjects(solids, true)[0];
       this.camera.position.addScaledVector(direction, Math.max(0, Math.min(2.6, hit ? hit.distance - 0.18 : 2.6)));
       this.camera.lookAt(x, y + 1.65, z);
@@ -235,12 +237,13 @@ export class StageRenderer {
     this.canvas.dataset.pending = String(!!this.walker.pending); this.canvas.dataset.drawCalls = String(this.renderer.info.render.calls);
     this.canvas.dataset.camera = this.thirdPerson ? 'third' : 'first';
     this.canvas.dataset.timbers = String(this.timbers.count); this.canvas.dataset.timberStatus = this.timbers.status;
+    this.canvas.dataset.shelvingStatus = this.shelving.status;
     this.canvas.dataset.geometries = String(this.renderer.info.memory.geometries); this.canvas.dataset.texturesCount = String(this.renderer.info.memory.textures);
   }
   dispose() {
     if (!this.alive) return; this.alive = false; this.observer.disconnect();
     this.canvas.removeEventListener('webglcontextlost', this.contextLost);
-    this.stairs.clear(); this.interactables.dispose(); this.timbers.dispose();
+    this.stairs.clear(); this.interactables.dispose(); this.timbers.dispose(); this.shelving.dispose();
     this.player?.dispose(); this.skinResources?.dispose(); disposeGeometry(this.scene);
     for (const material of this.masonryMaterials.values()) material.dispose(); this.masonryMaterials.clear(); this.library.dispose(); this.unknown.dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.remove(); this.boxes.clear(); this.chestStates.clear();

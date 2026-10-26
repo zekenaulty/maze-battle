@@ -1,0 +1,12 @@
+{
+  "schema": "maze-shelving-selection-v1",
+  "producerCommit": "ed88b0674d01f8b6015560a9da173ff03ed8c4e1",
+  "review": "Owner requested the completed bookcase/shelving family. Five explicitly pinned variants; native model pack already scaled to world units. Preserve original textures and placement metadata. Decorative books/storage only; cabinet poses are visual configuration.",
+  "packages": [
+    { "directory": "low-bookcase", "assetId": "shelving-bookcase-oak-ae93700898a4", "revision": "5641a1992bcec79655d94ced8cb3bd04efede5f2d4f162bbe8fb1cfcf251104c", "workshopSha256": "95f7ef5a2bd6cc63808ef89839771568ecacd3aabb46ebf0441800fee351533a", "manifestSha256": "c14f2826a76884f8d9a55f09e5e5f049724ebef079e90f93d5d00c59ea1e1dda", "placementSha256": "87339d5293c4a5144407bd8061744ec95fba74482b68866447791e914be0f3bd" },
+    { "directory": "library", "assetId": "shelving-bookcase-spruce-9d81cdf6d35b", "revision": "a11d49ce0a2db8eb6911026fc5d0d2031d4aa31fa842ca0c5cdb61fb17706713", "workshopSha256": "bdcad42bbe19939b2a1421ab8839e5baf0c437e484b308342aef26bf6e3a58a4", "manifestSha256": "01a39fa20601833f464fffedebc6e9391a652d33070cfb5c7ae1dec6ed8e068e", "placementSha256": "845c45f168232ca7433949025f2657cdc682688994400b03c693bf36720ce0b7" },
+    { "directory": "cabinet", "assetId": "shelving-cabinet-dark-oak-665ccb231f4e", "revision": "73ebd9bc01841499bbf99789cb9f679be44d2659b7480cb53dacd3bd8baaf658", "workshopSha256": "94d96a526dd159a2084ebfd41d7ff5aa4c0e4a8c4a250e536e48ddd30b86c764", "manifestSha256": "518ad0902db9af4da93684daacd10f7332633a576b113e1a382ac5be4a80d65f", "placementSha256": "729776ec48199e5a5a4d0433e4482ff64802d58b23d829259b843f2a7d380060" },
+    { "directory": "bracket-shelf", "assetId": "shelving-wall-shelf-oak-8a4006093940", "revision": "59590e2adc95974c6ec5626597e8ea18f7ccb2104cfa473a8841d082556035b4", "workshopSha256": "8acfbe3af7a92d3be7894a5f7fbdef72c7a72d32727ae080896196be85d340d1", "manifestSha256": "bd2103c3d2c0a0c4c00ac916a773f703e12ec14f2349b3efef05ab9fc2bd5805", "placementSha256": "1fe8c846c0bdd705244e1cdb65248f8be4a103657ba4e5e30a9a08c9f44b7a76" },
+    { "directory": "wall-case", "assetId": "shelving-bookcase-spruce-fc5fb80f4c68", "revision": "bd749d67ebeea313c1ea54f33e32563dd16424263aca6c37673eeeaea0fb5d75", "workshopSha256": "69a6453d2f0b5ae2962c88bbc8400c5c2de0cc16250d0775122ea1611ffe160f", "manifestSha256": "933a6afdd1910265a096c44856db39c0757a740e664989ce062252c62e2056a1", "placementSha256": "57dcc1b97c9aeab5be63dc950c249f3b900cab1ec3d4c0a2af6a36e070c4385a" }
+  ]
+}
