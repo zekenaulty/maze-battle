@@ -15,6 +15,7 @@ Maze Battle save formats are intentionally discarded, not migrated.
 
 Agent setup lives in [AGENTS.md](AGENTS.md), with the repository-owned
 [geometry/admission skill](.agents/skills/maze-world-geometry/SKILL.md) and
+[visual-language skill](.agents/skills/maze-visual-language/SKILL.md), plus the
 [cross-repo coordination protocol](docs/coordination/README.md). The shared spatial
 contract is a proposal until both repository owners record agreement.
 

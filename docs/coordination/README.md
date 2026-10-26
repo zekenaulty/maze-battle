@@ -31,6 +31,13 @@ decisions remain OPEN. TileLab has not acknowledged that response here.
 The initial outgoing packet and concrete open questions are in
 [handoffs/2026-10-26-maze-battle.md](handoffs/2026-10-26-maze-battle.md).
 
+For construction grammar and future regional/race/culture/faction styles, use the
+[visual-language guidance](../design/visual-language-and-group-styles.md) and local
+`maze-visual-language` skill. The
+[style-direction handoff](handoffs/2026-10-26-visual-language.md) records the source
+brief, group-composition requirements and open decisions. This supplements the
+exchange without changing the frozen spatial proposal or claiming peer agreement.
+
 ## Handshake
 
 1. Inspect both source baselines read-only. Record repository, branch, full commit,
@@ -69,6 +76,13 @@ Fixtures / commands / numeric tolerances and results / screenshots:
 PASS, FAIL and UNKNOWN per evidence level:
 Decision or question / responsible repo / dependencies / next action:
 ```
+
+For a style-bearing asset or building, also include the core baseline and resolved
+style-profile IDs/revisions; group/region and functional scope; per-trait overrides
+and fallbacks; source versus invented traits; material/projection constraints; and
+neutral/group comparison views. Pin proposed conceptual fields as design evidence,
+not as an implemented runtime schema. Core style compliance and group recognition
+are separate from physical fit, canonical identity and installation admission.
 
 Keep handoffs append-only by adding a new packet and linking what it supersedes.
 Record a peer's response verbatim or with a source link and explicit attribution;

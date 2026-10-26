@@ -32,6 +32,13 @@ hinge/sweep, visible bounds, consumer scale, threshold, adjacent wall and materi
 roles. If source artwork/model payloads are unavailable, report that evidence gap;
 a synthetic model is a regression fixture, not proof about the real object.
 
+For buildings or group-specific art direction, also read the local
+[maze-visual-language skill](../maze-visual-language/SKILL.md). A building's facade,
+interior, storeys, roof, openings and permitted projections must derive from one
+instance envelope. Test neighboring occupancy, actual supports, cutaways and street
+clearance when affected. Style variation cannot bypass dimensional or canonical
+admission; a reserved inaccessible interior need not become immediately playable.
+
 ## Describe before changing
 
 Read the [shared spatial proposal](../../../docs/coordination/spatial-contract-v0.1.md)

@@ -32,6 +32,12 @@ TileLab produces candidates. This repo owns installation and game admission.
 - A request for a frame/surround for an existing object starts by inspecting that
   actual object, its consumer transforms, states, materials and neighboring structure.
   An independently designed alternative must be labeled as such.
+- Design architecture from construction logic and its intended world context.
+  Exterior envelope, interior volumes, support, roof, openings and neighbors must
+  agree; an attractive facade or local preview does not establish that agreement.
+- Preserve the game's core visual language across regional, race/species, cultural
+  and faction styles. Compose explicit, versioned profiles within shared constraints;
+  group identity, visual treatment and gameplay rules are separate concerns.
 
 ## Local skills and coordination
 
@@ -40,6 +46,9 @@ TileLab produces candidates. This repo owns installation and game admission.
   if a similarly named global skill exists.
 - For geometry, scale, seams, architectural assets or TileLab admission, read
   [.agents/skills/maze-world-geometry/SKILL.md](.agents/skills/maze-world-geometry/SKILL.md).
+- For architecture grammar, visual identity, materials or styles for regions,
+  races, cultures and factions, read
+  [.agents/skills/maze-visual-language/SKILL.md](.agents/skills/maze-visual-language/SKILL.md).
 - For a cross-repo dependency or handoff, follow
   [docs/coordination/README.md](docs/coordination/README.md). Pin both repositories'
   revisions and the proposed contract version. Each repo owns its own guidance,
