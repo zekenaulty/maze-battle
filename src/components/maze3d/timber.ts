@@ -1,6 +1,7 @@
 import { BoxGeometry, BufferGeometry } from 'three';
 import type { SceneBox } from './scene';
 import { CELL_SIZE, WALL_HEIGHT } from './constants';
+import { unionIntervals as union, subtractIntervals as subtract } from '../../domain/construction/intervals';
 
 type V = [number, number, number];
 type Interval = [number, number];
@@ -16,18 +17,6 @@ export const TIMBER = { conversion: 1.6, tile: 1.6, joistWidth: .384, joistHeigh
 const EPS = 1e-6;
 const bounds = (b: SceneBox): Bounds => ({ min: b.center.map((n, i) => n - b.size[i] / 2) as V,
   max: b.center.map((n, i) => n + b.size[i] / 2) as V });
-function union(input: Interval[]): Interval[] {
-  const out: Interval[] = [];
-  for (const [a, b] of input.sort((a, b) => a[0] - b[0])) {
-    const last = out.at(-1); if (last && a <= last[1] + EPS) last[1] = Math.max(last[1], b); else out.push([a, b]);
-  }
-  return out;
-}
-function subtract(kept: Interval[], cuts: Interval[]) {
-  for (const [a, b] of union(cuts)) kept = kept.flatMap(([lo, hi]) => a >= hi - EPS || b <= lo + EPS ? [[lo, hi]]
-    : [[lo, Math.min(hi, a)], [Math.max(lo, b), hi]].filter(([x, y]) => y - x > EPS) as Interval[]);
-  return kept;
-}
 /** Whole cross section must lie beneath the union, including on shared cell seams. */
 function roofSpans(roofs: Bounds[], axis: 0 | 2, at: number, width: number) {
   const across = axis === 0 ? 2 : 0, lo = at - width / 2, hi = at + width / 2;
@@ -87,12 +76,13 @@ export function ceilingTimbers(boxes: SceneBox[]): TimberMember[] {
   return out;
 }
 /** Each member has two cap faces and four repeat faces; clipping preserves global grain phase. */
-export function timberGeometry(member: TimberMember): { sides: BufferGeometry; ends: BufferGeometry } {
+export function timberGeometry(member: TimberMember, endFaces = { start: true, end: true }): { sides: BufferGeometry; ends: BufferGeometry } {
   const size = member.max.map((v, i) => v - member.min[i]) as V, center = member.max.map((v, i) => (v + member.min[i]) / 2) as V;
   const box = new BoxGeometry(...size), p = box.getAttribute('position'), n = box.getAttribute('normal'), uv = box.getAttribute('uv');
   const sides: number[] = [], ends: number[] = [], indices = box.index!;
   for (const g of box.groups) {
     const end = Math.abs(n.getComponent(indices.getX(g.start), member.axis)) > .5;
+    if (end && !(n.getComponent(indices.getX(g.start), member.axis) > 0 ? endFaces.end : endFaces.start)) continue;
     for (let i = g.start; i < g.start + g.count; i++) (end ? ends : sides).push(indices.getX(i));
   }
   for (let i = 0; i < p.count; i++) {

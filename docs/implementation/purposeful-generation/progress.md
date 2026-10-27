@@ -36,7 +36,8 @@ No main merge, remote push, paid provider call or existing browser-save reset is
 ## Continuing work: P3–P6
 
 - P3 complete: dedicated-stairs-v1 is the fresh-game default, with 9-by-3 entry/exit well envelopes, 3–5-cell ordinary chambers, empty well content and safe travel; existing flight/landing dimensions retained. Six small canonical floors and a dense 66-node floor pass; 384/384 seeded layouts qualify. Prime/capacity-edge checks pass through 256 nodes. Broad regression 1,891 tests/106 files and native cohort 8/8 pass; build/type checks pass. Source owner's committed construction evidence and constant cleanup are preserved. See [P3 evidence](p3-dedicated-stairs.md).
-- P4 active next: stable construction member/anchor identity and purpose-driven empty/library comparison. Preserve existing clipping, batching, UV phase and shelf capability. Full authoring plans and lawful player projections must remain separate.
+- P3 checkpoint: `7d3c9c7`.
+- P4 implemented: stable member/bearing/anchor identities; bounded, supported framing; purpose-driven storage/access; clipping without invented endgrain; textured complete-authoring workshop. Construction/3D 128 tests, three native cases, selected-rafters regression, build/types pass. See [P4 evidence](p4-construction-plans.md). Canonical room-style admission remains separate.
 - P5 next: one static portable shelf/cabinet and stairwell proof, source recipes retained, explicit materials/state/texture closure, independent consumer checks and native reimport.
 - P6 next: a coherent two-storey building and adjacent pair from bounded programs/envelopes. Preview/export qualification is distinct from canonical town/world admission.
 - Working estimate: P3 completed faster than the initial allowance; approximately 6–12 hours remain for this bounded cross-slice goal, with export-consumer and composition uncertainty. The active goal continues through checkpoints.
