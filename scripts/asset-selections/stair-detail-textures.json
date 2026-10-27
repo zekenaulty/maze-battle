@@ -1,0 +1,9 @@
+{
+  "schema": "maze-stage-detail-selection-v1",
+  "run": "run-20261023-132932-8b1964e4",
+  "review": "Owner requested optional targeted UV treatments for existing stairs. Full raw PNGs preserved; no image generation or substrate editing.",
+  "textures": [
+    { "role": "riser", "image": "cobblestone_alt/materials/cobblestone_alt/raw_edit.png", "sha256": "271004c32d025a45f4443c7a6fe61d698aa54df9ee4467dd5ee08842274cabde", "report": "cobblestone_alt/materials/cobblestone_alt/report.json", "reportSha256": "d2d42eb9e96ea9d59f34fe54d1b7f6d9e960939009b1ece96f25a84dfdf4a831" },
+    { "role": "metal", "image": "iron_block/materials/iron_block/raw_edit.png", "sha256": "6fac77333e6d5594df97bdca32d3cfd9c3e83943c35a5cbe1674c7e791634d67", "report": "iron_block/materials/iron_block/report.json", "reportSha256": "b128f6994d46cc16a3cd1fdeddcdfd14fe17369f353c56dc6b3b0209eddf7de7" }
+  ]
+}

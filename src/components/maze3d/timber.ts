@@ -6,7 +6,7 @@ type V = [number, number, number];
 type Interval = [number, number];
 type Bounds = { min: V; max: V };
 export interface TimberMember extends Bounds {
-  role: 'joist' | 'rafter' | 'trim'; axis: 0 | 2; origin: V;
+  role: 'joist' | 'rafter' | 'trim'; axis: 0 | 1 | 2; origin: V;
 }
 /** grid-timber-v1: sections/tier joints from TileLab's pinned flat-two-tier profile.
  * 1.6 is this installation's world/authoring conversion, not a logical-cell rule.
@@ -69,7 +69,9 @@ export function ceilingTimbers(boxes: SceneBox[]): TimberMember[] {
       const across = axis === 0 ? 2 : 0, runs = new Map<number, Interval[]>();
       for (const wall of walls.filter(b => b.min[1] < top - EPS && b.max[1] > bottom + EPS)) for (const side of [-1, 1]) {
         const at = (side < 0 ? wall.min[across] : wall.max[across]) + side * TIMBER.trimWidth / 2;
-        const spans = runs.get(at) ?? []; spans.push([wall.min[axis], wall.max[axis]]); runs.set(at, spans);
+        // Continue around convex wall corners to the other strip's outer face.
+        // X owns the overlap; subsequent Z cuts turn this into a closed butt joint.
+        const spans = runs.get(at) ?? []; spans.push([wall.min[axis] - TIMBER.trimWidth, wall.max[axis] + TIMBER.trimWidth]); runs.set(at, spans);
       }
       for (const [at, spans] of [...runs].sort((a, b) => a[0] - b[0])) for (const span of union(spans)) add('trim', axis, at, TIMBER.trimWidth, bottom, top, span);
     }
@@ -96,7 +98,7 @@ export function timberGeometry(member: TimberMember): { sides: BufferGeometry; e
   for (let i = 0; i < p.count; i++) {
     if (Math.abs(n.getComponent(i, member.axis)) > .5) continue;
     const span = (p.getComponent(i, member.axis) + center[member.axis] - member.origin[member.axis]) / TIMBER.tile;
-    const crossAxis = Math.abs(n.getY(i)) > .5 ? (member.axis === 0 ? 2 : 0) : 1;
+    const crossAxis = member.axis === 1 ? (Math.abs(n.getX(i)) > .5 ? 2 : 0) : Math.abs(n.getY(i)) > .5 ? (member.axis === 0 ? 2 : 0) : 1;
     const cross = (p.getComponent(i, crossAxis) + size[crossAxis] / 2) / TIMBER.tile;
     uv.setXY(i, member.role === 'joist' ? cross : span, member.role === 'joist' ? span : cross);
   }
