@@ -18,9 +18,9 @@ export interface RoomConstructionBrief {
   id: string; seed: number; columns: 3 | 5; rows: 3 | 5; purpose: 'empty' | 'library';
 }
 export interface ConstructionPlan {
-  version: 'construction-plan-v1'; profile: 'framed-room-v1'; id: string;
+  version: 'construction-plan-v1'; profile: 'framed-room-v1' | 'stairwell-assembly-v1'; id: string;
   frame: { units: 'world'; axes: 'right-handed-y-up'; forward: '-z' };
-  brief: RoomConstructionBrief; bounds: ConstructionBounds;
+  brief: RoomConstructionBrief | { id: string; seed: number; purpose: 'stairwell'; rise: number; tread: number; steps: number }; bounds: ConstructionBounds;
   members: ConstructionMember[]; anchors: ConstructionAnchor[]; furnishings: ConstructionFurnishing[];
   routes: ConstructionBounds[];
 }

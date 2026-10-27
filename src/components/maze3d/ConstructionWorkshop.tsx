@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { planRoomConstruction } from '../../domain/construction/roomPlan';
 import type { RoomConstructionBrief } from '../../domain/construction/types';
-import { ConstructionResources, ConstructionVisual } from './constructionVisual';
+import { ConstructionResources, constructionBounds, ConstructionVisual, StaticCabinetVisual } from './constructionVisual';
+import { buildAuthoringAssembly, type AuthoringAssemblyKind } from './authoringAssemblies';
+import { bakePortableConstruction, disposePortableConstruction, reimportPortableConstruction, type PortableConstruction } from './portableConstruction';
 import './modelWorkshop.css';
 
-type Options = { purpose: 'empty' | 'library'; rows: 3 | 5; columns: 3 | 5; cutaway: boolean; bearings: boolean };
-interface Controls { update(options: Options): void; view(kind: 'orbit' | 'overhead' | 'eye'): void }
+type Options = { assembly: AuthoringAssemblyKind; purpose: 'empty' | 'library'; rows: 3 | 5; columns: 3 | 5; cutaway: boolean; bearings: boolean };
+interface Controls { update(options: Options): void; view(kind: 'orbit' | 'overhead' | 'eye'): void;
+  bake(): Promise<PortableConstruction>; preview(): Promise<void> }
 /** Complete authoring workspace: it never reads or writes the player's canonical save. */
 export default function ConstructionWorkshop() {
-  const [options, setOptions] = useState<Options>({ purpose: 'empty', rows: 3, columns: 3, cutaway: true, bearings: false });
+  const [options, setOptions] = useState<Options>({ assembly: 'room', purpose: 'empty', rows: 3, columns: 3, cutaway: true, bearings: false });
   const [status, setStatus] = useState('Loading selected materials…'), [error, setError] = useState('');
+  const [busy, setBusy] = useState(false), [ready, setReady] = useState(false);
   const host = useRef<HTMLDivElement>(null), controls = useRef<Controls | undefined>(undefined);
   const current = useRef(options); current.current = options;
   useEffect(() => { controls.current?.update(options); }, [options]);
   useEffect(() => {
-    let alive = true, frame = 0, resources: ConstructionResources | undefined, visual: ConstructionVisual | undefined;
+    let alive = true, frame = 0, resources: ConstructionResources | undefined, visual: ConstructionVisual | StaticCabinetVisual | undefined;
+    let imported: THREE.Group | undefined, extent = 9.6, depthCenter = 0;
     const abort = new AbortController(), container = host.current!;
     const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -33,39 +37,60 @@ export default function ConstructionWorkshop() {
     const markerGeometry = new THREE.SphereGeometry(.06, 6, 4), markerMaterial = new THREE.MeshBasicMaterial({ color: '#f1bd66' });
     const clearMarkers = () => markers.clear();
     const view = (kind: 'orbit' | 'overhead' | 'eye') => {
-      const size = Math.max(current.current.columns, current.current.rows) * 3.2;
-      if (kind === 'eye') { orbit.target.set(0, 2.25, -size / 2); camera.position.set(0, 2.25, size / 2 - 1); }
-      else if (kind === 'overhead') { orbit.target.set(0, 0, 0); camera.position.set(0, size * 1.8, .001); }
-      else { orbit.target.set(0, 2, 0); camera.position.set(size, size * .8, size * 1.25); }
+      const size = extent;
+      if (kind === 'eye' && current.current.assembly === 'stairwell') { orbit.target.set(0, 3.4, 8); camera.position.set(0, 2.25, -2); }
+      else if (kind === 'eye') { orbit.target.set(0, 2.25, -size / 2); camera.position.set(0, 2.25, size / 2 - 1); }
+      else if (kind === 'overhead') { orbit.target.set(0, 0, depthCenter); camera.position.set(0, size * 1.8, depthCenter + .001); }
+      else { orbit.target.set(0, current.current.assembly === 'cabinet' ? .9 : 2, depthCenter); camera.position.set(size, size * .8, depthCenter + size * 1.25); }
       camera.lookAt(orbit.target); orbit.update();
     };
     let lastSize = '', revision = 0;
     const update = (next: Options) => {
       if (!resources || !alive) return;
-      const key = JSON.stringify([next.rows, next.columns, next.purpose]);
+      const key = JSON.stringify([next.assembly, next.rows, next.columns, next.purpose]);
       if (canvas.dataset.planKey !== key) {
-        visual?.dispose(); clearMarkers(); canvas.dataset.ready = 'loading'; setError('');
+        visual?.dispose(); if (imported) { disposePortableConstruction(imported); imported = undefined; }
+        canvas.dataset.reimported = 'false'; clearMarkers(); canvas.dataset.ready = 'loading'; setError(''); setReady(false);
         const brief: RoomConstructionBrief = { id: 'room-proof', seed: 42, rows: next.rows, columns: next.columns, purpose: next.purpose };
-        const plan = planRoomConstruction(brief);
-        visual = new ConstructionVisual(plan, resources); scene.add(visual.root);
-        for (const anchor of plan.anchors.filter(a => a.supportedBy)) {
+        const built = buildAuthoringAssembly(next.assembly, brief, resources), plan = built.plan;
+        visual = built.visual; scene.add(visual.root);
+        for (const anchor of plan?.anchors.filter(a => a.supportedBy) ?? []) {
           const dot = new THREE.Mesh(markerGeometry, markerMaterial); dot.position.set(...anchor.position); markers.add(dot);
         }
-        canvas.dataset.planKey = key; canvas.dataset.members = String(plan.members.length);
-        canvas.dataset.furnishings = String(plan.furnishings.length);
-        canvas.dataset.memberIds = JSON.stringify(plan.members.map(m => m.id));
-        canvas.dataset.bearings = String(plan.anchors.filter(a => a.supportedBy).length);
-        const sizeKey = JSON.stringify([next.rows, next.columns]); if (sizeKey !== lastSize) { lastSize = sizeKey; view('orbit'); }
+        canvas.dataset.planKey = key; canvas.dataset.members = String(plan?.members.length ?? 0);
+        canvas.dataset.furnishings = String(plan?.furnishings.length ?? 0);
+        canvas.dataset.memberIds = JSON.stringify(plan?.members.map(m => m.id) ?? []);
+        canvas.dataset.bearings = String(plan?.anchors.filter(a => a.supportedBy).length ?? 0);
+        reference.visible = next.assembly === 'room';
+        const bounds = constructionBounds(visual.root);
+        extent = Math.max(...bounds.max.map((v, i) => v - bounds.min[i])); depthCenter = (bounds.max[2] + bounds.min[2]) / 2;
+        const sizeKey = JSON.stringify([next.assembly, next.rows, next.columns]); if (sizeKey !== lastSize) { lastSize = sizeKey; view('orbit'); }
         const version = ++revision;
         void resources.ready().then(() => {
           if (!alive || revision !== version) return; canvas.dataset.ready = 'ready';
-          setStatus(`${plan.members.length} construction members · ${plan.furnishings.length} bookcases · selected textures ready`);
+          setReady(true); setStatus(plan ? `${plan.members.length} construction members · ${plan.furnishings.length} bookcases · selected textures ready` : 'Closed cabinet · selected textures ready');
         }).catch(e => { if (alive && revision === version) { canvas.dataset.ready = 'unavailable'; setError(String(e)); } });
       }
       visual?.cutaway(next.cutaway); markers.visible = next.bearings;
+      if (imported) imported.traverse(n => { n.visible = !next.cutaway || !n.userData.inspectionHidden; });
       canvas.dataset.cutaway = String(next.cutaway);
     };
-    controls.current = { update, view };
+    const bake = async () => {
+      if (!resources) throw Error('Construction resources are not ready');
+      const next = { ...current.current }, brief: RoomConstructionBrief = { id: 'room-proof', seed: 42, rows: next.rows, columns: next.columns, purpose: next.purpose };
+      const source = buildAuthoringAssembly(next.assembly, brief, resources);
+      try { return await bakePortableConstruction(source.visual.root, resources); } finally { source.visual.dispose(); }
+    };
+    const preview = async () => {
+      const result = await bake(), loaded = await reimportPortableConstruction(result.bytes);
+      if (!alive) { disposePortableConstruction(loaded); return; }
+      if (imported) disposePortableConstruction(imported); imported = loaded; scene.add(loaded);
+      if (visual) visual.root.visible = false;
+      loaded.traverse(n => { n.visible = !current.current.cutaway || !n.userData.inspectionHidden; });
+      canvas.dataset.reimported = 'true'; canvas.dataset.exportSha256 = result.sha256;
+      setStatus('Portable GLB reimported with the standard loader');
+    };
+    controls.current = { update, view, bake, preview };
     void ConstructionResources.load(abort.signal).then(value => {
       if (!alive) { value.dispose(); return; } resources = value; update(current.current);
     }).catch(e => { if (alive) { canvas.dataset.ready = 'unavailable'; setError(String(e)); } });
@@ -80,14 +105,30 @@ export default function ConstructionWorkshop() {
     }; frame = requestAnimationFrame(render);
     return () => {
       alive = false; abort.abort(); cancelAnimationFrame(frame); controls.current = undefined; resize.disconnect(); orbit.dispose();
-      visual?.dispose(); resources?.dispose(); clearMarkers(); markerGeometry.dispose(); markerMaterial.dispose();
+      visual?.dispose(); if (imported) disposePortableConstruction(imported); resources?.dispose(); clearMarkers(); markerGeometry.dispose(); markerMaterial.dispose();
       reference.geometry.dispose(); reference.material.dispose(); renderer.dispose(); canvas.remove();
     };
   }, []);
   const change = <K extends keyof Options>(key: K, value: Options[K]) => setOptions(o => ({ ...o, [key]: value }));
+  const portable = async (preview: boolean) => {
+    if (!controls.current) return; setBusy(true); setError('');
+    try {
+      if (preview) await controls.current.preview();
+      else {
+        const result = await controls.current.bake(), url = URL.createObjectURL(new Blob([result.bytes], { type: 'model/gltf-binary' }));
+        const a = document.createElement('a'); a.href = url; a.download = `${options.assembly}-${result.cacheKey.slice(0, 12)}.glb`; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus(`Portable GLB ready · ${result.meshes} meshes · ${result.textures} embedded textures`);
+      }
+    } catch (e) { setError(String(e)); } finally { setBusy(false); }
+  };
   return <main className="model-workshop">
     <header><div><p className="workshop-kicker">MAZE BATTLE · CONSTRUCTION WORKSHOP</p><h1>Purposeful assemblies</h1><p role="status">{status}</p></div><a href="?view=stage3d">Return to game</a></header>
     <div className="workshop-layout"><aside>
+      <label>Assembly<select aria-label="Construction assembly" value={options.assembly} onChange={e => change('assembly', e.target.value as AuthoringAssemblyKind)}>
+        <option value="room">Framed room</option><option value="stairwell">Two-level stairwell</option><option value="cabinet">Closed cabinet</option>
+      </select></label>
+      {options.assembly === 'room' && <>
       <label>Room program<select aria-label="Room program" value={options.purpose} onChange={e => change('purpose', e.target.value as Options['purpose'])}>
         <option value="empty">Empty chamber</option><option value="library">Library</option>
       </select></label>
@@ -97,9 +138,11 @@ export default function ConstructionWorkshop() {
       <label>Depth<select aria-label="Assembly depth" value={options.rows} onChange={e => change('rows', Number(e.target.value) as 3 | 5)}>
         <option value="3">9.6 world units</option><option value="5">16 world units</option>
       </select></label>
+      </>}
       <label><input type="checkbox" checked={options.cutaway} onChange={e => change('cutaway', e.target.checked)} /> Cutaway roof and front wall</label>
       <label><input type="checkbox" checked={options.bearings} onChange={e => change('bearings', e.target.checked)} /> Show support bearings</label>
       <div className="workshop-buttons">{(['orbit', 'overhead', 'eye'] as const).map(view => <button key={view} onClick={() => controls.current?.view(view)}>{view === 'eye' ? 'Eye level' : view === 'overhead' ? 'Overhead' : 'Orbit view'}</button>)}</div>
+      <div className="workshop-buttons"><button disabled={!ready || busy} onClick={() => void portable(false)}>Download GLB</button><button disabled={!ready || busy} onClick={() => void portable(true)}>Preview GLB</button></div>
       <p>Drag to orbit; scroll to zoom. The green column is 2.7 units high.</p>
       <p>Library bays reserve storage and access before framing. The bookcases use the selected procedural shelving delivery.</p>
       <p>Complete authoring preview. This workspace does not change your game or reveal undiscovered rooms. Construction rules and style are provisional.</p>

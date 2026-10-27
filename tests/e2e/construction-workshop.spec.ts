@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 
 test('complete empty/library plans render with stable framing, bounded resources and no canonical save effects', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
@@ -56,5 +58,68 @@ test('missing construction packages produce a clear failure without creating a g
   await page.route('**/model-packs/timber/manifest.json', route => route.fulfill({ status: 404, body: '' }));
   await page.goto('/?view=construction');
   await expect(page.getByRole('alert')).toContainText('Selected construction package unavailable');
+  await expect(page.getByRole('button', { name: 'Download GLB' })).toBeDisabled();
   expect((await page.evaluate(() => indexedDB.databases())).some(db => db.name === 'maze-battle')).toBe(false);
+});
+
+for (const kind of ['room', 'wide-room', 'stairwell', 'cabinet']) test(`${kind}: complete textured static GLB is deterministic, embedded and reimports through the standard loader`, async ({ page }, info) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/?view=construction');
+  const canvas = page.getByLabel('Construction assembly workshop');
+  await expect(canvas).toHaveAttribute('data-ready', 'ready', { timeout: 60_000 });
+  await page.getByLabel('Construction assembly', { exact: true }).selectOption(kind === 'wide-room' ? 'room' : kind);
+  if (kind === 'room' || kind === 'wide-room') await page.getByLabel('Room program').selectOption('library');
+  if (kind === 'wide-room') await page.getByLabel('Assembly width').selectOption('5');
+  await expect(canvas).toHaveAttribute('data-ready', 'ready');
+  if (kind === 'stairwell') await page.getByRole('button', { name: 'Eye level' }).click();
+  await page.screenshot({ path: info.outputPath(kind + '-procedural.png') });
+  await canvas.screenshot({ path: info.outputPath(kind + '-procedural-canvas.png') });
+  const download = async (name: string) => {
+    const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download GLB' }).click();
+    const result = await pending, target = info.outputPath(name); await result.saveAs(target); return readFile(target);
+  };
+  const first = await download(kind + '.glb'), second = await download(kind + '-repeat.glb');
+  expect(first.equals(second)).toBe(true);
+  expect(first.readUInt32LE(0)).toBe(0x46546c67); expect(first.readUInt32LE(4)).toBe(2);
+  expect(first.readUInt32LE(8)).toBe(first.length); expect(first.readUInt32LE(16)).toBe(0x4e4f534a);
+  const doc = JSON.parse(first.subarray(20, 20 + first.readUInt32LE(12)).toString('utf8'));
+  expect(doc.asset.version).toBe('2.0');
+  expect(doc.buffers.every((b: any) => !b.uri)).toBe(true);
+  expect(doc.images.length).toBeGreaterThan(0); expect(doc.images.every((i: any) => i.bufferView !== undefined && !i.uri)).toBe(true);
+  expect(JSON.stringify(doc)).not.toMatch(/localhost|127\.0\.0\.1|C:\\\\/);
+  const metadata = doc.nodes.find((n: any) => n.extras?.portable)?.extras.portable;
+  expect(metadata?.cacheKey).toMatch(/^[0-9a-f]{64}$/);
+  expect(metadata.textureSources.every((p: any) => /^[0-9a-f]{64}$/.test(p.source.sha256))).toBe(true);
+  if (kind !== 'cabinet') expect(doc.nodes.some((n: any) => n.extras?.role === 'ceiling')).toBe(true);
+  if (kind === 'cabinet') expect(metadata.state).toBe('closed');
+  const digest = createHash('sha256').update(first).digest('hex');
+  await page.getByRole('button', { name: 'Preview GLB' }).click();
+  await expect(canvas).toHaveAttribute('data-reimported', 'true', { timeout: 60_000 });
+  await expect(canvas).toHaveAttribute('data-export-sha256', digest);
+  await page.screenshot({ path: info.outputPath(kind + '-reimported.png') });
+  await canvas.screenshot({ path: info.outputPath(kind + '-reimported-canvas.png') });
+  await writeFile(info.outputPath(kind + '-portable.json'), JSON.stringify({ kind, bytes: first.length, sha256: digest,
+    bounds: metadata.bounds, cacheKey: metadata.cacheKey, meshes: doc.meshes.length, materials: doc.materials.length,
+    images: doc.images.length, sourceRevisions: metadata.sourceRevisions, textureSources: metadata.textureSources }, null, 2));
+  expect(errors).toEqual([]);
+});
+
+test('portable cache binds resolved transforms and refuses an unqualified animated material', async ({ page }) => {
+  await page.goto('/?view=construction');
+  await expect(page.getByLabel('Construction assembly workshop')).toHaveAttribute('data-ready', 'ready', { timeout: 60_000 });
+  const result = await page.evaluate(async () => {
+    const { planRoomConstruction } = await import('/src/domain/construction/roomPlan.ts');
+    const { ConstructionResources, ConstructionVisual } = await import('/src/components/maze3d/constructionVisual.ts');
+    const { bakePortableConstruction } = await import('/src/components/maze3d/portableConstruction.ts');
+    const resources = await ConstructionResources.load(new AbortController().signal);
+    const visual = new ConstructionVisual(planRoomConstruction({ id: 'cache', seed: 1, rows: 3, columns: 3, purpose: 'empty' }), resources);
+    const first = await bakePortableConstruction(visual.root, resources);
+    visual.root.position.x = 1.234;
+    const moved = await bakePortableConstruction(visual.root, resources);
+    for (const material of Object.values(resources.timberPack.materials)) material.animation = { loop: true, interpolate: false, frames: [], timeline: [] };
+    let rejected = ''; try { await bakePortableConstruction(visual.root, resources); } catch (e) { rejected = String(e); }
+    visual.dispose(); resources.dispose(); return { first: first.cacheKey, moved: moved.cacheKey, rejected };
+  });
+  expect(result.first).not.toBe(result.moved);
+  expect(result.rejected).toContain('Animated materials require an explicit static-frame policy');
 });

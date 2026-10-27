@@ -113,7 +113,7 @@ export function planRoomConstruction(input: RoomConstructionBrief): Construction
 }
 
 export function validateConstructionPlan(plan: ConstructionPlan) {
-  if (plan.version !== 'construction-plan-v1' || plan.profile !== 'framed-room-v1'
+  if (plan.version !== 'construction-plan-v1' || !['framed-room-v1', 'stairwell-assembly-v1'].includes(plan.profile)
     || plan.members.length > 512 || plan.anchors.length > 512 || plan.furnishings.length > 32 || plan.routes.length > 32) throw Error('Construction plan budget exceeded');
   const vector = (v: number[]) => v.length === 3 && v.every(n => Number.isFinite(n) && Math.abs(n) <= 1e6);
   const bounds = (b: ConstructionBounds) => vector(b.min) && vector(b.max) && b.min.every((n, i) => n < b.max[i]);

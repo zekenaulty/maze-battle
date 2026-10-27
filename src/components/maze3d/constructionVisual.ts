@@ -8,7 +8,7 @@ import { validateConstructionPlan } from '../../domain/construction/roomPlan';
 import { masonryUV } from './construction';
 import { timberGeometry } from './timber';
 import { TIMBER_PACK_URL } from './StageTimbers';
-import { SHELVING_PACK_URL } from './shelving';
+import { SHELVING, SHELVING_PACK_URL } from './shelving';
 
 export function constructionBounds(root: THREE.Object3D) {
   root.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(root, true);
@@ -67,7 +67,8 @@ export class ConstructionVisual {
       this.geometries.push(geometry); this.root.add(mesh);
     };
     for (const m of plan.members) {
-      const data = { memberId: m.id, role: m.role, bearings: m.bearings ?? [], uvOrigin: m.uvOrigin };
+      const data = { memberId: m.id, role: m.role, bearings: m.bearings ?? [], uvOrigin: m.uvOrigin,
+        inspectionHidden: m.role === 'ceiling' || m.id.includes('/wall/1/') };
       if (m.material === 'timber') {
         const g = constructionTimberGeometry(m);
         add(m.id + '/sides', g.sides, resources.wood(m.role === 'joist' ? 'bark' : 'wood-planks'), data);
@@ -96,7 +97,25 @@ export class ConstructionVisual {
     }
   }
   cutaway(active: boolean) {
-    for (const child of this.root.children) child.visible = !active || child.userData.role !== 'ceiling' && !child.name.includes('/wall/1/');
+    for (const child of this.root.children) child.visible = !active || !child.userData.inspectionHidden;
   }
   dispose() { this.geometries.forEach(g => g.dispose()); this.instances.forEach(i => i.dispose()); this.root.removeFromParent(); this.root.clear(); }
+}
+
+/** Bake a named state while retaining the articulated source package unchanged. */
+export class StaticCabinetVisual {
+  readonly root: THREE.Group;
+  private instance: VisualInstance;
+  constructor(resources: ConstructionResources) {
+    const asset = resources.shelvingPack.assets[SHELVING.cabinet.assetId];
+    if (!asset?.states.closed) throw Error('Selected closed cabinet state missing');
+    this.instance = new VisualInstance(asset, resources.shelving);
+    this.instance.bindMaterials(Object.fromEntries(Object.entries(resources.shelvingPack.bindings[asset.id])
+      .map(([slot, id]) => [slot, resources.shelvingPack.materials[id]])));
+    this.instance.setVisualState('closed'); this.root = this.instance.root;
+    this.root.userData = { recipe: { assetId: asset.id, geometryRevision: asset.geometryRevision, state: 'closed' },
+      frame: { units: 'world', axes: 'right-handed-y-up', forward: '-z' }, staticState: 'closed' };
+  }
+  cutaway(_active: boolean) {}
+  dispose() { this.instance.dispose(); }
 }
