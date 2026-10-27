@@ -2,6 +2,7 @@ import type { ModuleAssemblyState } from './types';
 import { ModuleCapacityError } from './types';
 
 export interface ModuleStructuralQuality {
+  /** Legacy counter name: all anchored modules, including selected circulation. */
   rooms: number;
   reachable: number;
   joins: number;
@@ -17,7 +18,7 @@ export function passesModuleStructuralQuality(quality: ModuleStructuralQuality, 
 }
 
 export function moduleQuality(state: ModuleAssemblyState) {
-  const rooms = state.spaces.filter(space => space.kind === 'room');
+  const rooms = state.spaces.filter(space => space.id === 'entry' || /^socket-\d+:room$/.test(space.id));
   const graph = new Map(rooms.map(room => [room.id, [] as string[]]));
   for (const join of state.joins) {
     graph.get(join.fromRoomId)!.push(join.toRoomId);
@@ -50,12 +51,18 @@ export function moduleQuality(state: ModuleAssemblyState) {
   const column = Math.min(...state.spaces.map(space => space.origin.column));
   const rows = Math.max(...state.spaces.map(space => space.origin.row + space.rows)) - row;
   const columns = Math.max(...state.spaces.map(space => space.origin.column + space.columns)) - column;
-  const roomArea = rooms.reduce((sum, room) => sum + room.rows * room.columns, 0);
+  const roomArea = rooms.filter(room => room.kind === 'room').reduce((sum, room) => sum + room.rows * room.columns, 0);
   return { rooms: rooms.length, forks: [...graph.values()].filter(neighbors => neighbors.length >= 3).length,
     leaves: [...graph.values()].filter(neighbors => neighbors.length === 1).length,
     longestChain, depth: entry.depth, diameter: distances(entry.farthest).depth, reachable: entry.count,
-    directJoins: state.joins.filter(join => !join.passageId).length, passages: state.joins.filter(join => join.passageId).length,
-    origin: { row, column }, rows, columns, projectionCells: rows * columns, roomArea, coverage: roomArea / (rows * columns) };
+    directJoins: state.joins.filter(join => !join.passageId).length, passages: state.spaces.filter(space => space.kind === 'passage').length,
+    origin: { row, column }, rows, columns, projectionCells: rows * columns, roomArea, coverage: roomArea / (rows * columns),
+    ...(state.recipe.architecture === 'circulation-v1' ? {
+      chambers: rooms.filter(room => room.kind === 'room').length,
+      runs: rooms.filter(room => room.circulation === 'run').length,
+      junctions: rooms.filter(room => room.circulation === 'junction').length,
+      circulationArea: rooms.filter(room => room.kind === 'passage').reduce((sum, room) => sum + room.rows * room.columns, 0),
+    } : {}) };
 }
 
 export function assertModuleQuality(state: ModuleAssemblyState) {

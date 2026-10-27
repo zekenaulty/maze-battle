@@ -1,10 +1,11 @@
 import type { Point, SceneBox, StageScene } from './scene';
-import { CELL_SIZE } from './constants';
-import { ceilingTimbers } from './timber';
+import { CELL_SIZE, PLAYER_RADIUS, WALL_HEIGHT } from './constants';
+import { ceilingTimbers, TIMBER } from './timber';
 export interface ArchitectureOptions { cornerPosts: boolean; wallBraces: boolean; stairFraming: boolean; dressedRisers: boolean; ironNosing: boolean }
 export const DEFAULT_ARCHITECTURE: ArchitectureOptions = { cornerPosts: false, wallBraces: false, stairFraming: false, dressedRisers: false, ironNosing: false };
 export interface SupportPart { box: SceneBox; lean?: number }
 const overlaps = (a: SceneBox, b: SceneBox) => a.center.every((v, i) => Math.abs(v - b.center[i]) < (a.size[i] + b.size[i]) / 2 - 1e-6);
+const supportHeight = WALL_HEIGHT - TIMBER.joistHeight - TIMBER.rafterHeight;
 /** Provisional construction strategies, bounded to disclosed rooms and their existing floor bearings. */
 export function roomSupports(scene: StageScene, options: ArchitectureOptions, player: Point): SupportPart[] {
   if (!options.cornerPosts && !options.wallBraces && !options.stairFraming) return [];
@@ -15,7 +16,7 @@ export function roomSupports(scene: StageScene, options: ArchitectureOptions, pl
     const testBox = !lean ? box : { ...box, size: [Math.abs(Math.cos(lean)) * box.size[0] + Math.abs(Math.sin(lean)) * box.size[1],
       Math.abs(Math.sin(lean)) * box.size[0] + Math.abs(Math.cos(lean)) * box.size[1], box.size[2]] as [number, number, number] };
     const atPlayer = Math.abs(box.center[1] - box.size[1] / 2 - scene.actor.floorY) < .1
-      && Math.abs(player.x - box.center[0]) < box.size[0] / 2 + .35 && Math.abs(player.z - box.center[2]) < box.size[2] / 2 + .35;
+      && Math.hypot(Math.max(0, Math.abs(player.x - box.center[0]) - box.size[0] / 2), Math.max(0, Math.abs(player.z - box.center[2]) - box.size[2] / 2)) < PLAYER_RADIUS + .001;
     if (box.solid && atPlayer) return;
     if (scene.boxes.some(b => !b.deck && overlaps(testBox, b))) return;
     if (parts.some(p => overlaps(testBox, !p.lean ? p.box : { ...p.box, size: [Math.abs(Math.cos(p.lean)) * p.box.size[0] + Math.abs(Math.sin(p.lean)) * p.box.size[1], Math.abs(Math.sin(p.lean)) * p.box.size[0] + Math.abs(Math.cos(p.lean)) * p.box.size[1], p.box.size[2]] }))) return;
@@ -29,8 +30,8 @@ export function roomSupports(scene: StageScene, options: ArchitectureOptions, pl
     if (cell.kind !== 'room' || (counts.get(cell.source.at.level + '/' + cell.source.at.cell.spaceId) ?? 0) < 6) continue;
     const edges = cell.geometryEdges ?? cell.source.edges;
     for (const x of [-1, 1]) for (const z of [-1, 1]) if (edges[x < 0 ? 'west' : 'east'] === null && edges[z < 0 ? 'north' : 'south'] === null) {
-      add({ id: cell.key + '/corner-post/' + x + '/' + z, material: 'timber', center: [cell.center.x + x * 1.36, cell.floorY + 2.064, cell.center.z + z * 1.36],
-        size: [.32, 4.128, .32], solid: cell.source.at.level === scene.level, textureOrigin: cell.textureOrigin });
+      add({ id: cell.key + '/corner-post/' + x + '/' + z, material: 'timber', center: [cell.center.x + x * 1.36, cell.floorY + supportHeight / 2, cell.center.z + z * 1.36],
+        size: [.32, supportHeight, .32], solid: cell.source.at.level === scene.level, textureOrigin: cell.textureOrigin });
     }
   }
   const braceCounts = new Map<string, number>();
@@ -38,7 +39,7 @@ export function roomSupports(scene: StageScene, options: ArchitectureOptions, pl
     const z = (member.min[2] + member.max[2]) / 2;
     // Alternate floor-anchored joist rows, only in larger rooms; at most four pairs per room.
     if (Math.abs(Math.round((z - member.origin[2] - .64) / CELL_SIZE)) % 2) continue;
-    const cell = scene.cells.find(c => c.kind === 'room' && Math.abs(c.floorY + 4.128 - member.min[1]) < .01
+    const cell = scene.cells.find(c => c.kind === 'room' && Math.abs(c.floorY + supportHeight - member.min[1]) < .01
       && (member.min[0] + member.max[0]) / 2 >= c.center.x - CELL_SIZE / 2 && (member.min[0] + member.max[0]) / 2 < c.center.x + CELL_SIZE / 2
       && z >= c.center.z - CELL_SIZE / 2 && z < c.center.z + CELL_SIZE / 2);
     if (!cell) continue;

@@ -1,0 +1,403 @@
+{
+  "method": "Current pure domain compiler; 128 integer seeds x 3 depths x 2 spatial modes; not native-browser or human visual acceptance",
+  "architecture": "circulation-v1",
+  "seedRange": [
+    1,
+    128
+  ],
+  "levels": [
+    1,
+    10,
+    30
+  ],
+  "floors": 768,
+  "aggregate": [
+    {
+      "spatial": false,
+      "level": 1,
+      "floors": 128,
+      "chambers": 512,
+      "runs": 256,
+      "junctions": 256,
+      "roomArea": 47808,
+      "circulationArea": 3828,
+      "circulationAreaPercent": 7.41343248896119,
+      "branchingJunctionRange": [
+        1,
+        1
+      ],
+      "longestChainRange": [
+        1,
+        2
+      ]
+    },
+    {
+      "spatial": false,
+      "level": 10,
+      "floors": 128,
+      "chambers": 1024,
+      "runs": 1408,
+      "junctions": 896,
+      "roomArea": 92032,
+      "circulationArea": 16424,
+      "circulationAreaPercent": 15.14346831894962,
+      "branchingJunctionRange": [
+        1,
+        4
+      ],
+      "longestChainRange": [
+        2,
+        4
+      ]
+    },
+    {
+      "spatial": false,
+      "level": 30,
+      "floors": 128,
+      "chambers": 2304,
+      "runs": 3968,
+      "junctions": 2176,
+      "roomArea": 196044,
+      "circulationArea": 43174,
+      "circulationAreaPercent": 18.04797297862201,
+      "branchingJunctionRange": [
+        4,
+        10
+      ],
+      "longestChainRange": [
+        2,
+        6
+      ]
+    },
+    {
+      "spatial": true,
+      "level": 1,
+      "floors": 128,
+      "chambers": 512,
+      "runs": 256,
+      "junctions": 256,
+      "roomArea": 65566,
+      "circulationArea": 3828,
+      "circulationAreaPercent": 5.5163270599763665,
+      "branchingJunctionRange": [
+        1,
+        1
+      ],
+      "longestChainRange": [
+        1,
+        1
+      ]
+    },
+    {
+      "spatial": true,
+      "level": 10,
+      "floors": 128,
+      "chambers": 1024,
+      "runs": 1408,
+      "junctions": 896,
+      "roomArea": 137398,
+      "circulationArea": 16384,
+      "circulationAreaPercent": 10.654042735820838,
+      "branchingJunctionRange": [
+        1,
+        3
+      ],
+      "longestChainRange": [
+        2,
+        4
+      ]
+    },
+    {
+      "spatial": true,
+      "level": 30,
+      "floors": 128,
+      "chambers": 2304,
+      "runs": 3968,
+      "junctions": 2176,
+      "roomArea": 312930,
+      "circulationArea": 43172,
+      "circulationAreaPercent": 12.123492707145706,
+      "branchingJunctionRange": [
+        4,
+        8
+      ],
+      "longestChainRange": [
+        2,
+        6
+      ]
+    }
+  ],
+  "failures": [],
+  "samples": [
+    {
+      "spatial": false,
+      "level": 1,
+      "seed": 1,
+      "nodes": 8,
+      "chambers": 4,
+      "runs": 2,
+      "junctions": 2,
+      "branchingJunctions": 1,
+      "roomArea": 334,
+      "circulationArea": 30,
+      "chain": 1,
+      "forks": 2,
+      "candidates": 23
+    },
+    {
+      "spatial": false,
+      "level": 1,
+      "seed": 42,
+      "nodes": 8,
+      "chambers": 4,
+      "runs": 2,
+      "junctions": 2,
+      "branchingJunctions": 1,
+      "roomArea": 374,
+      "circulationArea": 30,
+      "chain": 1,
+      "forks": 2,
+      "candidates": 39
+    },
+    {
+      "spatial": false,
+      "level": 1,
+      "seed": 128,
+      "nodes": 8,
+      "chambers": 4,
+      "runs": 2,
+      "junctions": 2,
+      "branchingJunctions": 1,
+      "roomArea": 386,
+      "circulationArea": 30,
+      "chain": 1,
+      "forks": 2,
+      "candidates": 7
+    },
+    {
+      "spatial": false,
+      "level": 10,
+      "seed": 1,
+      "nodes": 26,
+      "chambers": 8,
+      "runs": 11,
+      "junctions": 7,
+      "branchingJunctions": 3,
+      "roomArea": 614,
+      "circulationArea": 130,
+      "chain": 3,
+      "forks": 7,
+      "candidates": 207
+    },
+    {
+      "spatial": false,
+      "level": 10,
+      "seed": 42,
+      "nodes": 26,
+      "chambers": 8,
+      "runs": 11,
+      "junctions": 7,
+      "branchingJunctions": 3,
+      "roomArea": 624,
+      "circulationArea": 130,
+      "chain": 3,
+      "forks": 6,
+      "candidates": 138
+    },
+    {
+      "spatial": false,
+      "level": 10,
+      "seed": 128,
+      "nodes": 26,
+      "chambers": 8,
+      "runs": 11,
+      "junctions": 7,
+      "branchingJunctions": 2,
+      "roomArea": 834,
+      "circulationArea": 132,
+      "chain": 3,
+      "forks": 6,
+      "candidates": 233
+    },
+    {
+      "spatial": false,
+      "level": 30,
+      "seed": 1,
+      "nodes": 66,
+      "chambers": 18,
+      "runs": 31,
+      "junctions": 17,
+      "branchingJunctions": 8,
+      "roomArea": 1444,
+      "circulationArea": 342,
+      "chain": 5,
+      "forks": 18,
+      "candidates": 626
+    },
+    {
+      "spatial": false,
+      "level": 30,
+      "seed": 42,
+      "nodes": 66,
+      "chambers": 18,
+      "runs": 31,
+      "junctions": 17,
+      "branchingJunctions": 7,
+      "roomArea": 1530,
+      "circulationArea": 342,
+      "chain": 5,
+      "forks": 15,
+      "candidates": 690
+    },
+    {
+      "spatial": false,
+      "level": 30,
+      "seed": 128,
+      "nodes": 66,
+      "chambers": 18,
+      "runs": 31,
+      "junctions": 17,
+      "branchingJunctions": 7,
+      "roomArea": 1512,
+      "circulationArea": 334,
+      "chain": 5,
+      "forks": 17,
+      "candidates": 600
+    },
+    {
+      "spatial": true,
+      "level": 1,
+      "seed": 1,
+      "nodes": 8,
+      "chambers": 4,
+      "runs": 2,
+      "junctions": 2,
+      "branchingJunctions": 1,
+      "roomArea": 554,
+      "circulationArea": 30,
+      "chain": 1,
+      "forks": 2,
+      "candidates": 23
+    },
+    {
+      "spatial": true,
+      "level": 1,
+      "seed": 42,
+      "nodes": 8,
+      "chambers": 4,
+      "runs": 2,
+      "junctions": 2,
+      "branchingJunctions": 1,
+      "roomArea": 418,
+      "circulationArea": 30,
+      "chain": 1,
+      "forks": 2,
+      "candidates": 39
+    },
+    {
+      "spatial": true,
+      "level": 1,
+      "seed": 128,
+      "nodes": 8,
+      "chambers": 4,
+      "runs": 2,
+      "junctions": 2,
+      "branchingJunctions": 1,
+      "roomArea": 426,
+      "circulationArea": 30,
+      "chain": 1,
+      "forks": 2,
+      "candidates": 7
+    },
+    {
+      "spatial": true,
+      "level": 10,
+      "seed": 1,
+      "nodes": 26,
+      "chambers": 8,
+      "runs": 11,
+      "junctions": 7,
+      "branchingJunctions": 2,
+      "roomArea": 1042,
+      "circulationArea": 126,
+      "chain": 3,
+      "forks": 6,
+      "candidates": 281
+    },
+    {
+      "spatial": true,
+      "level": 10,
+      "seed": 42,
+      "nodes": 26,
+      "chambers": 8,
+      "runs": 11,
+      "junctions": 7,
+      "branchingJunctions": 3,
+      "roomArea": 1012,
+      "circulationArea": 130,
+      "chain": 3,
+      "forks": 6,
+      "candidates": 153
+    },
+    {
+      "spatial": true,
+      "level": 10,
+      "seed": 128,
+      "nodes": 26,
+      "chambers": 8,
+      "runs": 11,
+      "junctions": 7,
+      "branchingJunctions": 2,
+      "roomArea": 782,
+      "circulationArea": 132,
+      "chain": 2,
+      "forks": 6,
+      "candidates": 174
+    },
+    {
+      "spatial": true,
+      "level": 30,
+      "seed": 1,
+      "nodes": 66,
+      "chambers": 18,
+      "runs": 31,
+      "junctions": 17,
+      "branchingJunctions": 5,
+      "roomArea": 2552,
+      "circulationArea": 330,
+      "chain": 4,
+      "forks": 16,
+      "candidates": 596
+    },
+    {
+      "spatial": true,
+      "level": 30,
+      "seed": 42,
+      "nodes": 66,
+      "chambers": 18,
+      "runs": 31,
+      "junctions": 17,
+      "branchingJunctions": 7,
+      "roomArea": 2434,
+      "circulationArea": 342,
+      "chain": 4,
+      "forks": 16,
+      "candidates": 571
+    },
+    {
+      "spatial": true,
+      "level": 30,
+      "seed": 128,
+      "nodes": 66,
+      "chambers": 18,
+      "runs": 31,
+      "junctions": 17,
+      "branchingJunctions": 5,
+      "roomArea": 2074,
+      "circulationArea": 342,
+      "chain": 4,
+      "forks": 14,
+      "candidates": 486
+    }
+  ]
+}

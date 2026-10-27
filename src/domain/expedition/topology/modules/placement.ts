@@ -5,6 +5,7 @@ import { keyedSeed } from '../seed';
 import type { Bounds, Occupancy } from '../types';
 import type { ModuleRecipe } from './policy';
 import type { ModuleSocket, ModuleWork } from './types';
+import { circulationDimensions, moduleIntent, moduleOrdinal } from './intent';
 
 const DIRECTIONS: Direction[] = ['north', 'east', 'south', 'west'];
 export type OccupancyQuery = (bounds: Bounds, except?: string) => boolean;
@@ -13,7 +14,7 @@ export function moduleSpace(id: string, kind: SpaceSpec['kind'], bounds: Bounds,
   architecture?: ModuleRecipe['architecture']): SpaceSpec {
   return { id, kind, name: kind === 'room' ? 'Chamber' : 'Passage', seed,
     origin: { row: bounds.row, column: bounds.column }, rows: bounds.rows, columns: bounds.columns,
-    openings: [], chests: [], ...(kind === 'room' && architecture === 'open-chambers-v1'
+    openings: [], chests: [], ...(kind === 'room' && architecture !== undefined
       ? { interior: 'open-room-v1' as const, furnishing: 'none' as const } : {}) };
 }
 
@@ -21,15 +22,22 @@ export function moduleSpace(id: string, kind: SpaceSpec['kind'], bounds: Bounds,
 export function reserveModuleSockets(recipe: ModuleRecipe, room: SpaceSpec, firstSequence: number, quota: number,
   excluded: Direction | undefined, occupied: OccupancyQuery, added: Occupancy[], work: ModuleWork, except?: string): ModuleSocket[] {
   const result: ModuleSocket[] = [];
-  const order = DIRECTIONS.filter(direction => direction !== excluded)
+  // Entry feeds a junction instead of hiding every initial fork in the arrival room.
+  const capacity = recipe.architecture === 'circulation-v1' && room.id === 'entry' ? Math.min(1, quota) : quota;
+  const order = DIRECTIONS.filter(direction => direction !== excluded && (room.circulation !== 'run'
+    || (room.rows === 1 ? direction === 'east' || direction === 'west' : direction === 'north' || direction === 'south')))
     .sort((a, b) => keyedSeed(recipe.seed, `${room.id}:${a}`) - keyedSeed(recipe.seed, `${room.id}:${b}`));
-  for (const direction of order) {
-    if (result.length >= quota) break;
+  for (let index = 0; index < order.length; index++) {
+    const direction = order[index];
+    if (result.length >= capacity) break;
     const id = `socket-${firstSequence + result.length}`;
     const candidate = reserveCandidate(recipe, room, direction, id, occupied, added, work, except);
     if (!candidate) continue;
     result.push(candidate);
     added.push(candidate.reservation);
+    // A large chamber can fail on a side where the next narrow run fits. Retry
+    // unused directions for the next intent; at most 4 + 3 + 2 + 1 direction probes.
+    if (recipe.architecture === 'circulation-v1') { order.splice(index, 1); index = -1; }
   }
   return result;
 }
@@ -41,8 +49,10 @@ function reserveCandidate(recipe: ModuleRecipe, source: SpaceSpec, direction: Di
   for (let attempt = 0; attempt < policy.attempts; attempt++) {
     work.candidates++;
     const value = keyedSeed(recipe.seed, `${source.id}:${direction}:candidate:${attempt}`);
-    const rows = policy.minSide + 2 * (value % sideCount);
-    const columns = policy.minSide + 2 * ((value >>> 5) % sideCount);
+    const intent = moduleIntent(recipe, moduleOrdinal(`${id}:room`));
+    const { rows, columns } = intent === 'chamber'
+      ? { rows: policy.minSide + 2 * (value % sideCount), columns: policy.minSide + 2 * ((value >>> 5) % sideCount) }
+      : circulationDimensions(intent, direction, value);
     const gap = policy.joins === 'direct' ? 0 : policy.joins === 'passage' ? 1 + (value >>> 10) % policy.maxPassage
       : (value >>> 10) % 3 === 0 ? 1 + (value >>> 13) % policy.maxPassage : 0;
     const bounds = childBounds(source, direction, rows, columns, gap);
@@ -53,7 +63,8 @@ function reserveCandidate(recipe: ModuleRecipe, source: SpaceSpec, direction: Di
     work.occupancyQueries++;
     if (occupied(reservation.bounds, except)) continue;
     return { id, sourceId: source.id, direction, reservation,
-      room: moduleSpace(`${id}:room`, 'room', bounds, keyedSeed(recipe.seed, `${id}:room`), recipe.architecture),
+      room: { ...moduleSpace(`${id}:room`, intent === 'chamber' ? 'room' : 'passage', bounds, keyedSeed(recipe.seed, `${id}:room`), recipe.architecture),
+        ...(intent === 'chamber' ? {} : { circulation: intent }) },
       ...(passage ? { passage: moduleSpace(`${id}:passage`, 'passage', passage, keyedSeed(recipe.seed, `${id}:passage`)) } : {}),
     };
   }

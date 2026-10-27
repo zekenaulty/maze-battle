@@ -9,7 +9,7 @@ import { preparationRecordBytes as row, preparationTreeBytes as tree, preparatio
 export interface PreparationPublicBounds {
   version: 'modules-v3'; level: number; roomBudget: number; policy: ModulePolicy;
   spatial?: typeof STAIR_LAYOUT_VERSION;
-  architecture?: 'open-chambers-v1';
+  architecture?: 'open-chambers-v1' | 'circulation-v1';
 }
 export type PreparationCapacityPhase = 'bootstrap' | 'generation' | 'quality' | 'roles' | 'content';
 export interface PreparationPhaseCapacity {

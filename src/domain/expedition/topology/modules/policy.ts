@@ -19,7 +19,7 @@ export interface ModuleRecipe {
   roomBudget: number;
   policy: ModulePolicy;
   spatial?: typeof STAIR_LAYOUT_VERSION;
-  architecture?: 'open-chambers-v1';
+  architecture?: 'open-chambers-v1' | 'circulation-v1';
 }
 
 export interface ModuleLimits { maxModules: number; maxProjectionCells: number }
@@ -45,6 +45,7 @@ export function createModuleRecipe(worldId: string, level: number, seed: number,
   };
   if (options.spatial) { recipe.spatial = STAIR_LAYOUT_VERSION; recipe.policy.minSide = 9; }
   if (options.architecture !== undefined) recipe.architecture = options.architecture;
+  if (recipe.architecture === 'circulation-v1') recipe.policy.joins = 'direct';
   validateModuleRecipe(recipe);
   return recipe;
 }
@@ -52,13 +53,14 @@ export function createModuleRecipe(worldId: string, level: number, seed: number,
 export function validateModuleRecipe(recipe: ModuleRecipe) {
   if (!recipe || recipe.version !== 'modules-v3') throw new Error('Unsupported module recipe');
   validateSeed(recipe.seed);
-  if (recipe.architecture !== undefined && recipe.architecture !== 'open-chambers-v1') throw new Error('Unsupported module architecture');
+  if (recipe.architecture !== undefined && !['open-chambers-v1', 'circulation-v1'].includes(recipe.architecture)) throw new Error('Unsupported module architecture');
   moduleBudgetForLevel(recipe.level);
   for (const id of [recipe.worldId, recipe.floorId]) {
     if (typeof id !== 'string' || !id.trim() || id.length > 128) throw new Error('Invalid module scope identity');
   }
   if (!Number.isSafeInteger(recipe.roomBudget) || recipe.roomBudget < 3) throw new Error('Invalid room budget');
   const p = recipe.policy;
+  if (recipe.architecture === 'circulation-v1' && (recipe.roomBudget < 5 || p?.joins !== 'direct')) throw new Error('Invalid circulation policy');
   if (recipe.spatial !== undefined && (recipe.spatial !== STAIR_LAYOUT_VERSION || p?.minSide < 9)) throw new Error('Unsupported spatial recipe');
   if (!p || p.version !== 'branching-v1' || !['mixed', 'direct', 'passage'].includes(p.joins)
     || ![p.minSide, p.maxSide, p.maxPassage, p.attempts].every(Number.isSafeInteger)

@@ -6,6 +6,7 @@ import type { Bounds, Occupancy } from '../types';
 import { moduleSpace, reserveModuleSockets, spaceOccupancy, type OccupancyQuery } from './placement';
 import { validateModuleRecipe, type ModuleRecipe } from './policy';
 import type { ModuleDelta, ModuleSocket, ModuleWork } from './types';
+import { isModuleChamber, validModuleIntent } from './intent';
 
 /** Counters only; the caller owns FIFO socket custody and the occupancy index. */
 export interface ModuleStepState {
@@ -71,12 +72,14 @@ function validateSpace(space: SpaceSpec, recipe: ModuleRecipe, id: string, kind:
     || !space.origin || !Array.isArray(space.openings) || space.openings.length !== 0
     || !Array.isArray(space.chests) || space.chests.length !== 0) throw new Error('Invalid module space binding');
   validateBounds(spaceBounds(space));
-  const open = kind === 'room' && recipe.architecture === 'open-chambers-v1';
+  const open = kind === 'room' && recipe.architecture !== undefined;
   if (space.interior !== (open ? 'open-room-v1' : undefined) || space.furnishing !== (open ? 'none' : undefined)) {
     throw new Error('Invalid module architecture binding');
   }
   if (kind === 'room' && [space.rows, space.columns].some(side => side < recipe.policy.minSide
     || side > recipe.policy.maxSide || side % 2 !== 1)) throw new Error('Invalid module room dimensions');
+  if (!id.endsWith(':passage') && !validModuleIntent(recipe, space)) throw new Error('Invalid module intent binding');
+  if (id.endsWith(':passage') && space.circulation !== undefined) throw new Error('Invalid gap passage intent');
 }
 
 function validateStep(state: ModuleStepState, socket: ModuleSocket, source: SpaceSpec) {
@@ -94,12 +97,15 @@ function validateStep(state: ModuleStepState, socket: ModuleSocket, source: Spac
   const sourceSequence = /^socket-(0|[1-9]\d*):room$/.exec(source.id)?.[1];
   if (source.id !== 'entry' && (sourceSequence === undefined || !Number.isSafeInteger(Number(sourceSequence))
     || Number(sourceSequence) >= revision)) throw new Error('Invalid module source binding');
-  validateSpace(source, recipe, source.id, 'room');
+  validateSpace(source, recipe, source.id, isModuleChamber(recipe, source.id) ? 'room' : 'passage');
   if (source.id === 'entry') {
     const side = Math.max(recipe.policy.minSide, Math.min(9, recipe.policy.maxSide));
     if (!sameBounds(spaceBounds(source), { row: 0, column: 0, rows: side, columns: side })) throw new Error('Invalid module entry geometry');
   }
-  validateSpace(socket.room, recipe, `${socket.id}:room`, 'room');
+  validateSpace(socket.room, recipe, `${socket.id}:room`, isModuleChamber(recipe, `${socket.id}:room`) ? 'room' : 'passage');
+  const vertical = socket.direction === 'north' || socket.direction === 'south';
+  if (socket.room.circulation === 'run' && (vertical ? socket.room.columns : socket.room.rows) !== 1
+    || source.circulation === 'run' && (vertical ? source.columns : source.rows) !== 1) throw new Error('Invalid circulation run direction');
   const room = spaceBounds(socket.room);
   let gap = 0;
   if (socket.passage) {

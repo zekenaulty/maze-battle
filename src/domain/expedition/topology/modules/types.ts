@@ -7,6 +7,7 @@ export interface ModuleSocket {
   id: string;
   sourceId: string;
   direction: Direction;
+  /** Anchored target module. The legacy field name does not override SpaceSpec.kind. */
   room: SpaceSpec;
   passage?: SpaceSpec;
   reservation: Occupancy;
@@ -24,6 +25,7 @@ export interface ModuleAssemblyState {
   recipe: ModuleRecipe;
   scopeId: string;
   revision: number;
+  /** Number of anchored modules (including circulation for circulation-v1). */
   rooms: number;
   nextSequence: number;
   spaces: SpaceSpec[];

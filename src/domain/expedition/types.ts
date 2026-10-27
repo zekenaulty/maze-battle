@@ -29,6 +29,7 @@ export interface SpaceSpec {
   /** Absence retains the historical seeded interior; a selected profile is pinned geometry. */
   interior?: 'open-room-v1';
   furnishing?: SpaceFurnishing;
+  circulation?: 'run' | 'junction';
   openings: SpaceOpening[];
   chests: { id: string; cell: GridPosition }[];
 }

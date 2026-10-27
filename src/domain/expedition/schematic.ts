@@ -79,6 +79,11 @@ function validateSpec(spec: SpaceSpec) {
     throw new Error('Invalid space identity or kind');
   }
   validateSeed(spec.seed);
+  if (spec.circulation !== undefined && (spec.kind !== 'passage' || !['run', 'junction'].includes(spec.circulation)
+    || (spec.circulation === 'junction' ? spec.rows !== 3 || spec.columns !== 3
+      : !(spec.rows === 1 && [5, 7].includes(spec.columns) || spec.columns === 1 && [5, 7].includes(spec.rows))))) {
+    throw new Error('Unsupported circulation geometry');
+  }
   if (spec.interior !== undefined && (spec.interior !== 'open-room-v1' || spec.kind !== 'room')) {
     throw new Error('Unsupported space interior profile');
   }

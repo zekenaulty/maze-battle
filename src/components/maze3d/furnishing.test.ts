@@ -29,3 +29,14 @@ it('keeps structural stair-room furnishing policy when the actor observation rep
   expect(scene.cells.filter(c => c.kind === 'room').every(c => c.furnishing === 'none')).toBe(true);
   expect(scene.boxes.some(b => b.material === 'bookshelf')).toBe(false);
 });
+
+it('opens passage-to-passage boundaries at full width while retaining chamber doors', async () => {
+  const { game } = await stageFixture();
+  const before = compileStageScene(game)!;
+  expect(before.doors).toHaveLength(1);
+  game.observation!.header.spaces!.forEach(s => { s.kind = 'passage'; });
+  const after = compileStageScene(game)!;
+  expect(after.doors).toHaveLength(0);
+  expect(after.cells).toHaveLength(before.cells.length);
+  expect(after.boxes.filter(b => /\/(left|right|lintel)$/.test(b.id))).toHaveLength(0);
+});

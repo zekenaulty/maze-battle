@@ -98,7 +98,8 @@ export async function expandWorldFloor(pages: CanonicalPages, level: number, req
   await pages.delete('world', socketKey(level, floor.nextPending));
   await stage();
   const candidate = { spaceId: socket.room.id, distance: source.distance + 1 }, prior = floor.farthest;
-  const farthest = candidate.distance > prior.distance || candidate.distance === prior.distance && candidate.spaceId < prior.spaceId ? candidate : prior;
+  const farthest = socket.room.kind === 'room' && (candidate.distance > prior.distance
+    || candidate.distance === prior.distance && candidate.spaceId < prior.spaceId) ? candidate : prior;
   const generation = { ...g, revision: g.revision + 1, rooms: g.rooms + 1,
     nextSequence: g.nextSequence + delta.pending.length, pendingCount: g.pendingCount - 1 + delta.pending.length };
   const exit = generation.rooms === g.recipe.roomBudget ? center((await loadSpace(pages, level, farthest.spaceId)).value.spec) : null;

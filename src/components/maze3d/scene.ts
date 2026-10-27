@@ -167,7 +167,9 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
       const neighbour = byWorld.get(cell.source.at.level + '/' + worldKey({ row: cell.source.world.row + dz, column: cell.source.world.column + dx }));
       const ownsBoundary = !neighbour || direction === 'west' || direction === 'north';
       const target = edges[direction], knownOpen = target != null;
-      const doorway = knownOpen && target.cell.spaceId !== cell.source.at.cell.spaceId;
+      // A generator boundary inside circulation is a continuous opening, not a door.
+      const doorway = knownOpen && target.cell.spaceId !== cell.source.at.cell.spaceId
+        && !(cell.kind === 'passage' && neighbour?.kind === 'passage');
       if (knownOpen && !doorway) continue;
       const edge = cell.key + '/' + direction, cx = x + dx * half, cz = z + dz * half, horizontal = !!dz;
       const panel = (suffix: string, offset: number, width: number, height: number, bottom = 0, material = 'stone_bricks') => {

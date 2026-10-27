@@ -50,20 +50,21 @@ export async function requireWorldContent(pages: WorldRead, level: number) {
   check(state.nextRoom === state.binding.roomCount, 'room content is not ready'); return state;
 }
 
-/** Engine preparation, not observation. One pinned room page at a time; no historical floors. */
+/** Engine preparation, not observation. One pinned space page at a time; no historical floors.
+ * Circulation gets an empty progress witness, never a room role, chest or contract. */
 export async function advanceWorldContent(pages: CanonicalPages, level: number, count = MAX_CONTENT_ROOMS_PER_ADVANCE) {
   check(integer(count, 1) && count <= MAX_CONTENT_ROOMS_PER_ADVANCE, 'invalid content advance limit');
   const state = await loadWorldContent(pages, level), { plan } = await context(pages, level);
   const end = Math.min(state.binding.roomCount, state.nextRoom + count);
   let lastRoomRecordId = state.lastRoomRecordId;
   for (let n = state.nextRoom; n < end; n++) {
-    const spaceId = roomIdAt(n), role = resolveModuleRoomRole(plan, spaceId);
+    const spaceId = roomIdAt(n);
     const { space, geometry } = await loadWorldRoom(pages, level, spaceId);
-    check(space.spec.kind === 'room', 'content target is not a room');
+    const role = space.spec.kind === 'room' ? resolveModuleRoomRole(plan, spaceId) : null;
     const center = { row: Math.floor(space.spec.rows / 2), column: Math.floor(space.spec.columns / 2) };
     check(geometry.cells.some(cell => cell.row === center.row && cell.column === center.column), 'room center is not walkable');
-    const chestId = role.kind === 'treasure' ? `chest-${level}-${spaceId}` : null;
-    const contract = role.tags.includes('questRelevant') && role.kind !== 'start' && role.kind !== 'hub'
+    const chestId = role?.kind === 'treasure' ? `chest-${level}-${spaceId}` : null;
+    const contract = role && role.tags.includes('questRelevant') && role.kind !== 'start' && role.kind !== 'hub'
       ? createGuildContract({ floor: level, originRoomId: plan.hubId, target: { id: spaceId, ...role } }) : null;
     const content: RoomContent = { schema: 1, level, spaceId, chestId, contractId: contract?.id ?? null };
     await fresh(pages, roomContentKey(level, spaceId), content);

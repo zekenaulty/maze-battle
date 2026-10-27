@@ -61,3 +61,15 @@ it('keeps optional supports absent by default and avoids filling a tiny room wit
   expect(roomSupports(scene, DEFAULT_ARCHITECTURE, scene.actor.center)).toEqual([]);
   expect(roomSupports(scene, { ...DEFAULT_ARCHITECTURE, cornerPosts: true }, scene.actor.center)).toEqual([]);
 });
+it('never spawns a solid corner post into the actual player disk, including its rounded corners', async () => {
+  const { game } = await stageFixture(), scene = compileStageScene(game)!, template = scene.cells[0];
+  scene.cells = Array.from({ length: 9 }, (_, i) => ({ ...template, key: 'test/' + i, kind: 'room', floorY: 0,
+    center: { x: i % 3 * 3.2, z: Math.floor(i / 3) * 3.2 }, geometryEdges: { north: null, west: null, east: null, south: null } }));
+  scene.boxes = [{ ...box('floor', [3.2, -.09, 3.2], [9.6, .18, 9.6]), deck: 'floor' }]; scene.flights = []; scene.actor.floorY = 0;
+  const options = { ...DEFAULT_ARCHITECTURE, cornerPosts: true }, player = { x: -.835, z: -1.12 };
+  const nominal = roomSupports(scene, options, { x: 100, z: 100 });
+  expect(nominal.some(p => p.box.center[0] === -1.36 && p.box.center[2] === -1.36)).toBe(true);
+  const guarded = roomSupports(scene, options, player);
+  expect(guarded.length).toBeLessThan(nominal.length);
+  for (const { box: b } of guarded.filter(p => p.box.solid)) expect(Math.hypot(Math.max(0, Math.abs(player.x - b.center[0]) - b.size[0] / 2), Math.max(0, Math.abs(player.z - b.center[2]) - b.size[2] / 2))).toBeGreaterThanOrEqual(.38);
+});

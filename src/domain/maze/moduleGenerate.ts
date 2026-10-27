@@ -13,6 +13,7 @@ import { revealMazeVisibility } from './visibility';
 
 /** Build privately, qualify, then publish one RPG floor. No stream save or loot state. */
 export function generateModuleMaze(recipe: ModuleRecipe, limits: ModuleLimits = DEFAULT_MODULE_LIMITS): MazeState {
+  if (recipe.architecture === 'circulation-v1') throw new Error('Circulation requires canonical space topology; structured-v3 only represents room destinations');
   const assembly = new ModuleAssembly(recipe, limits).finish();
   const quality = assertModuleQuality(assembly);
   if (quality.projectionCells > limits.maxProjectionCells) {

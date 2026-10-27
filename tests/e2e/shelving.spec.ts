@@ -46,6 +46,7 @@ test('real cabinet doors close flush and keyboard/touch controls open and close 
   await page.keyboard.down('s');
   await expect.poll(async () => { const [x, z] = (await dungeon(page).getAttribute('data-pose'))!.split(',').map(Number); return (x - cabinet.center[0]) * normal[0] + (z - cabinet.center[2]) * normal[1]; }, { timeout: 6_000, intervals: [16] }).toBeGreaterThan(1.65);
   await page.keyboard.up('s');
+  await pitch(page, -.42);
   const before = await dungeon(page).getAttribute('data-revision'); await page.screenshot({ path: info.outputPath('cabinet-flush-closed.png') });
   await page.keyboard.press('e');
   await expect.poll(async () => JSON.parse((await dungeon(page).getAttribute('data-cabinet-states'))!).find((s: any) => s.id === cabinet.id)?.open).toBe(true);
@@ -60,6 +61,8 @@ test('real cabinet doors close flush and keyboard/touch controls open and close 
     return { front, rear, gap: rear - front };
   });
   expect(Math.abs(fit.gap)).toBeLessThan(1e-6); await writeFile(info.outputPath('cabinet-fit.json'), JSON.stringify(fit, null, 2));
+  await yaw(page, Number(await dungeon(page).getAttribute('data-yaw')) + .65); await pitch(page, .65); await frames(page);
+  await page.screenshot({ path: info.outputPath('timber-corner-joint.png') });
 });
 
 test('optional construction strategies and per-face stair finishes remain bounded and reversible', async ({ page }, info) => {

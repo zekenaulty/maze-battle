@@ -4,6 +4,7 @@ import { check, integer, isObject, jsonBytes, validId } from '../validation';
 import { levelKey, loadFloor, loadWorld, same } from './records';
 import { qualityNamespace, qualityScratchPrefix, qualityTopology } from './qualityWitness';
 import type { WorldRead } from './types';
+import { isModuleChamber } from '../../../domain/expedition/topology/modules/intent';
 
 export const qualityKey = (level: number) => `${levelKey(level)}/quality`;
 export const qualityProgressKey = (level: number) => `${qualityKey(level)}/progress`;
@@ -43,6 +44,7 @@ export async function qualityContext(pages: WorldRead, level: number) {
   check(floor.exit && g.rooms === g.recipe.roomBudget && g.pendingCount === 0
     && g.nextSequence === g.revision, 'quality requires completed generation');
   check(g.scopeId.length <= 1024 && qualityOrdinal(floor.exit.spaceId, g.rooms) > 0, 'invalid quality floor binding');
+  check(isModuleChamber(g.recipe, floor.exit.spaceId), 'quality exit is not a chamber');
   const row = await pages.get('world', levelKey(level));
   check(row && validId(row.id), 'missing quality floor record');
   const binding: WorldQualityBinding = { floorRecordId: row.id, scopeId: g.scopeId, revision: g.revision,

@@ -6,6 +6,7 @@ import { check, integer, isObject, jsonBytes } from '../validation';
 import { json, levelKey, loadFloor, loadWorld, same } from './records';
 import { loadWorldRoom } from './residency';
 import type { WorldFloor, WorldRead } from './types';
+import { isModuleChamber, moduleChambersInPrefix } from '../../../domain/expedition/topology/modules/intent';
 
 export interface WorldRoleBinding {
   readonly scopeId: string;
@@ -23,7 +24,7 @@ export interface WorldRoleCompilation {
   readonly plan: ModuleRolePlan | null;
 }
 
-// Eight rooms = sixteen room/ports records, plus at most 32 local connections.
+// Eight anchored modules = sixteen space/ports records, plus at most 32 local connections.
 export const MAX_ROLE_ROOMS_PER_ADVANCE = 8;
 const MAX_ROLE_RECORD_BYTES = 4096;
 const rolesKey = (level: number) => `${levelKey(level)}/roles`;
@@ -42,7 +43,8 @@ export async function beginWorldRoomRoles(pages: CanonicalPages, level: number):
   return state;
 }
 
-/** Cursor and accumulator publish together in one world record. No scans or growing manifest. */
+/** Cursor visits every anchored module; accumulator admits only chambers.
+ * Both publish together in one world record. No scans or growing manifest. */
 export async function advanceWorldRoomRoles(pages: CanonicalPages, level: number,
   maxRooms = MAX_ROLE_ROOMS_PER_ADVANCE): Promise<WorldRoleCompilation> {
   check(integer(maxRooms, 1) && maxRooms <= MAX_ROLE_ROOMS_PER_ADVANCE, 'invalid role advance limit');
@@ -54,7 +56,7 @@ export async function advanceWorldRoomRoles(pages: CanonicalPages, level: number
   while (nextRoom < end) {
     const id = roomIdAt(nextRoom);
     const degree = await roomDegree(pages, context.floor, id);
-    accumulator = accumulateModuleRole(accumulator, { id, degree });
+    if (isModuleChamber(context.floor.generation.recipe, id)) accumulator = accumulateModuleRole(accumulator, { id, degree });
     nextRoom++;
   }
   const next: WorldRoleCompilation = { ...state, nextRoom, accumulator,
@@ -74,6 +76,7 @@ export async function loadWorldRoomRole(pages: WorldRead, level: number, id: str
   const state = await compilation(pages, context);
   check(state.plan, 'room roles are not prepared');
   roomOrdinal(id, state.binding.roomCount);
+  check(isModuleChamber(context.floor.generation.recipe, id), 'circulation has no room role');
   await roomDegree(pages, context.floor, id);
   return resolveModuleRoomRole(state.plan, id);
 }
@@ -85,6 +88,7 @@ async function completedFloor(pages: WorldRead, level: number) {
     && g.nextSequence === g.revision, 'role preparation requires completed generation');
   check(g.scopeId.length <= 1024, 'role generation scope exceeds bound');
   check(roomOrdinal(floor.exit.spaceId, g.rooms) > 0, 'invalid role exit');
+  check(isModuleChamber(g.recipe, floor.exit.spaceId), 'role exit is not a chamber');
   const binding: WorldRoleBinding = { scopeId: g.scopeId, revision: g.revision, roomCount: g.rooms,
     entryId: floor.entry.spaceId, exitId: floor.exit.spaceId };
   return { floor, binding };
@@ -118,12 +122,13 @@ function validateCompilation(value: unknown, { floor, binding }: Awaited<ReturnT
   const a = state.accumulator, seed = floor.generation.recipe.seed;
   fields(a, 'entryId,entrySeen,exitId,exitSeen,hub,roomCount,seed,specialties');
   check(a.entryId === binding.entryId && a.exitId === binding.exitId && a.seed === seed
-    && a.roomCount === state.nextRoom && a.entrySeen === (state.nextRoom > 0)
+    && a.roomCount === moduleChambersInPrefix(floor.generation.recipe, state.nextRoom) && a.entrySeen === (state.nextRoom > 0)
     && a.exitSeen === (roomOrdinal(binding.exitId, binding.roomCount) < state.nextRoom), 'invalid room role counters or scope');
-  const candidates = state.nextRoom - Number(a.entrySeen) - Number(a.exitSeen);
+  const candidates = a.roomCount - Number(a.entrySeen) - Number(a.exitSeen);
   check(Array.isArray(a.specialties) && a.specialties.length === Math.min(6, candidates), 'invalid bounded role candidates');
   check(candidates === 0 ? a.hub === null : isObject(a.hub), 'invalid role hub');
   const candidateId = (id: string) => check(id !== binding.entryId && id !== binding.exitId
+    && isModuleChamber(floor.generation.recipe, id)
     && roomOrdinal(id, binding.roomCount) < state.nextRoom, 'role candidate outside accepted prefix');
   // Recompute only the retained (at most seven) candidates through the shared planner.
   // This validates ranking/order without a second ranking algorithm or a full-floor replay.
@@ -147,7 +152,7 @@ function validateCompilation(value: unknown, { floor, binding }: Awaited<ReturnT
 
 async function roomDegree(pages: WorldRead, floor: WorldFloor, id: string): Promise<number> {
   const room = await loadWorldRoom(pages, floor.level, id), { spec, distance } = room.space;
-  check(spec.kind === 'room' && spec.seed === keyedSeed(floor.generation.recipe.seed, id)
+  check(spec.kind === (isModuleChamber(floor.generation.recipe, id) ? 'room' : 'passage') && spec.seed === keyedSeed(floor.generation.recipe.seed, id)
     && (id === 'entry' ? distance === 0 : integer(distance, 1) && distance < floor.generation.rooms), 'invalid role room binding');
   check(room.ports.pending.length === 0 && room.connections.length >= 1 && room.connections.length <= 4,
     'invalid completed room connection degree');

@@ -5,6 +5,7 @@ import { readCanonicalHead } from '../../src/persistence/canonical/read';
 import { executeCanonical } from '../../src/persistence/canonical/transaction';
 import { createWorldFloor } from '../../src/persistence/canonical/world/generation';
 import { loadFloor } from '../../src/persistence/canonical/world/records';
+import { loadSpace } from '../../src/persistence/canonical/world/records';
 import { requireWorldAnchor } from '../../src/persistence/canonical/world/residency';
 import { checkpointJson, gameCheckpoint, rosterContext, type GameCheckpoint } from '../../src/persistence/canonical/game/checkpoint';
 import { captureInitializationBoot } from '../../src/persistence/canonical/game/initializationBoot';
@@ -19,8 +20,9 @@ if (!['http://127.0.0.1:5208', 'http://127.0.0.1:5209', 'http://127.0.0.1:5210']
 if (!sessionStorage.getItem('canonical-stair-fixture')) {
   if ((await indexedDB.databases()).some(db => db.name === 'maze-battle')) throw Error('Fresh qualification context required');
   const legacy = new URLSearchParams(location.search).has('legacy');
+  const circulation = new URLSearchParams(location.search).has('circulation');
   const recipe = createModuleRecipe('00000042-0000-4000-8000-000000000042', 1, 42,
-    { spatial: !legacy, architecture: new URLSearchParams(location.search).has('open') ? 'open-chambers-v1' : undefined });
+    { spatial: !legacy, architecture: circulation ? 'circulation-v1' : new URLSearchParams(location.search).has('open') ? 'open-chambers-v1' : undefined });
   const initial = bootstrapModule(recipe).space;
   const now = '2026-10-24T00:00:00.000Z', boot = captureInitializationBoot(recipe.worldId);
   const c: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual', position: { level: 1, cell: { spaceId: initial.id,
@@ -37,7 +39,11 @@ if (!sessionStorage.getItem('canonical-stair-fixture')) {
   // Fixture-only initial actor placement BEFORE its first observation. The production App owns all later commands.
   const { head } = await readCanonicalHead();
   await executeCanonical(gameRequest(head, 'fixture.stair-start', {}), async tx => {
-    const floor = await loadFloor(tx.pages, 1), position = { level: 1, cell: floor.exit! };
+    const floor = await loadFloor(tx.pages, 1);
+    const junction = new URLSearchParams(location.search).has('junction')
+      ? (await loadSpace(tx.pages, 1, 'socket-0:room')).value.spec : undefined;
+    const position = { level: 1, cell: junction ? { spaceId: junction.id,
+      row: Math.floor(junction.rows / 2), column: Math.floor(junction.columns / 2) } : floor.exit! };
     await requireWorldAnchor(tx.pages, position);
     tx.setCheckpoint(checkpointJson({ ...gameCheckpoint(tx.head.checkpoint), position })); return {};
   });
