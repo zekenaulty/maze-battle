@@ -46,7 +46,8 @@ export function observationHeader(value: unknown): ObservationHeader {
     check(Array.isArray(r.spaces) && r.spaces.length > 0 && r.spaces.length <= 16, 'invalid observed spaces');
     const seen = new Set<string>();
     for (const value of r.spaces) {
-      const s = fields(value, 'spaceId kind index'); id(s.spaceId); natural(s.index);
+      const s = fields(value, 'spaceId kind index', 'furnishing'); id(s.spaceId); natural(s.index);
+      check(s.furnishing === undefined || s.furnishing === 'none' || s.furnishing === 'wall-shelving-v1', 'invalid observed furnishing');
       check((s.kind === 'room' || s.kind === 'passage') && s.index < r.count && !seen.has(s.spaceId), 'invalid observed classification');
       seen.add(s.spaceId);
     }

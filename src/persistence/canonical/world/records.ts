@@ -51,10 +51,11 @@ export async function loadFloor(pages: WorldRead, level: number) {
 }
 export async function loadSpace(pages: WorldRead, level: number, id: string) {
   const value = await required<WorldSpace>(pages, entityKey(level, 'space', id));
-  check(value?.schema === 1 && value.level === level && ['stone-room-v1', 'stair-room-v1'].includes(value.schematic)
+  check(value?.schema === 1 && value.level === level && ['stone-room-v1', 'open-room-v1', 'stair-room-v1'].includes(value.schematic)
     && value.spec?.id === id && integer(value.distance), 'invalid space identity');
   check(value.spec.openings.length === 0 && value.spec.chests.length === 0, 'geometry contains mutable entities or connections');
   check(value.schematic === 'stair-room-v1' ? value.stairwell !== undefined : value.stairwell === undefined, 'invalid stair-room identity');
+  if (!value.stairwell) check(value.schematic === (value.spec.interior ?? 'stone-room-v1'), 'invalid room interior binding');
   const geometry = value.stairwell ? materializeStairRoom(value.spec, value.stairwell) : materializeSpace(value.spec);
   return { value, geometry };
 }

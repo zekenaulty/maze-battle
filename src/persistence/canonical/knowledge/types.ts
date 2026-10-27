@@ -1,12 +1,13 @@
 import type { Direction, GridPosition } from '../../../domain/types';
 import type { CanonicalPages } from '../pages';
 import type { WorldPosition } from '../world/types';
+import type { SpaceFurnishing } from '../../../domain/expedition/types';
 
 export type KnowledgeRead = Pick<CanonicalPages, 'get' | 'scan' | 'witness'>;
 export interface ObservationRef { sequence: number; id: string }
 export interface KnowledgeAnchor extends ObservationRef { witness: string }
 export interface CellSource extends ObservationRef { index: number }
-export interface ObservedSpace { spaceId: string; kind: 'room' | 'passage'; index: number }
+export interface ObservedSpace { spaceId: string; kind: 'room' | 'passage'; index: number; furnishing?: SpaceFurnishing }
 export interface ObservedCell {
   at: WorldPosition;
   world: GridPosition;

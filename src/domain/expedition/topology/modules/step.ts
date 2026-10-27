@@ -25,7 +25,7 @@ export function bootstrapModule(recipe: ModuleRecipe): {
   validateModuleRecipe(recipe);
   const owned = structuredClone(recipe);
   const side = Math.max(owned.policy.minSide, Math.min(9, owned.policy.maxSide));
-  const space = moduleSpace('entry', 'room', { row: 0, column: 0, rows: side, columns: side }, keyedSeed(owned.seed, 'entry'));
+  const space = moduleSpace('entry', 'room', { row: 0, column: 0, rows: side, columns: side }, keyedSeed(owned.seed, 'entry'), owned.architecture);
   const occupancy = [spaceOccupancy(space)];
   const work = emptyWork();
   const pending = reserveModuleSockets(owned, space, 0, owned.roomBudget - 1, undefined, () => false, occupancy, work);
@@ -71,6 +71,10 @@ function validateSpace(space: SpaceSpec, recipe: ModuleRecipe, id: string, kind:
     || !space.origin || !Array.isArray(space.openings) || space.openings.length !== 0
     || !Array.isArray(space.chests) || space.chests.length !== 0) throw new Error('Invalid module space binding');
   validateBounds(spaceBounds(space));
+  const open = kind === 'room' && recipe.architecture === 'open-chambers-v1';
+  if (space.interior !== (open ? 'open-room-v1' : undefined) || space.furnishing !== (open ? 'none' : undefined)) {
+    throw new Error('Invalid module architecture binding');
+  }
   if (kind === 'room' && [space.rows, space.columns].some(side => side < recipe.policy.minSide
     || side > recipe.policy.maxSide || side % 2 !== 1)) throw new Error('Invalid module room dimensions');
 }

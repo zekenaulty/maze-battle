@@ -18,7 +18,7 @@ export async function hasCanonicalGame(signal?: AbortSignal) {
 /** Fresh schema only. Existing data is never guessed, migrated or silently reset. */
 export function createCanonicalGame(owner: string, reset = false, signal?: AbortSignal) {
   const worldId = crypto.randomUUID(), seed = crypto.getRandomValues(new Uint32Array(1))[0];
-  const recipe = createModuleRecipe(worldId, 1, seed, { spatial: true }), initial = bootstrapModule(recipe).space;
+  const recipe = createModuleRecipe(worldId, 1, seed, { spatial: true, architecture: 'open-chambers-v1' }), initial = bootstrapModule(recipe).space;
   const boot = captureInitializationBoot(worldId), allocation = floorPreparationSpec(recipe);
   const now = new Date().toISOString();
   const checkpoint: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual',

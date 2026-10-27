@@ -35,6 +35,7 @@ export async function projectSpatialView(pages: WorldRead, snapshot: CanonicalSn
       return { at, world: world(space.spec, cell), edges, chests: [], stairs: [] };
     });
     const value: SpatialRoom = { id, level, spaceId, frame, kind: space.spec.kind, cells,
+      ...(space.spec.furnishing !== undefined ? { furnishing: space.spec.furnishing } : {}),
       voids: space.stairwell ? stairReservedCells(space.spec, space.stairwell).map(cell => ({ world: world(space.spec, cell),
         floorOpen: space.stairwell!.end === 'upper', ceilingOpen: space.stairwell!.end === 'lower' })) : [] };
     result.rooms!.push(value); return value;

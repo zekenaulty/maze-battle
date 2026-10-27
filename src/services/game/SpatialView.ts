@@ -3,6 +3,7 @@ import type { GridPosition } from '../../domain/types';
 import type { ObservedCell } from '../../persistence/canonical/knowledge/types';
 import type { CanonicalSnapshot } from '../../persistence/canonical/types';
 import type { WorldPosition } from '../../persistence/canonical/world/types';
+import type { SpaceFurnishing } from '../../domain/expedition/types';
 
 /** Transient geometry disclosure, never navigation knowledge, actor state, or a world recipe. */
 export interface ConnectorSight {
@@ -13,6 +14,7 @@ export interface ConnectorSight {
   geometryReady?: boolean; travelReady?: boolean;
 }
 export interface SpatialRoom {
+  furnishing?: SpaceFurnishing;
   id: string; level: number; spaceId: string; frame: FloorFrame; kind: 'room' | 'passage'; cells: ObservedCell[];
   voids: { world: GridPosition; floorOpen: boolean; ceilingOpen: boolean }[];
 }

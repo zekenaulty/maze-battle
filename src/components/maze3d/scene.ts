@@ -1,4 +1,5 @@
 import type { Direction, GridPosition } from '../../domain/types';
+import type { SpaceFurnishing } from '../../domain/expedition/types';
 import type { GameView } from '../../services/game/GameView';
 import type { ObservedCell } from '../../persistence/canonical/knowledge/types';
 import { DIRECTIONS, MAX_VISIBLE_CELLS } from '../../persistence/canonical/knowledge/types';
@@ -15,7 +16,7 @@ export { WALL_THICKNESS, SLAB_THICKNESS, STAGE_FLOOR_RISE } from './construction
 export type Point = { x: number; z: number };
 export interface Bounds2D { minX: number; maxX: number; minZ: number; maxZ: number }
 export interface SceneBox { id: string; material: string; center: [number, number, number]; size: [number, number, number]; solid: boolean; facing?: Direction; deck?: 'floor' | 'ceiling'; textureOrigin?: TextureOrigin; furnishing?: ShelvingKind }
-export interface StageCell { key: string; source: ObservedCell; center: Point; floorY: number; seed: number; kind: 'room' | 'passage'; geometryEdges?: ObservedCell['edges']; textureOrigin?: TextureOrigin }
+export interface StageCell { key: string; source: ObservedCell; center: Point; floorY: number; seed: number; kind: 'room' | 'passage'; furnishing?: SpaceFurnishing; geometryEdges?: ObservedCell['edges']; textureOrigin?: TextureOrigin }
 export interface StageConnector { sight: ConnectorSight; binding: string; upper: Point & { y: number }; lower: Point & { y: number } }
 export interface StageFlight { id: string; upper: Point & { y: number }; lower: Point & { y: number }; textureOrigins?: { upper: TextureOrigin; lower: TextureOrigin } }
 export interface StageDoor { id: string; center: [number, number, number]; horizontal: boolean }
@@ -117,23 +118,27 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
   const rooms = spatial?.rooms ?? [];
   if (rooms.length > MAX_STAIR_ROOMS || rooms.reduce((n, r) => n + r.cells.length, 0) > MAX_STAIR_ROOM_CELLS) throw new Error('Room sight budget exceeded');
   const scope = JSON.stringify([game.id, game.snapshot.generation, spatial ? 'spatial-v1' : level]);
-  const kinds = new Map(game.observation.header.spaces?.map(s => [s.spaceId, s.kind]));
+  const classifications = new Map(game.observation.header.spaces?.map(s => [s.spaceId, s]));
   const cellMap = new Map<string, StageCell>();
-  const addCell = (source: ObservedCell, frame: FloorFrame, kind: StageCell['kind'], primary = false) => {
+  const addCell = (source: ObservedCell, frame: FloorFrame, kind: StageCell['kind'], primary = false, furnishing?: SpaceFurnishing) => {
     const p = point(frame, source.world), key = addressKey(source.at), prior = cellMap.get(key);
     cellMap.set(key, { key, source, center: { x: p.x, z: p.z }, floorY: p.y, textureOrigin: textureOrigin(frame),
       seed: visualSeed('canonical-stage-v1/' + source.at.level + '/' + source.at.cell.spaceId + '/' + source.world.row + '/' + source.world.column),
-      kind, ...(primary && prior ? { geometryEdges: prior.source.edges } : {}) });
+      kind, ...((furnishing ?? prior?.furnishing) !== undefined ? { furnishing: furnishing ?? prior?.furnishing } : {}),
+      ...(primary && prior ? { geometryEdges: prior.source.edges } : {}) });
   };
   for (const room of rooms) {
     if (room.cells.length > 225 || room.voids.length > 6 || room.cells.some(c => c.at.level !== room.level || c.at.cell.spaceId !== room.spaceId || c.chests.length)) throw new Error('Invalid structural room');
-    for (const cell of room.cells) addCell(cell, room.frame, room.kind);
+    for (const cell of room.cells) addCell(cell, room.frame, room.kind, false, room.furnishing);
   }
   if (!rooms.length) for (const sight of sights) {
     if (sight.cells.length > 5 || sight.cells.some(c => c.at.level === level || c.chests.length || c.stairs.length)) throw new Error('Invalid landing disclosure');
     for (const cell of sight.cells) addCell(cell, sight.targetFrame, 'room');
   }
-  for (const cell of game.observation.cells.filter(c => c.at.level === level)) addCell(cell, currentFrame, kinds.get(cell.at.cell.spaceId) ?? 'room', true);
+  for (const cell of game.observation.cells.filter(c => c.at.level === level)) {
+    const classified = classifications.get(cell.at.cell.spaceId);
+    addCell(cell, currentFrame, classified?.kind ?? 'room', true, classified?.furnishing);
+  }
   const cells = [...cellMap.values()].sort((a, b) => a.key.localeCompare(b.key));
   const active = cellMap.get(addressKey(actor.at));
   const cellWorldKey = (c: ObservedCell) => c.at.level + '/' + worldKey(c.world);
@@ -187,7 +192,7 @@ export function compileStageScene(game: Pick<GameView, 'id' | 'snapshot' | 'chec
       } else if (!doorway) {
         if (ownsBoundary) panel('wall', 0, CELL_SIZE, WALL_HEIGHT, 0, target === null ? 'stone_bricks' : 'unknown');
         const random = seededRandom(visualSeed(cell.seed + '/' + direction));
-        if (!end && target === null && cell.kind === 'room' && random() < .25) {
+        if (!end && target === null && cell.kind === 'room' && cell.furnishing !== 'none' && random() < .25) {
           box(edge + '/shelf', 'bookshelf', [cx - dx * .25, y + 1.1, cz - dz * .25],
             horizontal ? [1.5, 2.2, .34] : [.34, 2.2, 1.5], cell.source.at.level === level, opposite(direction));
           boxes.at(-1)!.furnishing = SHELVING_KINDS[visualSeed(cell.seed + '/' + direction + '/shelving-v1') % SHELVING_KINDS.length];

@@ -17,6 +17,7 @@ export interface SpaceOpening {
   destination: CellAddress;
 }
 
+export type SpaceFurnishing = 'none' | 'wall-shelving-v1';
 export interface SpaceSpec {
   id: string;
   kind: 'room' | 'passage';
@@ -25,6 +26,9 @@ export interface SpaceSpec {
   rows: number;
   columns: number;
   seed: number;
+  /** Absence retains the historical seeded interior; a selected profile is pinned geometry. */
+  interior?: 'open-room-v1';
+  furnishing?: SpaceFurnishing;
   openings: SpaceOpening[];
   chests: { id: string; cell: GridPosition }[];
 }

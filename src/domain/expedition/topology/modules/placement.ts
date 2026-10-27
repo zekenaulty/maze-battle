@@ -9,10 +9,12 @@ import type { ModuleSocket, ModuleWork } from './types';
 const DIRECTIONS: Direction[] = ['north', 'east', 'south', 'west'];
 export type OccupancyQuery = (bounds: Bounds, except?: string) => boolean;
 
-export function moduleSpace(id: string, kind: SpaceSpec['kind'], bounds: Bounds, seed: number): SpaceSpec {
+export function moduleSpace(id: string, kind: SpaceSpec['kind'], bounds: Bounds, seed: number,
+  architecture?: ModuleRecipe['architecture']): SpaceSpec {
   return { id, kind, name: kind === 'room' ? 'Chamber' : 'Passage', seed,
     origin: { row: bounds.row, column: bounds.column }, rows: bounds.rows, columns: bounds.columns,
-    openings: [], chests: [] };
+    openings: [], chests: [], ...(kind === 'room' && architecture === 'open-chambers-v1'
+      ? { interior: 'open-room-v1' as const, furnishing: 'none' as const } : {}) };
 }
 
 /** Reserve exact bounded geometry. A pending socket is never a traversable link. */
@@ -51,7 +53,7 @@ function reserveCandidate(recipe: ModuleRecipe, source: SpaceSpec, direction: Di
     work.occupancyQueries++;
     if (occupied(reservation.bounds, except)) continue;
     return { id, sourceId: source.id, direction, reservation,
-      room: moduleSpace(`${id}:room`, 'room', bounds, keyedSeed(recipe.seed, `${id}:room`)),
+      room: moduleSpace(`${id}:room`, 'room', bounds, keyedSeed(recipe.seed, `${id}:room`), recipe.architecture),
       ...(passage ? { passage: moduleSpace(`${id}:passage`, 'passage', passage, keyedSeed(recipe.seed, `${id}:passage`)) } : {}),
     };
   }

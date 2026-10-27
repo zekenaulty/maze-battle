@@ -19,7 +19,9 @@ if (!['http://127.0.0.1:5208', 'http://127.0.0.1:5209', 'http://127.0.0.1:5210']
 if (!sessionStorage.getItem('canonical-stair-fixture')) {
   if ((await indexedDB.databases()).some(db => db.name === 'maze-battle')) throw Error('Fresh qualification context required');
   const legacy = new URLSearchParams(location.search).has('legacy');
-  const recipe = createModuleRecipe('00000042-0000-4000-8000-000000000042', 1, 42, { spatial: !legacy }), initial = bootstrapModule(recipe).space;
+  const recipe = createModuleRecipe('00000042-0000-4000-8000-000000000042', 1, 42,
+    { spatial: !legacy, architecture: new URLSearchParams(location.search).has('open') ? 'open-chambers-v1' : undefined });
+  const initial = bootstrapModule(recipe).space;
   const now = '2026-10-24T00:00:00.000Z', boot = captureInitializationBoot(recipe.worldId);
   const c: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual', position: { level: 1, cell: { spaceId: initial.id,
     row: Math.floor(initial.rows / 2), column: Math.floor(initial.columns / 2) } }, knowledge: null, facing: 'north', wave: 1, createdAt: now, updatedAt: now, activityLog: [] };

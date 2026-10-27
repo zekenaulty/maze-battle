@@ -9,6 +9,7 @@ import { preparationRecordBytes as row, preparationTreeBytes as tree, preparatio
 export interface PreparationPublicBounds {
   version: 'modules-v3'; level: number; roomBudget: number; policy: ModulePolicy;
   spatial?: typeof STAIR_LAYOUT_VERSION;
+  architecture?: 'open-chambers-v1';
 }
 export type PreparationCapacityPhase = 'bootstrap' | 'generation' | 'quality' | 'roles' | 'content';
 export interface PreparationPhaseCapacity {
@@ -24,7 +25,7 @@ export interface PreparationCapacity {
  * one-anchor contract; it is NOT permission to charge arbitrary mixed-transaction work. */
 export function preparationCapacity(input: PreparationPublicBounds): PreparationCapacity {
   const b = structuredClone(input);
-  fields(b, 'version level roomBudget policy', 'spatial');
+  fields(b, 'version level roomBudget policy', 'spatial architecture');
   fields(b.policy, 'version minSide maxSide maxPassage joins attempts');
   validateModuleRecipe({ ...b, worldId: 'x'.repeat(128), floorId: `floor-${b.level}`, seed: 0 });
   const n = b.roomBudget, coordinate = 22 * (n + 1);

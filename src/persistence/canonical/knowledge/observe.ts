@@ -51,7 +51,8 @@ export async function observePositionEvidence(pages: WorldRead, actor: WorldPosi
   for (const at of positions) {
     const r = await room(at.cell.spaceId);
     if (!spaces.some(s => s.spaceId === at.cell.spaceId))
-      spaces.push({ spaceId: at.cell.spaceId, kind: r.space.spec.kind, index: result.length });
+      spaces.push({ spaceId: at.cell.spaceId, kind: r.space.spec.kind, index: result.length,
+        ...(r.space.spec.furnishing !== undefined ? { furnishing: r.space.spec.furnishing } : {}) });
     if (!exits.has(cellKey(at))) await neighbors(at);
     if (!content.has(at.cell.spaceId)) {
       const c = r.space.spec.kind === 'room' ? await loadRoomContent(pages, at.level, at.cell.spaceId) : null;

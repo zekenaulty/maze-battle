@@ -19,6 +19,7 @@ export interface ModuleRecipe {
   roomBudget: number;
   policy: ModulePolicy;
   spatial?: typeof STAIR_LAYOUT_VERSION;
+  architecture?: 'open-chambers-v1';
 }
 
 export interface ModuleLimits { maxModules: number; maxProjectionCells: number }
@@ -36,12 +37,14 @@ export function moduleBudgetForLevel(level: number): number {
   return 6 + 2 * level;
 }
 
-export function createModuleRecipe(worldId: string, level: number, seed: number, options: { spatial?: boolean } = {}): ModuleRecipe {
+export function createModuleRecipe(worldId: string, level: number, seed: number,
+  options: { spatial?: boolean; architecture?: ModuleRecipe['architecture'] } = {}): ModuleRecipe {
   const recipe: ModuleRecipe = {
     version: 'modules-v3', worldId, floorId: `floor-${level}`, level, seed,
     roomBudget: moduleBudgetForLevel(level), policy: { ...DEFAULT_MODULE_POLICY },
   };
   if (options.spatial) { recipe.spatial = STAIR_LAYOUT_VERSION; recipe.policy.minSide = 9; }
+  if (options.architecture !== undefined) recipe.architecture = options.architecture;
   validateModuleRecipe(recipe);
   return recipe;
 }
@@ -49,6 +52,7 @@ export function createModuleRecipe(worldId: string, level: number, seed: number,
 export function validateModuleRecipe(recipe: ModuleRecipe) {
   if (!recipe || recipe.version !== 'modules-v3') throw new Error('Unsupported module recipe');
   validateSeed(recipe.seed);
+  if (recipe.architecture !== undefined && recipe.architecture !== 'open-chambers-v1') throw new Error('Unsupported module architecture');
   moduleBudgetForLevel(recipe.level);
   for (const id of [recipe.worldId, recipe.floorId]) {
     if (typeof id !== 'string' || !id.trim() || id.length > 128) throw new Error('Invalid module scope identity');

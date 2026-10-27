@@ -33,7 +33,7 @@ export function materializeSpace(spec: SpaceSpec): SpaceGeometry {
 }
 
 function isSolid(spec: SpaceSpec, row: number, column: number): boolean {
-  if (spec.kind === 'passage') return false;
+  if (spec.kind === 'passage' || spec.interior === 'open-room-v1') return false;
   const middleRow = Math.floor(spec.rows / 2);
   const middleColumn = Math.floor(spec.columns / 2);
   // A perimeter ring and central cross keep every port and schematic connected.
@@ -79,6 +79,12 @@ function validateSpec(spec: SpaceSpec) {
     throw new Error('Invalid space identity or kind');
   }
   validateSeed(spec.seed);
+  if (spec.interior !== undefined && (spec.interior !== 'open-room-v1' || spec.kind !== 'room')) {
+    throw new Error('Unsupported space interior profile');
+  }
+  if (spec.furnishing !== undefined && !['none', 'wall-shelving-v1'].includes(spec.furnishing)) {
+    throw new Error('Unsupported space furnishing policy');
+  }
   if (!Number.isInteger(spec.rows) || !Number.isInteger(spec.columns) ||
     spec.rows < 1 || spec.columns < 1 || spec.rows > MAX_CELLS || spec.columns > MAX_CELLS ||
     spec.rows * spec.columns > MAX_CELLS) {

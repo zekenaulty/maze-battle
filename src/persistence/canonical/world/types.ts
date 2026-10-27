@@ -16,7 +16,7 @@ export interface WorldFloor {
   exit: CellAddress | null;
   spatial?: { version: typeof STAIR_LAYOUT_VERSION; frame: FloorFrame };
 }
-export interface WorldSpace { schema: 1; level: number; schematic: 'stone-room-v1' | 'stair-room-v1'; spec: SpaceSpec; distance: number; stairwell?: StairRoomLayout }
+export interface WorldSpace { schema: 1; level: number; schematic: 'stone-room-v1' | 'open-room-v1' | 'stair-room-v1'; spec: SpaceSpec; distance: number; stairwell?: StairRoomLayout }
 export interface SpacePorts { schema: 1; level: number; spaceId: string; connections: string[]; pending: string[] }
 export interface WorldPosition { level: number; cell: CellAddress }
 export interface WorldStairs { schema: 1; upper: WorldPosition; lower: WorldPosition; placement?: StairPlacement }

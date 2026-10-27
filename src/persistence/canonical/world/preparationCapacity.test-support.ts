@@ -58,11 +58,12 @@ export function preparationMemory(seed: number, inputBirth?: PreparationBirth) {
     head = { ...head, revision: head.revision + 1, roots: staged.roots };
     return result;
   }
-  async function floor(level: number, options: Partial<Pick<ModuleRecipe, 'roomBudget' | 'policy' | 'spatial'>> = {}) {
+  async function floor(level: number, options: Partial<Pick<ModuleRecipe, 'roomBudget' | 'policy' | 'spatial' | 'architecture'>> = {}) {
     const pages = new CanonicalPages(tx, head, workBudget());
     const established = birth && level === 1 ? await loadFloor(pages, 1) : level > 1 ? await loadFloor(pages, level - 1) : undefined;
     const recipe = { ...createModuleRecipe(birth?.worldId ?? 'capacity-world', level, seed + level - 1,
-      { spatial: !!(established?.generation.recipe.spatial ?? options.spatial) }), ...structuredClone(options) };
+      { spatial: !!(established?.generation.recipe.spatial ?? options.spatial),
+        architecture: established?.generation.recipe.architecture ?? options.architecture }), ...structuredClone(options) };
     if (level > 1) {
       const pages = new CanonicalPages(tx, head, workBudget()), previous = await loadFloor(pages, level - 1);
       checkpoint.position = { level: level - 1, cell: previous.exit! }; head.checkpoint = checkpointJson(checkpoint);

@@ -32,6 +32,7 @@ export async function createWorldFloor(pages: CanonicalPages, recipe: ModuleReci
     await requireWorldAnchor(pages, { level: upper.level, cell: upper.exit });
     upperExit = { level: upper.level, cell: upper.exit };
     check(recipe.spatial === upper.generation.recipe.spatial, 'floor spatial profile must inherit its established parent');
+    check(recipe.architecture === upper.generation.recipe.architecture, 'floor architecture must inherit its established parent');
     if (upper.spatial) {
       upperFrame = upper.spatial.frame;
       upperPoint = gridPoint((await loadSpace(pages, upper.level, upper.exit.spaceId)).value.spec, upper.exit);
@@ -113,7 +114,7 @@ export async function expandWorldFloor(pages: CanonicalPages, level: number, req
 }
 
 async function addSpace(pages: CanonicalPages, level: number, spec: SpaceSpec, distance: number, end?: 'lower') {
-  const space: WorldSpace = { schema: 1, level, schematic: end ? 'stair-room-v1' : 'stone-room-v1', spec, distance,
+  const space: WorldSpace = { schema: 1, level, schematic: end ? 'stair-room-v1' : spec.interior ?? 'stone-room-v1', spec, distance,
     ...(end ? { stairwell: { version: STAIR_LAYOUT_VERSION, end } } : {}) };
   if (space.stairwell) materializeStairRoom(spec, space.stairwell);
   await fresh(pages, entityKey(level, 'space', spec.id), space, [`spaces/${level}/${spec.id}`]);
