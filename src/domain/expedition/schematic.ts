@@ -79,6 +79,10 @@ function validateSpec(spec: SpaceSpec) {
     throw new Error('Invalid space identity or kind');
   }
   validateSeed(spec.seed);
+  if (spec.purpose !== undefined && (spec.purpose !== 'stairwell-v1' || spec.kind !== 'room'
+    || spec.rows !== 9 || spec.columns !== 3 || spec.interior !== 'open-room-v1' || spec.furnishing !== 'none')) {
+    throw new Error('Unsupported space purpose geometry');
+  }
   if (spec.circulation !== undefined && (spec.kind !== 'passage' || !['run', 'junction'].includes(spec.circulation)
     || (spec.circulation === 'junction' ? spec.rows !== 3 || spec.columns !== 3
       : !(spec.rows === 1 && [5, 7].includes(spec.columns) || spec.columns === 1 && [5, 7].includes(spec.rows))))) {

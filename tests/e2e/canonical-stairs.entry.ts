@@ -21,8 +21,9 @@ if (!sessionStorage.getItem('canonical-stair-fixture')) {
   if ((await indexedDB.databases()).some(db => db.name === 'maze-battle')) throw Error('Fresh qualification context required');
   const legacy = new URLSearchParams(location.search).has('legacy');
   const circulation = new URLSearchParams(location.search).has('circulation');
+  const dedicated = new URLSearchParams(location.search).has('dedicated');
   const recipe = createModuleRecipe('00000042-0000-4000-8000-000000000042', 1, 42,
-    { spatial: !legacy, architecture: circulation ? 'circulation-v1' : new URLSearchParams(location.search).has('open') ? 'open-chambers-v1' : undefined });
+    { spatial: !legacy, architecture: dedicated ? 'dedicated-stairs-v1' : circulation ? 'circulation-v1' : new URLSearchParams(location.search).has('open') ? 'open-chambers-v1' : undefined });
   const initial = bootstrapModule(recipe).space;
   const now = '2026-10-24T00:00:00.000Z', boot = captureInitializationBoot(recipe.worldId);
   const c: GameCheckpoint = { schema: 1, kind: 'rpg', mode: 'manual', position: { level: 1, cell: { spaceId: initial.id,

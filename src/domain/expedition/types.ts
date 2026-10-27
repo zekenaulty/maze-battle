@@ -30,6 +30,8 @@ export interface SpaceSpec {
   interior?: 'open-room-v1';
   furnishing?: SpaceFurnishing;
   circulation?: 'run' | 'junction';
+  /** Resolved construction requirement, pinned before reservation; never a reward role. */
+  purpose?: 'stairwell-v1';
   openings: SpaceOpening[];
   chests: { id: string; cell: GridPosition }[];
 }

@@ -60,7 +60,7 @@ export async function advanceWorldContent(pages: CanonicalPages, level: number, 
   for (let n = state.nextRoom; n < end; n++) {
     const spaceId = roomIdAt(n);
     const { space, geometry } = await loadWorldRoom(pages, level, spaceId);
-    const role = space.spec.kind === 'room' ? resolveModuleRoomRole(plan, spaceId) : null;
+    const role = space.spec.kind === 'room' && !space.spec.purpose ? resolveModuleRoomRole(plan, spaceId) : null;
     const center = { row: Math.floor(space.spec.rows / 2), column: Math.floor(space.spec.columns / 2) };
     check(geometry.cells.some(cell => cell.row === center.row && cell.column === center.column), 'room center is not walkable');
     const chestId = role?.kind === 'treasure' ? `chest-${level}-${spaceId}` : null;

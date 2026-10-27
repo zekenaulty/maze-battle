@@ -5,7 +5,7 @@ Branch: `codex/purposeful-generation`.
 
 ## Goal and acceptance
 
-P1 introduced versioned, empty ordinary interiors and explicit optional furnishing in the actual canonical 2D/3D game. P2 adds an explicitly selected seeded circulation family with real passage/junction targets and destination chambers, bounded canonical preparation, chamber-only roles/content, preserved stairs/disclosure and native-browser qualification. Dedicated stairwell allocation is the next milestone; portable export/building work remains later in the design sequence.
+Active goal spans P3 through P6: dedicated stairwell allocation/smaller ordinary chambers, reusable purpose/construction plans with stable members and anchors, portable static asset export/reimport, and one bounded building/neighbor composition. Slice boundaries are tested, documented, committed checkpoints, not stopping points. Continue automatically into the next authorized slice while the broader goal remains active. P0–P2 are preserved below.
 
 ## Preservation
 
@@ -32,3 +32,11 @@ Checkpoint `9584ce3` retains that existing work and the planning package. It is 
 - Latest estimate: P2 complete. P3 is provisionally 2–4 hours for one bounded implementation and native qualification pass. Remaining world-building milestones are not included in that estimate.
 
 No main merge, remote push, paid provider call or existing browser-save reset is part of this work.
+
+## Continuing work: P3–P6
+
+- P3 complete: dedicated-stairs-v1 is the fresh-game default, with 9-by-3 entry/exit well envelopes, 3–5-cell ordinary chambers, empty well content and safe travel; existing flight/landing dimensions retained. Six small canonical floors and a dense 66-node floor pass; 384/384 seeded layouts qualify. Prime/capacity-edge checks pass through 256 nodes. Broad regression 1,891 tests/106 files and native cohort 8/8 pass; build/type checks pass. Source owner's committed construction evidence and constant cleanup are preserved. See [P3 evidence](p3-dedicated-stairs.md).
+- P4 active next: stable construction member/anchor identity and purpose-driven empty/library comparison. Preserve existing clipping, batching, UV phase and shelf capability. Full authoring plans and lawful player projections must remain separate.
+- P5 next: one static portable shelf/cabinet and stairwell proof, source recipes retained, explicit materials/state/texture closure, independent consumer checks and native reimport.
+- P6 next: a coherent two-storey building and adjacent pair from bounded programs/envelopes. Preview/export qualification is distinct from canonical town/world admission.
+- Working estimate: P3 completed faster than the initial allowance; approximately 6–12 hours remain for this bounded cross-slice goal, with export-consumer and composition uncertainty. The active goal continues through checkpoints.

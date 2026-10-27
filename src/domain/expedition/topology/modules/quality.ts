@@ -1,5 +1,6 @@
 import type { ModuleAssemblyState } from './types';
 import { ModuleCapacityError } from './types';
+import { hasCirculation } from './intent';
 
 export interface ModuleStructuralQuality {
   /** Legacy counter name: all anchored modules, including selected circulation. */
@@ -57,8 +58,9 @@ export function moduleQuality(state: ModuleAssemblyState) {
     longestChain, depth: entry.depth, diameter: distances(entry.farthest).depth, reachable: entry.count,
     directJoins: state.joins.filter(join => !join.passageId).length, passages: state.spaces.filter(space => space.kind === 'passage').length,
     origin: { row, column }, rows, columns, projectionCells: rows * columns, roomArea, coverage: roomArea / (rows * columns),
-    ...(state.recipe.architecture === 'circulation-v1' ? {
-      chambers: rooms.filter(room => room.kind === 'room').length,
+    ...(hasCirculation(state.recipe) ? {
+      chambers: rooms.filter(room => room.kind === 'room' && !room.purpose).length,
+      ...(state.recipe.architecture === 'dedicated-stairs-v1' ? { stairwells: rooms.filter(room => room.purpose === 'stairwell-v1').length } : {}),
       runs: rooms.filter(room => room.circulation === 'run').length,
       junctions: rooms.filter(room => room.circulation === 'junction').length,
       circulationArea: rooms.filter(room => room.kind === 'passage').reduce((sum, room) => sum + room.rows * room.columns, 0),

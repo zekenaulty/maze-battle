@@ -19,7 +19,7 @@ export interface ModuleRecipe {
   roomBudget: number;
   policy: ModulePolicy;
   spatial?: typeof STAIR_LAYOUT_VERSION;
-  architecture?: 'open-chambers-v1' | 'circulation-v1';
+  architecture?: 'open-chambers-v1' | 'circulation-v1' | 'dedicated-stairs-v1';
 }
 
 export interface ModuleLimits { maxModules: number; maxProjectionCells: number }
@@ -45,7 +45,8 @@ export function createModuleRecipe(worldId: string, level: number, seed: number,
   };
   if (options.spatial) { recipe.spatial = STAIR_LAYOUT_VERSION; recipe.policy.minSide = 9; }
   if (options.architecture !== undefined) recipe.architecture = options.architecture;
-  if (recipe.architecture === 'circulation-v1') recipe.policy.joins = 'direct';
+  if (recipe.architecture === 'circulation-v1' || recipe.architecture === 'dedicated-stairs-v1') recipe.policy.joins = 'direct';
+  if (recipe.architecture === 'dedicated-stairs-v1') { recipe.policy.minSide = 3; recipe.policy.maxSide = 5; }
   validateModuleRecipe(recipe);
   return recipe;
 }
@@ -53,18 +54,20 @@ export function createModuleRecipe(worldId: string, level: number, seed: number,
 export function validateModuleRecipe(recipe: ModuleRecipe) {
   if (!recipe || recipe.version !== 'modules-v3') throw new Error('Unsupported module recipe');
   validateSeed(recipe.seed);
-  if (recipe.architecture !== undefined && !['open-chambers-v1', 'circulation-v1'].includes(recipe.architecture)) throw new Error('Unsupported module architecture');
+  if (recipe.architecture !== undefined && !['open-chambers-v1', 'circulation-v1', 'dedicated-stairs-v1'].includes(recipe.architecture)) throw new Error('Unsupported module architecture');
   moduleBudgetForLevel(recipe.level);
   for (const id of [recipe.worldId, recipe.floorId]) {
     if (typeof id !== 'string' || !id.trim() || id.length > 128) throw new Error('Invalid module scope identity');
   }
   if (!Number.isSafeInteger(recipe.roomBudget) || recipe.roomBudget < 3) throw new Error('Invalid room budget');
   const p = recipe.policy;
-  if (recipe.architecture === 'circulation-v1' && (recipe.roomBudget < 5 || p?.joins !== 'direct')) throw new Error('Invalid circulation policy');
-  if (recipe.spatial !== undefined && (recipe.spatial !== STAIR_LAYOUT_VERSION || p?.minSide < 9)) throw new Error('Unsupported spatial recipe');
+  const dedicated = recipe.architecture === 'dedicated-stairs-v1';
+  if ((recipe.architecture === 'circulation-v1' || dedicated) && (recipe.roomBudget < 5 || p?.joins !== 'direct')) throw new Error('Invalid circulation policy');
+  if (dedicated && (recipe.spatial !== STAIR_LAYOUT_VERSION || p?.minSide !== 3 || p?.maxSide !== 5)) throw new Error('Invalid dedicated stair policy');
+  if (recipe.spatial !== undefined && (recipe.spatial !== STAIR_LAYOUT_VERSION || !dedicated && p?.minSide < 9)) throw new Error('Unsupported spatial recipe');
   if (!p || p.version !== 'branching-v1' || !['mixed', 'direct', 'passage'].includes(p.joins)
     || ![p.minSide, p.maxSide, p.maxPassage, p.attempts].every(Number.isSafeInteger)
-    || p.minSide < 5 || p.maxSide > 15 || p.minSide > p.maxSide || p.minSide % 2 !== 1 || p.maxSide % 2 !== 1
+    || p.minSide < (dedicated ? 3 : 5) || p.maxSide > 15 || p.minSide > p.maxSide || p.minSide % 2 !== 1 || p.maxSide % 2 !== 1
     || p.maxPassage < 1 || p.maxPassage > 7 || p.attempts < 1 || p.attempts > 32) {
     throw new Error('Unsupported or invalid module policy');
   }

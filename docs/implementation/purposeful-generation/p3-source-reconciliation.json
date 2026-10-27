@@ -1,0 +1,28 @@
+{
+  "source": "C:/Users/Zythis/.codex/worktrees/canonical-3d-exploration/maze-battle",
+  "sourceHead": "6c24cc4",
+  "implementationHead": "475bbc7e914d2491265db780093ce9f481617f08",
+  "reason": "Preserve final constant-derived support cleanup and owner evidence/boundary notes; source checkout read only",
+  "files": [
+    {
+      "path": "src/components/maze3d/supports.ts",
+      "previousSha256": "1e5341c614b223f4a8ad0b81b4f4b4ae5fdb6d2866412c1b2b094cdc033f9fe6",
+      "preservedSha256": "b7ca3f54e471d64ca6ac1f7323e8c0d7605ca8cd11be599d35a9ed6f4677a017"
+    },
+    {
+      "path": "docs/3d-exploration-plan.md",
+      "previousSha256": "f21b85a6936dbe8a2b6b9a80d1c602bf6b7eb04076844deab401a7f1db36b62f",
+      "preservedSha256": "d498f59438dafb8ed29056907f3f108f382c1e34ca1337ee49762b3bcb5c3604"
+    },
+    {
+      "path": "docs/coordination/handoffs/2026-10-27-architecture-quality.md",
+      "previousSha256": null,
+      "preservedSha256": "b7df8f8bfcf9f72dabf2f3a8767385c54152f7fde89f8d5a23710dc36178e117"
+    },
+    {
+      "path": "docs/reviews/architecture-quality-polish.md",
+      "previousSha256": null,
+      "preservedSha256": "ff936ae3ba304bf2857ef1a532edbc3d73c2f43ea0c567fd6bc3a110eacff8b5"
+    }
+  ]
+}

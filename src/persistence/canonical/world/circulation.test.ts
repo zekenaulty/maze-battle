@@ -9,7 +9,7 @@ import { observePositionEvidence } from '../knowledge/observe';
 import { resolveWorldStep } from './residency';
 import { STAIR_LAYOUT_VERSION } from '../../../domain/expedition/vertical';
 import { ModuleAssembly } from '../../../domain/expedition/topology/modules/assembly';
-import { moduleChambersInPrefix } from '../../../domain/expedition/topology/modules/intent';
+import { moduleRoleRoomsInPrefix } from '../../../domain/expedition/topology/modules/intent';
 import { preparationCapacity } from './preparationCapacity';
 import { opposite } from '../../../domain/maze/movement';
 import { assertModuleQuality } from '../../../domain/expedition/topology/modules/quality';
@@ -22,7 +22,7 @@ it.each([1, 42, 73])('prepares two canonical circulation floors for seed %i, wit
     const floor = await f.read(p => loadFloor(p, level)), recipe = floor.generation.recipe;
     expect(recipe.architecture).toBe('circulation-v1');
     const roles = await f.read(p => loadWorldRoleCompilation(p, level));
-    expect(roles.accumulator.roomCount).toBe(moduleChambersInPrefix(recipe, recipe.roomBudget));
+    expect(roles.accumulator.roomCount).toBe(moduleRoleRoomsInPrefix(recipe, recipe.roomBudget));
     expect((await f.read(p => loadWorldFloorQuality(p, level))).status).toBe('qualified');
     const assembled = new ModuleAssembly(recipe).finish();
     const destinations = new Set(assembled.spaces.filter(s => s.kind === 'room').map(s => s.id));

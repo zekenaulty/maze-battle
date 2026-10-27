@@ -20,8 +20,9 @@ const policyHashOf = (rows: CanonicalRecord[]) => createHash('sha256').update(pu
 const policyGolden = '78a38ee21dbbef923e2d77d97cb5ddda319cd0f080fab5d4d37baa2c0c8141b9';
 
 it.each(cases)('bounds the actual complete initializer: UUID %s seed %s wide %s', async (pattern, seed, wide) => {
-  const f = await measureBirth(pattern, seed, wide), { version, level, roomBudget, policy, spatial } = f.recipe;
-  const cap = initializationCapacity({ floor: { version, level, roomBudget, policy, ...(spatial ? { spatial } : {}) }, bootPolicy: INITIALIZATION_BOOT_POLICY });
+  const f = await measureBirth(pattern, seed, wide), { version, level, roomBudget, policy, spatial, architecture } = f.recipe;
+  const cap = initializationCapacity({ floor: { version, level, roomBudget, policy, ...(spatial ? { spatial } : {}),
+    ...(architecture ? { architecture } : {}) }, bootPolicy: INITIALIZATION_BOOT_POLICY });
   const publicRows = f.complete.records.filter(isPublicBirth);
   const publicRecordsBytes = appendedBytes(publicRows, []), nodesBytes = appendedBytes([], f.complete.nodes);
   const baseNodesBytes = appendedBytes([], f.baseline.nodes), recordsBytes = appendedBytes(f.complete.records, []);

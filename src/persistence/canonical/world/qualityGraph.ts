@@ -7,7 +7,7 @@ import { check, integer } from '../validation';
 import { entityKey, loadPorts, loadSpace, same } from './records';
 import { qualityFields, qualityOrdinal, qualityRoomId, type QualityContext, type QualityWitness } from './qualityRecords';
 import type { WorldRead } from './types';
-import { isModuleChamber, validModuleIntent } from '../../../domain/expedition/topology/modules/intent';
+import { isModuleRoom, validModuleIntent } from '../../../domain/expedition/topology/modules/intent';
 
 /** At most one anchored module, four neighbors and four gap passages, never a floor graph. */
 export async function readQualityRoom(pages: WorldRead, context: QualityContext, ordinal: number) {
@@ -28,7 +28,7 @@ export async function readQualityRoom(pages: WorldRead, context: QualityContext,
     check(spec.kind === kind && spec.seed === keyedSeed(recipe.seed, id)
       && (id === 'entry' ? distance === 0 : integer(distance, 1) && distance < rooms), 'invalid quality space binding');
     check(found.ports.pending.length === 0 && found.ports.connections.length >= 1, 'invalid completed quality ports');
-    if (kind === 'room') check([spec.rows, spec.columns].every(side => side >= recipe.policy.minSide
+    if (kind === 'room' && !spec.purpose) check([spec.rows, spec.columns].every(side => side >= recipe.policy.minSide
       && side <= recipe.policy.maxSide && side % 2 === 1), 'invalid quality room dimensions');
     if (!id.endsWith(':passage')) check(validModuleIntent(recipe, spec), 'invalid quality module intent');
     for (const anchor of [floor.entry, floor.exit!]) if (anchor.spaceId === id) {
@@ -49,7 +49,7 @@ export async function readQualityRoom(pages: WorldRead, context: QualityContext,
       && same(movePosition(world(from.space.value.spec, expected.from), direction), world(to.space.value.spec, expected.to)),
     'quality join lacks reciprocal adjacent endpoints');
   };
-  const node = (id: string) => local(id, isModuleChamber(recipe, id) ? 'room' : 'passage');
+  const node = (id: string) => local(id, isModuleRoom(recipe, id) ? 'room' : 'passage');
   const id = qualityRoomId(ordinal), current = await node(id);
   const children: { ordinal: number; witness: QualityWitness; degree: number }[] = [];
   const directions = new Set<string>(), joins = new Set<string>();

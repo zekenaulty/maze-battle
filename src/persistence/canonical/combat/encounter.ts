@@ -13,6 +13,7 @@ export async function movementEncounter(tx: CanonicalWork, checkpoint: GameCheck
   const at = checkpoint.position, floor = await loadFloor(tx.pages, at.level);
   if (same(at.cell, floor.entry) || same(at.cell, floor.exit)) return checkpoint;
   const room = await loadWorldRoom(tx.pages, at.level, at.cell.spaceId);
+  if (room.space.spec.purpose === 'stairwell-v1') return checkpoint;
   const role = room.space.spec.kind === 'room' ? await loadWorldRoomRole(tx.pages, at.level, at.cell.spaceId) : null;
   if (role && (role.tags?.includes('safe') || ['safe', 'hub', 'start'].includes(role.kind))) return checkpoint;
   if (roll(100, defaultRng) > 35) return checkpoint;

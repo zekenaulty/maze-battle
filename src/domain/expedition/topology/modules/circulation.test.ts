@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { ModuleAssembly } from './assembly';
 import { createModuleRecipe, validateModuleRecipe } from './policy';
 import { assertModuleQuality } from './quality';
-import { moduleChambersInPrefix, moduleIntent } from './intent';
+import { moduleRoleRoomsInPrefix, moduleIntent } from './intent';
 import { materializeSpace } from '../../schematic';
 import { opposite } from '../../../maze/movement';
 import { generateModuleMaze } from '../../../maze/moduleGenerate';
@@ -14,14 +14,14 @@ it('builds actual circulation and empty destination chambers deterministically a
     const state = new ModuleAssembly(recipe).finish();
     const quality = assertModuleQuality(state);
     expect(quality.reachable).toBe(recipe.roomBudget);
-    expect(quality.chambers).toBe(moduleChambersInPrefix(recipe, recipe.roomBudget));
+    expect(quality.chambers).toBe(moduleRoleRoomsInPrefix(recipe, recipe.roomBudget));
     expect(quality.junctions).toBeGreaterThan(0); expect(quality.runs).toBeGreaterThan(0);
     expect(state.spaces.some(s => s.circulation === 'junction'
       && state.connections.filter(c => c.from.spaceId === s.id || c.to.spaceId === s.id).length >= 3)).toBe(true);
     expect(state.spaces).toHaveLength(recipe.roomBudget);
     for (let n = 0; n < state.spaces.length; n++) {
       const s = state.spaces[n], intent = moduleIntent(recipe, n);
-      expect(moduleChambersInPrefix(recipe, n + 1)).toBe(state.spaces.slice(0, n + 1).filter(s => s.kind === 'room').length);
+      expect(moduleRoleRoomsInPrefix(recipe, n + 1)).toBe(state.spaces.slice(0, n + 1).filter(s => s.kind === 'room').length);
       expect(s.kind).toBe(intent === 'chamber' ? 'room' : 'passage');
       expect(materializeSpace(s).cells).toHaveLength(s.rows * s.columns);
       if (s.kind === 'room') expect(s.furnishing).toBe('none');

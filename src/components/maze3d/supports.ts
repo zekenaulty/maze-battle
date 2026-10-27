@@ -1,11 +1,13 @@
 import type { Point, SceneBox, StageScene } from './scene';
 import { CELL_SIZE, PLAYER_RADIUS, WALL_HEIGHT } from './constants';
 import { ceilingTimbers, TIMBER } from './timber';
+import { WALL_THICKNESS } from './construction';
 export interface ArchitectureOptions { cornerPosts: boolean; wallBraces: boolean; stairFraming: boolean; dressedRisers: boolean; ironNosing: boolean }
 export const DEFAULT_ARCHITECTURE: ArchitectureOptions = { cornerPosts: false, wallBraces: false, stairFraming: false, dressedRisers: false, ironNosing: false };
 export interface SupportPart { box: SceneBox; lean?: number }
 const overlaps = (a: SceneBox, b: SceneBox) => a.center.every((v, i) => Math.abs(v - b.center[i]) < (a.size[i] + b.size[i]) / 2 - 1e-6);
 const supportHeight = WALL_HEIGHT - TIMBER.joistHeight - TIMBER.rafterHeight;
+const postWidth = .32, cornerOffset = CELL_SIZE / 2 - WALL_THICKNESS / 2 - postWidth / 2;
 /** Provisional construction strategies, bounded to disclosed rooms and their existing floor bearings. */
 export function roomSupports(scene: StageScene, options: ArchitectureOptions, player: Point): SupportPart[] {
   if (!options.cornerPosts && !options.wallBraces && !options.stairFraming) return [];
@@ -30,8 +32,8 @@ export function roomSupports(scene: StageScene, options: ArchitectureOptions, pl
     if (cell.kind !== 'room' || (counts.get(cell.source.at.level + '/' + cell.source.at.cell.spaceId) ?? 0) < 6) continue;
     const edges = cell.geometryEdges ?? cell.source.edges;
     for (const x of [-1, 1]) for (const z of [-1, 1]) if (edges[x < 0 ? 'west' : 'east'] === null && edges[z < 0 ? 'north' : 'south'] === null) {
-      add({ id: cell.key + '/corner-post/' + x + '/' + z, material: 'timber', center: [cell.center.x + x * 1.36, cell.floorY + supportHeight / 2, cell.center.z + z * 1.36],
-        size: [.32, supportHeight, .32], solid: cell.source.at.level === scene.level, textureOrigin: cell.textureOrigin });
+      add({ id: cell.key + '/corner-post/' + x + '/' + z, material: 'timber', center: [cell.center.x + x * cornerOffset, cell.floorY + supportHeight / 2, cell.center.z + z * cornerOffset],
+        size: [postWidth, supportHeight, postWidth], solid: cell.source.at.level === scene.level, textureOrigin: cell.textureOrigin });
     }
   }
   const braceCounts = new Map<string, number>();
@@ -53,7 +55,7 @@ export function roomSupports(scene: StageScene, options: ArchitectureOptions, pl
         && Math.abs(z - b.center[2]) <= b.size[2] / 2 && member.min[1] > b.center[1] - b.size[1] / 2 && member.min[1] < b.center[1] + b.size[1] / 2)) continue;
       const half = (.18 + .72) / Math.SQRT2 / 2;
       const before = parts.length;
-      add({ id: `brace/${end}/${member.min[1]}/${z}`, material: 'timber', center: [end + sign * (.192 - half), member.min[1] - half, z], size: [.18, .72, .22], solid: false, textureOrigin: member.origin }, sign * Math.PI / 4);
+      add({ id: `brace/${end}/${member.min[1]}/${z}`, material: 'timber', center: [end + sign * (TIMBER.trimWidth - half), member.min[1] - half, z], size: [.18, .72, .22], solid: false, textureOrigin: member.origin }, sign * Math.PI / 4);
       if (parts.length > before) braceCounts.set(room, (braceCounts.get(room) ?? 0) + 1);
     }
   }

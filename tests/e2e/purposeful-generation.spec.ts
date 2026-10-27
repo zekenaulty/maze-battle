@@ -31,9 +31,9 @@ test('fresh production games use empty furnishing policy through walking, 2D/3D 
   expect((await state(page)).shelves).toBe(0); expect(errors).toEqual([]);
 });
 
-test('circulation family supports native 3D passage movement, 2D/3D continuity and durable reload', async ({ page }, info) => {
+for (const profile of ['circulation', 'dedicated']) test(`${profile} family supports native 3D passage movement, 2D/3D continuity and durable reload`, async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/tests/e2e/canonical-stairs.html?view=stage3d&circulation&junction');
+  await page.goto(`/tests/e2e/canonical-stairs.html?view=stage3d&${profile}&junction`);
   await expect(canvas(page)).toBeVisible({ timeout: 60_000 });
   await expect(canvas(page)).toHaveAttribute('data-textures', 'ready', { timeout: 60_000 });
   const initial = await state(page);
@@ -89,7 +89,7 @@ test('circulation family supports native 3D passage movement, 2D/3D continuity a
   expect((await state(page)).shelves).toBe(0); expect(errors).toEqual([]);
 });
 
-for (const profile of ['open', 'circulation']) test(`${profile} generated stair rooms retain continuous down/up travel and reload with no arbitrary furnishing`, async ({ page }, info) => {
+for (const profile of ['open', 'circulation', 'dedicated']) test(`${profile} generated stair rooms retain continuous down/up travel and reload with no arbitrary furnishing`, async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`/tests/e2e/canonical-stairs.html?view=stage3d&${profile}`);
   await expect(canvas(page)).toBeVisible({ timeout: 60_000 });
@@ -115,9 +115,9 @@ for (const profile of ['open', 'circulation']) test(`${profile} generated stair 
   expect((await state(page)).shelves).toBe(0); expect(errors).toEqual([]);
 });
 
-test('real App Auto traverses circulation and releases manual control cleanly', async ({ page }, info) => {
+for (const profile of ['circulation', 'dedicated']) test(`real App Auto traverses ${profile} and releases manual control cleanly`, async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/tests/e2e/canonical-stairs.html?view=stage3d&circulation&junction');
+  await page.goto(`/tests/e2e/canonical-stairs.html?view=stage3d&${profile}&junction`);
   await expect(canvas(page)).toHaveAttribute('data-textures', 'ready', { timeout: 60_000 });
   await expect.poll(async () => (await state(page)).spatial?.prepareDown, { timeout: 60_000 }).toBe(false);
   const visited = new Set<string>(), spaces = new Set<string>();

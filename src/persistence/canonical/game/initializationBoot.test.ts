@@ -129,8 +129,8 @@ it('writes the snapshot after source mutation through seedRoster, matching the a
   expect(f.recipe.worldId).toBe(worldId); expect(f.flushes).toBe(1); expect(f.stats.reads).toBe(0);
   expect(createHash('sha256').update(publicPolicyWitness(rows)).digest('hex'))
     .toBe('78a38ee21dbbef923e2d77d97cb5ddda319cd0f080fab5d4d37baa2c0c8141b9');
-  const { version, level, roomBudget, policy } = f.recipe;
-  const capacity = initializationCapacity({ floor: { version, level, roomBudget, policy }, bootPolicy: boot.bootPolicy });
+  const { version, level, roomBudget, policy, spatial, architecture } = f.recipe;
+  const capacity = initializationCapacity({ floor: { version, level, roomBudget, policy, spatial, architecture }, bootPolicy: boot.bootPolicy });
   expect(capacity.publicBirth).toEqual({ recordsBytes: 9865, nodesBytes: 27496, budgetBytes: 37361 });
   expect(appendedBytes(rows, [])).toBe(9865); expect(rows).toHaveLength(11);
   expect(rows.flatMap(row => row.indexes)).toHaveLength(3);

@@ -21,7 +21,9 @@ export function floorPoint(frame: FloorFrame, at: GridPosition): FloorFrame {
 }
 export function stairReservedCells(spec: SpaceSpec, layout: StairRoomLayout): GridPosition[] {
   if (layout.version !== STAIR_LAYOUT_VERSION || !['upper', 'lower'].includes(layout.end)
-    || spec.kind !== 'room' || spec.rows < 9 || spec.columns < 9 || spec.rows % 2 !== 1 || spec.columns % 2 !== 1) {
+    || spec.purpose === 'stairwell-v1' && (spec.rows !== 9 || spec.columns !== 3)
+    || spec.kind !== 'room' || spec.rows < 9 || spec.columns < (spec.purpose === 'stairwell-v1' ? 3 : 9)
+    || spec.rows % 2 !== 1 || spec.columns % 2 !== 1) {
     throw new Error('Incompatible stair-room layout');
   }
   const sign = layout.end === 'upper' ? -1 : 1, row = Math.floor(spec.rows / 2), column = Math.floor(spec.columns / 2);
