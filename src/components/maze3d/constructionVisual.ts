@@ -61,14 +61,14 @@ export class ConstructionVisual {
     this.plan = plan;
     validateConstructionPlan(plan);
     this.root.name = plan.id; this.root.userData = { constructionPlan: plan.version, profile: plan.profile,
-      recipe: plan.brief, frame: plan.frame, anchors: plan.anchors };
+      recipe: plan.brief, frame: plan.frame, anchors: plan.anchors, dependencies: plan.dependencies };
     const add = (id: string, geometry: THREE.BufferGeometry, material: THREE.Material | THREE.Material[], userData: object) => {
       const mesh = new THREE.Mesh(geometry, material); mesh.name = id; mesh.userData = userData;
       this.geometries.push(geometry); this.root.add(mesh);
     };
     for (const m of plan.members) {
       const data = { memberId: m.id, role: m.role, bearings: m.bearings ?? [], uvOrigin: m.uvOrigin,
-        inspectionHidden: m.role === 'ceiling' || m.id.includes('/wall/1/') };
+        inspectionHidden: m.role === 'ceiling' || m.id.includes('/wall/1/'), inspectionUpper: m.storey === 1, sourceMemberId: m.sourceMemberId };
       if (m.material === 'timber') {
         const g = constructionTimberGeometry(m);
         add(m.id + '/sides', g.sides, resources.wood(m.role === 'joist' ? 'bark' : 'wood-planks'), data);
@@ -91,13 +91,13 @@ export class ConstructionVisual {
       instance.bindMaterials(Object.fromEntries(Object.entries(resources.shelvingPack.bindings[asset.id])
         .map(([slot, id]) => [slot, resources.shelvingPack.materials[id]])));
       instance.setVisualState(Object.keys(asset.states)[0]);
-      instance.root.name = f.id; instance.root.userData = { assetId: f.assetId, anchorId: f.anchorId, staticState: Object.keys(asset.states)[0] };
+      instance.root.name = f.id; instance.root.userData = { assetId: f.assetId, anchorId: f.anchorId, staticState: Object.keys(asset.states)[0], inspectionUpper: f.storey === 1 };
       instance.root.position.set(...f.position); instance.root.rotation.y = f.yaw;
       this.root.add(instance.root); this.instances.push(instance);
     }
   }
-  cutaway(active: boolean) {
-    for (const child of this.root.children) child.visible = !active || !child.userData.inspectionHidden;
+  cutaway(active: boolean, lowerStorey = false) {
+    for (const child of this.root.children) child.visible = (!active || !child.userData.inspectionHidden) && (!lowerStorey || !child.userData.inspectionUpper);
   }
   dispose() { this.geometries.forEach(g => g.dispose()); this.instances.forEach(i => i.dispose()); this.root.removeFromParent(); this.root.clear(); }
 }
@@ -116,6 +116,6 @@ export class StaticCabinetVisual {
     this.root.userData = { recipe: { assetId: asset.id, geometryRevision: asset.geometryRevision, state: 'closed' },
       frame: { units: 'world', axes: 'right-handed-y-up', forward: '-z' }, staticState: 'closed' };
   }
-  cutaway(_active: boolean) {}
+  cutaway(_active: boolean, _lowerStorey = false) {}
   dispose() { this.instance.dispose(); }
 }

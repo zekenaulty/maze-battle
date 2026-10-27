@@ -1,0 +1,635 @@
+{
+  "basisCommit": "660f0a59bc6c317bba4b042d23f30aeddab22d57",
+  "producer": "construction-portable-v1",
+  "independentConsumer": "trimesh 4.9.0",
+  "browser": "installed Chrome via Playwright",
+  "nativeCasesPassed": 11,
+  "artifacts": [
+    {
+      "kind": "building",
+      "sha256": "6524293d3fb3b6b490add3f89a3c9d9c6433a3d3a3d1805ac3199f3f36371e09",
+      "bytes": 18135428,
+      "cacheKey": "fb4fe6bb42f7bea19f79e9cd4d7ab8645babb126e4ed10266885ad6c7018d2da",
+      "bounds": [
+        [
+          -4.880000114440918,
+          -0.18000000715255737,
+          -8.079999923706055
+        ],
+        [
+          4.880000114440918,
+          10.5600004196167,
+          8.079999923706055
+        ]
+      ],
+      "meshCountIndependent": 695,
+      "triangles": 3048,
+      "imageCount": 8,
+      "maxBoundsErrorWorldUnits": 0.0,
+      "externalReferences": 0,
+      "geometryNormalsUVs": "PASS",
+      "nativeCanvasComparison": {
+        "meanChannelDifference255": 0.5947043735533003,
+        "changedPixelFractionOver8": 0.01772660065825311
+      },
+      "sourceRevisions": {
+        "masonry": "6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3",
+        "timber": "8b669b2d2ec9b9319f2a5aa0dc4507ad2f1bf4f161e0823426bb9af0d9111893",
+        "shelving": "eb11b1b5e698a74b830b96dd6517b5d72ed5741adfc4e3171f689e091eb8f1ef"
+      },
+      "textureSources": [
+        {
+          "package": "masonry",
+          "materialId": "cobblestone:cobblestone",
+          "source": {
+            "height": 1024,
+            "path": "textures/cobblestone/cobblestone-61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3.png",
+            "sha256": "61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "masonry",
+          "materialId": "stone_bricks:stone_bricks",
+          "source": {
+            "height": 1024,
+            "path": "textures/stone_bricks/stone_bricks-1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337.png",
+            "sha256": "1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "bracket-shelf-books",
+          "source": {
+            "height": 1024,
+            "path": "textures/28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb.png",
+            "sha256": "28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "cabinet-endgrain",
+          "source": {
+            "height": 1024,
+            "path": "textures/9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3.png",
+            "sha256": "9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "library-wood",
+          "source": {
+            "height": 1024,
+            "path": "textures/3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da.png",
+            "sha256": "3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-57e084cd9b4f176d",
+          "source": {
+            "height": 1024,
+            "path": "textures/bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0.png",
+            "sha256": "bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-8a40b4a3e99fbe44",
+          "source": {
+            "height": 1024,
+            "path": "textures/6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30.png",
+            "sha256": "6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-c966cb387eac7256",
+          "source": {
+            "height": 1024,
+            "path": "textures/68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e.png",
+            "sha256": "68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e",
+            "width": 1024
+          }
+        }
+      ]
+    },
+    {
+      "kind": "cabinet",
+      "sha256": "159c7b80e04a1e9d9937894e3dbc919dba00a1e79f8d63197181a6ab5a81f9c0",
+      "bytes": 8269324,
+      "cacheKey": "de56a22824c56e0fd9641ffe5a2971f3b931547f805426664b3a1c243c15d736",
+      "bounds": [
+        [
+          -0.8800000000000001,
+          0.0,
+          -0.3199999928474426
+        ],
+        [
+          0.8800000000000001,
+          1.7599999904632568,
+          0.2767999983072282
+        ]
+      ],
+      "meshCountIndependent": 62,
+      "triangles": 600,
+      "imageCount": 4,
+      "maxBoundsErrorWorldUnits": 0.0,
+      "externalReferences": 0,
+      "geometryNormalsUVs": "PASS",
+      "nativeCanvasComparison": {
+        "meanChannelDifference255": 0.14325168492350135,
+        "changedPixelFractionOver8": 0.0010413948740484397
+      },
+      "sourceRevisions": {
+        "masonry": "6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3",
+        "timber": "8b669b2d2ec9b9319f2a5aa0dc4507ad2f1bf4f161e0823426bb9af0d9111893",
+        "shelving": "eb11b1b5e698a74b830b96dd6517b5d72ed5741adfc4e3171f689e091eb8f1ef"
+      },
+      "textureSources": [
+        {
+          "package": "shelving",
+          "materialId": "bracket-shelf-books",
+          "source": {
+            "height": 1024,
+            "path": "textures/28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb.png",
+            "sha256": "28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "bracket-shelf-iron",
+          "source": {
+            "height": 1024,
+            "path": "textures/ae9fca94449a5c55e7031bad56e596ae3d3e532e66190139c238e79c91164d95.png",
+            "sha256": "ae9fca94449a5c55e7031bad56e596ae3d3e532e66190139c238e79c91164d95",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "cabinet-endgrain",
+          "source": {
+            "height": 1024,
+            "path": "textures/9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3.png",
+            "sha256": "9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "cabinet-wood",
+          "source": {
+            "height": 1024,
+            "path": "textures/99347bd4ccd696ebc9e636c5bb8712881eace3225aaa43897ecdbf14a3686634.png",
+            "sha256": "99347bd4ccd696ebc9e636c5bb8712881eace3225aaa43897ecdbf14a3686634",
+            "width": 1024
+          }
+        }
+      ]
+    },
+    {
+      "kind": "room",
+      "sha256": "e0134f319d6c7ed872b97a9e770da425ce9cc85b5d29433b3037e5b3dbfcdaaf",
+      "bytes": 17571944,
+      "cacheKey": "08dedf427764fbd8c1f9fdd99de092894339d2f7cdf3e9aa2815e78e33c26c4e",
+      "bounds": [
+        [
+          -4.880000114440918,
+          -0.18000000715255737,
+          -4.880000114440918
+        ],
+        [
+          4.880000114440918,
+          4.980000019073486,
+          4.880000114440918
+        ]
+      ],
+      "meshCountIndependent": 219,
+      "triangles": 1632,
+      "imageCount": 8,
+      "maxBoundsErrorWorldUnits": 0.0,
+      "externalReferences": 0,
+      "geometryNormalsUVs": "PASS",
+      "nativeCanvasComparison": {
+        "meanChannelDifference255": 0.562559603644348,
+        "changedPixelFractionOver8": 0.013706358688437541
+      },
+      "sourceRevisions": {
+        "masonry": "6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3",
+        "timber": "8b669b2d2ec9b9319f2a5aa0dc4507ad2f1bf4f161e0823426bb9af0d9111893",
+        "shelving": "eb11b1b5e698a74b830b96dd6517b5d72ed5741adfc4e3171f689e091eb8f1ef"
+      },
+      "textureSources": [
+        {
+          "package": "masonry",
+          "materialId": "cobblestone:cobblestone",
+          "source": {
+            "height": 1024,
+            "path": "textures/cobblestone/cobblestone-61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3.png",
+            "sha256": "61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "masonry",
+          "materialId": "stone_bricks:stone_bricks",
+          "source": {
+            "height": 1024,
+            "path": "textures/stone_bricks/stone_bricks-1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337.png",
+            "sha256": "1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "bracket-shelf-books",
+          "source": {
+            "height": 1024,
+            "path": "textures/28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb.png",
+            "sha256": "28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "cabinet-endgrain",
+          "source": {
+            "height": 1024,
+            "path": "textures/9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3.png",
+            "sha256": "9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "library-wood",
+          "source": {
+            "height": 1024,
+            "path": "textures/3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da.png",
+            "sha256": "3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-57e084cd9b4f176d",
+          "source": {
+            "height": 1024,
+            "path": "textures/bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0.png",
+            "sha256": "bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-8a40b4a3e99fbe44",
+          "source": {
+            "height": 1024,
+            "path": "textures/6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30.png",
+            "sha256": "6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-c966cb387eac7256",
+          "source": {
+            "height": 1024,
+            "path": "textures/68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e.png",
+            "sha256": "68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e",
+            "width": 1024
+          }
+        }
+      ]
+    },
+    {
+      "kind": "stairwell",
+      "sha256": "51dd0017cd03897743af8a70be821a652aac65ca16b330ea7aa4e7553ddfe394",
+      "bytes": 11746172,
+      "cacheKey": "9781036dd379d1bd4f45f71960309133be9dd00e4cf0b1dde28cd8c41e80489e",
+      "bounds": [
+        [
+          -4.880000114440918,
+          -0.18000000715255737,
+          -10.699999809265137
+        ],
+        [
+          4.880000114440918,
+          9.65999984741211,
+          18.260000228881836
+        ]
+      ],
+      "meshCountIndependent": 326,
+      "triangles": 732,
+      "imageCount": 5,
+      "maxBoundsErrorWorldUnits": 0.0,
+      "externalReferences": 0,
+      "geometryNormalsUVs": "PASS",
+      "nativeCanvasComparison": {
+        "meanChannelDifference255": 1.4306396682184594,
+        "changedPixelFractionOver8": 0.03615585675899605
+      },
+      "sourceRevisions": {
+        "masonry": "6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3",
+        "timber": "8b669b2d2ec9b9319f2a5aa0dc4507ad2f1bf4f161e0823426bb9af0d9111893",
+        "shelving": "eb11b1b5e698a74b830b96dd6517b5d72ed5741adfc4e3171f689e091eb8f1ef"
+      },
+      "textureSources": [
+        {
+          "package": "masonry",
+          "materialId": "cobblestone:cobblestone",
+          "source": {
+            "height": 1024,
+            "path": "textures/cobblestone/cobblestone-61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3.png",
+            "sha256": "61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "masonry",
+          "materialId": "stone_bricks:stone_bricks",
+          "source": {
+            "height": 1024,
+            "path": "textures/stone_bricks/stone_bricks-1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337.png",
+            "sha256": "1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-57e084cd9b4f176d",
+          "source": {
+            "height": 1024,
+            "path": "textures/bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0.png",
+            "sha256": "bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-8a40b4a3e99fbe44",
+          "source": {
+            "height": 1024,
+            "path": "textures/6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30.png",
+            "sha256": "6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-c966cb387eac7256",
+          "source": {
+            "height": 1024,
+            "path": "textures/68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e.png",
+            "sha256": "68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e",
+            "width": 1024
+          }
+        }
+      ]
+    },
+    {
+      "kind": "street",
+      "sha256": "66440a52344e28db39b04b1e90411c2d74b6883252ce1dd3e0a2bce03b2bae30",
+      "bytes": 18703476,
+      "cacheKey": "d0104289b4bbc9209d5b80143ebcc09ea4f89e62e53df034cf5338326c0cfca4",
+      "bounds": [
+        [
+          -11.600000381469727,
+          -0.18000000715255737,
+          -8.079999923706055
+        ],
+        [
+          11.600000381469727,
+          10.5600004196167,
+          12.880000114440918
+        ]
+      ],
+      "meshCountIndependent": 1289,
+      "triangles": 4884,
+      "imageCount": 8,
+      "maxBoundsErrorWorldUnits": 0.0,
+      "externalReferences": 0,
+      "geometryNormalsUVs": "PASS",
+      "nativeCanvasComparison": {
+        "meanChannelDifference255": 0.6169543663054972,
+        "changedPixelFractionOver8": 0.018476176089573693
+      },
+      "sourceRevisions": {
+        "masonry": "6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3",
+        "timber": "8b669b2d2ec9b9319f2a5aa0dc4507ad2f1bf4f161e0823426bb9af0d9111893",
+        "shelving": "eb11b1b5e698a74b830b96dd6517b5d72ed5741adfc4e3171f689e091eb8f1ef"
+      },
+      "textureSources": [
+        {
+          "package": "masonry",
+          "materialId": "cobblestone:cobblestone",
+          "source": {
+            "height": 1024,
+            "path": "textures/cobblestone/cobblestone-61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3.png",
+            "sha256": "61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "masonry",
+          "materialId": "stone_bricks:stone_bricks",
+          "source": {
+            "height": 1024,
+            "path": "textures/stone_bricks/stone_bricks-1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337.png",
+            "sha256": "1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "bracket-shelf-books",
+          "source": {
+            "height": 1024,
+            "path": "textures/28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb.png",
+            "sha256": "28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "cabinet-endgrain",
+          "source": {
+            "height": 1024,
+            "path": "textures/9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3.png",
+            "sha256": "9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "library-wood",
+          "source": {
+            "height": 1024,
+            "path": "textures/3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da.png",
+            "sha256": "3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-57e084cd9b4f176d",
+          "source": {
+            "height": 1024,
+            "path": "textures/bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0.png",
+            "sha256": "bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-8a40b4a3e99fbe44",
+          "source": {
+            "height": 1024,
+            "path": "textures/6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30.png",
+            "sha256": "6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-c966cb387eac7256",
+          "source": {
+            "height": 1024,
+            "path": "textures/68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e.png",
+            "sha256": "68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e",
+            "width": 1024
+          }
+        }
+      ]
+    },
+    {
+      "kind": "wide-room",
+      "sha256": "341cee679d0089a50947fbad4ee08444aa078efbfea2d93f1a173da475cdcc5c",
+      "bytes": 17641792,
+      "cacheKey": "691c906a3e228f28e7c03428d78ef051b40be6cf0577e76a47df5d5a63072c96",
+      "bounds": [
+        [
+          -8.079999923706055,
+          -0.18000000715255737,
+          -4.880000114440918
+        ],
+        [
+          8.079999923706055,
+          4.980000019073486,
+          4.880000114440918
+        ]
+      ],
+      "meshCountIndependent": 251,
+      "triangles": 1824,
+      "imageCount": 8,
+      "maxBoundsErrorWorldUnits": 0.0,
+      "externalReferences": 0,
+      "geometryNormalsUVs": "PASS",
+      "nativeCanvasComparison": {
+        "meanChannelDifference255": 0.3634307895833047,
+        "changedPixelFractionOver8": 0.009626608440104918
+      },
+      "sourceRevisions": {
+        "masonry": "6ac216864128277daf0856cd2f65afcb641b3d77804735ed8706affbc0e423a3",
+        "timber": "8b669b2d2ec9b9319f2a5aa0dc4507ad2f1bf4f161e0823426bb9af0d9111893",
+        "shelving": "eb11b1b5e698a74b830b96dd6517b5d72ed5741adfc4e3171f689e091eb8f1ef"
+      },
+      "textureSources": [
+        {
+          "package": "masonry",
+          "materialId": "cobblestone:cobblestone",
+          "source": {
+            "height": 1024,
+            "path": "textures/cobblestone/cobblestone-61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3.png",
+            "sha256": "61fbaa105b874b91f1978ec87121862932bffd40ae3428060594c42f5cb27af3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "masonry",
+          "materialId": "stone_bricks:stone_bricks",
+          "source": {
+            "height": 1024,
+            "path": "textures/stone_bricks/stone_bricks-1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337.png",
+            "sha256": "1095c0906261f89a7ebc48751e2b5ec099d3d666ead8a14473b49874abf54337",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "bracket-shelf-books",
+          "source": {
+            "height": 1024,
+            "path": "textures/28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb.png",
+            "sha256": "28fd673c4244ee7406652e7df743e8ebb28c5562fbbe00b8e64a110c8f2531fb",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "cabinet-endgrain",
+          "source": {
+            "height": 1024,
+            "path": "textures/9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3.png",
+            "sha256": "9dac9b295aa48fcb8fb2c678cb5842f401d1de51e59d02c02a467423735858b3",
+            "width": 1024
+          }
+        },
+        {
+          "package": "shelving",
+          "materialId": "library-wood",
+          "source": {
+            "height": 1024,
+            "path": "textures/3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da.png",
+            "sha256": "3b2dac97d870c57f8d89cbf906f6af15f2be23ea72aee8a9edb4511c396503da",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-57e084cd9b4f176d",
+          "source": {
+            "height": 1024,
+            "path": "textures/bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0.png",
+            "sha256": "bb19bf183388e47b81152435a623f79fc57d987e1c42ca78ed087f165ce30fd0",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-8a40b4a3e99fbe44",
+          "source": {
+            "height": 1024,
+            "path": "textures/6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30.png",
+            "sha256": "6b51206ff5882e421fc1ac4adf5c246022b300b881eed3e68ec6ef4c8f36bb30",
+            "width": 1024
+          }
+        },
+        {
+          "package": "timber",
+          "materialId": "workshop-c966cb387eac7256",
+          "source": {
+            "height": 1024,
+            "path": "textures/68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e.png",
+            "sha256": "68809faa37b4fea5974800f0966047ac6728691401c4753a79ab7052fae7106e",
+            "width": 1024
+          }
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Static authoring evidence only",
+    "No canonical town admission",
+    "Blender import unknown",
+    "Human visual acceptance open"
+  ]
+}

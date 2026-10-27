@@ -17,6 +17,8 @@ export function planRoomConstruction(input: RoomConstructionBrief): Construction
   const brief = structuredClone(input), p = ROOM_CONSTRUCTION; validateSeed(brief.seed);
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(brief.id) || ![3, 5].includes(brief.rows) || ![3, 5].includes(brief.columns)
     || !['empty', 'library'].includes(brief.purpose)) throw Error('Unsupported room construction brief');
+  if (brief.storageExclusions && (brief.storageExclusions.length > 8 || brief.storageExclusions.some(b => !b.min.every((n, i) =>
+    Number.isFinite(n) && Number.isFinite(b.max[i]) && n < b.max[i])))) throw Error('Invalid storage exclusion');
   const w = brief.columns * p.cell, d = brief.rows * p.cell, h = p.height;
   const members: ConstructionMember[] = [], anchors: ConstructionAnchor[] = [], furnishings: ConstructionPlan['furnishings'] = [];
   const name = (id: string) => `${brief.id}/${id}`;
@@ -53,6 +55,7 @@ export function planRoomConstruction(input: RoomConstructionBrief): Construction
         const bounds = { min: v(x - LIBRARY_CASE.depth / 2, 0, z - LIBRARY_CASE.width / 2), max: v(x + LIBRARY_CASE.depth / 2, LIBRARY_CASE.height, z + LIBRARY_CASE.width / 2) };
         const access = { min: v(side < 0 ? bounds.max[0] : bounds.min[0] - 1, 0, bounds.min[2]),
           max: v(side < 0 ? bounds.max[0] + 1 : bounds.min[0], 2.7, bounds.max[2]) };
+        if (brief.storageExclusions?.some(b => overlapsConstruction(b, bounds) || overlapsConstruction(b, access))) continue;
         const anchorId = anchor(`storage/${side}/${i}`, 'storage', v(x, 0, z), v(-side, 0, 0), access);
         furnishings.push({ id: name(`case/${side}/${i}`), assetId: LIBRARY_CASE.assetId, position: v(x, 0, z), yaw: side < 0 ? Math.PI / 2 : -Math.PI / 2, bounds, anchorId });
       }
@@ -113,7 +116,7 @@ export function planRoomConstruction(input: RoomConstructionBrief): Construction
 }
 
 export function validateConstructionPlan(plan: ConstructionPlan) {
-  if (plan.version !== 'construction-plan-v1' || !['framed-room-v1', 'stairwell-assembly-v1'].includes(plan.profile)
+  if (plan.version !== 'construction-plan-v1' || !['framed-room-v1', 'stairwell-assembly-v1', 'two-storey-building-v1'].includes(plan.profile)
     || plan.members.length > 512 || plan.anchors.length > 512 || plan.furnishings.length > 32 || plan.routes.length > 32) throw Error('Construction plan budget exceeded');
   const vector = (v: number[]) => v.length === 3 && v.every(n => Number.isFinite(n) && Math.abs(n) <= 1e6);
   const bounds = (b: ConstructionBounds) => vector(b.min) && vector(b.max) && b.min.every((n, i) => n < b.max[i]);
@@ -135,8 +138,13 @@ export function validateConstructionPlan(plan: ConstructionPlan) {
     if (!m.min.every((a, i) => a >= plan.bounds.min[i] - 1e-6 && m.max[i] <= plan.bounds.max[i] + 1e-6)) throw Error('Construction escapes its envelope');
     if (m.material === 'timber' && m.max[m.axis] - m.min[m.axis] > ROOM_CONSTRUCTION.maxBay + 1e-6) throw Error('Construction member exceeds selected bay policy');
     if (m.bearings?.some(id => !byId.has(id))) throw Error('Missing construction bearing');
+    if (m.bearings?.some((id, end) => {
+      const point = byId.get(id)!.position;
+      return Math.abs(point[m.axis] - (end ? m.max[m.axis] : m.min[m.axis])) > 1e-6
+        || point.some((n, i) => n < m.min[i] - 1e-6 || n > m.max[i] + 1e-6);
+    })) throw Error('Construction bearing misses its member end');
     if (m.role === 'post' && (plan.routes.some(r => overlapsConstruction(m, r))
-      || plan.furnishings.some(f => overlapsConstruction(m, f.bounds) || overlapsConstruction(m, byId.get(f.anchorId)!.clearance!)))) throw Error('Construction blocks reserved access');
+      || plan.furnishings.some(f => overlapsConstruction(m, f.bounds) || overlapsConstruction(m, byId.get(f.anchorId)!.clearance!)))) throw Error('Construction blocks reserved access: ' + m.id);
   }
   for (const f of plan.furnishings) if (!byId.has(f.anchorId) || plan.routes.some(r => overlapsConstruction(f.bounds, r))) throw Error('Furnishing blocks reserved route');
 }

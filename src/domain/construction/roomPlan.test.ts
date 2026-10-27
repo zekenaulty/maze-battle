@@ -42,3 +42,11 @@ it('rejects unsupported programs, excessive work and missing support references'
   expect(unionIntervals(input)).toEqual([[0, 4]]); expect(input[0]).toEqual([3, 4]);
   expect(subtractIntervals([[0, 10]], [[1, 3], [2, 5], [8, 12]])).toEqual([[0, 1], [5, 8]]);
 });
+
+it('rejects a supported anchor that does not actually meet its member end', () => {
+  const p = planRoomConstruction({ id: 'end-fit', seed: 1, rows: 3, columns: 3, purpose: 'empty' });
+  const joist = p.members.find(m => m.role === 'joist')!;
+  // Both IDs are valid wall bearings; exchanging them would leave the member unsupported.
+  joist.bearings!.reverse();
+  expect(() => validateConstructionPlan(p)).toThrow('Construction bearing misses its member end');
+});

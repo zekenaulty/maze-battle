@@ -31,6 +31,9 @@ for file in sorted(Path(sys.argv[1]).rglob("*.glb")):
     metadata = next(n["extras"]["portable"] for n in doc["nodes"] if "portable" in n.get("extras", {}))
     assert all("uri" not in b for b in doc["buffers"])
     assert all("uri" not in i and "bufferView" in i for i in doc["images"])
+    for mesh in doc["meshes"]:
+        for primitive in mesh["primitives"]:
+            assert all(key in primitive["attributes"] for key in ("POSITION", "NORMAL", "TEXCOORD_0"))
     images = []
     for image in doc["images"]:
         view = doc["bufferViews"][image["bufferView"]]

@@ -5,7 +5,7 @@ Branch: `codex/purposeful-generation`.
 
 ## Goal and acceptance
 
-Active goal spans P3 through P6: dedicated stairwell allocation/smaller ordinary chambers, reusable purpose/construction plans with stable members and anchors, portable static asset export/reimport, and one bounded building/neighbor composition. Slice boundaries are tested, documented, committed checkpoints, not stopping points. Continue automatically into the next authorized slice while the broader goal remains active. P0–P2 are preserved below.
+The completed goal spans P3 through P6: dedicated stairwell allocation/smaller ordinary chambers, reusable purpose/construction plans with stable members and anchors, portable static asset export/reimport, and one bounded building/neighbor composition. Slice boundaries were tested, documented, committed checkpoints, not stopping points. Work continued automatically through all four milestones. P0–P2 are preserved below.
 
 ## Preservation
 
@@ -40,5 +40,6 @@ No main merge, remote push, paid provider call or existing browser-save reset is
 - P4 implemented: stable member/bearing/anchor identities; bounded, supported framing; purpose-driven storage/access; clipping without invented endgrain; textured complete-authoring workshop. Construction/3D 128 tests, three native cases, selected-rafters regression, build/types pass. See [P4 evidence](p4-construction-plans.md). Canonical room-style admission remains separate.
 - P4 checkpoint: `3877abb`.
 - P5 complete: deterministic embedded static GLB for room/wider-room libraries, the native two-storey stairwell and closed cabinet; recipes/state/material/source pins retained. Standard-loader browser proof 8/8 and independent trimesh import for all four artifacts pass, bounds error zero. Construction/3D/packing 131 tests pass; build/types pass. See [P5 evidence](p5-portable-assets.md). Blender/human acceptance remain unqualified.
-- P6 next: a coherent two-storey building and adjacent pair from bounded programs/envelopes. Preview/export qualification is distinct from canonical town/world admission.
-- Working estimate: P3 completed faster than the initial allowance; approximately 6–12 hours remain for this bounded cross-slice goal, with export-consumer and composition uncertainty. The active goal continues through checkpoints.
+- P5 checkpoint: `660f0a5`.
+- P6 complete: two-storey library/unfurnished buildings from retained room/stair recipes; real shaft/deck/frame cuts and named supports; upstairs windows, closed roof, same-realm neighboring occupancy, surfaced alley and aligned street entrances. Complete textured source and GLB share envelopes. Final broad regression 1,903 tests/111 files; construction native 11/11; six independent consumer imports with zero measured bounds error; build/types pass. See [P6 evidence and remaining integration](p6-building-composition.md).
+- Bounded P3–P6 goal achieved across four implementation checkpoints, without stopping at slice boundaries. No required work remains in this goal. Next architectural work is separately scoped canonical building/town admission and semantic/parcel planning; Blender/human art acceptance and city-scale performance remain open. No ETA is assigned to that larger future scope.

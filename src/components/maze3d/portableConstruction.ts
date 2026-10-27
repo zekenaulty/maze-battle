@@ -39,6 +39,7 @@ export async function bakePortableConstruction(source: THREE.Object3D, resources
   const path = (node: THREE.Object3D): string => node === root ? node.name : path(node.parent!) + '/' + node.name;
   root.traverse(node => {
     if (node.userData.visualPart) { node.userData.sourcePartId = node.userData.visualPart.id; delete node.userData.visualPart; }
+    graph.push(Promise.resolve({ path: path(node), matrix: node.matrixWorld.toArray(), metadata: node.userData }));
     if (!(node instanceof THREE.Mesh)) return;
     meshes++; const p = node.geometry.getAttribute('position'), n = node.geometry.getAttribute('normal'), uv = node.geometry.getAttribute('uv');
     if (!p || !n || !uv || p.count !== n.count || p.count !== uv.count) throw Error('Portable geometry needs positions, normals and UVs');
@@ -63,12 +64,14 @@ export async function bakePortableConstruction(source: THREE.Object3D, resources
       geometryHashes.set(node.geometry, digest);
     }
     const materials = (Array.isArray(node.material) ? node.material : [node.material]) as THREE.MeshStandardMaterial[];
-    graph.push(digest.then(geometry => ({ path: path(node), matrix: node.matrixWorld.toArray(), geometry, metadata: node.userData,
-      materials: materials.map(m => ({ color: m.color.toArray(), roughness: m.roughness, metalness: m.metalness,
+    // Validate synchronously before scheduling digest continuations. A rejected input
+    // must produce one caught diagnostic, without orphaned asynchronous rejections.
+    const materialInputs = materials.map(m => ({ color: m.color.toArray(), roughness: m.roughness, metalness: m.metalness,
         side: m.side, opacity: m.opacity, alphaTest: m.alphaTest, transparent: m.transparent,
         emissive: m.emissive.toArray(), emissiveIntensity: m.emissiveIntensity,
         map: m.map && { source: sourceFor(m.map), repeat: m.map.repeat.toArray(), offset: m.map.offset.toArray(),
-          center: m.map.center.toArray(), rotation: m.map.rotation, wrapS: m.map.wrapS, wrapT: m.map.wrapT, flipY: m.map.flipY } })) })));
+          center: m.map.center.toArray(), rotation: m.map.rotation, wrapS: m.map.wrapS, wrapT: m.map.wrapT, flipY: m.map.flipY } }));
+    graph.push(digest.then(geometry => ({ path: path(node), matrix: node.matrixWorld.toArray(), geometry, materials: materialInputs })));
   });
   if (meshes < 1 || meshes > 4096 || vertices > 1_000_000) throw Error('Portable assembly budget exceeded');
   const textureSources = [...textures].map(sourceFor).sort((a, b) => (a.package + a.materialId).localeCompare(b.package + b.materialId));
