@@ -1,0 +1,113 @@
+{
+  "sourcePath": "D:\\maze-quest\\MazeQuestTileLab\\output\\run-20261026-185717-578ce76e\\white_concrete\\materials\\white_concrete\\repaired_seam.png",
+  "sha256": "e214b6e59bcbc3af46f28bd2de41b6a03a7047c3c4021f39378a520fb968840b",
+  "size": [
+    1024,
+    1024
+  ],
+  "rangeRgb": [
+    65,
+    255
+  ],
+  "axes": {
+    "u": {
+      "edgeRms": 0,
+      "edgeMaxAbs": 0,
+      "gradientJoinRms": 0.3512440687518201,
+      "interiorAdjacentRms": 8.460799788407407,
+      "edgeAdjacentRms": 0.2483670628659659,
+      "symmetricBandMeanRgb255": [
+        209.95930989583334,
+        209.94091796875,
+        209.8974609375,
+        209.75764973958334,
+        209.59765625,
+        209.74755859375,
+        209.98795572916666,
+        209.76399739583334,
+        209.57210286458334,
+        209.83447265625,
+        209.88411458333334,
+        209.56624348958334
+      ]
+    },
+    "v": {
+      "edgeRms": 0,
+      "edgeMaxAbs": 0,
+      "gradientJoinRms": 0.2460627460628691,
+      "interiorAdjacentRms": 8.701840676433143,
+      "edgeAdjacentRms": 0.17585357308473054,
+      "symmetricBandMeanRgb255": [
+        208.185546875,
+        208.1884765625,
+        208.1982421875,
+        208.16861979166666,
+        208.29947916666666,
+        208.37906901041666,
+        208.32861328125,
+        208.03304036458334,
+        208.45068359375,
+        208.546875,
+        208.40836588541666,
+        208.60009765625
+      ]
+    }
+  },
+  "interpretation": "Outer edge equality alone does not establish a visually seamless periodic texture. Gradient and strip metrics are diagnostics, not a visual acceptance threshold.",
+  "savedPreviewDiagnostics": {
+    "sourceAlphaRange": [
+      255,
+      255
+    ],
+    "previewSize": [
+      1152,
+      1152
+    ],
+    "previewColumnMeans": {
+      "0": 198.78882575757575,
+      "1": 214.8560606060606,
+      "2": 209.28030303030303,
+      "380": 210.57954545454547,
+      "381": 210.11079545454547,
+      "382": 215.3465909090909,
+      "383": 198.03503787878788,
+      "384": 198.78882575757575,
+      "385": 214.8560606060606,
+      "386": 209.28030303030303
+    },
+    "previewRowMeans": {
+      "0": 196.83996212121212,
+      "1": 212.58238636363637,
+      "2": 206.34375,
+      "380": 209.87026515151516,
+      "381": 209.7064393939394,
+      "382": 214.0464015151515,
+      "383": 196.15530303030303,
+      "384": 196.83996212121212,
+      "385": 212.58238636363637,
+      "386": 206.34375
+    }
+  },
+  "previewInterpretation": "Saved preview has strong dark boundary lines despite an opaque source and exactly matching source edges. SaveRepeatPreview resizes separate images with GDI HighQualityBicubic over dark background. Resampling/background bleed is a plausible additional preview defect; actual wrapped rendering must separate it from intrinsic border smoothing and repeated motifs.",
+  "wrappedBrowserExperiment": {
+    "renderer": "Chrome Canvas2D repeating pattern",
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "tilePixels": 384,
+    "columnMeans": {
+      "0": 209.09848484848484,
+      "1": 208.60227272727272,
+      "2": 208.44223484848484,
+      "380": 209.58617424242425,
+      "381": 209.3181818181818,
+      "382": 209.06912878787878,
+      "383": 209.1155303030303,
+      "384": 209.09848484848484,
+      "385": 208.60227272727272,
+      "386": 208.44223484848484
+    },
+    "interpretation": "Read-only rendering experiment. Compare periodic boundary dip with the saved GDI preview; no texture pixels were changed or saved."
+  }
+}

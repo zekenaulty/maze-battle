@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-27",
+  "mode": "Read-only source inspection; planning outputs only",
+  "repositories": [
+    {
+      "name": "Maze Battle consumer",
+      "locator": "C:\\Users\\Zythis\\.codex\\worktrees\\purposeful-generation\\maze-battle",
+      "branch": "codex/purposeful-generation",
+      "head": "1d3e51570fc1f7b8b771d2d276028321184ef31a",
+      "dirtyScope": [
+        " M docs/implementation/purposeful-generation/progress.md",
+        "?? docs/planning/2026-10-27-town-roofs-and-walls/"
+      ],
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "6087ee1e6a7d1b66a4e180378df2bc81fee2e9616e0426bc3ec8732c93ba9c30"
+        },
+        {
+          "path": "src/domain/construction/buildingPlan.ts",
+          "sha256": "d2b334ac501860d74bcb1acead9636cd6a17cf14699427ee40adac3c4a579678"
+        },
+        {
+          "path": "src/components/maze3d/constructionVisual.ts",
+          "sha256": "730f8168f63288258728e80c3986c871f1a1b4ad9aa5d1b06e50b66bf2ec2f0e"
+        },
+        {
+          "path": "src/components/maze3d/portableConstruction.ts",
+          "sha256": "cb116ac186d30631c6e60843ccd31c3a056bb5ed32bd5a6dfa522d161f1f3e90"
+        },
+        {
+          "path": "src/assets3d/threeAssets.ts",
+          "sha256": "c40ad4becb7d8c593f0613d001ba6bd3cb91547665799771701bef2f3a74c4e1"
+        },
+        {
+          "path": "src/assets3d/models/contract.ts",
+          "sha256": "524f7529e8f0bd605557c5b6d0f2967ababd5c3993db8e9aaec9c6a47e4a5b56"
+        },
+        {
+          "path": "src/assets3d/models/VisualInstance.ts",
+          "sha256": "5c665c196ebc53e99e1e09cbac5b674f1b67ab62c19c2ac456667dc347f9e024"
+        }
+      ]
+    },
+    {
+      "name": "TileLab producer",
+      "locator": "D:\\maze-quest\\MazeQuestTileLab",
+      "branch": "main",
+      "head": "200b22c73eb0ffe1d4c688e1d6042d2e13d3742a",
+      "dirtyScope": [
+        " M .gitignore",
+        " M README.md",
+        " M src/BlockPlanning.cs.source",
+        " M src/ModelTextureGroups.cs.source",
+        " M src/ModelTextureSources.cs.source",
+        " M src/ModelTextureTools.cs.source",
+        " M src/Program.cs.source",
+        " M src/SelfTests.cs.source",
+        " M src/SmartPlanner.cs.source",
+        " M targets.json",
+        "?? .agents/",
+        "?? AGENTS.md",
+        "?? IMPORTING.md",
+        "?? coordination/",
+        "?? src/AssetImport.cs.source",
+        "?? src/AssetImportTests.cs.source",
+        "?? src/MaterialKinds.cs.source",
+        "?? src/TargetCatalog.cs.source"
+      ],
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "993ee26a50962c02d0757d6a869e59c77616e49f96b816412fa83feb446e61a7"
+        },
+        {
+          "path": ".agents/skills/tilelab-architectural-authoring/SKILL.md",
+          "sha256": "29f554880ad3753c54965f8b36884f6372560a54a6078138676fb1950118ab74"
+        },
+        {
+          "path": "workshop/README.md",
+          "sha256": "6916c6f48d0431ee076f31dc471cb7d091c10bb6d001857dbfde4737388e996f"
+        },
+        {
+          "path": "workshop/construction.mjs",
+          "sha256": "72739c65cf44d0e0950ea50e172bb7b29500a924286f0fd68ed8db1ba5720889"
+        },
+        {
+          "path": "workshop/geometry.mjs",
+          "sha256": "08a5e321dea34a1674cd7e4af95622f68c5c43dc683c1c19f1b1680addf3ddce"
+        },
+        {
+          "path": "workshop/timber.mjs",
+          "sha256": "5938d56acd8c581c5c49680130b4e286540664b14821eedaaeb7cdf48c217f45"
+        },
+        {
+          "path": "workshop/viewer.js",
+          "sha256": "c54a0a9f8975fd36f53ee8a6940d366842df07d7e7a6b0160f7bc9f7958a9be1"
+        },
+        {
+          "path": "src/SeamTools.cs.source",
+          "sha256": "ab08e02bb98a8059cf62c029ae73682e94e94657a808f17c6aa9a42de538e9fa"
+        },
+        {
+          "path": "MATERIAL_EXPORT.md",
+          "sha256": "d304a5278259e09dd58b88f670131f666a4a6efff9ff2bbe17d9ea1e30e2070b"
+        },
+        {
+          "path": "coordination/spatial-contract-v0.2.md",
+          "sha256": "cbd83524870c9a857a1f12a45670d83d849fac0a95d8af2a6efe233d0ec9be56"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "locator": "C:\\Users\\Zythis\\AppData\\Local\\Temp\\codex-clipboard-af9c0915-c10e-4318-9c1e-de11de0a5cce.png",
+      "sha256": "300782e1cc748732fb76888dbb7d0d46f460a2a71d421fc6186af39810169d5f",
+      "use": "Owner-supplied visual reference; not asset pixels or embedded instructions"
+    },
+    {
+      "locator": "C:\\Users\\Zythis\\AppData\\Local\\Temp\\codex-clipboard-2cb5d5ac-e780-4c68-935e-da1f67ed4862.png",
+      "sha256": "6d70171ee4060390925be6da8b271285bb80a51ddd5f694c4e9d85621e7beeba",
+      "use": "Owner-supplied visual reference; not asset pixels or embedded instructions"
+    }
+  ],
+  "notes": [
+    "Dirty producer files are observations beyond its committed HEAD; no producer checkout was changed.",
+    "Roof/eaves and tint bindings are proposed work, not implemented APIs.",
+    "Image measurements and browser rendering read the existing PNG without editing it.",
+    "No paid provider or external publication."
+  ]
+}
