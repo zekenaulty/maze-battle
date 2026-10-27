@@ -5,6 +5,7 @@ import { safePath, sha256, serialize } from './import-tilelab-pack.ts';
 import { decodeModelPng } from './model-png.ts';
 import { validateWorkshopGeometry } from './workshop-geometry.ts';
 import { validateModelPack, type ModelPack } from '../src/assets3d/models/contract.ts';
+import { fitCabinetDoors } from '../src/assets3d/models/cabinet.ts';
 
 export interface ShelvingSelection { schema: 'maze-shelving-selection-v1'; review: string; producerCommit: string;
   packages: Array<{ directory: string; assetId: string; workshopSha256: string; manifestSha256: string; placementSha256: string; revision: string }> }
@@ -51,7 +52,14 @@ export async function importShelving(root: string, selection: ShelvingSelection)
       const localId = choice.directory + '-' + id; pack.materials[localId] = { ...material, id: localId };
     }
     for (const [slot, id] of Object.entries(source.bindings[asset.id])) binding[slot] = choice.directory + '-' + id;
-    pack.assets[asset.id] = asset; pack.bindings[asset.id] = binding; placements[asset.id] = placement;
+    if (choice.directory === 'cabinet') {
+      const fitted = fitCabinetDoors(asset);
+      fitted.asset.geometryRevision = sha256(serialize({ source: asset.geometryRevision, recipe: 'cabinet-overlay-fit-v1', payload: fitted.asset.payload }));
+      pack.assets[asset.id] = fitted.asset;
+      for (const joint of placement.joints) { joint.pivot[2] += fitted.offset; joint.sweptBounds.min[2] += fitted.offset; joint.sweptBounds.max[2] += fitted.offset; }
+      placement.consumerFit = { recipe: 'cabinet-overlay-fit-v1', hingeOffsetZ: fitted.offset, sourceManifestSha256: choice.manifestSha256 };
+    } else pack.assets[asset.id] = asset;
+    pack.bindings[asset.id] = binding; placements[asset.id] = placement;
     files.set(`evidence/${choice.directory}/workshop.json`, descriptor);
   }
   files.set('placement.json', Buffer.from(serialize({ schema: 'maze-shelving-placements-v1', assets: placements })));

@@ -6,6 +6,7 @@ import { AssetRegistry, loadAssetRegistry } from '../../assets3d/registry';
 import { loadSkinCatalog } from '../../assets3d/humanoid/contract';
 import type { SkinCatalog } from '../../assets3d/humanoid/contract';
 import { StageRenderer } from './StageRenderer';
+import { DEFAULT_ARCHITECTURE, type ArchitectureOptions } from './supports';
 import './stage.css';
 
 interface Props {
@@ -29,6 +30,8 @@ export default function CanonicalStage3D(props: Props) {
   const [assetWarning, setAssetWarning] = useState('');
   const [restart, setRestart] = useState(0), [skins, setSkins] = useState<SkinCatalog>(), [skinId, setSkinId] = useState('');
   const [thirdPerson, setThirdPerson] = useState(false), [locked, setLocked] = useState(false);
+  const [architecture, setArchitecture] = useState<ArchitectureOptions>({ ...DEFAULT_ARCHITECTURE });
+  useEffect(() => { view.current?.setArchitecture(architecture); }, [architecture]);
   const preparation = useRef<Promise<unknown> | undefined>(undefined);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -40,7 +43,7 @@ export default function CanonicalStage3D(props: Props) {
     void pending.catch(error => { if (mounted.current && !String(error).includes('actor has moved')) setMessage(String(error)); })
       .finally(() => { if (preparation.current === pending) { preparation.current = undefined; if (mounted.current) setPreparationRevision(n => n + 1); } });
   }, [props.game, props.disabled, props.onPrepareStairs, preparationRevision]);
-  const settings = useRef({ thirdPerson, skinId }); settings.current = { thirdPerson, skinId };
+  const settings = useRef({ thirdPerson, skinId, architecture }); settings.current = { thirdPerson, skinId, architecture };
   useEffect(() => {
     let alive = true, graphicsFailed = false, frame = 0, previous = 0, elapsed = 0, inFlight = false;
     const abort = new AbortController(); setFailure(''); setAssetWarning('');
@@ -54,7 +57,8 @@ export default function CanonicalStage3D(props: Props) {
           if (alive) setAssetWarning(warning);
         }, !!latest.current.automated);
         renderer.setThirdPerson(settings.current.thirdPerson);
-        view.current = renderer; setMessage('WASD to walk · drag to look · E uses nearby controls or a chest · M opens the map');
+        renderer.setArchitecture(settings.current.architecture);
+        view.current = renderer; setMessage('WASD to walk · drag to look · E uses cabinets, controls or a chest · M opens the map');
         void loadSkinCatalog(abort.signal).then(async catalog => {
           if (!alive) return;
           const selected = catalog.skins.find(skin => skin.id === settings.current.skinId) ?? catalog.skins[0];
@@ -146,11 +150,18 @@ export default function CanonicalStage3D(props: Props) {
       onPointerUp={() => { dragging.current = null; }} onPointerCancel={() => { dragging.current = null; }} />
     <div className="stage-3d-toolbar">
       <button onClick={() => { clear(); props.onReturn(); }}>Return to 2D</button>
-      <button disabled={props.disabled || !!failure} onClick={() => setMessage(view.current?.interact() ?? 'Move closer to a door control.')}>Use nearby control</button>
+      <button disabled={props.disabled || !!failure} onClick={() => setMessage(view.current?.interact() ?? 'Move closer to a cabinet or door control.')}>Use nearby control</button>
       {props.game.spatial?.prepareDown && <span role="status">Preparing connected room…</span>}
       {!!props.game.spatial?.ports?.length && <span>Walk onto the stairs · Esc returns to your committed landing</span>}
       {assetWarning && <><span className="stage-3d-asset-warning" role="status">{assetWarning}</span><button onClick={() => { clear(); setRestart(n => n + 1); }}>Retry materials</button></>}
       <button disabled={props.disabled || !!failure} onClick={() => { void view.current?.canvas.requestPointerLock()?.catch(() => setMessage('Mouse capture unavailable; drag the view to look around.')); }}>{locked ? 'Mouse captured · Esc releases' : 'Capture mouse'}</button>
+      <details className="stage-architecture-options"><summary>Architecture options</summary>
+        <div className="stage-architecture-panel">
+        {([['cornerPosts', 'Corner posts'], ['wallBraces', 'Wall braces'], ['stairFraming', 'Stair entry frame'], ['dressedRisers', 'Dressed stone risers'], ['ironNosing', 'Iron stair edging']] as const).map(([key, label]) =>
+          <label key={key}><input type="checkbox" checked={architecture[key]} disabled={props.disabled || !!failure}
+            onChange={event => { clear(); setArchitecture(old => ({ ...old, [key]: event.target.checked })); }} />{label}</label>)}
+        <small>Optional supports adapt to room size and clearance.</small></div>
+      </details>
       {skins?.skins.length ? <><label>Camera<select aria-label="3D camera" value={thirdPerson ? 'third' : 'first'} onChange={event => {
         const value = event.target.value === 'third'; clear(); setThirdPerson(value); view.current?.setThirdPerson(value);
       }}><option value="first">First person</option><option value="third">Follow player</option></select></label>

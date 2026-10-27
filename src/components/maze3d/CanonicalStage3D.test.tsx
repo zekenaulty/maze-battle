@@ -47,6 +47,7 @@ vi.mock('./StageRenderer', async () => {
     setPlayer = vi.fn(async () => {});
     chooseSkin = vi.fn(async () => {});
     setThirdPerson = vi.fn();
+    setArchitecture = vi.fn();
     dispose = vi.fn(() => this.canvas.remove());
   } };
 });

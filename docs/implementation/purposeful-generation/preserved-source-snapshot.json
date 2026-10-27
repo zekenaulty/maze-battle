@@ -1,0 +1,96 @@
+{
+  "source": "C:\\Users\\Zythis\\.codex\\worktrees\\canonical-3d-exploration\\maze-battle",
+  "head": "4640157e1136effed3aeefef05cf7a4c7e62b9af",
+  "files": [
+    {
+      "path": "scripts/import-shelving.ts",
+      "sha256": "02516f802b7c0fbe587ba3a642bdc17d6041da91998b7d9790e15c8279a43825",
+      "bytes": 7581
+    },
+    {
+      "path": "src/components/maze3d/CanonicalStage3D.test.tsx",
+      "sha256": "8971c8fc7e7cb6d3f452654197a850cb6bb6eeeb2dce240ba2641d7ff218e5c5",
+      "bytes": 16784
+    },
+    {
+      "path": "src/components/maze3d/CanonicalStage3D.tsx",
+      "sha256": "093def8861a46eb0936a3b4b6e3983fa5c4cdcacd171984533fa2bcd4668eaee",
+      "bytes": 16147
+    },
+    {
+      "path": "src/components/maze3d/StageInteractables.ts",
+      "sha256": "4408f6537ec43b615213368a7d74562ecff8d67e0efb27b482a54efccb4bc99b",
+      "bytes": 7462
+    },
+    {
+      "path": "src/components/maze3d/StageRenderer.ts",
+      "sha256": "ac757134135a03a2ae3e3d91dd607eb2f312a319966f238c7773848396f64ddf",
+      "bytes": 19844
+    },
+    {
+      "path": "src/components/maze3d/StageShelving.ts",
+      "sha256": "4796a02f1f0bbdc1878f44dbd1555b3b717ca143f542f9c55b932c9f0e0e5c1b",
+      "bytes": 7588
+    },
+    {
+      "path": "src/components/maze3d/StageTimbers.ts",
+      "sha256": "ea55dbc6cc8a8945bc1fcf771db4f03115d1fe7146775e1ec20dbf340e96a503",
+      "bytes": 4155
+    },
+    {
+      "path": "src/components/maze3d/stage.css",
+      "sha256": "b8750e9c1d1138084e57665b5e49384b19080bf640d1b76af7043429f7f6ac65",
+      "bytes": 2980
+    },
+    {
+      "path": "src/components/maze3d/timber.ts",
+      "sha256": "a247821a41b14c17afbafc0840f8e11c153fda92b6592d58243eb2f70e93319a",
+      "bytes": 7251
+    },
+    {
+      "path": "tests/e2e/shelving.spec.ts",
+      "sha256": "4c72880720da91c33ef6bf356036f47b7a9f6b4f5fc52d0350aedba32827ddc4",
+      "bytes": 19711
+    },
+    {
+      "path": "scripts/asset-selections/stair-detail-textures.json",
+      "sha256": "2e6002526d43dfb7502aae17267c605e741c7136608a19aa84688d40a5500a0f",
+      "bytes": 883
+    },
+    {
+      "path": "scripts/import-stage-details.ts",
+      "sha256": "ff956686e5a1f474288b2caa1438ab642f78af4a5ae5b22c11f72640a690a8e3",
+      "bytes": 2982
+    },
+    {
+      "path": "src/assets3d/models/cabinet.ts",
+      "sha256": "5349557d94d769dc4eea85703e846a8913961286778b6eb8317152ad5e1e6691",
+      "bytes": 1142
+    },
+    {
+      "path": "src/components/maze3d/StageDetailMaterials.ts",
+      "sha256": "76491139bd855f6c3d6c62b009ba2bccb216d318593f0edea92fc8b112fb1bf1",
+      "bytes": 1192
+    },
+    {
+      "path": "src/components/maze3d/cabinetInteraction.ts",
+      "sha256": "14edc33cb2def41cbc550e086d172422660acd6ffe1f3aa9557e1a2c675998f2",
+      "bytes": 2380
+    },
+    {
+      "path": "src/components/maze3d/quality.test.ts",
+      "sha256": "63ad62d9f56b173aa301cc0c3723251490588d4a0301c3103992f7fc849bae64",
+      "bytes": 4970
+    },
+    {
+      "path": "src/components/maze3d/stairFinish.ts",
+      "sha256": "f313b9a3ed43bc106c01c43597805b69edd70d6213d5792cc49ce4f7c8745ef1",
+      "bytes": 3336
+    },
+    {
+      "path": "src/components/maze3d/supports.ts",
+      "sha256": "ad29e69bc4f49533c255697bb1dca7f89ff34baaa15f950615072e6aeef8f603",
+      "bytes": 6262
+    }
+  ]
+}

@@ -3,6 +3,112 @@ import { writeFile } from 'node:fs/promises';
 const workshop = (page: Page) => page.getByLabel('Model and stair workshop', { exact: true });
 const dungeon = (page: Page) => page.getByLabel('Explorable 3D dungeon', { exact: true });
 async function frames(page: Page, n = 5) { await page.evaluate(n => new Promise<void>(resolve => { const tick = () => --n ? requestAnimationFrame(tick) : resolve(); requestAnimationFrame(tick); }), n); }
+async function yaw(page: Page, target: number) {
+  for (let i = 0; i < 12; i++) {
+    const actual = Number(await dungeon(page).getAttribute('data-yaw')), diff = target - actual; if (Math.abs(diff) < .02) return;
+    const b = (await dungeon(page).boundingBox())!, dx = Math.max(-420, Math.min(420, -diff / .0025));
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down(); await page.mouse.move(b.x + b.width / 2 + dx, b.y + b.height / 2, { steps: 4 }); await page.mouse.up();
+  }
+}
+async function pitch(page: Page, target: number) {
+  const actual = Number(await dungeon(page).getAttribute('data-pitch')), b = (await dungeon(page).boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 - (target - actual) / .0025, { steps: 5 }); await page.mouse.up();
+}
+
+test('real cabinet doors close flush and keyboard/touch controls open and close them without a game write', async ({ page }, info) => {
+  await page.goto('/tests/e2e/canonical-stairs.html?view=stage3d'); await expect(dungeon(page)).toHaveAttribute('data-shelving-status', 'ready');
+  const route = await page.evaluate(async () => {
+    const { readCanonicalHead } = await import('/src/persistence/canonical/read.ts'), { projectGame } = await import('/src/persistence/canonical/game/projection.ts');
+    const { compileStageScene } = await import('/src/components/maze3d/scene.ts');
+    const game = (await projectGame((await readCanonicalHead()).head)).value, scene = compileStageScene(game)!;
+    const cells = new Map(scene.cells.filter(c => c.source.at.level === scene.level).map(c => [c.key, c])), queue = [{ key: scene.actor.key, path: [] as string[] }], seen = new Set<string>();
+    for (let i = 0; i < queue.length; i++) {
+      const current = queue[i]; if (seen.has(current.key)) continue; seen.add(current.key); const cell = cells.get(current.key); if (!cell) continue;
+      const cabinet = scene.boxes.find(b => b.furnishing === 'cabinet' && b.id.startsWith(cell.key + '/'));
+      if (cabinet) return { cabinet, path: current.path, centers: scene.cells.map(c => ({ key: c.key, center: c.center })) };
+      for (const [dir, target] of Object.entries(cell.geometryEdges ?? cell.source.edges)) if (target) {
+        const key = JSON.stringify([target.level, target.cell.spaceId, target.cell.row, target.cell.column]); if (cells.has(key)) queue.push({ key, path: [...current.path, dir] });
+      }
+    }
+    throw Error('No reachable disclosed cabinet');
+  });
+  for (const direction of route.path) {
+    await yaw(page, ({ north: 0, east: -Math.PI / 2, south: Math.PI, west: Math.PI / 2 })[direction]!);
+    const actor = await dungeon(page).getAttribute('data-actor'); await page.keyboard.down('w');
+    await expect.poll(() => dungeon(page).getAttribute('data-actor'), { timeout: 10_000, intervals: [16] }).not.toBe(actor);
+    const key = await dungeon(page).getAttribute('data-actor'), center = route.centers.find(c => c.key === key)!.center;
+    await expect.poll(async () => { const [x, z] = (await dungeon(page).getAttribute('data-pose'))!.split(',').map(Number); return Math.hypot(x - center.x, z - center.z); }, { timeout: 10_000, intervals: [16] }).toBeLessThan(.18);
+    await page.keyboard.up('w');
+  }
+  const cabinet = route.cabinet, facing = cabinet.facing!, normal = ({ north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] })[facing];
+  const [x, z] = (await dungeon(page).getAttribute('data-pose'))!.split(',').map(Number); await yaw(page, Math.atan2(x - cabinet.center[0], z - cabinet.center[2]));
+  await page.keyboard.down('s');
+  await expect.poll(async () => { const [x, z] = (await dungeon(page).getAttribute('data-pose'))!.split(',').map(Number); return (x - cabinet.center[0]) * normal[0] + (z - cabinet.center[2]) * normal[1]; }, { timeout: 6_000, intervals: [16] }).toBeGreaterThan(1.65);
+  await page.keyboard.up('s');
+  const before = await dungeon(page).getAttribute('data-revision'); await page.screenshot({ path: info.outputPath('cabinet-flush-closed.png') });
+  await page.keyboard.press('e');
+  await expect.poll(async () => JSON.parse((await dungeon(page).getAttribute('data-cabinet-states'))!).find((s: any) => s.id === cabinet.id)?.open).toBe(true);
+  await page.screenshot({ path: info.outputPath('cabinet-keyboard-open.png') });
+  await page.getByRole('button', { name: 'Use nearby control', exact: true }).click();
+  await expect.poll(async () => JSON.parse((await dungeon(page).getAttribute('data-cabinet-states'))!).find((s: any) => s.id === cabinet.id)?.open).toBe(false);
+  expect(await dungeon(page).getAttribute('data-revision')).toBe(before);
+  const fit = await page.evaluate(async () => {
+    const p = await (await fetch('/assets/model-packs/shelving/manifest.json')).json(), a = Object.values(p.assets).find((a: any) => a.id.startsWith('shelving-cabinet')) as any;
+    const parts = a.payload.geometries.main, front = Math.max(...parts.find((p: any) => p.id === 'side-left-sides').mesh.positions.map((v: number[]) => v[2]));
+    const rear = parts.find((p: any) => p.id === 'hinge-left').position[2] + Math.min(...parts.find((p: any) => p.id === 'door-left-sides').mesh.positions.map((v: number[]) => v[2]));
+    return { front, rear, gap: rear - front };
+  });
+  expect(Math.abs(fit.gap)).toBeLessThan(1e-6); await writeFile(info.outputPath('cabinet-fit.json'), JSON.stringify(fit, null, 2));
+});
+
+test('optional construction strategies and per-face stair finishes remain bounded and reversible', async ({ page }, info) => {
+  await page.goto('/tests/e2e/canonical-stairs.html?view=stage3d'); await expect(dungeon(page)).toHaveAttribute('data-timber-status', 'ready');
+  await page.keyboard.down('s');
+  await expect.poll(async () => Number((await dungeon(page).getAttribute('data-pose'))!.split(',')[1]), { timeout: 8_000, intervals: [16] }).toBeGreaterThan(2.2);
+  await page.keyboard.up('s'); await pitch(page, .25);
+  await page.getByText('Architecture options', { exact: true }).click();
+  const counts: Record<string, number> = {};
+  for (const label of ['Corner posts', 'Wall braces', 'Stair entry frame']) {
+    await page.getByLabel(label, { exact: true }).check(); await frames(page);
+    counts[label] = Number(await dungeon(page).getAttribute('data-supports')); expect(counts[label]).toBeGreaterThan(0);
+    await page.screenshot({ path: info.outputPath(label.replaceAll(' ', '-') + '.png') });
+    await page.getByText('Architecture options', { exact: true }).click(); await yaw(page, Math.PI); await pitch(page, .5); await frames(page);
+    await page.screenshot({ path: info.outputPath(label.replaceAll(' ', '-') + '-room.png') });
+    await yaw(page, 0); await pitch(page, .25); await page.getByText('Architecture options', { exact: true }).click();
+    await page.getByLabel(label, { exact: true }).uncheck();
+  }
+  expect(counts['Wall braces']).toBeLessThan(40);
+  for (const label of ['Corner posts', 'Wall braces', 'Stair entry frame', 'Dressed stone risers', 'Iron stair edging']) await page.getByLabel(label, { exact: true }).check();
+  await expect(dungeon(page)).toHaveAttribute('data-stair-finish-ready', 'true'); await frames(page, 15);
+  await page.getByText('Architecture options', { exact: true }).click(); await pitch(page, 0);
+  await page.keyboard.down('w');
+  await expect.poll(async () => JSON.parse((await dungeon(page).getAttribute('data-actor'))!)[0], { timeout: 25_000 }).toBe(2);
+  await expect.poll(async () => Number(await dungeon(page).getAttribute('data-height')), { timeout: 10_000 }).toBeCloseTo(-4.98, 5);
+  await page.keyboard.up('w'); await yaw(page, Math.PI); await pitch(page, .4); await frames(page);
+  await page.screenshot({ path: info.outputPath('stairs-stone-iron-from-below.png') });
+  await page.getByText('Architecture options', { exact: true }).click();
+  await page.getByLabel('Dressed stone risers').uncheck(); await page.getByLabel('Iron stair edging').uncheck();
+  await page.getByText('Architecture options', { exact: true }).click(); await frames(page);
+  await page.screenshot({ path: info.outputPath('stairs-original-from-below.png') });
+  await yaw(page, 0); await pitch(page, 0); await page.keyboard.down('s');
+  await expect.poll(async () => JSON.parse((await dungeon(page).getAttribute('data-actor'))!)[0], { timeout: 25_000 }).toBe(1);
+  await expect.poll(async () => Number(await dungeon(page).getAttribute('data-height')), { timeout: 10_000 }).toBeGreaterThan(-.03); await page.keyboard.up('s');
+  await page.getByText('Architecture options', { exact: true }).click();
+  for (const label of ['Corner posts', 'Wall braces', 'Stair entry frame']) await page.getByLabel(label, { exact: true }).uncheck();
+  await expect(dungeon(page)).toHaveAttribute('data-supports', '0'); await writeFile(info.outputPath('support-strategies.json'), JSON.stringify(counts, null, 2));
+});
+
+test('missing optional construction textures leave no invisible posts or altered stair faces', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.route('**/assets/model-packs/timber/manifest.json', route => route.fulfill({ status: 404, body: 'optional pack absent' }));
+  await page.route('**/assets/model-packs/stage-details/manifest.json', route => route.fulfill({ status: 404, body: 'optional pack absent' }));
+  await page.goto('/tests/e2e/canonical-stairs.html?view=stage3d'); await expect(dungeon(page)).toHaveAttribute('data-timber-status', 'unavailable');
+  await page.getByText('Architecture options', { exact: true }).click();
+  for (const label of ['Corner posts', 'Wall braces', 'Stair entry frame', 'Dressed stone risers', 'Iron stair edging']) await page.getByLabel(label, { exact: true }).check();
+  await expect(dungeon(page)).toHaveAttribute('data-supports', '0'); await expect(dungeon(page)).toHaveAttribute('data-stair-finish-ready', 'false');
+  expect(errors).toEqual([]);
+});
 
 test('five native shelving variants render at avatar scale, with cabinet hinge poses and warmed GPU resources', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));

@@ -97,6 +97,7 @@ export class StageInteractables {
     return (target.kind === 'button' ? 'Button pressed' : 'Lever switched') + ' · door ' + (target.display.open ? 'open' : 'closed');
   }
   nearby(position: Point, footY: number) { return this.nearest(position, footY)?.kind ?? ''; }
+  interactionDistance(position: Point, footY: number) { return this.nearest(position, footY)?.distance ?? Infinity; }
   get count() { return this.displays.size; }
   get states() { return [...this.displays.values()].map(d => ({ id: d.spec.id, open: d.open,
     leverStates: d.levers.map(v => v.currentState), buttonStates: d.buttons.map(v => v.currentState) })); }

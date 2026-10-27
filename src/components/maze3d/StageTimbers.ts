@@ -5,6 +5,7 @@ import { VisualResources } from '../../assets3d/models/VisualInstance';
 import { disposeGeometry } from '../../assets3d/threeAssets';
 import type { SceneBox } from './scene';
 import { ceilingTimbers, timberGeometry } from './timber';
+import type { SupportPart } from './supports';
 
 export const TIMBER_PACK_URL = `${import.meta.env.BASE_URL}assets/model-packs/timber/manifest.json`;
 /** Three material batches in the existing renderer; no per-frame allocation or gameplay authority. */
@@ -15,11 +16,12 @@ export class StageTimbers {
   private alive = true;
   private pack?: ModelPack;
   private latest: SceneBox[] = [];
+  private latestSupports: SupportPart[] = [];
   private key = '';
   private members = 0;
   status = 'loading';
   readonly ready: Promise<void>;
-  constructor(warning: (message: string) => void) {
+  constructor(warning: (message: string) => void, changed = () => {}) {
     this.root.name = 'tilelab-oak-ceiling';
     this.ready = fetch(TIMBER_PACK_URL, { signal: this.abort.signal, cache: 'no-cache' }).then(async response => {
       if (!response.ok) throw Error('Timber pack unavailable');
@@ -27,14 +29,15 @@ export class StageTimbers {
       if (!pack.assets['timber-ceiling-oak']) throw Error('Selected timber profile missing');
       for (const role of ['bark', 'wood-planks', 'wood-endgrain']) if (!Object.values(pack.materials).some(m => m.label === role && m.texture)) throw Error('Timber material missing');
       if (!this.alive) return;
-      this.pack = pack; this.sync(this.latest); await this.resources.ready();
-      if (this.alive) this.status = this.resources.surfaces.warnings.size ? 'fallback' : 'ready';
+      this.pack = pack; this.sync(this.latest, this.latestSupports); await this.resources.ready();
+      if (this.alive) { this.status = this.resources.surfaces.warnings.size ? 'fallback' : 'ready'; changed(); }
     }).catch(() => { if (this.alive) { this.status = 'unavailable'; warning('Optional timber ceiling pack unavailable.'); } });
   }
   get count() { return this.members; }
-  sync(boxes: SceneBox[]) {
-    this.latest = boxes; if (!this.pack || !this.alive) return;
-    const key = JSON.stringify(boxes.filter(b => b.deck === 'ceiling' || ['stone_bricks', 'unknown'].includes(b.material)));
+  get available() { return !!this.pack; }
+  sync(boxes: SceneBox[], supports: SupportPart[] = []) {
+    this.latest = boxes; this.latestSupports = supports; if (!this.pack || !this.alive) return;
+    const key = JSON.stringify([boxes.filter(b => b.deck === 'ceiling' || ['stone_bricks', 'unknown'].includes(b.material)), supports]);
     if (key === this.key) return; this.key = key;
     const members = ceilingTimbers(boxes); this.members = members.length;
     disposeGeometry(this.root); this.root.clear();
@@ -43,6 +46,14 @@ export class StageTimbers {
       const geometry = timberGeometry(member);
       for (const [role, part] of [[member.role === 'joist' ? 'bark' : 'wood-planks', geometry.sides], ['wood-endgrain', geometry.ends]] as const) {
         const parts = batches.get(role) ?? []; parts.push(part); batches.set(role, parts);
+      }
+    }
+    for (const { box, lean } of supports) {
+      const axis = box.size[1] > box.size[0] ? 1 : 0;
+      const local = timberGeometry({ min: box.size.map(n => -n / 2) as [number, number, number], max: box.size.map(n => n / 2) as [number, number, number], role: 'trim', axis, origin: [0, 0, 0] });
+      const matrix = new THREE.Matrix4().makeRotationZ(lean ?? 0); matrix.setPosition(...box.center);
+      for (const [role, part] of [['wood-planks', local.sides], ['wood-endgrain', local.ends]] as const) {
+        part.applyMatrix4(matrix); const list = batches.get(role) ?? []; list.push(part); batches.set(role, list);
       }
     }
     for (const [role, parts] of batches) {
