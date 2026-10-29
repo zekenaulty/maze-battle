@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-composable-building-styles",
+  "kind": "practice",
+  "status": "accepted",
+  "title": "Compose styles without overriding physical or canonical meaning",
+  "trigger": "style culture faction race region blueprint construction building exterior interior era materials",
+  "guidance": "Use explicit versioned semantic/visual profiles for function, region, culture, faction and species affordances. Express identity through construction, forms, materials and bounded variation, preserving the shared game language. Resolve profile conflicts deliberately. Exterior, interior, storeys, roofs and supported projections describe one building in its physical realm; styling cannot override fit, circulation, canonical ownership or disclosure.",
+  "evidence": [
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@4491746cea20ba4b7e2cadae538625d9d74290de/docs/design/visual-language-and-group-styles.md",
+      "revision": "4491746cea20ba4b7e2cadae538625d9d74290de",
+      "note": "Repository design guidance; implementation and acceptance remain separately qualified."
+    },
+    {
+      "kind": "user_instruction",
+      "reference": "Codex conversation 01a17ba6-79f4-7e30-857e-e8832edf2149; owner architectural/spatial directions through 2026-10-29",
+      "note": "Producer: this conversation root, selected owner statements; no transcript harvesting."
+    }
+  ],
+  "recheck": "The referenced profile guidance does not establish a completed runtime style loader. Recheck approved visual references and current profile/placement source; recolor alone is not a construction grammar.",
+  "tags": [
+    "style",
+    "construction",
+    "blueprint",
+    "culture",
+    "visual-language"
+  ],
+  "recorded_on": "2026-10-29"
+}

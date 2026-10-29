@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-selected-import-vs-admission",
+  "kind": "practice",
+  "status": "accepted",
+  "title": "Selected preview import is separate from consumer admission",
+  "trigger": "TileLab import selected package source closure geometry preview admission collision static model",
+  "guidance": "Use explicit selected packages and pinned hashes/identities for Tile Lab intake. The inspected importer validates selected export payloads and labels its output preview-only, without dungeon admission or collision authority. Qualify the intended placement, units, actual neighboring geometry, actor behavior and save compatibility separately. Never import every authoring output or equate a producer replay with runtime acceptance.",
+  "evidence": [
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@4491746cea20ba4b7e2cadae538625d9d74290de/scripts/import-workshop-preview.ts",
+      "revision": "4491746cea20ba4b7e2cadae538625d9d74290de",
+      "note": "Source review only; no game import was performed."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@4491746cea20ba4b7e2cadae538625d9d74290de/.agents/skills/maze-world-geometry/SKILL.md",
+      "revision": "4491746cea20ba4b7e2cadae538625d9d74290de",
+      "note": "Existing owned geometry/admission procedure remains authoritative for this workflow."
+    }
+  ],
+  "recheck": "Recheck current importer package schema, payload limits and model contract. This inspection did not qualify compatibility with the new physical dormer package or perform an asset write.",
+  "tags": [
+    "import",
+    "selection",
+    "provenance",
+    "preview",
+    "admission"
+  ],
+  "recorded_on": "2026-10-29"
+}
