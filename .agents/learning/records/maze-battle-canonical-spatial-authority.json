@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-canonical-spatial-authority",
+  "kind": "technical",
+  "status": "accepted",
+  "title": "Canonical game state owns spatial disclosure and travel",
+  "trigger": "canonical spatial room topology actor travel render projection mesh building admission",
+  "guidance": "Maze Battle owns canonical topology, permitted room/stair disclosure, movement, persistence and admission. The inspected spatial projection reads canonical rooms/stairs with world identity and bounded disclosure; a renderer or imported mesh cannot invent travel or reveal hidden rooms. Preserve source and save/version pins when integrating construction. This is a consumer boundary, not proof that the new Tile Lab physical houses are installed.",
+  "evidence": [
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@4491746cea20ba4b7e2cadae538625d9d74290de/src/persistence/canonical/game/spatialProjection.ts",
+      "revision": "4491746cea20ba4b7e2cadae538625d9d74290de",
+      "note": "Current source reviewed; this setup did not run gameplay traversal or change runtime data."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@4491746cea20ba4b7e2cadae538625d9d74290de/AGENTS.md",
+      "revision": "4491746cea20ba4b7e2cadae538625d9d74290de",
+      "note": "Canonical consumer/producer ownership remains explicit."
+    }
+  ],
+  "recheck": "Recheck the actual active consumer branch, SpatialView and canonical projection/transition source before changes. Authoring geometry and local previews provide no canonical movement or save authority.",
+  "tags": [
+    "canonical",
+    "spatial-view",
+    "travel",
+    "disclosure",
+    "consumer"
+  ],
+  "recorded_on": "2026-10-29"
+}

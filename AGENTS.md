@@ -48,6 +48,12 @@ TileLab produces candidates. This repo owns installation and game admission.
 
 ## Local skills and coordination
 
+- For substantial spatial/game-integration work, resumed objectives or recurring
+  corrections, use [maze-battle-work-learning](.agents/skills/maze-battle-work-learning/SKILL.md).
+  It routes to the shared `work-learning` ledger with scope `maze-battle` and
+  repository records under `.agents/learning/records`. Recheck evidence; the
+  lesson bank does not replace canonical game state or the active work ledger.
+
 - Project skills live in `.agents/skills/` and travel in Git. Do not install or
   depend on a global Codex skill for project procedures. Use the local path even
   if a similarly named global skill exists.

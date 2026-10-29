@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-realm-frame-classification",
+  "kind": "practice",
+  "status": "accepted",
+  "title": "Classify realm and frame before comparing occupancy",
+  "trigger": "realm space frame portal dungeon cellar mine occupancy adjacency collision local coordinates",
+  "guidance": "Establish physical realm/instance and space/frame identity before treating coordinates as neighbors. Same-realm buildings, ordinary cellars and designated mines share coherent volume. An explicit magical portal may connect independently framed realms; only its local endpoint consumes host space. A dungeon label or matching XYZ does not select the realm. Keep canonical transition/return semantics separate from geometry transforms and generation policy.",
+  "evidence": [
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@4491746cea20ba4b7e2cadae538625d9d74290de/docs/design/spatial-domains-and-portals.md",
+      "revision": "4491746cea20ba4b7e2cadae538625d9d74290de",
+      "note": "Inspected guidance explicitly distinguishes intended domains from runtime API implementation."
+    }
+  ],
+  "recheck": "The referenced document is design guidance, not proof of complete realm/portal APIs or migration. Reconcile current identity and persistence contracts; never use a portal label to excuse contradictory geometry within either realm.",
+  "tags": [
+    "realm",
+    "frame",
+    "portal",
+    "occupancy",
+    "collision"
+  ],
+  "recorded_on": "2026-10-29"
+}

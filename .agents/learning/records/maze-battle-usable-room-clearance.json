@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-usable-room-clearance",
+  "kind": "preference",
+  "status": "accepted",
+  "title": "Qualify full actor clearance in actual usable room space",
+  "trigger": "room tiny building usable net space avatar pass through doorway stairs landing clearance furniture",
+  "guidance": "The owner expects rational room allocations and run-through tests: the real actor must clear doorways, landings and stairs, enter rooms and exit the building. Consume actual wall/frame/rail/structure/furniture space, including movement and operating envelopes. A connected abstract room graph or attractive exterior does not prove 3D pass-through. Do not shrink the actor or normalize stock dimensions to hide underallocation.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "Codex conversation 01a17ba6-79f4-7e30-857e-e8832edf2149; owner architectural/spatial directions through 2026-10-29",
+      "note": "Producer: this conversation root, selected owner statements; no transcript harvesting."
+    }
+  ],
+  "recheck": "Read actual actor/collider, room, door and stair geometry on the current consumer branch. Tile Lab metric units, game cell pitch and render units need an explicit conversion applied once; no universal numeric mapping is established by this preference.",
+  "tags": [
+    "clearance",
+    "usable-space",
+    "actor",
+    "doorway",
+    "stairs",
+    "room-program"
+  ],
+  "recorded_on": "2026-10-29"
+}
