@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-visible-stair-connections",
+  "kind": "preference",
+  "status": "accepted",
+  "recorded_on": "2026-10-29",
+  "title": "Make ordinary stair connections visually legible through bounded structural sight",
+  "trigger": "stairs stairwell black boundary lower floor connected room visibility discoverability fog disclosure up down",
+  "guidance": "An ordinary stair and the existence of its visibly connected room should be legible to the human player and available as appropriate structural knowledge to an agent; deliberate puzzle concealment is an explicit exception. Present the current room and bounded directly connected sections above/below, including both when a room has up and down stairs. Preserve the same connection while changing floors so it does not disappear behind a wall, black boundary or competing slab. Keep structural sight separate from inspected contents, loot, actor knowledge and movement authority. If the current lawful projection is too narrow, fix that owning projection within scope rather than bypassing it with private renderer reads or treating old disclosure limits as permanent design intent. This does not request an always-loaded voxel world.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "codex-thread:01a16a2c-da7b-7042-9108-3dbbc26da0f6; owner stair-room visibility correction after initial stair integration",
+      "note": "Owner asks that stairs remain visible unless deliberately hidden by a puzzle, that the lower room's existence be obvious, and that only connected adjacent floor sections need rendering."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@6c24cc483e15edd1375bbcf5dccc132545e731a9/src/persistence/canonical/game/spatialProjection.ts; src/services/game/SpatialView.ts; src/components/maze3d/scene.ts",
+      "revision": "6c24cc483e15edd1375bbcf5dccc132545e731a9",
+      "note": "Recorded projection includes bounded direct structural rooms, not recursive preview-room expansion; preview cells omit chest/stair contents."
+    }
+  ],
+  "recheck": "Reconcile the current dungeon generator, lawful structural projection, puzzle policy, realm identity and traversal contract. Existing room budgets and all-layout visibility are implementation facts to requalify, not universal rules or permission to reveal hidden contents.",
+  "tags": [
+    "stairs",
+    "structural-sight",
+    "visibility",
+    "discoverability",
+    "connected-floors",
+    "human-vision",
+    "projection"
+  ]
+}

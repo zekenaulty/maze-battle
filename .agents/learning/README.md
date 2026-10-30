@@ -16,3 +16,13 @@ recheck relevant source and actual consumer geometry before relying on a finding
 The current physical-building goal remains in scope `maze-tile-lab`, work ID
 `tilelab-physical-jetties-dormers`; querying it is appropriate for an authorized
 cross-repository building handoff, not an instruction to start unrelated work.
+
+The [29 October review](../../docs/reviews/learning-skills-review-20261029.md)
+adds six source-linked 3D consumer lessons from this owner's corrections:
+construction/UV ownership, visible stair connections, actor-relative functional
+props, coherent motion, useful visual acceptance evidence, and preserving fixes
+through integration. These supplement the five bootstrap lessons. The two
+producer-side intake/experiment lessons were published to `maze-tile-lab`'s shared
+inbox; no peer checkout was changed. Shared publication makes records available
+for retrieval, without proving future agents will apply them or reducing the
+need to inspect the actual current source and human experience.

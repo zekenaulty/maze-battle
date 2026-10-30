@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-correction-oriented-visual-acceptance",
+  "kind": "practice",
+  "status": "accepted",
+  "recorded_on": "2026-10-29",
+  "title": "Choose evidence that can actually expose the reported visual or functional defect",
+  "trigger": "visual quality screenshot acceptance UV distortion stair riser front back side open closed camera motion z-fighting green tests",
+  "guidance": "Translate each owner correction into an observable acceptance check before changing implementation. Choose intended player-scale views that expose the surface and state: stairs from below for risers, cabinet closed/open and an oblique side for flush fit, humanoid front/back/both sides for UV orientation, moving-camera views for z-fighting and actual controls for interaction. A top-down tread image cannot establish riser quality; a loaded atlas or passing schema cannot establish correct skinning. Inspect source and consumer separately, retain failed/incomplete evidence, and state the gap between producer validation, rendered result, gameplay integration and human art approval. Show the current stage when useful and keep checks focused on the invariant the correction endangered.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "codex-thread:01a16a2c-da7b-7042-9108-3dbbc26da0f6; owner request to see the stage, humanoid all-direction screenshots and repeated visual QC",
+      "note": "Owner repeatedly found visible issues after prior local success; the requested result includes useful in-context inspection."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@6c24cc483e15edd1375bbcf5dccc132545e731a9/tests/e2e/shelving.spec.ts; docs/reviews/architecture-quality-polish.md",
+      "revision": "6c24cc483e15edd1375bbcf5dccc132545e731a9",
+      "note": "This task retained an insufficient initial downward stair image, then added upward views and real descent/return. The earlier 128-unit/26-browser qualification is historical, not a fresh run for this learning review."
+    }
+  ],
+  "recheck": "Identify the actual current symptom, source asset, lighting, camera and interaction state. New screenshots or test counts do not establish unchanged art quality or all-layout acceptance; do not retain a permanently vague human-review gate after the owner has accepted the exact scope.",
+  "tags": [
+    "visual-qa",
+    "acceptance",
+    "screenshots",
+    "uv",
+    "interaction",
+    "regression",
+    "proof-levels"
+  ]
+}

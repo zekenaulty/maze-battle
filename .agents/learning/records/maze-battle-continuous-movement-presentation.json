@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-continuous-movement-presentation",
+  "kind": "practice",
+  "status": "accepted",
+  "recorded_on": "2026-10-29",
+  "title": "Qualify coherent camera and motion across accepted gameplay updates",
+  "trigger": "3D autoplay camera follow direction movement walking stutter flicker fog redraw texture loss view switch GPU resources",
+  "guidance": "Treat camera direction, walking pose, light and avatar as one coherent presentation of game-owned movement. During Auto, steer toward the current accepted travel direction and advance elapsed-time motion along retained orthogonal legs and the actual stair profile; do not invent a future route or cut through corners. Keep any presentation buffer bounded and reconcile relocation, lost geometry, control handoff and Stop to the committed actor. Repeated stationary/content publications should not restart a step. Preserve unchanged resources through ordinary updates and verify texture restoration and disposal across 3D/2D/3D remounts. Measure frame-time and stopped-motion samples through real cells in addition to unit interpolation checks; an animated-asset experiment also needs an honest viewer-cost assessment.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "codex-thread:01a16a2c-da7b-7042-9108-3dbbc26da0f6; owner stutter/fog redraw, smart Auto camera, steady walking and view-switch texture-loss reports",
+      "note": "The requested target is fluid player-like movement and useful camera direction while preserving the working game systems."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@6c24cc483e15edd1375bbcf5dccc132545e731a9/src/components/maze3d/AutoWalkPresentation.ts; StageRenderer.ts; tests/e2e/canonical-3d.spec.ts",
+      "revision": "6c24cc483e15edd1375bbcf5dccc132545e731a9",
+      "note": "Reviewed accepted-neighbor replay, stationary-publication handling, bounded catch-up/reset and shortest-angle steering. This review does not rerun current runtime performance or claim hardware-wide guarantees."
+    }
+  ],
+  "recheck": "Reconcile current authoritative movement/Auto scheduling, battle/control fences, stair endpoints and resource ownership. Requalify at changed command cadence and on affected view lifetimes; do not copy a prior queue cap, frame time or speed as a universal guarantee.",
+  "tags": [
+    "autoplay",
+    "camera",
+    "movement",
+    "continuity",
+    "render-lifetime",
+    "performance",
+    "fog",
+    "textures"
+  ]
+}

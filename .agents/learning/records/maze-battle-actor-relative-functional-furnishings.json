@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-actor-relative-functional-furnishings",
+  "kind": "preference",
+  "status": "accepted",
+  "recorded_on": "2026-10-29",
+  "title": "Judge props and supports at player scale and in their actual operating states",
+  "trigger": "bookcase shelving book scale avatar cabinet frame flush hinge interaction support beam pillar brace clutter",
+  "guidance": "Use the established avatar as a scale reference and size ordinary props plausibly around it. The owner's five-to-six book rows per person is a visual calibration reference, not a mandatory shelf count. Do not shrink the actor to accommodate oversized furnishings or inadequate circulation. Inspect actual closed/open mesh bounds, bind pivots, back planes and operating sweeps together with the real player collider. When a control promises cabinet opening, exercise that control in the dungeon; a workshop hinge pose is only a partial check. Distinguish local decorative state from game-owned storage/inventory. Add supports at meaningful corners, joins and long spans according to room size/use, with independent optional strategies and stair-clearance checks, rather than filling every available location.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "codex-thread:01a16a2c-da7b-7042-9108-3dbbc26da0f6; owner bookshelf/avatar comparison and five-item cabinet/timber/stair QC",
+      "note": "Owner says the avatar is the correct scale, books appear as large as an arm, cabinet doors must fit/open, and support placement should avoid pointless clutter."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@6c24cc483e15edd1375bbcf5dccc132545e731a9/src/assets3d/models/cabinet.ts; src/components/maze3d/cabinetInteraction.ts; supports.ts; tests/e2e/shelving.spec.ts",
+      "revision": "6c24cc483e15edd1375bbcf5dccc132545e731a9",
+      "note": "Recorded correction measures the cabinet gap, preserves source UVs, guards sweeps and uses the actual movement radius for optional post admission. Recheck current bounds; the old offset is not a repair constant."
+    }
+  ],
+  "recheck": "Review the current avatar, imported mesh/frame conversion, player radius, furniture operating bounds and room purpose. Painted skin accessories are not automatically geometry, and visible storage bays are not inventory authority.",
+  "tags": [
+    "scale",
+    "avatar",
+    "shelving",
+    "cabinet",
+    "interaction",
+    "pivots",
+    "clearance",
+    "supports"
+  ]
+}

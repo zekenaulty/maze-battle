@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-world-uv-and-surface-ownership",
+  "kind": "practice",
+  "status": "accepted",
+  "recorded_on": "2026-10-29",
+  "title": "Derive visible construction and texture phase from shared physical datums",
+  "trigger": "wall floor ceiling stair corner seam lip notch inset z-fighting tiling texture phase construction math",
+  "guidance": "Treat geometry placement and tiling as one construction problem. Establish the installed units, finished floor/slab/wall faces and texture datum; derive segment extents and UV phase from that basis across adjoining pieces. Classify a defect as missing volume, duplicate/coplanar surface, UV phase or shading before repairing it. Give each exposed joint/corner one owner and verify actual opposing faces. Try a geometry-preserving UV correction before changing structural dimensions; dimension changes require a door/stair/floor-frame/collision/save impact check. The owner's block-building analogy asks for coherent construction math, not mandatory voxels or Minecraft dimensions. Rafters or trim may complete a designed joint but must not conceal unresolved substrate errors.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "codex-thread:01a16a2c-da7b-7042-9108-3dbbc26da0f6; owner wall/floor alignment, stair lip and corner corrections",
+      "note": "Owner: 'I'm not saying use blocks, I'm saying use proper math'; trim can hide defects but better math is the fix."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@6c24cc483e15edd1375bbcf5dccc132545e731a9/src/components/maze3d/construction.ts; masonry.ts; timber.ts; quality.test.ts",
+      "revision": "6c24cc483e15edd1375bbcf5dccc132545e731a9",
+      "note": "Reviewed shared texture origins, exposed union face ownership and convex trim closure. Historical local tests apply only to the recorded fixtures."
+    }
+  ],
+  "recheck": "Reinspect the current realm/frame, cell and masonry pitches, slab/wall buildup, UV orientation and neighboring meshes. Do not reuse this branch's numeric dimensions, corner ownership order or tolerances as universal constants.",
+  "tags": [
+    "construction",
+    "uv",
+    "tiling",
+    "surface-ownership",
+    "seams",
+    "corners",
+    "z-fighting",
+    "datums"
+  ]
+}

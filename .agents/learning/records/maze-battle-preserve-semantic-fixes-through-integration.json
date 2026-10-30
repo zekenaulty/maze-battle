@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "scope": "maze-battle",
+  "id": "maze-battle-preserve-semantic-fixes-through-integration",
+  "kind": "practice",
+  "status": "accepted",
+  "recorded_on": "2026-10-29",
+  "title": "Preserve owner-approved behavior through branch alignment and handoff",
+  "trigger": "rebase merge restoration concurrent branch regression rails return stairs cabinet textures working tree committed pushed",
+  "guidance": "Before aligning an in-flight base, record the owned branch/HEAD, dirty scope and owner-corrected behaviors as a semantic checklist. Preserve existing fixes such as removed rails, floor-textured treads, closed headers/corners and view-switch texture survival while combining restored gameplay. Conflict resolution must be followed by those actual visual/behavioral checks; a conflict-free tree alone does not establish parity. Stay in the assigned isolated worktree and inspect peers read-only. At a requested hold/handoff, commit and verify the remote head and clean tracked tree; distinguish locally retained generated packs from tracked adapters, selection pins and reproduction steps. Defer new gameplay work while the owner asks to wait for a concurrent generator change.",
+  "evidence": [
+    {
+      "kind": "user_instruction",
+      "reference": "codex-thread:01a16a2c-da7b-7042-9108-3dbbc26da0f6; owner restoration-base alignment, returned-rails regression and commit/hold requests",
+      "note": "Owner observed previous stair repairs regress while base work was being reconciled, and later requested all work committed/available while generator work continued elsewhere."
+    },
+    {
+      "kind": "source_review",
+      "reference": "maze-battle@6c24cc483e15edd1375bbcf5dccc132545e731a9/docs/3d-exploration-plan.md; docs/coordination/handoffs/2026-10-27-architecture-quality.md",
+      "revision": "6c24cc483e15edd1375bbcf5dccc132545e731a9",
+      "note": "Recorded restoration integration, semantic stair gates and reproducible ignored asset packs. This is a recovery method; the historical handoff pin is not the current generator head."
+    }
+  ],
+  "recheck": "Refresh the actual owner instruction, target base/branch, worktree custody, asset pins and current acceptance checklist. Rebase/merge or messaging authority is task-specific; a lesson or peer handoff grants none.",
+  "tags": [
+    "rebase",
+    "regression",
+    "semantic-parity",
+    "worktree",
+    "handoff",
+    "commit",
+    "concurrency"
+  ]
+}
